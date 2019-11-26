@@ -2,14 +2,13 @@
 par_est
 =======
 
+A project to play around with Parameter Estimation (PE) and Optimal Experimental Design (OED) for ODE and DAE system of equations.
 
-Add a short description here!
-
+Math is handled via casadi.
 
 Description
 ===========
 
-A longer description of your project goes here...
 
 
 Note
