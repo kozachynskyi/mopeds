@@ -9,7 +9,11 @@ Math is handled via casadi.
 Description
 ===========
 
+Requirements
+============
 
+python => 3
+casadi https://github.com/casadi/casadi/wiki/InstallationInstructions
 
 Note
 ====
