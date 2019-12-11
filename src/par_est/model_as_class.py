@@ -34,6 +34,14 @@ class Parameter_variable(Variable):
         self.upper_bound = ub
 
 
+class Control_variable(Variable):
+    def __init__(self, name, value=None, lb=None, ub=None):
+        super().__init__(name)
+        self.value = value
+        self.lower_bound = lb
+        self.upper_bound = ub
+
+
 class VariableList(OrderedDict):
     def __init__(self):
         super().__init__()
@@ -57,20 +65,21 @@ class Model(object):
     def __init__(self, variable_list):
         """TODO: to be defined. """
         self.states = VariableList()
-        self.parameters = VariableList()
         self.variables = VariableList()
+        self._all_variables = VariableList()
         self.equations = None
 
         for var in variable_list.values():
-            if isinstance(var, State_variable):
-                self.states.add_variable(State_variable(var.name))
-            elif isinstance(var, Parameter_variable):
-                self.parameters.add_variable(Parameter_variable(var.name))
+            if isinstance(var, Variable):
+                if isinstance(var, State_variable):
+                    self.states.add_variable(State_variable(var.name))
+                else:
+                    self.variables.add_variable(Parameter_variable(var.name))
             else:
                 raise (ValueError)
 
-        self.variables.update(self.states)
-        self.variables.update(self.parameters)
+        self._all_variables.update(self.states)
+        self._all_variables.update(self.variables)
 
     def add_equations(self, equations):
         if self.equations is None:
@@ -115,21 +124,21 @@ variable_list.add_variable(Parameter_variable("e0_k_pre_r3", 500000.0))
 variable_list.add_variable(Parameter_variable("e0_U", 1.4))
 
 
-variable_list.add_variable(Parameter_variable("e0_c_in_i1", 5.0))
-variable_list.add_variable(Parameter_variable("e0_c_in_i2", 10.0))
-variable_list.add_variable(Parameter_variable("e0_c_in_i3", 0.0))
-variable_list.add_variable(Parameter_variable("e0_c_in_i4", 0.0))
-variable_list.add_variable(Parameter_variable("e0_T_in", 373.0))
-variable_list.add_variable(Parameter_variable("e0_T_j", 373.0))
+variable_list.add_variable(Control_variable("e0_c_in_i1", 5.0))
+variable_list.add_variable(Control_variable("e0_c_in_i2", 10.0))
+variable_list.add_variable(Control_variable("e0_c_in_i3", 0.0))
+variable_list.add_variable(Control_variable("e0_c_in_i4", 0.0))
+variable_list.add_variable(Control_variable("e0_T_in", 373.0))
+variable_list.add_variable(Control_variable("e0_T_j", 373.0))
 
 m = Model(variable_list)
 
 # fmt: off
-tdot = (((((e0_F / e0_V) * ((m.variables["e0_T_in"].casadi_var - m.variables["e0_T"].casadi_var))) + (((m.variables["e0_U"].casadi_var * e0_A) / (e0_greek_rho * (e0_c_p * e0_V))) * ((m.variables["e0_T_j"].casadi_var - m.variables["e0_T"].casadi_var)))) + (((-e0_greek_Deltah_r1) / (e0_greek_rho * e0_c_p)) * (m.variables["e0_k_pre_r1"].casadi_var * (m.variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r1) / (e0_R * m.variables["e0_T"].casadi_var))))))) + (((-e0_greek_Deltah_r2) / (e0_greek_rho * e0_c_p)) * (m.variables["e0_k_pre_r2"].casadi_var * (m.variables["e0_c_i2"].casadi_var * ca.exp(((-e0_E_r2) / (e0_R * m.variables["e0_T"].casadi_var))))))) + (((-e0_greek_Deltah_r3) / (e0_greek_rho * e0_c_p)) * (m.variables["e0_k_pre_r3"].casadi_var * (m.variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r3) / (e0_R * m.variables["e0_T"].casadi_var))))))
-c1dot = ((((e0_F / e0_V) * ((m.variables["e0_c_in_i1"].casadi_var - m.variables["e0_c_i1"].casadi_var))) + (e0_greek_nu_i1_r1 * (m.variables["e0_k_pre_r1"].casadi_var * (m.variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r1) / (e0_R * m.variables["e0_T"].casadi_var))))))) + (e0_greek_nu_i1_r2 * (m.variables["e0_k_pre_r2"].casadi_var * (m.variables["e0_c_i2"].casadi_var * ca.exp(((-e0_E_r2) / (e0_R * m.variables["e0_T"].casadi_var))))))) + (e0_greek_nu_i1_r3 * (m.variables["e0_k_pre_r3"].casadi_var * (m.variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r3) / (e0_R * m.variables["e0_T"].casadi_var))))))
-c2dot = ((e0_F / e0_V) * ((m.variables["e0_c_in_i2"].casadi_var - m.variables["e0_c_i2"].casadi_var))) + (e0_greek_nu_i2_r2 * (m.variables["e0_k_pre_r2"].casadi_var * (m.variables["e0_c_i2"].casadi_var * ca.exp(((-e0_E_r2) / (e0_R * m.variables["e0_T"].casadi_var))))))
-c3dot = ((e0_F / e0_V) * ((m.variables["e0_c_in_i3"].casadi_var - m.variables["e0_c_i3"].casadi_var))) + (e0_greek_nu_i3_r1 * (m.variables["e0_k_pre_r1"].casadi_var * (m.variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r1) / (e0_R * m.variables["e0_T"].casadi_var))))))
-c4dot = ((e0_F / e0_V) * ((m.variables["e0_c_in_i4"].casadi_var - m.variables["e0_c_i4"].casadi_var))) + (e0_greek_nu_i4_r3 * (m.variables["e0_k_pre_r3"].casadi_var * (m.variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r3) / (e0_R * m.variables["e0_T"].casadi_var))))))
+tdot = (((((e0_F / e0_V) * ((m._all_variables["e0_T_in"].casadi_var - m._all_variables["e0_T"].casadi_var))) + (((m._all_variables["e0_U"].casadi_var * e0_A) / (e0_greek_rho * (e0_c_p * e0_V))) * ((m._all_variables["e0_T_j"].casadi_var - m._all_variables["e0_T"].casadi_var)))) + (((-e0_greek_Deltah_r1) / (e0_greek_rho * e0_c_p)) * (m._all_variables["e0_k_pre_r1"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r1) / (e0_R * m._all_variables["e0_T"].casadi_var))))))) + (((-e0_greek_Deltah_r2) / (e0_greek_rho * e0_c_p)) * (m._all_variables["e0_k_pre_r2"].casadi_var * (m._all_variables["e0_c_i2"].casadi_var * ca.exp(((-e0_E_r2) / (e0_R * m._all_variables["e0_T"].casadi_var))))))) + (((-e0_greek_Deltah_r3) / (e0_greek_rho * e0_c_p)) * (m._all_variables["e0_k_pre_r3"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r3) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
+c1dot = ((((e0_F / e0_V) * ((m._all_variables["e0_c_in_i1"].casadi_var - m._all_variables["e0_c_i1"].casadi_var))) + (e0_greek_nu_i1_r1 * (m._all_variables["e0_k_pre_r1"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r1) / (e0_R * m._all_variables["e0_T"].casadi_var))))))) + (e0_greek_nu_i1_r2 * (m._all_variables["e0_k_pre_r2"].casadi_var * (m._all_variables["e0_c_i2"].casadi_var * ca.exp(((-e0_E_r2) / (e0_R * m._all_variables["e0_T"].casadi_var))))))) + (e0_greek_nu_i1_r3 * (m._all_variables["e0_k_pre_r3"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r3) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
+c2dot = ((e0_F / e0_V) * ((m._all_variables["e0_c_in_i2"].casadi_var - m._all_variables["e0_c_i2"].casadi_var))) + (e0_greek_nu_i2_r2 * (m._all_variables["e0_k_pre_r2"].casadi_var * (m._all_variables["e0_c_i2"].casadi_var * ca.exp(((-e0_E_r2) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
+c3dot = ((e0_F / e0_V) * ((m._all_variables["e0_c_in_i3"].casadi_var - m._all_variables["e0_c_i3"].casadi_var))) + (e0_greek_nu_i3_r1 * (m._all_variables["e0_k_pre_r1"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r1) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
+c4dot = ((e0_F / e0_V) * ((m._all_variables["e0_c_in_i4"].casadi_var - m._all_variables["e0_c_i4"].casadi_var))) + (e0_greek_nu_i4_r3 * (m._all_variables["e0_k_pre_r3"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r3) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
 # fmt: on
 
 m.add_equations([tdot, c1dot, c2dot, c3dot, c4dot])
@@ -147,12 +156,12 @@ class Simulator(object):
 
         self.ode_system = {
             "x": self.model.states.get_casadi_var(),
-            "p": ca.vertcat(self.model.parameters.get_casadi_var()),
+            "p": ca.vertcat(self.model.variables.get_casadi_var()),
             "ode": self.model.equations,
         }
         self.ode_system_tau = {
             "x": self.model.states.get_casadi_var(),
-            "p": ca.vertcat(self.tau, self.model.parameters.get_casadi_var()),
+            "p": ca.vertcat(self.tau, self.model.variables.get_casadi_var()),
             "ode": self.model.equations * self.tau,
         }
 
@@ -177,27 +186,30 @@ class Simulator(object):
         )
 
     def create_simulation(self, variable_list: VariableList):
-        self._parameters = []
-        self._unfixed_parameters = VariableList()
+        self._variables = []
+        self._unfixed_variables = VariableList()
+        self._state_variables = VariableList()
         prev_time_step = 0
         res_states = []
         x_init = []
 
         for var in variable_list.values():
-            if isinstance(var, State_variable):
-                x_init.append(var.starting_value)
-            elif isinstance(var, Parameter_variable):
-                if var.fixed:
-                    self._parameters.append(var.value)
+            if isinstance(var, Variable):
+                if isinstance(var, State_variable):
+                    x_init.append(var.starting_value)
+                    self._state_variables.add_variable(var)
                 else:
-                    self._parameters.append(var.casadi_var)
-                    self._unfixed_parameters.add_variable(var)
+                    if var.fixed:
+                        self._variables.append(var.value)
+                    else:
+                        self._variables.append(var.casadi_var)
+                        self._unfixed_variables.add_variable(var)
 
-        self._parameters = ca.vcat(self._parameters)
+        self._variables = ca.vcat(self._variables)
 
         for time_step in self.time_grid[1:]:
             res_integration = self.integrator_tau(
-                x0=x_init, p=ca.vertcat(time_step - prev_time_step, self._parameters)
+                x0=x_init, p=ca.vertcat(time_step - prev_time_step, self._variables)
             )
 
             prev_time_step = time_step
@@ -216,12 +228,12 @@ class Simulator(object):
             return self.evaluate_states
         else:
             values = []
-            for var in self._unfixed_parameters.keys():
+            for var in self._unfixed_variables.keys():
                 values.append(variable_list[var].value)
 
             function = ca.Function(
                 "simulate",
-                [self._unfixed_parameters.get_casadi_var()],
+                [self._unfixed_variables.get_casadi_var()],
                 [self.evaluate_states],
             )
             return function(values)
@@ -229,50 +241,68 @@ class Simulator(object):
     def generate_exp_data(self):
         res_array = self.evaluate_states
         variables = VariableList()
-        for count, var in enumerate(self.model.states.values()):
+        for count, var in enumerate(self._state_variables.values()):
             new_var = copy.deepcopy(var)
             new_var.value = Experimental_Data()
             new_var.value.time = self.time_grid
             new_var.value.value = res_array[count, :].toarray()
-            new_var.value.value = np.insert(new_var.value.value,0,var.starting_value)
+            new_var.value.value = np.insert(new_var.value.value, 0, var.starting_value)
             variables.add_variable(new_var)
         return variables
 
 
-time_grid = [0]
-time_grid.extend(np.linspace(time_grid[-1] + 10, 1000, 100).tolist())
+class Experimental_Data(object):
+    def __init__(self):
+        self.time = None
+        self.value = None
+
+    def is_correct(self):
+        if self.time.size == self.value.size:
+            return True
+        else:
+            False
+
+
+time_grid = np.linspace(10, 1000, 2)
+time_grid = np.insert(time_grid, 0, 0)
+
 s = Simulator(m, time_grid)
 s2 = Simulator(m, time_grid)
 
 var_list1 = copy.deepcopy(variable_list)
 for var in var_list1.values():
     var.fixed = True
-var_list1["e0_U"].fixed = False
 s.create_simulation(var_list1)
 s.simulate(var_list1)
 
-var_list1["e0_U"].fixed = True
-s2.create_simulation(var_list1)
-s2.simulate()
-
-
-class Experimental_Data(object):
-    def __init__(self):
-        self.time = []
-        self.value = []
-
-
-exit()
+var_list_exp = s.generate_exp_data()
 
 
 class ParameterEstimation(object):
 
     """Docstring for ParameterEstimation. """
 
-    def __init__(self, model: Model, exp_data):
+    def __init__(self, model: Model, variable_list: VariableList):
         """TODO: to be defined. """
         self.model = model
-        self.exp_data = exp_data
+        self.time_grid = np.ndarray((1, 0))
+        self.decision_var = VariableList()
+
+        for var in variable_list.values():
+            if isinstance(var, State_variable):
+                if isinstance(var.value, Experimental_Data):
+                    if var.value.is_correct():
+                        self.time_grid = np.append(self.time_grid, var.value.time)
+            elif isinstance(var, Parameter_variable):
+                if var.fixed is False:
+                    self.decision_var.add_variable(var)
+            elif isinstance(var, Control_variable):
+                var.fixed = True
+
+        self.time_grid = np.unique(self.time_grid)
+
+        self.simulation = Simulator(self.model, self.time_grid)
+        self.simulation.create_simulation(variable_list)
 
     def set_exp_data(self, exp_data):
         self._exp_data = exp_data
@@ -346,6 +376,15 @@ class ParameterEstimation(object):
         print(res_solver["x"])
         print(res_solver["x"] * self.parameters_scale)
 
+
+var_list2 = copy.deepcopy(variable_list)
+for key, var in var_list_exp.items():
+    var_list2[key] = var
+
+var_list2["e0_k_pre_r1"].fixed = False
+pe = ParameterEstimation(m, var_list2)
+
+exit()
 
 if __name__ == "__main__":
     time_grid = [0]
