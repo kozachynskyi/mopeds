@@ -16,6 +16,7 @@ class Variable(object):
         self.casadi_var = ca.MX.sym(self.name)
         self.starting_value = None
         self.value = None
+        self.guess = None
         self.lower_bound = None
         self.upper_bound = None
 
@@ -88,62 +89,6 @@ class Model(object):
             raise (NotImplementedError)
 
 
-e0_greek_nu_i1_r1 = -1.0
-e0_greek_nu_i1_r2 = 1.0
-e0_greek_nu_i2_r2 = -1.0
-e0_greek_nu_i3_r1 = 1.0
-e0_greek_nu_i1_r3 = -1.0
-e0_greek_nu_i4_r3 = 1.0
-e0_greek_Deltah_r1 = 0.0045
-e0_greek_Deltah_r2 = -0.0055
-e0_greek_Deltah_r3 = 0.0045
-e0_greek_rho = 800.0
-e0_A = 1.0
-e0_E_r1 = 96000.0
-e0_c_p = 3.5
-e0_E_r2 = 72000.0
-e0_E_r3 = 69000.0
-e0_F = 6.5e-4
-e0_R = 8.314
-e0_V = 1.0
-
-variable_list = VariableList()
-
-variable_list.add_variable(State_variable("e0_T", 273.0))
-variable_list.add_variable(State_variable("e0_c_i1", 3.0))
-variable_list.add_variable(State_variable("e0_c_i2", 10.0))
-variable_list.add_variable(State_variable("e0_c_i3", 0.0))
-variable_list.add_variable(State_variable("e0_c_i4", 0.0))
-
-# parameters_guess = ca.DM([4000000.0, 1.0e6, 400000.0, 2.4])
-# parameters_lb = ca.DM([4000000.0, 1.0e6, 400000.0, 0.4])
-# parameters_ub = ca.DM([6000000.0, 1.0e8, 600000.0, 3.4])
-variable_list.add_variable(Parameter_variable("e0_k_pre_r1", 5000000.0))
-variable_list.add_variable(Parameter_variable("e0_k_pre_r2", 1.0e7))
-variable_list.add_variable(Parameter_variable("e0_k_pre_r3", 500000.0))
-variable_list.add_variable(Parameter_variable("e0_U", 1.4))
-
-
-variable_list.add_variable(Control_variable("e0_c_in_i1", 5.0))
-variable_list.add_variable(Control_variable("e0_c_in_i2", 10.0))
-variable_list.add_variable(Control_variable("e0_c_in_i3", 0.0))
-variable_list.add_variable(Control_variable("e0_c_in_i4", 0.0))
-variable_list.add_variable(Control_variable("e0_T_in", 373.0))
-variable_list.add_variable(Control_variable("e0_T_j", 373.0))
-
-m = Model(variable_list)
-
-# fmt: off
-tdot = (((((e0_F / e0_V) * ((m._all_variables["e0_T_in"].casadi_var - m._all_variables["e0_T"].casadi_var))) + (((m._all_variables["e0_U"].casadi_var * e0_A) / (e0_greek_rho * (e0_c_p * e0_V))) * ((m._all_variables["e0_T_j"].casadi_var - m._all_variables["e0_T"].casadi_var)))) + (((-e0_greek_Deltah_r1) / (e0_greek_rho * e0_c_p)) * (m._all_variables["e0_k_pre_r1"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r1) / (e0_R * m._all_variables["e0_T"].casadi_var))))))) + (((-e0_greek_Deltah_r2) / (e0_greek_rho * e0_c_p)) * (m._all_variables["e0_k_pre_r2"].casadi_var * (m._all_variables["e0_c_i2"].casadi_var * ca.exp(((-e0_E_r2) / (e0_R * m._all_variables["e0_T"].casadi_var))))))) + (((-e0_greek_Deltah_r3) / (e0_greek_rho * e0_c_p)) * (m._all_variables["e0_k_pre_r3"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r3) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
-c1dot = ((((e0_F / e0_V) * ((m._all_variables["e0_c_in_i1"].casadi_var - m._all_variables["e0_c_i1"].casadi_var))) + (e0_greek_nu_i1_r1 * (m._all_variables["e0_k_pre_r1"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r1) / (e0_R * m._all_variables["e0_T"].casadi_var))))))) + (e0_greek_nu_i1_r2 * (m._all_variables["e0_k_pre_r2"].casadi_var * (m._all_variables["e0_c_i2"].casadi_var * ca.exp(((-e0_E_r2) / (e0_R * m._all_variables["e0_T"].casadi_var))))))) + (e0_greek_nu_i1_r3 * (m._all_variables["e0_k_pre_r3"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r3) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
-c2dot = ((e0_F / e0_V) * ((m._all_variables["e0_c_in_i2"].casadi_var - m._all_variables["e0_c_i2"].casadi_var))) + (e0_greek_nu_i2_r2 * (m._all_variables["e0_k_pre_r2"].casadi_var * (m._all_variables["e0_c_i2"].casadi_var * ca.exp(((-e0_E_r2) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
-c3dot = ((e0_F / e0_V) * ((m._all_variables["e0_c_in_i3"].casadi_var - m._all_variables["e0_c_i3"].casadi_var))) + (e0_greek_nu_i3_r1 * (m._all_variables["e0_k_pre_r1"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r1) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
-c4dot = ((e0_F / e0_V) * ((m._all_variables["e0_c_in_i4"].casadi_var - m._all_variables["e0_c_i4"].casadi_var))) + (e0_greek_nu_i4_r3 * (m._all_variables["e0_k_pre_r3"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r3) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
-# fmt: on
-
-m.add_equations([tdot, c1dot, c2dot, c3dot, c4dot])
-
-
 class Simulator(object):
 
     """Docstring for Simulator. """
@@ -152,6 +97,7 @@ class Simulator(object):
         """TODO: to be defined. """
         self.model = model
         self.tau = ca.MX.sym("tau")
+        self.scaling = None
         self.time_grid = time_grid
 
         self.ode_system = {
@@ -187,6 +133,7 @@ class Simulator(object):
 
     def create_simulation(self, variable_list: VariableList):
         self._variables = []
+        self._input_variable_list = variable_list
         self._unfixed_variables = VariableList()
         self._state_variables = VariableList()
         prev_time_step = 0
@@ -207,9 +154,15 @@ class Simulator(object):
 
         self._variables = ca.vcat(self._variables)
 
+        if self.scaling is None:
+            self.scaling = ca.DM.ones(self._variables.size())
+
         for time_step in self.time_grid[1:]:
             res_integration = self.integrator_tau(
-                x0=x_init, p=ca.vertcat(time_step - prev_time_step, self._variables)
+                x0=x_init,
+                p=ca.vertcat(
+                    time_step - prev_time_step, self._variables * self.scaling
+                ),
             )
 
             prev_time_step = time_step
@@ -221,6 +174,7 @@ class Simulator(object):
                 res_states = ca.horzcat(res_states, res_integration["xf"])
 
         self.evaluate_states = res_states
+        return self.evaluate_states
 
     def simulate(self, variable_list=None):
         # I actually do not need this method.
@@ -263,21 +217,6 @@ class Experimental_Data(object):
             False
 
 
-time_grid = np.linspace(10, 1000, 2)
-time_grid = np.insert(time_grid, 0, 0)
-
-s = Simulator(m, time_grid)
-s2 = Simulator(m, time_grid)
-
-var_list1 = copy.deepcopy(variable_list)
-for var in var_list1.values():
-    var.fixed = True
-s.create_simulation(var_list1)
-s.simulate(var_list1)
-
-var_list_exp = s.generate_exp_data()
-
-
 class ParameterEstimation(object):
 
     """Docstring for ParameterEstimation. """
@@ -287,12 +226,14 @@ class ParameterEstimation(object):
         self.model = model
         self.time_grid = np.ndarray((1, 0))
         self.decision_var = VariableList()
+        self.states_experiment = VariableList()
 
         for var in variable_list.values():
             if isinstance(var, State_variable):
                 if isinstance(var.value, Experimental_Data):
                     if var.value.is_correct():
                         self.time_grid = np.append(self.time_grid, var.value.time)
+                        self.states_experiment.add_variable(var)
             elif isinstance(var, Parameter_variable):
                 if var.fixed is False:
                     self.decision_var.add_variable(var)
@@ -304,63 +245,60 @@ class ParameterEstimation(object):
         self.simulation = Simulator(self.model, self.time_grid)
         self.simulation.create_simulation(variable_list)
 
-    def set_exp_data(self, exp_data):
-        self._exp_data = exp_data
-
     def calculate_objective(self):
-        x_init = self.simulator.model.states_init_values
-        prev_time_step = 0
-        res_states = []
+        self.simulation.create_simulation(self.simulation._input_variable_list)
+        error = 0
 
-        # This loop runs iterator for given time_points
-        for time_step in self.simulator.time_grid[1:]:
-            print(time_step)
-            res_integration = self.simulator.integrator_tau(
-                x0=x_init,
-                p=ca.vertcat(
-                    time_step - prev_time_step,
-                    self.simulator.model.parameters * self.parameters_scale,
-                    self.controls_values,
-                ),
-            )
+        # count_state start from 0
+        for count_state, var in enumerate(self.states_experiment.values()):
+            # count_exp_point starts from 0, but we ignore first experimental column
+            # so corresponding value is at count_exp_point + 1
+            # res_index looks for index in array with 0 timepoint
+            # and sim.evaluate_states doesn't include that time_point, thus - 1
+            for count_exp_point, time_point in enumerate(var.value.time[1:]):
+                res_index = np.nonzero(self.time_grid == time_point)
+                res_index = res_index[0][0]
+                error = (
+                    error
+                    + 0.5
+                    * (
+                        self.simulation.evaluate_states[count_state, res_index - 1]
+                        - var.value.value[count_exp_point + 1]
+                    )
+                    ** 2
+                )
 
-            prev_time_step = time_step
-            x_init = res_integration["xf"]
-            if time_step == self.simulator.time_grid[1]:
-                res_states = res_integration["xf"]
-            else:
-                res_states = ca.horzcat(res_states, res_integration["xf"])
-
-        self.res_states = res_states
-        self.error = self._exp_data - self.res_states
-        self.objective = 0.5 * ca.dot(self.error, self.error)
+        self.objective = error
         return self.objective
 
-    def eval_res_states(self, parameters_values):
-        function = ca.Function(
-            "eval_states", [self.simulator.model.parameters], [self.error]
-        )
-        res = function(parameters_values)
-        return res
+    def optimize(self, scale=True):
+        # Scaling decreases amount of iterations, but ipopt fails gradient check at big amount of timestamps
+        guess = []
+        lb = []
+        ub = []
+        for var in self.decision_var.values():
+            guess.append(var.guess)
+            lb.append(var.lower_bound)
+            ub.append(var.upper_bound)
 
-    def eval_error(self, parameters_values):
-        function = ca.Function(
-            "eval_error", [self.simulator.model.parameters], [self.error]
-        )
-        res = function(parameters_values)
-        return res
+        guess = np.array(guess)
+        lb = np.array(lb)
+        ub = np.array(ub)
 
-    def eval_objective(self, parameters_values):
-        function = ca.Function(
-            "eval_objective", [self.simulator.model.parameters], [self.objective]
-        )
-        res = function(parameters_values)
-        return res
+        if scale:
+            self.scaling = guess
 
-    def optimize(self, parameters_guess, lower_bound, upper_bound):
-        # Settings for optimizer are set here
-        self.parameters_scale = parameters_guess
-        nlp = {"x": self.simulator.model.parameters, "f": self.calculate_objective()}
+            # for var in self.simulation._variables fails to iterate
+            for count in range(self.simulation._variables.size()[0]):
+                var = self.simulation._variables[count]
+                if var.is_symbolic():
+                    self.simulation.scaling[count] = self.decision_var[var.name()].guess
+        else:
+            self.scaling = 1
+            self.simulation.scaling = None
+
+        nlp = {"x": self.decision_var.get_casadi_var(), "f": self.calculate_objective()}
+
         nlp_solver = ca.nlpsol(
             "solver",
             "ipopt",
@@ -369,51 +307,107 @@ class ParameterEstimation(object):
         )
 
         res_solver = nlp_solver(
-            x0=parameters_guess / self.parameters_scale,
-            lbx=lower_bound / self.parameters_scale,
-            ubx=upper_bound / self.parameters_scale,
+            x0=guess / self.scaling, lbx=lb / self.scaling, ubx=ub / self.scaling
         )
         print(res_solver["x"])
-        print(res_solver["x"] * self.parameters_scale)
+        print(res_solver["x"] * self.scaling)
 
-
-var_list2 = copy.deepcopy(variable_list)
-for key, var in var_list_exp.items():
-    var_list2[key] = var
-
-var_list2["e0_k_pre_r1"].fixed = False
-pe = ParameterEstimation(m, var_list2)
-
-exit()
 
 if __name__ == "__main__":
-    time_grid = [0]
-    time_grid.extend(np.linspace(time_grid[-1] + 10, 1000, 100).tolist())
 
-    model = Model([1, None, 1, None], 1)
-    sim = Simulator(model, time_grid)
+    e0_greek_nu_i1_r1 = -1.0
+    e0_greek_nu_i1_r2 = 1.0
+    e0_greek_nu_i2_r2 = -1.0
+    e0_greek_nu_i3_r1 = 1.0
+    e0_greek_nu_i1_r3 = -1.0
+    e0_greek_nu_i4_r3 = 1.0
+    e0_greek_Deltah_r1 = 0.0045
+    e0_greek_Deltah_r2 = -0.0055
+    e0_greek_Deltah_r3 = 0.0045
+    e0_greek_rho = 800.0
+    e0_A = 1.0
+    e0_E_r1 = 96000.0
+    e0_c_p = 3.5
+    e0_E_r2 = 72000.0
+    e0_E_r3 = 69000.0
+    e0_F = 6.5e-4
+    e0_R = 8.314
+    e0_V = 1.0
 
-    # Call integrator to generate experimental data for PE
-    res_integration = sim.integrator(
-        x0=sim.model.states_init_values,
-        p=ca.vertcat(sim.model.parameters_values, sim.model.controls_values),
-    )
-    exp_data = res_integration["xf"]
-    print(exp_data)
+    variable_list = VariableList()
 
-    pe = ParameterEstimation(sim, model.controls_values)
-    pe.set_exp_data(exp_data)
-    # obj = pe.calculate_objective()
-    # print(obj)
+    variable_list.add_variable(State_variable("e0_T", 273.0))
+    variable_list.add_variable(State_variable("e0_c_i1", 3.0))
+    variable_list.add_variable(State_variable("e0_c_i2", 10.0))
+    variable_list.add_variable(State_variable("e0_c_i3", 0.0))
+    variable_list.add_variable(State_variable("e0_c_i4", 0.0))
 
-    # print(pe.eval_error(model.parameters_values))
-    # print(pe.eval_objective(model.parameters_values))
+    variable_list.add_variable(Parameter_variable("e0_k_pre_r1", 5000000.0))
+    variable_list.add_variable(Parameter_variable("e0_k_pre_r2", 1.0e7))
+    variable_list.add_variable(Parameter_variable("e0_k_pre_r3", 500000.0))
+    variable_list.add_variable(Parameter_variable("e0_U", 1.4))
 
-    parameters_guess = ca.DM([4000000.0, 1.0e6, 400000.0, 2.4])
-    parameters_lb = ca.DM([4000000.0, 1.0e6, 400000.0, 0.4])
-    parameters_ub = ca.DM([6000000.0, 1.0e8, 600000.0, 3.4])
+    variable_list.add_variable(Control_variable("e0_c_in_i1", 5.0))
+    variable_list.add_variable(Control_variable("e0_c_in_i2", 10.0))
+    variable_list.add_variable(Control_variable("e0_c_in_i3", 0.0))
+    variable_list.add_variable(Control_variable("e0_c_in_i4", 0.0))
+    variable_list.add_variable(Control_variable("e0_T_in", 373.0))
+    variable_list.add_variable(Control_variable("e0_T_j", 373.0))
 
-    pe.optimize(parameters_guess, parameters_lb, parameters_ub)
+    m = Model(variable_list)
+
+    # fmt: off
+    tdot = (((((e0_F / e0_V) * ((m._all_variables["e0_T_in"].casadi_var - m._all_variables["e0_T"].casadi_var))) + (((m._all_variables["e0_U"].casadi_var * e0_A) / (e0_greek_rho * (e0_c_p * e0_V))) * ((m._all_variables["e0_T_j"].casadi_var - m._all_variables["e0_T"].casadi_var)))) + (((-e0_greek_Deltah_r1) / (e0_greek_rho * e0_c_p)) * (m._all_variables["e0_k_pre_r1"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r1) / (e0_R * m._all_variables["e0_T"].casadi_var))))))) + (((-e0_greek_Deltah_r2) / (e0_greek_rho * e0_c_p)) * (m._all_variables["e0_k_pre_r2"].casadi_var * (m._all_variables["e0_c_i2"].casadi_var * ca.exp(((-e0_E_r2) / (e0_R * m._all_variables["e0_T"].casadi_var))))))) + (((-e0_greek_Deltah_r3) / (e0_greek_rho * e0_c_p)) * (m._all_variables["e0_k_pre_r3"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r3) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
+    c1dot = ((((e0_F / e0_V) * ((m._all_variables["e0_c_in_i1"].casadi_var - m._all_variables["e0_c_i1"].casadi_var))) + (e0_greek_nu_i1_r1 * (m._all_variables["e0_k_pre_r1"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r1) / (e0_R * m._all_variables["e0_T"].casadi_var))))))) + (e0_greek_nu_i1_r2 * (m._all_variables["e0_k_pre_r2"].casadi_var * (m._all_variables["e0_c_i2"].casadi_var * ca.exp(((-e0_E_r2) / (e0_R * m._all_variables["e0_T"].casadi_var))))))) + (e0_greek_nu_i1_r3 * (m._all_variables["e0_k_pre_r3"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r3) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
+    c2dot = ((e0_F / e0_V) * ((m._all_variables["e0_c_in_i2"].casadi_var - m._all_variables["e0_c_i2"].casadi_var))) + (e0_greek_nu_i2_r2 * (m._all_variables["e0_k_pre_r2"].casadi_var * (m._all_variables["e0_c_i2"].casadi_var * ca.exp(((-e0_E_r2) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
+    c3dot = ((e0_F / e0_V) * ((m._all_variables["e0_c_in_i3"].casadi_var - m._all_variables["e0_c_i3"].casadi_var))) + (e0_greek_nu_i3_r1 * (m._all_variables["e0_k_pre_r1"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r1) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
+    c4dot = ((e0_F / e0_V) * ((m._all_variables["e0_c_in_i4"].casadi_var - m._all_variables["e0_c_i4"].casadi_var))) + (e0_greek_nu_i4_r3 * (m._all_variables["e0_k_pre_r3"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r3) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
+    # fmt: on
+
+    m.add_equations([tdot, c1dot, c2dot, c3dot, c4dot])
+
+    time_grid = np.linspace(10, 1000, 2)
+    time_grid = np.insert(time_grid, 0, 0)
+
+    s = Simulator(m, time_grid)
+    s2 = Simulator(m, time_grid)
+
+    var_list1 = copy.deepcopy(variable_list)
+    for var in var_list1.values():
+        var.fixed = True
+    s.create_simulation(var_list1)
+    s.simulate(var_list1)
+
+    var_list_exp = s.generate_exp_data()
+
+    var_list2 = copy.deepcopy(var_list1)
+    for key, var in var_list_exp.items():
+        var_list2[key] = var
+
+    var_list2["e0_U"].fixed = False
+    var_list2["e0_U"].guess = 1.1
+    var_list2["e0_U"].lower_bound = 1.0
+    var_list2["e0_U"].upper_bound = 3.0
+
+    var_list2["e0_k_pre_r1"].fixed = True
+    var_list2["e0_k_pre_r1"].guess = 4000000.0
+    var_list2["e0_k_pre_r1"].lower_bound = 4000000.0
+    var_list2["e0_k_pre_r1"].upper_bound = 6000000.0
+
+    var_list2["e0_k_pre_r2"].fixed = False
+    var_list2["e0_k_pre_r2"].guess = 1.0e6
+    var_list2["e0_k_pre_r2"].lower_bound = 1.0e6
+    var_list2["e0_k_pre_r2"].upper_bound = 1.0e8
+
+    var_list2["e0_k_pre_r3"].fixed = False
+    var_list2["e0_k_pre_r3"].guess = 400000.0
+    var_list2["e0_k_pre_r3"].lower_bound = 400000.0
+    var_list2["e0_k_pre_r3"].upper_bound = 600000.0
+
+    pe = ParameterEstimation(m, var_list2)
+    pe.optimize()
+    pe.optimize(False)
+
 
 # # """
 # # ODE Routine is currently not yeilding great results
