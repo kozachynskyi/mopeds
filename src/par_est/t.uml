@@ -1,0 +1,52 @@
+@startuml
+class Variable {
+        self.name = name
+        self.fixed = False
+        self.casadi_var = ca.MX.sym(self.name)
+        self.starting_value = None
+        self.value = None
+        self.lower_bound = None
+        self.upper_bound = None
+}
+class State_variable {
+     	__init__(self, name, starting_value=None)
+        self.starting_value = starting_value
+}
+Variable <|-- State_variable
+class Parameter_variable {
+  	__init__(self, name, value=None, lb=None, ub=None):
+        super().init(name)
+        self.value = value
+        self.lower_bound = lb
+        self.upper_bound = ub
+}
+Variable <|-- Parameter_variable
+
+class VariableList {
+	super().init()
+	self.add_variable()
+	self.get_casadi_var()
+}
+
+OrderedDict <|-- VariableList
+VariableList -- "0..*" Variable
+
+class Model {
+	init
+	self.states = VariableList
+        self.parameters = VariableList
+        self.variables = VariableList
+        self.equations = None
+	self.add_equations(equations)
+}
+
+object Model.states
+object Model.parameters
+object Model.variables
+
+
+Model -- "1" Model.states
+Model -- "1" Model.parameters
+Model -- "1" Model.variables
+
+@enduml
