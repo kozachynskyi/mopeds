@@ -271,7 +271,7 @@ class ParameterEstimation(object):
         self.objective = error
         return self.objective
 
-    def optimize(self, scale=True):
+    def optimize(self, scale=True, scale_test=False):
         # Scaling decreases amount of iterations, but ipopt fails gradient check at big amount of timestamps
         guess = []
         lb = []
@@ -295,6 +295,10 @@ class ParameterEstimation(object):
                     self.simulation.scaling[count] = self.decision_var[var.name()].guess
         else:
             self.scaling = 1
+            self.simulation.scaling = None
+
+        if scale_test:
+            self.scaling = guess
             self.simulation.scaling = None
 
         nlp = {"x": self.decision_var.get_casadi_var(), "f": self.calculate_objective()}
@@ -355,6 +359,7 @@ if __name__ == "__main__":
     variable_list.add_variable(Control_variable("e0_T_j", 373.0))
 
     m = Model(variable_list)
+    m_scaled = Model(variable_list)
 
     # fmt: off
     tdot = (((((e0_F / e0_V) * ((m._all_variables["e0_T_in"].casadi_var - m._all_variables["e0_T"].casadi_var))) + (((m._all_variables["e0_U"].casadi_var * e0_A) / (e0_greek_rho * (e0_c_p * e0_V))) * ((m._all_variables["e0_T_j"].casadi_var - m._all_variables["e0_T"].casadi_var)))) + (((-e0_greek_Deltah_r1) / (e0_greek_rho * e0_c_p)) * (m._all_variables["e0_k_pre_r1"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r1) / (e0_R * m._all_variables["e0_T"].casadi_var))))))) + (((-e0_greek_Deltah_r2) / (e0_greek_rho * e0_c_p)) * (m._all_variables["e0_k_pre_r2"].casadi_var * (m._all_variables["e0_c_i2"].casadi_var * ca.exp(((-e0_E_r2) / (e0_R * m._all_variables["e0_T"].casadi_var))))))) + (((-e0_greek_Deltah_r3) / (e0_greek_rho * e0_c_p)) * (m._all_variables["e0_k_pre_r3"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r3) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
@@ -364,9 +369,18 @@ if __name__ == "__main__":
     c4dot = ((e0_F / e0_V) * ((m._all_variables["e0_c_in_i4"].casadi_var - m._all_variables["e0_c_i4"].casadi_var))) + (e0_greek_nu_i4_r3 * (m._all_variables["e0_k_pre_r3"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r3) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
     # fmt: on
 
-    m.add_equations([tdot, c1dot, c2dot, c3dot, c4dot])
+    # fmt: off
+    tdot_scaled = (((((e0_F / e0_V) * ((m_scaled._all_variables["e0_T_in"].casadi_var - m_scaled._all_variables["e0_T"].casadi_var))) + ((((m_scaled._all_variables["e0_U"].casadi_var * 1.1) * e0_A) / (e0_greek_rho * (e0_c_p * e0_V))) * ((m_scaled._all_variables["e0_T_j"].casadi_var - m_scaled._all_variables["e0_T"].casadi_var)))) + (((-e0_greek_Deltah_r1) / (e0_greek_rho * e0_c_p)) * ((m_scaled._all_variables["e0_k_pre_r1"].casadi_var * 4.0e+06) * (m_scaled._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r1) / (e0_R * m_scaled._all_variables["e0_T"].casadi_var))))))) + (((-e0_greek_Deltah_r2) / (e0_greek_rho * e0_c_p)) * (m_scaled._all_variables["e0_k_pre_r2"].casadi_var * (m_scaled._all_variables["e0_c_i2"].casadi_var * ca.exp(((-e0_E_r2) / (e0_R * m_scaled._all_variables["e0_T"].casadi_var))))))) + (((-e0_greek_Deltah_r3) / (e0_greek_rho * e0_c_p)) * (m_scaled._all_variables["e0_k_pre_r3"].casadi_var * (m_scaled._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r3) / (e0_R * m_scaled._all_variables["e0_T"].casadi_var))))))
+    c1dot_scaled = ((((e0_F / e0_V) * ((m_scaled._all_variables["e0_c_in_i1"].casadi_var - m_scaled._all_variables["e0_c_i1"].casadi_var))) + (e0_greek_nu_i1_r1 * ((m_scaled._all_variables["e0_k_pre_r1"].casadi_var * 4.0e+06) * (m_scaled._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r1) / (e0_R * m_scaled._all_variables["e0_T"].casadi_var))))))) + (e0_greek_nu_i1_r2 * (m_scaled._all_variables["e0_k_pre_r2"].casadi_var * (m_scaled._all_variables["e0_c_i2"].casadi_var * ca.exp(((-e0_E_r2) / (e0_R * m_scaled._all_variables["e0_T"].casadi_var))))))) + (e0_greek_nu_i1_r3 * (m_scaled._all_variables["e0_k_pre_r3"].casadi_var * (m_scaled._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r3) / (e0_R * m_scaled._all_variables["e0_T"].casadi_var))))))
+    c2dot_scaled = ((e0_F / e0_V) * ((m_scaled._all_variables["e0_c_in_i2"].casadi_var - m_scaled._all_variables["e0_c_i2"].casadi_var))) + (e0_greek_nu_i2_r2 * (m_scaled._all_variables["e0_k_pre_r2"].casadi_var * (m_scaled._all_variables["e0_c_i2"].casadi_var * ca.exp(((-e0_E_r2) / (e0_R * m_scaled._all_variables["e0_T"].casadi_var))))))
+    c3dot_scaled = ((e0_F / e0_V) * ((m_scaled._all_variables["e0_c_in_i3"].casadi_var - m_scaled._all_variables["e0_c_i3"].casadi_var))) + (e0_greek_nu_i3_r1 * ((m_scaled._all_variables["e0_k_pre_r1"].casadi_var * 4.0e+06) * (m_scaled._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r1) / (e0_R * m_scaled._all_variables["e0_T"].casadi_var))))))
+    c4dot_scaled = ((e0_F / e0_V) * ((m_scaled._all_variables["e0_c_in_i4"].casadi_var - m_scaled._all_variables["e0_c_i4"].casadi_var))) + (e0_greek_nu_i4_r3 * (m_scaled._all_variables["e0_k_pre_r3"].casadi_var * (m_scaled._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r3) / (e0_R * m_scaled._all_variables["e0_T"].casadi_var))))))
+    # fmt: on
 
-    time_grid = np.linspace(10, 1000, 2)
+    m.add_equations([tdot, c1dot, c2dot, c3dot, c4dot])
+    m_scaled.add_equations([tdot_scaled, c1dot_scaled, c2dot_scaled, c3dot_scaled, c4dot_scaled])
+
+    time_grid = np.linspace(10, 1000, 200)
     time_grid = np.insert(time_grid, 0, 0)
 
     s = Simulator(m, time_grid)
@@ -389,24 +403,25 @@ if __name__ == "__main__":
     var_list2["e0_U"].lower_bound = 1.0
     var_list2["e0_U"].upper_bound = 3.0
 
-    var_list2["e0_k_pre_r1"].fixed = True
+    var_list2["e0_k_pre_r1"].fixed = False
     var_list2["e0_k_pre_r1"].guess = 4000000.0
     var_list2["e0_k_pre_r1"].lower_bound = 4000000.0
     var_list2["e0_k_pre_r1"].upper_bound = 6000000.0
 
-    var_list2["e0_k_pre_r2"].fixed = False
+    var_list2["e0_k_pre_r2"].fixed = True
     var_list2["e0_k_pre_r2"].guess = 1.0e6
     var_list2["e0_k_pre_r2"].lower_bound = 1.0e6
     var_list2["e0_k_pre_r2"].upper_bound = 1.0e8
 
-    var_list2["e0_k_pre_r3"].fixed = False
+    var_list2["e0_k_pre_r3"].fixed = True
     var_list2["e0_k_pre_r3"].guess = 400000.0
     var_list2["e0_k_pre_r3"].lower_bound = 400000.0
     var_list2["e0_k_pre_r3"].upper_bound = 600000.0
 
     pe = ParameterEstimation(m, var_list2)
+    pe_scaled = ParameterEstimation(m_scaled, var_list2)
     pe.optimize()
-    pe.optimize(False)
+    pe_scaled.optimize(False, True)
 
 
 # # """
