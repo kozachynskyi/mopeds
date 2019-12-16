@@ -25,6 +25,7 @@ class State_variable(Variable):
     def __init__(self, name, starting_value=None):
         super().__init__(name)
         self.starting_value = starting_value
+        self.value = Experimental_Data()
 
 
 class Parameter_variable(Variable):
@@ -176,22 +177,6 @@ class Simulator(object):
 
         return res_states
 
-    def simulate(self, variable_list=None):
-        # I actually do not need this method.
-        if isinstance(self.evaluate_states, ca.DM):
-            return self.evaluate_states
-        else:
-            values = []
-            for var in self._unfixed_variables.keys():
-                values.append(variable_list[var].value)
-
-            function = ca.Function(
-                "simulate",
-                [self._unfixed_variables.get_casadi_var()],
-                [self.evaluate_states],
-            )
-            return function(values)
-
     def generate_exp_data(self):
         res_array = self.create_simulation()
         variables = VariableList()
@@ -211,6 +196,8 @@ class Experimental_Data(object):
         self.value = None
 
     def is_correct(self):
+        if self.time is None or self.value is None:
+            return False
         if self.time.size == self.value.size:
             return True
         else:
@@ -229,11 +216,11 @@ class ParameterEstimation(object):
         self.states_experiment = VariableList()
 
         for var in variable_list.values():
+            # Generates time_grid based on available exp data
             if isinstance(var, State_variable):
-                if isinstance(var.value, Experimental_Data):
-                    if var.value.is_correct():
-                        self.time_grid = np.append(self.time_grid, var.value.time)
-                        self.states_experiment.add_variable(var)
+                self.states_experiment.add_variable(var)
+                if var.value.is_correct():
+                    self.time_grid = np.append(self.time_grid, var.value.time)
             elif isinstance(var, Parameter_variable):
                 if var.fixed is False:
                     self.decision_var.add_variable(var)
@@ -251,23 +238,28 @@ class ParameterEstimation(object):
         error = 0
 
         # count_state start from 0
+        # TODO this can be implemented better, by using different information model
         for count_state, var in enumerate(self.states_experiment.values()):
-            # count_exp_point starts from 0, but we ignore first experimental column
-            # so corresponding value is at count_exp_point + 1
-            # res_index looks for index in array with 0 timepoint
-            # and sim.evaluate_states doesn't include that time_point, thus - 1
-            for count_exp_point, time_point in enumerate(var.value.time[1:]):
-                res_index = np.nonzero(self.time_grid == time_point)
-                res_index = res_index[0][0]
-                error = (
-                    error
-                    + 0.5
-                    * (
-                        res[count_state, res_index - 1]
-                        - var.value.value[count_exp_point + 1]
+            if var.value.is_correct():
+                # count_exp_point starts from 0, but we ignore first experimental column
+                # so corresponding value is at count_exp_point + 1
+                # res_index looks for index in array with 0 timepoint
+                # and sim.evaluate_states doesn't include that time_point, thus - 1
+                for count_exp_point, time_point in enumerate(var.value.time[1:]):
+                    # Looks up an index in a time_grid that has given time_point
+                    res_index = np.nonzero(self.time_grid == time_point)
+                    res_index = res_index[0][0]
+                    error = (
+                        error
+                        + 0.5
+                        * (
+                            res[count_state, res_index - 1]
+                            - var.value.value[count_exp_point + 1]
+                        )
+                        ** 2
                     )
-                    ** 2
-                )
+                    # print(res[count_state, res_index - 1])
+                    print(var.value.value[count_exp_point + 1])
 
         return error
 
@@ -287,7 +279,6 @@ class ParameterEstimation(object):
 
         if scale:
             self.scaling = guess
-
             # for var in self.simulation._variables fails to iterate
             for count in range(self.simulation._variables.size()[0]):
                 var = self.simulation._variables[count]
@@ -380,8 +371,8 @@ if __name__ == "__main__":
     for key, var in var_list_exp.items():
         var_list2[key] = var
 
-    # TODO Fix the work if this is uncommented
-    # var_list2["e0_T"].value = None
+    var_list2["e0_T"].value = Experimental_Data()
+    # var_list2["e0_c_i4"].value = Experimental_Data()
 
     var_list2["e0_U"].fixed = False
     var_list2["e0_U"].guess = 1.1
@@ -405,7 +396,7 @@ if __name__ == "__main__":
 
     pe = ParameterEstimation(m, var_list2)
     pe.optimize()
-    pe.optimize(False)
+    # pe.optimize(False)
 
 
 # # """
