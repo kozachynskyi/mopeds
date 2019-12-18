@@ -207,51 +207,51 @@ for time_step in time_grid[1:]:
     else:
         res_jac_ode = ca.vertcat(res_jac_ode, res_integration_jac["jac_xf_p"][:, 0:4])
 
-# res_jacobian = ca.jacobian(res_states_ode, ca.vertcat(parameters, controls))
-# res_jacobian = ca.jacobian(res_states_ode, parameters)
+res_jacobian = ca.jacobian(res_states_ode, ca.vertcat(parameters, controls))
+res_jacobian = ca.jacobian(res_states_ode, parameters)
 
-# # Check objective
-# eval_jacobian = ca.Function("eval_jacobian", [parameters, controls], [res_jac_ode])
-# sensitivity_matrix = eval_jacobian(parameters_values, controls)[:, 0:4]
+# Check objective
+eval_jacobian = ca.Function("eval_jacobian", [parameters, controls], [res_jac_ode])
+sensitivity_matrix = eval_jacobian(parameters_values, controls)[:, 0:4]
 
-# # Calculate OBJ TRACE[FIM]
-# sigma_diag = ca.DM([1, 1, 1, 1, 1]) * 1e20
-# sigma_full = ca.diag(sigma_diag)
+# Calculate OBJ TRACE[FIM]
+sigma_diag = ca.DM([1, 1, 1, 1, 1]) * 1e20
+sigma_full = ca.diag(sigma_diag)
 
-# measurement_matrix = ca.repmat(sigma_full, num_steps, num_steps)
-# sensitivity_matrix = res_jac_ode
-# fim_matrix = sensitivity_matrix.T @ measurement_matrix @ sensitivity_matrix
+measurement_matrix = ca.repmat(sigma_full, num_steps, num_steps)
+sensitivity_matrix = res_jac_ode
+fim_matrix = sensitivity_matrix.T @ measurement_matrix @ sensitivity_matrix
 
-# eval_fim_matrix = ca.Function("eval_fim", [controls], [fim_matrix])
-# fim_matrix_inv = ca.inv(fim_matrix)
-# trace = ca.trace(fim_matrix_inv)
+eval_fim_matrix = ca.Function("eval_fim", [controls], [fim_matrix])
+fim_matrix_inv = ca.inv(fim_matrix)
+trace = ca.trace(fim_matrix_inv)
 
-# eval_trace = ca.Function("eval_trace", [controls], [trace])
+eval_trace = ca.Function("eval_trace", [controls], [trace])
 
-# fim = sensitivity_matrix.T @ measurement_matrix @ sensitivity_matrix
-# trace = ca.trace(ca.inv(fim))
+fim = sensitivity_matrix.T @ measurement_matrix @ sensitivity_matrix
+trace = ca.trace(ca.inv(fim))
+
+trace = ca.trace(res_jac_ode@res_jac_ode.T)
+nlp_ode = {"x": ca.vertcat(parameters, controls), "f": trace}
+nlp_solver_ode = ca.nlpsol(
+    "solver",
+    "ipopt",
+    nlp_ode,
+    #     {"verbose": False, "ipopt": {"hessian_approximation": "exact", "max_iter": 200,"derivative_test": 'first-order'}},
+    {
+        "verbose": True,
+        "ipopt": {
+            "hessian_approximation": "limited-memory",
+            "max_iter": 200,
+            "derivative_test": "first-order",
+        },
+    },
+)
 #
-# trace = ca.trace(res_jac_ode@res_jac_ode.T)
-# nlp_ode = {"x": ca.vertcat(parameters, controls), "f": trace}
-# nlp_solver_ode = ca.nlpsol(
-#     "solver",
-#     "ipopt",
-#     nlp_ode,
-#     #     {"verbose": False, "ipopt": {"hessian_approximation": "exact", "max_iter": 200,"derivative_test": 'first-order'}},
-#     {
-#         "verbose": True,
-#         "ipopt": {
-#             "hessian_approximation": "limited-memory",
-#             "max_iter": 200,
-#             "derivative_test": "first-order",
-#         },
-#     },
-# )
-# #
-# res_solver_ode = nlp_solver_ode(
-#     x0=ca.vertcat(parameters_values, controls_guess),
-#     lbx=ca.vertcat(parameters_values, controls_lb),
-#     ubx=ca.vertcat(parameters_values, controls_ub),
-# )
-# # res_solver_ode = nlp_solver_ode(x0=controls_guess, lbx=controls_lb, ubx=controls_ub)
-# print(res_solver_ode["x"])
+res_solver_ode = nlp_solver_ode(
+    x0=ca.vertcat(parameters_values, controls_guess),
+    lbx=ca.vertcat(parameters_values, controls_lb),
+    ubx=ca.vertcat(parameters_values, controls_ub),
+)
+# res_solver_ode = nlp_solver_ode(x0=controls_guess, lbx=controls_lb, ubx=controls_ub)
+print(res_solver_ode["x"])

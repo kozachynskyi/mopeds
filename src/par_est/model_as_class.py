@@ -1,8 +1,12 @@
 import copy
 from collections import OrderedDict
+from datetime import datetime, timedelta
 
 import casadi as ca
 import numpy as np
+from opcua import ua
+from opcua.ua import NumericNodeId
+from optipal.client import OptiPALClient
 
 
 class Variable(object):
@@ -12,8 +16,9 @@ class Variable(object):
     def __init__(self, name):
         """TODO: to be defined. """
         self.name = name
-        self.fixed = False
         self.casadi_var = ca.MX.sym(self.name)
+        self.fixed = False
+        self.opc_ua_id = None
         self.starting_value = None
         self.value = None
         self.guess = None
@@ -22,10 +27,11 @@ class Variable(object):
 
 
 class State_variable(Variable):
-    def __init__(self, name, starting_value=None):
+    def __init__(self, name, starting_value=None, opc_ua_id=None):
         super().__init__(name)
         self.starting_value = starting_value
         self.value = Experimental_Data()
+        self.opc_ua_id = opc_ua_id
 
 
 class Parameter_variable(Variable):
@@ -37,11 +43,12 @@ class Parameter_variable(Variable):
 
 
 class Control_variable(Variable):
-    def __init__(self, name, value=None, lb=None, ub=None):
+    def __init__(self, name, value=None, lb=None, ub=None, opc_ua_id=None):
         super().__init__(name)
         self.value = value
         self.lower_bound = lb
         self.upper_bound = ub
+        self.opc_ua_id = opc_ua_id
 
 
 class VariableList(OrderedDict):
@@ -57,6 +64,57 @@ class VariableList(OrderedDict):
         for var in self.values():
             casadi_vars.append(var.casadi_var)
         return ca.vcat(casadi_vars)
+
+    def get_data_opcua(self, time_start: datetime, time_stop: datetime):
+        client = OptiPALClient("opc.tcp://admin@localhost:4840")  # type: OptiPALClient
+        client.connect()
+        try:
+            ns_working = client.get_working_ns_idx()
+            for var in self.values():
+                values_opcua = []
+                time_opcua = []
+                if isinstance(var, State_variable):
+                    sensor = client.get_node(NumericNodeId(var.opc_ua_id, ns_working))
+                    process_value = client.get_child_simple(sensor, ["d:ProcessValue"])
+                    results = process_value.read_raw_history(
+                        time_start, time_stop, 1000
+                    )
+                    var.value = Experimental_Data()
+
+                    for result in results:
+                        if not time_opcua:
+                            time_opcua.append(0.0)
+                            time_zero = result.SourceTimestamp
+                            var.starting_value = result.Value.Value
+                        else:
+                            time_from_ref = (
+                                result.SourceTimestamp - time_zero
+                            ).total_seconds()
+                            time_opcua.append(time_from_ref)
+
+                        values_opcua.append(result.Value.Value)
+
+                    var.value.value = np.array(values_opcua)
+                    var.value.time = np.array(time_opcua)
+        finally:
+            client.disconnect()
+
+    def write_data_opcua(self, time_start: datetime):
+        client = OptiPALClient("opc.tcp://admin@localhost:4840")  # type: OptiPALClient
+        client.connect()
+        try:
+            time_zero = time_start
+            ns_working = client.get_working_ns_idx()
+            for var in self.values():
+                if isinstance(var, State_variable):
+                    sensor = client.get_node(NumericNodeId(var.opc_ua_id, ns_working))
+                    process_value = client.get_child_simple(sensor, ["d:ProcessValue"])
+                    for value, time in zip(var.value.value, var.value.time):
+                        datavalue = ua.DataValue(value)
+                        datavalue.SourceTimestamp = time_zero + timedelta(seconds=time)
+                        process_value.set_attribute(ua.AttributeIds.Value, datavalue)
+        finally:
+            client.disconnect()
 
 
 # Model Generation:
@@ -133,28 +191,29 @@ class Simulator(object):
             },
         )
 
-    def create_simulation(self):
-        variable_list = self.__input_variable_list
         self._variables = []
-        self._unfixed_variables = VariableList()
         self._state_variables = VariableList()
-        prev_time_step = 0
-        res_states = []
-        x_init = []
+        self._initial_states = []
 
-        for var in variable_list.values():
+        for var in self.__input_variable_list.values():
             if isinstance(var, Variable):
                 if isinstance(var, State_variable):
-                    x_init.append(var.starting_value)
+                    self._initial_states.append(var.starting_value)
                     self._state_variables.add_variable(var)
                 else:
                     if var.fixed:
                         self._variables.append(var.value)
                     else:
                         self._variables.append(var.casadi_var)
-                        self._unfixed_variables.add_variable(var)
 
         self._variables = ca.vcat(self._variables)
+        self.scaling = ca.DM.ones(self._variables.size())
+
+    def simulate(self, derivatives=False):
+        prev_time_step = 0
+        res_states = []
+        res_jacobian = []
+        x_init = self._initial_states
 
         if self.scaling is None:
             self.scaling = ca.DM.ones(self._variables.size())
@@ -166,19 +225,36 @@ class Simulator(object):
                     time_step - prev_time_step, self._variables * self.scaling
                 ),
             )
+            if derivatives:
+                integrator_jac = self.integrator_tau.factory(
+                    "I_fwd", ["x0", "p"], ["jac:xf:p"]
+                )
+                res_integration_jac = integrator_jac(
+                    x0=x_init,
+                    p=ca.vertcat(
+                        time_step - prev_time_step, self._variables * self.scaling
+                    ),
+                )
 
             prev_time_step = time_step
             x_init = res_integration["xf"]
 
             if time_step == self.time_grid[1]:
                 res_states = res_integration["xf"]
+                if derivatives:
+                    res_jacobian = res_integration_jac["jac_xf_p"]
             else:
                 res_states = ca.horzcat(res_states, res_integration["xf"])
+                if derivatives:
+                    res_jacobian = ca.vertcat(res_jacobian, res_integration_jac["jac_xf_p"])
 
-        return res_states
+        if derivatives:
+            return res_states, res_jacobian
+        else:
+            return res_states
 
     def generate_exp_data(self):
-        res_array = self.create_simulation()
+        res_array = self.simulate()
         variables = VariableList()
         for count, var in enumerate(self._state_variables.values()):
             new_var = copy.deepcopy(var)
@@ -230,11 +306,10 @@ class ParameterEstimation(object):
         self.time_grid = np.unique(self.time_grid)
 
         self.simulation = Simulator(self.model, self.time_grid, variable_list)
-        self.simulation.create_simulation()
 
     def calculate_objective(self):
         # Is done to rescale the simulation
-        res = self.simulation.create_simulation()
+        res = self.simulation.simulate()
         error = 0
 
         # count_state start from 0
@@ -259,7 +334,7 @@ class ParameterEstimation(object):
                         ** 2
                     )
                     # print(res[count_state, res_index - 1])
-                    print(var.value.value[count_exp_point + 1])
+                    # print(var.value.value[count_exp_point + 1])
 
         return error
 
@@ -304,6 +379,100 @@ class ParameterEstimation(object):
         print(res_solver["x"] * self.scaling)
 
 
+class OptimalExperimentalDesign(object):
+
+    """Docstring for OptimalExperimentalDesign. """
+
+    def __init__(self, model: Model, variable_list: VariableList, time_grid):
+        """TODO: to be defined. """
+        self.model = model
+        self.time_grid = time_grid
+        self.decision_var = VariableList()
+        self.parameters = VariableList()
+        self.states_experiment = VariableList()
+        self.parameter_values = []
+
+        for var in variable_list.values():
+            if isinstance(var, Control_variable):
+                if var.fixed is False:
+                    self.decision_var.add_variable(var)
+            elif isinstance(var, Parameter_variable):
+                if var.fixed is False:
+                    self.parameters.add_variable(var)
+                    self.parameter_values.append(var.value)
+
+        self.simulation = Simulator(self.model, self.time_grid, variable_list)
+
+    def calculate_objective(self):
+        # Is done to rescale the simulation
+        res, res_jacobian = self.simulation.simulate(True)
+
+        eval_jacobian = ca.Function("eval_jacobian", [self.parameters.get_casadi_var(), self.decision_var.get_casadi_var()], [res_jacobian])
+        sensitivity_matrix = eval_jacobian(self.parameter_values, self.decision_var.get_casadi_var())
+
+        fim_matrix = sensitivity_matrix.T @ sensitivity_matrix
+        error = ca.trace(ca.inv(fim_matrix))
+
+        return error
+
+    def optimize(self, scale=True):
+        # Scaling decreases amount of iterations, but ipopt fails gradient check at big amount of timestamps
+        guess = []
+        lb = []
+        ub = []
+        for var in self.decision_var.values():
+            if var.guess == 0:
+                guess.append(1)
+            else:
+                guess.append(var.guess)
+            lb.append(var.lower_bound)
+            ub.append(var.upper_bound)
+
+        guess = np.array(guess)
+        lb = np.array(lb)
+        ub = np.array(ub)
+
+        if scale:
+            self.scaling = guess
+            # for var in self.simulation._variables fails to iterate
+            for count in range(self.simulation._variables.size()[0]):
+                var = self.simulation._variables[count]
+                if var.is_symbolic():
+                    if var.name() in self.decision_var:
+                        current_guess = self.decision_var[var.name()].guess
+                        if current_guess == 0:
+                            self.simulation.scaling[count] = 1
+                        else:
+                            self.simulation.scaling[count] = current_guess
+                    else:
+                        self.simulation.scaling[count] = 1
+        else:
+            self.scaling = 1
+            self.simulation.scaling = None
+
+        nlp = {"x": self.decision_var.get_casadi_var(), "f": self.calculate_objective()}
+
+        nlp_solver = ca.nlpsol(
+            "solver",
+            "ipopt",
+            nlp,
+            {
+                "verbose": True,
+                "ipopt": {
+                    "hessian_approximation": "limited-memory",
+                    "max_iter": 20,
+                    "derivative_test": "first-order",
+                },
+            },
+        )
+
+        res_solver = nlp_solver(
+            x0=guess / self.scaling, lbx=lb / self.scaling, ubx=ub / self.scaling
+        )
+        print(res_solver["x"])
+        print(res_solver["x"] * self.scaling)
+
+
 if __name__ == "__main__":
 
     e0_greek_nu_i1_r1 = -1.0
@@ -327,11 +496,11 @@ if __name__ == "__main__":
 
     variable_list = VariableList()
 
-    variable_list.add_variable(State_variable("e0_T", 273.0))
-    variable_list.add_variable(State_variable("e0_c_i1", 3.0))
-    variable_list.add_variable(State_variable("e0_c_i2", 10.0))
-    variable_list.add_variable(State_variable("e0_c_i3", 0.0))
-    variable_list.add_variable(State_variable("e0_c_i4", 0.0))
+    variable_list.add_variable(State_variable("e0_T", 273.0, 10))
+    variable_list.add_variable(State_variable("e0_c_i1", 3.0, 20))
+    variable_list.add_variable(State_variable("e0_c_i2", 10.0, 30))
+    variable_list.add_variable(State_variable("e0_c_i3", 0.0, 40))
+    variable_list.add_variable(State_variable("e0_c_i4", 0.0, 50))
 
     variable_list.add_variable(Parameter_variable("e0_k_pre_r1", 5000000.0))
     variable_list.add_variable(Parameter_variable("e0_k_pre_r2", 1.0e7))
@@ -357,13 +526,15 @@ if __name__ == "__main__":
 
     m.add_equations([tdot, c1dot, c2dot, c3dot, c4dot])
 
-    time_grid = np.linspace(10, 1000, 2)
+    time_grid = np.linspace(10, 1000, 200)
     time_grid = np.insert(time_grid, 0, 0)
 
     var_list1 = copy.deepcopy(variable_list)
     for var in var_list1.values():
         var.fixed = True
     s = Simulator(m, time_grid, var_list1)
+    res = s.simulate()
+    # np.savetxt("exp.txt", res.toarray().T, delimiter="\t")
 
     var_list_exp = s.generate_exp_data()
 
@@ -371,15 +542,14 @@ if __name__ == "__main__":
     for key, var in var_list_exp.items():
         var_list2[key] = var
 
-    var_list2["e0_T"].value = Experimental_Data()
+    # var_list2["e0_T"].value = Experimental_Data()
     # var_list2["e0_c_i4"].value = Experimental_Data()
-
     var_list2["e0_U"].fixed = False
     var_list2["e0_U"].guess = 1.1
     var_list2["e0_U"].lower_bound = 1.0
     var_list2["e0_U"].upper_bound = 3.0
 
-    var_list2["e0_k_pre_r1"].fixed = False
+    var_list2["e0_k_pre_r1"].fixed = True
     var_list2["e0_k_pre_r1"].guess = 4000000.0
     var_list2["e0_k_pre_r1"].lower_bound = 4000000.0
     var_list2["e0_k_pre_r1"].upper_bound = 6000000.0
@@ -394,8 +564,48 @@ if __name__ == "__main__":
     var_list2["e0_k_pre_r3"].lower_bound = 400000.0
     var_list2["e0_k_pre_r3"].upper_bound = 600000.0
 
+    var_list2["e0_c_in_i1"].fixed = False
+    var_list2["e0_c_in_i1"].guess = 5.0
+    var_list2["e0_c_in_i1"].lower_bound = 4.0
+    var_list2["e0_c_in_i1"].upper_bound = 6.0
+
+    var_list2["e0_c_in_i2"].fixed = False
+    var_list2["e0_c_in_i2"].guess = 10.0
+    var_list2["e0_c_in_i2"].lower_bound = 9.0
+    var_list2["e0_c_in_i2"].upper_bound = 11.0
+
+    var_list2["e0_c_in_i3"].fixed = False
+    var_list2["e0_c_in_i3"].guess = 0.0
+    var_list2["e0_c_in_i3"].lower_bound = 0.0
+    var_list2["e0_c_in_i3"].upper_bound = 0.0
+
+    var_list2["e0_c_in_i4"].fixed = False
+    var_list2["e0_c_in_i4"].guess = 0.0
+    var_list2["e0_c_in_i4"].lower_bound = 0.0
+    var_list2["e0_c_in_i4"].upper_bound = 0.0
+
+    var_list2["e0_T_in"].fixed = False
+    var_list2["e0_T_in"].guess = 373.0
+    var_list2["e0_T_in"].lower_bound = 353.0
+    var_list2["e0_T_in"].upper_bound = 393.0
+
+    var_list2["e0_T_j"].fixed = False
+    var_list2["e0_T_j"].guess = 373.0
+    var_list2["e0_T_j"].lower_bound = 353.0
+    var_list2["e0_T_j"].upper_bound = 393.0
+
+    start_time = datetime(2018, 1, 1, 1, 0, 0, 0) + timedelta(days=1)
+    end_time = start_time + timedelta(seconds=1000)
+    var_list_oed = copy.deepcopy(var_list2)
+    # var_list3 = copy.deepcopy(var_list2)
+    # var_list_exp.write_data_opcua(start_time)
+    # var_list3.get_data_opcua(start_time, end_time)
+
     pe = ParameterEstimation(m, var_list2)
-    pe.optimize()
+    # pe.optimize()
+
+    oed = OptimalExperimentalDesign(m, var_list_oed, time_grid)
+    oed.optimize()
     # pe.optimize(False)
 
 
