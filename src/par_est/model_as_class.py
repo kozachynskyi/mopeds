@@ -246,7 +246,9 @@ class Simulator(object):
             else:
                 res_states = ca.horzcat(res_states, res_integration["xf"])
                 if derivatives:
-                    res_jacobian = ca.vertcat(res_jacobian, res_integration_jac["jac_xf_p"])
+                    res_jacobian = ca.vertcat(
+                        res_jacobian, res_integration_jac["jac_xf_p"]
+                    )
 
         if derivatives:
             return res_states, res_jacobian
@@ -256,13 +258,25 @@ class Simulator(object):
     def generate_exp_data(self):
         res_array = self.simulate()
         variables = VariableList()
+        convert_to_numpy = False
+        if isinstance(res_array, ca.DM):
+            convert_to_numpy = True
+
         for count, var in enumerate(self._state_variables.values()):
             new_var = copy.deepcopy(var)
             new_var.value = Experimental_Data()
-            new_var.value.time = self.time_grid
-            new_var.value.value = res_array[count, :].toarray()
-            new_var.value.value = np.insert(new_var.value.value, 0, var.starting_value)
+            if convert_to_numpy:
+                new_var.value.time = self.time_grid
+                new_var.value.value = res_array[count, :].toarray()
+                new_var.value.value = np.insert(
+                    new_var.value.value, 0, var.starting_value
+                )
+            else:
+                new_var.value.time = self.time_grid[1:]
+                new_var.value.value = res_array[count, :]
+
             variables.add_variable(new_var)
+
         return variables
 
 
@@ -278,6 +292,155 @@ class Experimental_Data(object):
             return True
         else:
             False
+
+
+class Optimizer(object):
+    def __init__(self, model: Model, variable_list: VariableList):
+        self.model = model
+        self._input_variable_list = variable_list
+        self.decision_var = VariableList()
+        self.parameters = VariableList()
+        self.controls = VariableList()
+        self.states = VariableList()
+        self.time_grid = None
+        self.simulator = None
+
+        self.guess = None
+        self.lower_bound = None
+        self.upper_bound = None
+        self.scaling = None
+
+        self.solver = None
+        self.solver_settings = None
+
+    def _setup_optimizer(self):
+        # Sets all variable lists of the class from __input_var_list
+        raise (NotImplementedError)
+
+    def _setup_initialization(self):
+        # Sets initials and bounds for optimizer
+        guess = []
+        lower_bound = []
+        upper_bound = []
+
+        for var in self.decision_var.values():
+            if var.guess == 0:
+                guess.append(1)
+            else:
+                guess.append(var.guess)
+            lower_bound.append(var.lower_bound)
+            upper_bound.append(var.upper_bound)
+
+        self.guess = np.array(guess)
+        self.lower_bound = np.array(lower_bound)
+        self.upper_bound = np.array(upper_bound)
+
+    def _setup_scaling(self, scale=False):
+        # Sets scaling variables in optimizer and simulator
+        if scale:
+            self.scaling = self.guess
+            # for var in self.simulation._variables fails to iterate
+            for count in range(self.simulator._variables.size()[0]):
+                var = self.simulator._variables[count]
+                if var.is_symbolic():
+                    if var.name() in self.decision_var:
+                        current_guess = self.decision_var[var.name()].guess
+                        if current_guess == 0:
+                            self.simulator.scaling[count] = 1
+                        else:
+                            self.simulator.scaling[count] = current_guess
+                    else:
+                        self.simulator.scaling[count] = 1
+        else:
+            self.scaling = 1
+            self.simulator.scaling = None
+
+        self.simulator.simulate()
+
+    def _objective(self):
+        # Returns a way to calculate and objective
+        raise (NotImplementedError)
+
+    def _optimize(self):
+        res_solver = self.solver(
+            x0=self.guess / self.scaling,
+            lbx=self.lower_bound / self.scaling,
+            ubx=self.upper_bound / self.scaling,
+        )
+        print(res_solver["x"])
+        print(res_solver["x"] * self.scaling)
+
+
+class PE(Optimizer):
+    def __init__(self, model: Model, variable_list: VariableList):
+        super().__init__(model, variable_list)
+        self._setup_optimizer()
+        self._setup_initialization()
+
+    def _setup_optimizer(self):
+        self.time_grid = np.ndarray((1, 0))
+
+        for var in self._input_variable_list.values():
+            # Generates time_grid based on available exp data
+            if isinstance(var, State_variable):
+                self.states.add_variable(var)
+                if var.value.is_correct():
+                    self.time_grid = np.append(self.time_grid, var.value.time)
+            elif isinstance(var, Parameter_variable):
+                self.parameters.add_variable(var)
+                if var.fixed is False:
+                    self.decision_var.add_variable(var)
+            elif isinstance(var, Control_variable):
+                var.fixed = True
+                self.controls.add_variable(var)
+
+        self.time_grid = np.unique(self.time_grid)
+
+        self.simulator = Simulator(
+            self.model, self.time_grid, self._input_variable_list
+        )
+
+    def _objective(self):
+        res_simulation = self.simulator.generate_exp_data()
+        error = 0
+
+        for var in self.states.values():
+            if var.value.is_correct():
+                for count_exp_point, time_point in enumerate(var.value.time[1:]):
+                    # Looks up an index in a time_grid that has given time_point
+                    res_index = np.nonzero(self.time_grid == time_point)
+                    res_index = res_index[0][0]
+
+                    calculated_value = res_simulation[var.name].value.value[
+                        res_index - 1
+                    ]
+                    experimental_value = var.value.value[count_exp_point + 1]
+                    error_at_timepoint = (
+                        0.5 * (calculated_value - experimental_value)
+                    ) ** 2
+                    error = error + error_at_timepoint
+
+        return error
+
+    def optimize(self, scale=True):
+        # Scaling decreases amount of iterations, but ipopt fails gradient check at big amount of timestamps
+        # Scaling should be done before setting a solver and solver settings
+        self._setup_scaling(scale)
+
+        self.solver_settings = {
+            "x": self.decision_var.get_casadi_var(),
+            "f": self._objective(),
+        }
+        self.solver = ca.nlpsol(
+            "solver",
+            "ipopt",
+            self.solver_settings,
+            {"verbose": False, "ipopt": {"derivative_test": "first-order"}},
+        )
+        print(self.simulator.scaling)
+        print(self.scaling)
+
+        self._optimize(scale)
 
 
 class ParameterEstimation(object):
@@ -403,17 +566,26 @@ class OptimalExperimentalDesign(object):
 
         self.simulation = Simulator(self.model, self.time_grid, variable_list)
 
-    def calculate_objective(self):
+    def calculate_objective(self, evaluate=False):
         # Is done to rescale the simulation
         res, res_jacobian = self.simulation.simulate(True)
 
-        eval_jacobian = ca.Function("eval_jacobian", [self.parameters.get_casadi_var(), self.decision_var.get_casadi_var()], [res_jacobian])
-        sensitivity_matrix = eval_jacobian(self.parameter_values, self.decision_var.get_casadi_var())
+        eval_jacobian = ca.Function(
+            "eval_jacobian",
+            [self.parameters.get_casadi_var(), self.decision_var.get_casadi_var()],
+            [res_jacobian],
+        )
+        sensitivity_matrix = eval_jacobian(
+            self.parameter_values, self.decision_var.get_casadi_var()
+        )
 
         fim_matrix = sensitivity_matrix.T @ sensitivity_matrix
         error = ca.trace(ca.inv(fim_matrix))
 
-        return error
+        if evaluate:
+            return res, res_jacobian, sensitivity_matrix, error
+        else:
+            return error
 
     def optimize(self, scale=True):
         # Scaling decreases amount of iterations, but ipopt fails gradient check at big amount of timestamps
@@ -457,10 +629,10 @@ class OptimalExperimentalDesign(object):
             "ipopt",
             nlp,
             {
-                "verbose": True,
+                "verbose": False,
                 "ipopt": {
                     "hessian_approximation": "limited-memory",
-                    "max_iter": 20,
+                    "max_iter": 50,
                     "derivative_test": "first-order",
                 },
             },
@@ -526,7 +698,7 @@ if __name__ == "__main__":
 
     m.add_equations([tdot, c1dot, c2dot, c3dot, c4dot])
 
-    time_grid = np.linspace(10, 1000, 200)
+    time_grid = np.linspace(10, 1000, 20)
     time_grid = np.insert(time_grid, 0, 0)
 
     var_list1 = copy.deepcopy(variable_list)
@@ -549,17 +721,17 @@ if __name__ == "__main__":
     var_list2["e0_U"].lower_bound = 1.0
     var_list2["e0_U"].upper_bound = 3.0
 
-    var_list2["e0_k_pre_r1"].fixed = True
+    var_list2["e0_k_pre_r1"].fixed = False
     var_list2["e0_k_pre_r1"].guess = 4000000.0
     var_list2["e0_k_pre_r1"].lower_bound = 4000000.0
     var_list2["e0_k_pre_r1"].upper_bound = 6000000.0
 
-    var_list2["e0_k_pre_r2"].fixed = True
+    var_list2["e0_k_pre_r2"].fixed = False
     var_list2["e0_k_pre_r2"].guess = 1.0e6
     var_list2["e0_k_pre_r2"].lower_bound = 1.0e6
     var_list2["e0_k_pre_r2"].upper_bound = 1.0e8
 
-    var_list2["e0_k_pre_r3"].fixed = True
+    var_list2["e0_k_pre_r3"].fixed = False
     var_list2["e0_k_pre_r3"].guess = 400000.0
     var_list2["e0_k_pre_r3"].lower_bound = 400000.0
     var_list2["e0_k_pre_r3"].upper_bound = 600000.0
@@ -600,7 +772,8 @@ if __name__ == "__main__":
     # var_list3 = copy.deepcopy(var_list2)
     # var_list_exp.write_data_opcua(start_time)
     # var_list3.get_data_opcua(start_time, end_time)
-
+    pe = PE(m, var_list2)
+    exit()
     pe = ParameterEstimation(m, var_list2)
     # pe.optimize()
 
