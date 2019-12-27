@@ -180,7 +180,7 @@ nlp_solver = ca.nlpsol(
 res_solver = nlp_solver(x0=parameters_guess, lbx=parameters_lb, ubx=parameters_ub)
 print(res_solver["x"])
 print(res_solver["x"] * parameters_scale)
-
+exit()
 """
 ODE Routine is currently not yeilding great results
 """

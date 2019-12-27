@@ -3,7 +3,9 @@ from collections import OrderedDict
 from datetime import datetime, timedelta
 
 import casadi as ca
+import matplotlib.cm as cm
 import numpy as np
+from matplotlib import pyplot as plt
 from opcua import ua
 from opcua.ua import NumericNodeId
 from optipal.client import OptiPALClient
@@ -207,6 +209,9 @@ class Simulator(object):
                         self._variables.append(var.casadi_var)
 
         self._variables = ca.vcat(self._variables)
+        self._reset_scaling()
+
+    def _reset_scaling(self):
         self.scaling = ca.DM.ones(self._variables.size())
 
     def simulate(self, derivatives=False):
@@ -214,9 +219,6 @@ class Simulator(object):
         res_states = []
         res_jacobian = []
         x_init = self._initial_states
-
-        if self.scaling is None:
-            self.scaling = ca.DM.ones(self._variables.size())
 
         for time_step in self.time_grid[1:]:
             res_integration = self.integrator_tau(
@@ -303,7 +305,7 @@ class Optimizer(object):
         self.controls = VariableList()
         self.states = VariableList()
         self.time_grid = None
-        self.simulator = None
+        self.simulator = None  # type: Simulator
 
         self.guess = None
         self.lower_bound = None
@@ -313,12 +315,12 @@ class Optimizer(object):
         self.solver = None
         self.solver_settings = None
 
-    def _setup_optimizer(self):
+    def _setup_simulator(self):
         # Sets all variable lists of the class from __input_var_list
         raise (NotImplementedError)
 
     def _setup_initialization(self):
-        # Sets initials and bounds for optimizer
+        # Sets initials and bounds for optimizer, and as default no scaling
         guess = []
         lower_bound = []
         upper_bound = []
@@ -335,9 +337,14 @@ class Optimizer(object):
         self.lower_bound = np.array(lower_bound)
         self.upper_bound = np.array(upper_bound)
 
+        self.scaling = 1
+        self.simulator.scaling = None
+
     def _setup_scaling(self, scale=False):
+        # Scaling should be done before setting a solver and solver settings
         # Sets scaling variables in optimizer and simulator
         if scale:
+            self.simulator._reset_scaling()
             self.scaling = self.guess
             # for var in self.simulation._variables fails to iterate
             for count in range(self.simulator._variables.size()[0]):
@@ -353,15 +360,23 @@ class Optimizer(object):
                         self.simulator.scaling[count] = 1
         else:
             self.scaling = 1
-            self.simulator.scaling = None
-
-        self.simulator.simulate()
+            self.simulator._reset_scaling()
 
     def _objective(self):
         # Returns a way to calculate and objective
         raise (NotImplementedError)
 
-    def _optimize(self):
+    def _optimize(self, scale):
+        # Scaling should be done before setting a solver and solver settings
+        self._setup_scaling(scale)
+
+        self.solver = ca.nlpsol(
+            "solver",
+            self.solver_name,
+            {"x": self.decision_var.get_casadi_var(), "f": self._objective()},
+            self.solver_settings,
+        )
+
         res_solver = self.solver(
             x0=self.guess / self.scaling,
             lbx=self.lower_bound / self.scaling,
@@ -371,13 +386,13 @@ class Optimizer(object):
         print(res_solver["x"] * self.scaling)
 
 
-class PE(Optimizer):
+class ParameterEstimation(Optimizer):
     def __init__(self, model: Model, variable_list: VariableList):
         super().__init__(model, variable_list)
-        self._setup_optimizer()
+        self._setup_simulator()
         self._setup_initialization()
 
-    def _setup_optimizer(self):
+    def _setup_simulator(self):
         self.time_grid = np.ndarray((1, 0))
 
         for var in self._input_variable_list.values():
@@ -424,138 +439,30 @@ class PE(Optimizer):
 
     def optimize(self, scale=True):
         # Scaling decreases amount of iterations, but ipopt fails gradient check at big amount of timestamps
-        # Scaling should be done before setting a solver and solver settings
-        self._setup_scaling(scale)
-
+        self.solver_name = "ipopt"
         self.solver_settings = {
-            "x": self.decision_var.get_casadi_var(),
-            "f": self._objective(),
+            "verbose": False,
+            "ipopt": {"max_iter": 300, "derivative_test": "first-order"},
         }
-        self.solver = ca.nlpsol(
-            "solver",
-            "ipopt",
-            self.solver_settings,
-            {"verbose": False, "ipopt": {"derivative_test": "first-order"}},
-        )
-        print(self.simulator.scaling)
-        print(self.scaling)
 
         self._optimize(scale)
 
 
-class ParameterEstimation(object):
-
-    """Docstring for ParameterEstimation. """
-
-    def __init__(self, model: Model, variable_list: VariableList):
-        """TODO: to be defined. """
-        self.model = model
-        self.time_grid = np.ndarray((1, 0))
-        self.decision_var = VariableList()
-        self.states_experiment = VariableList()
-
-        for var in variable_list.values():
-            # Generates time_grid based on available exp data
-            if isinstance(var, State_variable):
-                self.states_experiment.add_variable(var)
-                if var.value.is_correct():
-                    self.time_grid = np.append(self.time_grid, var.value.time)
-            elif isinstance(var, Parameter_variable):
-                if var.fixed is False:
-                    self.decision_var.add_variable(var)
-            elif isinstance(var, Control_variable):
-                var.fixed = True
-
-        self.time_grid = np.unique(self.time_grid)
-
-        self.simulation = Simulator(self.model, self.time_grid, variable_list)
-
-    def calculate_objective(self):
-        # Is done to rescale the simulation
-        res = self.simulation.simulate()
-        error = 0
-
-        # count_state start from 0
-        # TODO this can be implemented better, by using different information model
-        for count_state, var in enumerate(self.states_experiment.values()):
-            if var.value.is_correct():
-                # count_exp_point starts from 0, but we ignore first experimental column
-                # so corresponding value is at count_exp_point + 1
-                # res_index looks for index in array with 0 timepoint
-                # and sim.evaluate_states doesn't include that time_point, thus - 1
-                for count_exp_point, time_point in enumerate(var.value.time[1:]):
-                    # Looks up an index in a time_grid that has given time_point
-                    res_index = np.nonzero(self.time_grid == time_point)
-                    res_index = res_index[0][0]
-                    error = (
-                        error
-                        + 0.5
-                        * (
-                            res[count_state, res_index - 1]
-                            - var.value.value[count_exp_point + 1]
-                        )
-                        ** 2
-                    )
-                    # print(res[count_state, res_index - 1])
-                    # print(var.value.value[count_exp_point + 1])
-
-        return error
-
-    def optimize(self, scale=True):
-        # Scaling decreases amount of iterations, but ipopt fails gradient check at big amount of timestamps
-        guess = []
-        lb = []
-        ub = []
-        for var in self.decision_var.values():
-            guess.append(var.guess)
-            lb.append(var.lower_bound)
-            ub.append(var.upper_bound)
-
-        guess = np.array(guess)
-        lb = np.array(lb)
-        ub = np.array(ub)
-
-        if scale:
-            self.scaling = guess
-            # for var in self.simulation._variables fails to iterate
-            for count in range(self.simulation._variables.size()[0]):
-                var = self.simulation._variables[count]
-                if var.is_symbolic():
-                    self.simulation.scaling[count] = self.decision_var[var.name()].guess
-        else:
-            self.scaling = 1
-            self.simulation.scaling = None
-
-        nlp = {"x": self.decision_var.get_casadi_var(), "f": self.calculate_objective()}
-
-        nlp_solver = ca.nlpsol(
-            "solver",
-            "ipopt",
-            nlp,
-            {"verbose": False, "ipopt": {"derivative_test": "first-order"}},
-        )
-
-        res_solver = nlp_solver(
-            x0=guess / self.scaling, lbx=lb / self.scaling, ubx=ub / self.scaling
-        )
-        print(res_solver["x"])
-        print(res_solver["x"] * self.scaling)
-
-
-class OptimalExperimentalDesign(object):
+class OptimalExperimentalDesign(Optimizer):
 
     """Docstring for OptimalExperimentalDesign. """
 
     def __init__(self, model: Model, variable_list: VariableList, time_grid):
         """TODO: to be defined. """
-        self.model = model
+        super().__init__(model, variable_list)
         self.time_grid = time_grid
-        self.decision_var = VariableList()
-        self.parameters = VariableList()
-        self.states_experiment = VariableList()
         self.parameter_values = []
 
-        for var in variable_list.values():
+        self._setup_simulator()
+        self._setup_initialization()
+
+    def _setup_simulator(self):
+        for var in self._input_variable_list.values():
             if isinstance(var, Control_variable):
                 if var.fixed is False:
                     self.decision_var.add_variable(var)
@@ -564,85 +471,79 @@ class OptimalExperimentalDesign(object):
                     self.parameters.add_variable(var)
                     self.parameter_values.append(var.value)
 
-        self.simulation = Simulator(self.model, self.time_grid, variable_list)
+        self.simulator = Simulator(
+            self.model, self.time_grid, self._input_variable_list
+        )
 
-    def calculate_objective(self, evaluate=False):
-        # Is done to rescale the simulation
-        res, res_jacobian = self.simulation.simulate(True)
+    def _sensitivity_matrix(self):
+        res, res_jacobian = self.simulator.simulate(True)
 
         eval_jacobian = ca.Function(
             "eval_jacobian",
             [self.parameters.get_casadi_var(), self.decision_var.get_casadi_var()],
             [res_jacobian],
         )
+
         sensitivity_matrix = eval_jacobian(
             self.parameter_values, self.decision_var.get_casadi_var()
         )
 
-        fim_matrix = sensitivity_matrix.T @ sensitivity_matrix
-        error = ca.trace(ca.inv(fim_matrix))
+        parameter_sensitivity_matrix = None
 
-        if evaluate:
-            return res, res_jacobian, sensitivity_matrix, error
-        else:
-            return error
+        for count in range(self.simulator._variables.size()[0]):
+            var = self.simulator._variables[count]
+            if var.is_symbolic():
+                if var.name() in self.parameters:
+                    # Count + 1 because first variable in sensitivity matrix is tau
+                    if parameter_sensitivity_matrix is None:
+                        parameter_sensitivity_matrix = sensitivity_matrix[:, count + 1]
+                    else:
+                        parameter_sensitivity_matrix = ca.horzcat(
+                            parameter_sensitivity_matrix,
+                            sensitivity_matrix[:, count + 1],
+                        )
+
+        # TODO use variabnces
+        sc_states = [1, 100, 100, 100, 100]
+        scale_states = np.diagflat(np.tile(sc_states, len(self.time_grid) - 1))
+        scale_parameters = np.diagflat(self.parameter_values)
+
+        sensitivity_scaled = scale_states @ (parameter_sensitivity_matrix @ scale_parameters)
+
+        return sensitivity_scaled
+
+    def get_fim_matrix(self):
+        self._setup_scaling(False)
+        sensitivity_matrix = self._sensitivity_matrix()
+        evaluate = ca.Function(
+            "eval_fim", [self.decision_var.get_casadi_var()], [sensitivity_matrix]
+        )
+        sensitivity_matrix = evaluate(self.guess)
+        fim_matrix = sensitivity_matrix.T @ sensitivity_matrix
+        return sensitivity_matrix, fim_matrix
+
+    def _objective(self):
+        sensitivity_matrix = self._sensitivity_matrix()
+
+        fim_matrix = sensitivity_matrix.T @ sensitivity_matrix
+        error = ca.eig_symbolic(ca.inv(fim_matrix))
+        # error = ca.trace(ca.inv(fim_matrix))
+
+        return error
 
     def optimize(self, scale=True):
         # Scaling decreases amount of iterations, but ipopt fails gradient check at big amount of timestamps
-        guess = []
-        lb = []
-        ub = []
-        for var in self.decision_var.values():
-            if var.guess == 0:
-                guess.append(1)
-            else:
-                guess.append(var.guess)
-            lb.append(var.lower_bound)
-            ub.append(var.upper_bound)
-
-        guess = np.array(guess)
-        lb = np.array(lb)
-        ub = np.array(ub)
-
-        if scale:
-            self.scaling = guess
-            # for var in self.simulation._variables fails to iterate
-            for count in range(self.simulation._variables.size()[0]):
-                var = self.simulation._variables[count]
-                if var.is_symbolic():
-                    if var.name() in self.decision_var:
-                        current_guess = self.decision_var[var.name()].guess
-                        if current_guess == 0:
-                            self.simulation.scaling[count] = 1
-                        else:
-                            self.simulation.scaling[count] = current_guess
-                    else:
-                        self.simulation.scaling[count] = 1
-        else:
-            self.scaling = 1
-            self.simulation.scaling = None
-
-        nlp = {"x": self.decision_var.get_casadi_var(), "f": self.calculate_objective()}
-
-        nlp_solver = ca.nlpsol(
-            "solver",
-            "ipopt",
-            nlp,
-            {
-                "verbose": False,
-                "ipopt": {
-                    "hessian_approximation": "limited-memory",
-                    "max_iter": 50,
-                    "derivative_test": "first-order",
-                },
+        self.solver_name = "ipopt"
+        self.solver_settings = {
+            "verbose": False,
+            "ipopt": {
+                "hessian_approximation": "limited-memory",
+                "max_iter": 20,
+                "derivative_test": "first-order",
             },
-        )
+        }
 
-        res_solver = nlp_solver(
-            x0=guess / self.scaling, lbx=lb / self.scaling, ubx=ub / self.scaling
-        )
-        print(res_solver["x"])
-        print(res_solver["x"] * self.scaling)
+        self._optimize(scale)
 
 
 if __name__ == "__main__":
@@ -716,12 +617,8 @@ if __name__ == "__main__":
 
     # var_list2["e0_T"].value = Experimental_Data()
     # var_list2["e0_c_i4"].value = Experimental_Data()
-    var_list2["e0_U"].fixed = False
-    var_list2["e0_U"].guess = 1.1
-    var_list2["e0_U"].lower_bound = 1.0
-    var_list2["e0_U"].upper_bound = 3.0
 
-    var_list2["e0_k_pre_r1"].fixed = False
+    var_list2["e0_k_pre_r1"].fixed = True
     var_list2["e0_k_pre_r1"].guess = 4000000.0
     var_list2["e0_k_pre_r1"].lower_bound = 4000000.0
     var_list2["e0_k_pre_r1"].upper_bound = 6000000.0
@@ -731,10 +628,15 @@ if __name__ == "__main__":
     var_list2["e0_k_pre_r2"].lower_bound = 1.0e6
     var_list2["e0_k_pre_r2"].upper_bound = 1.0e8
 
-    var_list2["e0_k_pre_r3"].fixed = False
+    var_list2["e0_k_pre_r3"].fixed = True
     var_list2["e0_k_pre_r3"].guess = 400000.0
     var_list2["e0_k_pre_r3"].lower_bound = 400000.0
     var_list2["e0_k_pre_r3"].upper_bound = 600000.0
+
+    var_list2["e0_U"].fixed = False
+    var_list2["e0_U"].guess = 1.1
+    var_list2["e0_U"].lower_bound = 1.0
+    var_list2["e0_U"].upper_bound = 3.0
 
     var_list2["e0_c_in_i1"].fixed = False
     var_list2["e0_c_in_i1"].guess = 5.0
@@ -772,87 +674,28 @@ if __name__ == "__main__":
     # var_list3 = copy.deepcopy(var_list2)
     # var_list_exp.write_data_opcua(start_time)
     # var_list3.get_data_opcua(start_time, end_time)
-    pe = PE(m, var_list2)
-    exit()
     pe = ParameterEstimation(m, var_list2)
     # pe.optimize()
 
     oed = OptimalExperimentalDesign(m, var_list_oed, time_grid)
+    a = oed.get_fim_matrix()
+    b = a[0].toarray()
+    # b = ca.fabs(b)
+    c = a[1].toarray()
+    # turn_off_states = np.array([1, 1, 1, 1, 1])
+    # sc_states = [1, 0.01, 0.01, 0.01, 0.01]
+    # sc = np.diagflat(np.tile(turn_off_states, len(time_grid) - 1))
+    # sc_full = np.diagflat(np.tile(turn_off_states / sc_states, len(time_grid) - 1))
+    # # num_states = 5
+    # # sc_full_params = np.tile(sc_params, ((len(time_grid) - 1) * num_states, 1)).T
+    # sc_params = [5000000.0, 10000000.0, 500000.0, 1.4]
+    # sc_full_params = np.diagflat(sc_params)
+    # b_scaled = sc @ b
+    # b_scaled_full = sc_full @ (b @ sc_full_params)
+    # # sc = np.tile(sc, 2)
+    fig = plt.figure()
+    fig.add_subplot(151).imshow(b, cmap=cm.Greens_r)
+    fig.add_subplot(152).imshow(ca.inv(c), cmap=cm.Greens_r)
+    plt.show()
     oed.optimize()
     # pe.optimize(False)
-
-
-# # """
-# # ODE Routine is currently not yeilding great results
-# # """
-
-# # # ODE Routine
-# # res_states_ode = []
-# # x_init = states_init
-# # prev_time_step = 0
-# # for time_step in time_grid[1:]:
-# # res_integration_tau_ode = integrator_MAN_tau(
-# # x0=x_init, p=ca.vertcat(parameters, controls, time_step - prev_time_step),
-# # )
-
-# # integrator_jac = integrator_MAN_tau.factory("I_fwd", ["x0", "p"], ["jac:xf:p"])
-
-# # res_integration_jac = integrator_jac(
-# # x0=x_init, p=ca.vertcat(parameters, controls, time_step - prev_time_step),
-# # )
-
-# # prev_time_step = time_step
-# # x_init = res_integration_tau_ode["xf"]
-# # if time_step == time_grid[1]:
-# # res_jac_ode = res_integration_jac["jac_xf_p"][:, 0:4]
-# # else:
-# # res_jac_ode = ca.vertcat(res_jac_ode, res_integration_jac["jac_xf_p"][:, 0:4])
-
-# # # res_jacobian = ca.jacobian(res_states_ode, ca.vertcat(parameters, controls))
-# # # res_jacobian = ca.jacobian(res_states_ode, parameters)
-
-# # # # Check objective
-# # # eval_jacobian = ca.Function("eval_jacobian", [parameters, controls], [res_jac_ode])
-# # # sensitivity_matrix = eval_jacobian(parameters_values, controls)[:, 0:4]
-
-# # # # Calculate OBJ TRACE[FIM]
-# # # sigma_diag = ca.DM([1, 1, 1, 1, 1]) * 1e20
-# # # sigma_full = ca.diag(sigma_diag)
-
-# # # measurement_matrix = ca.repmat(sigma_full, num_steps, num_steps)
-# # # sensitivity_matrix = res_jac_ode
-# # # fim_matrix = sensitivity_matrix.T @ measurement_matrix @ sensitivity_matrix
-
-# # # eval_fim_matrix = ca.Function("eval_fim", [controls], [fim_matrix])
-# # # fim_matrix_inv = ca.inv(fim_matrix)
-# # # trace = ca.trace(fim_matrix_inv)
-
-# # # eval_trace = ca.Function("eval_trace", [controls], [trace])
-
-# # # fim = sensitivity_matrix.T @ measurement_matrix @ sensitivity_matrix
-# # # trace = ca.trace(ca.inv(fim))
-# # #
-# # # trace = ca.trace(res_jac_ode@res_jac_ode.T)
-# # # nlp_ode = {"x": ca.vertcat(parameters, controls), "f": trace}
-# # # nlp_solver_ode = ca.nlpsol(
-# # #     "solver",
-# # #     "ipopt",
-# # #     nlp_ode,
-# # #     #     {"verbose": False, "ipopt": {"hessian_approximation": "exact", "max_iter": 200,"derivative_test": 'first-order'}},
-# # #     {
-# # #         "verbose": True,
-# # #         "ipopt": {
-# # #             "hessian_approximation": "limited-memory",
-# # #             "max_iter": 200,
-# # #             "derivative_test": "first-order",
-# # #         },
-# # #     },
-# # # )
-# # # #
-# # # res_solver_ode = nlp_solver_ode(
-# # #     x0=ca.vertcat(parameters_values, controls_guess),
-# # #     lbx=ca.vertcat(parameters_values, controls_lb),
-# # #     ubx=ca.vertcat(parameters_values, controls_ub),
-# # # )
-# # # # res_solver_ode = nlp_solver_ode(x0=controls_guess, lbx=controls_lb, ubx=controls_ub)
-# # # print(res_solver_ode["x"])
