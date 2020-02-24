@@ -1,16 +1,17 @@
-import copy
-from collections import OrderedDict
-from datetime import datetime, timedelta
+# import copy
+# from collections import OrderedDict
+# from datetime import datetime, timedelta
 
 import casadi as ca
-import matplotlib.cm as cm
-import numpy as np
-from matplotlib import pyplot as plt
-from opcua import ua
-from opcua.ua import NumericNodeId
-from optipal.client import OptiPALClient
+# import matplotlib.cm as cm
+# import numpy as np
+# from matplotlib import pyplot as plt
+# from opcua import ua
+# from opcua.ua import NumericNodeId
+# from optipal.client import OptiPALClient
 
-from par_est.
+from par_est import Parameter_variable, State_variable, Variable, VariableList
+
 
 class Model(object):
 
