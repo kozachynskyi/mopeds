@@ -1,14 +1,13 @@
-# import copy
-# from collections import OrderedDict
-# from datetime import datetime, timedelta
+import copy
+from datetime import datetime, timedelta
 
-# import casadi as ca
-# import matplotlib.cm as cm
-# import numpy as np
-# from matplotlib import pyplot as plt
-# from opcua import ua
-# from opcua.ua import NumericNodeId
-# from optipal.client import OptiPALClient
+import casadi as ca
+import matplotlib.cm as cm
+import numpy as np
+from matplotlib import pyplot as plt
+
+import par_est
+
 
 def main():
     e0_greek_nu_i1_r1 = -1.0
@@ -30,27 +29,27 @@ def main():
     e0_R = 8.314
     e0_V = 1.0
 
-    variable_list = VariableList()
+    variable_list = par_est.VariableList()
 
-    variable_list.add_variable(State_variable("e0_T", 273.0, 10))
-    variable_list.add_variable(State_variable("e0_c_i1", 3.0, 20))
-    variable_list.add_variable(State_variable("e0_c_i2", 10.0, 30))
-    variable_list.add_variable(State_variable("e0_c_i3", 0.0, 40))
-    variable_list.add_variable(State_variable("e0_c_i4", 0.0, 50))
+    variable_list.add_variable(par_est.State_variable("e0_T", 273.0, 10))
+    variable_list.add_variable(par_est.State_variable("e0_c_i1", 3.0, 20))
+    variable_list.add_variable(par_est.State_variable("e0_c_i2", 10.0, 30))
+    variable_list.add_variable(par_est.State_variable("e0_c_i3", 0.0, 40))
+    variable_list.add_variable(par_est.State_variable("e0_c_i4", 0.0, 50))
 
-    variable_list.add_variable(Parameter_variable("e0_k_pre_r1", 5000000.0))
-    variable_list.add_variable(Parameter_variable("e0_k_pre_r2", 1.0e7))
-    variable_list.add_variable(Parameter_variable("e0_k_pre_r3", 500000.0))
-    variable_list.add_variable(Parameter_variable("e0_U", 1.4))
+    variable_list.add_variable(par_est.Parameter_variable("e0_k_pre_r1", 5000000.0))
+    variable_list.add_variable(par_est.Parameter_variable("e0_k_pre_r2", 1.0e7))
+    variable_list.add_variable(par_est.Parameter_variable("e0_k_pre_r3", 500000.0))
+    variable_list.add_variable(par_est.Parameter_variable("e0_U", 1.4))
 
-    variable_list.add_variable(Control_variable("e0_c_in_i1", 5.0))
-    variable_list.add_variable(Control_variable("e0_c_in_i2", 10.0))
-    variable_list.add_variable(Control_variable("e0_c_in_i3", 0.0))
-    variable_list.add_variable(Control_variable("e0_c_in_i4", 0.0))
-    variable_list.add_variable(Control_variable("e0_T_in", 373.0))
-    variable_list.add_variable(Control_variable("e0_T_j", 373.0))
+    variable_list.add_variable(par_est.Control_variable("e0_c_in_i1", 5.0))
+    variable_list.add_variable(par_est.Control_variable("e0_c_in_i2", 10.0))
+    variable_list.add_variable(par_est.Control_variable("e0_c_in_i3", 0.0))
+    variable_list.add_variable(par_est.Control_variable("e0_c_in_i4", 0.0))
+    variable_list.add_variable(par_est.Control_variable("e0_T_in", 373.0))
+    variable_list.add_variable(par_est.Control_variable("e0_T_j", 373.0))
 
-    m = Model(variable_list)
+    m = par_est.Model(variable_list)
 
     # fmt: off
     tdot = (((((e0_F / e0_V) * ((m._all_variables["e0_T_in"].casadi_var - m._all_variables["e0_T"].casadi_var))) + (((m._all_variables["e0_U"].casadi_var * e0_A) / (e0_greek_rho * (e0_c_p * e0_V))) * ((m._all_variables["e0_T_j"].casadi_var - m._all_variables["e0_T"].casadi_var)))) + (((-e0_greek_Deltah_r1) / (e0_greek_rho * e0_c_p)) * (m._all_variables["e0_k_pre_r1"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r1) / (e0_R * m._all_variables["e0_T"].casadi_var))))))) + (((-e0_greek_Deltah_r2) / (e0_greek_rho * e0_c_p)) * (m._all_variables["e0_k_pre_r2"].casadi_var * (m._all_variables["e0_c_i2"].casadi_var * ca.exp(((-e0_E_r2) / (e0_R * m._all_variables["e0_T"].casadi_var))))))) + (((-e0_greek_Deltah_r3) / (e0_greek_rho * e0_c_p)) * (m._all_variables["e0_k_pre_r3"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-e0_E_r3) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
@@ -68,7 +67,7 @@ def main():
     var_list1 = copy.deepcopy(variable_list)
     for var in var_list1.values():
         var.fixed = True
-    s = Simulator(m, time_grid, var_list1)
+    s = par_est.Simulator(m, time_grid, var_list1)
     res = s.simulate()
     # np.savetxt("exp.txt", res.toarray().T, delimiter="\t")
 
@@ -137,10 +136,10 @@ def main():
     # var_list3 = copy.deepcopy(var_list2)
     # var_list_exp.write_data_opcua(start_time)
     # var_list3.get_data_opcua(start_time, end_time)
-    pe = ParameterEstimation(m, var_list2)
-    # pe.optimize()
+    pe = par_est.ParameterEstimation(m, var_list2)
+    pe.optimize()
 
-    oed = OptimalExperimentalDesign(m, var_list_oed, time_grid)
+    oed = par_est.OptimalExperimentalDesign(m, var_list_oed, time_grid)
     a = oed.get_fim_matrix()
     b = a[0].toarray()
     # b = ca.fabs(b)
@@ -163,6 +162,6 @@ def main():
     oed.optimize()
     # pe.optimize(False)
 
+
 if __name__ == "__main__":
     main()
-
