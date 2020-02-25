@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 import casadi as ca
 import numpy as np
+from matplotlib import pyplot as plt
 from opcua import ua
 from opcua.ua import NumericNodeId
 from optipal.client import OptiPALClient
@@ -114,6 +115,24 @@ class VariableList(OrderedDict):
                         process_value.set_attribute(ua.AttributeIds.Value, datavalue)
         finally:
             client.disconnect()
+
+    def plot_states(self, as_one_plot=False):
+        # Choose only state variables
+        state_var_list = VariableList()
+        for var in self.values():
+            if isinstance(var, State_variable):
+                state_var_list.add_variable(var)
+
+        if as_one_plot is True:
+            for var in state_var_list.values():
+                plt.plot(var.value.time, var.value.value, label=var.name)
+            plt.legend()
+        else:
+            figure, axes_array = plt.subplots(len(self))
+            for var, ax in zip(state_var_list.values(), axes_array):
+                ax.plot(var.value.time, var.value.value, label=var.name)
+                ax.legend()
+        plt.show()
 
 
 class Experimental_Data(object):

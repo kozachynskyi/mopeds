@@ -31,7 +31,7 @@ class Optimizer(object):
         self.solver_settings = None
 
     def _setup_simulator(self):
-        # Sets all variable lists of the class from __input_var_list
+        # Sets all variable lists of the class from __input_var_list. Optimizer dependent
         raise (NotImplementedError)
 
     def _setup_initialization(self):
@@ -78,7 +78,7 @@ class Optimizer(object):
             self.simulator._reset_scaling()
 
     def _objective(self):
-        # Returns a way to calculate and objective
+        # Returns a way to calculate and objective. Dependent on optimization type
         raise (NotImplementedError)
 
     def _optimize(self, scale):
@@ -219,7 +219,7 @@ class OptimalExperimentalDesign(Optimizer):
                         )
 
         # TODO use variabnces
-        sc_states = [1, 100, 100, 100, 100]
+        sc_states = np.ones(len(self.simulator._state_variables)).tolist()
         scale_states = np.diagflat(np.tile(sc_states, len(self.time_grid) - 1))
         scale_parameters = np.diagflat(self.parameter_values)
 
@@ -240,11 +240,12 @@ class OptimalExperimentalDesign(Optimizer):
         return sensitivity_matrix, fim_matrix
 
     def _objective(self):
+        # Only trace is programmed in Casadi
         sensitivity_matrix = self._sensitivity_matrix()
 
         fim_matrix = sensitivity_matrix.T @ sensitivity_matrix
-        error = ca.eig_symbolic(ca.inv(fim_matrix))
-        # error = ca.trace(ca.inv(fim_matrix))
+        error = ca.trace(ca.inv(fim_matrix))
+        # error = ca.eig_symbolic(ca.inv(fim_matrix))
 
         return error
 

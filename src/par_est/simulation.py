@@ -49,8 +49,9 @@ class Simulator(object):
             },
         )
 
-        self._variables = []
         self._state_variables = VariableList()
+        # Arrays needed to initialize integrator.
+        self._variables = []
         self._initial_states = []
 
         for var in self.__input_variable_list.values():

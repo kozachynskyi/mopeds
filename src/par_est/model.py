@@ -40,4 +40,5 @@ class Model(object):
         if self.equations is None:
             self.equations = ca.vcat(equations)
         else:
+            # Adding additional equations is not implemented
             raise (NotImplementedError)
