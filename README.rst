@@ -14,8 +14,7 @@ Control variable can hold only one control value for one experiment. No control 
 Determine how to store time_grid - list or numpy array
 in Optimizer if guess is 0 it's set to 1, which shouldn't hold all the time. Consider to determine scalingn based on lb and ub
 
-Expeirmental Data can hold only one experiment, but from point of view of parameter estimation it means that every experiment has separate variable list.
-Parameter estimation launches only one simulation based on only one experimental data set.
+Parameter estimation sequantially solves simulations. That can be speed up by multiprocessing.
 
 OED has builtin variances, it should be taken from state variables
 
