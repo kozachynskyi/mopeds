@@ -25,7 +25,7 @@ class Optimizer(object):
         self.guess = None
         self.lower_bound = None
         self.upper_bound = None
-        self.scaling = None
+        self.scaling = 1
 
         self.solver = None
         self.solver_settings = None
@@ -51,9 +51,6 @@ class Optimizer(object):
         self.guess = np.array(guess)
         self.lower_bound = np.array(lower_bound)
         self.upper_bound = np.array(upper_bound)
-
-        self.scaling = 1
-        self.simulator.scaling = None
 
     def _setup_scaling(self, scale=False):
         # Scaling should be done before setting a solver and solver settings
