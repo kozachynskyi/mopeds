@@ -12,15 +12,16 @@ from par_est import (
 
 
 class Optimizer(object):
-    def __init__(self, model: Model, variable_list: VariableList):
+    def __init__(self, model: Model, variable_lists: [VariableList]):
+        if not isinstance(variable_lists, list):
+            raise(Exception("Variable list should be nested of type list"))
         self.model = model
-        self._input_variable_list = variable_list
+        self.variable_lists = variable_lists
         self.decision_var = VariableList()
         self.parameters = VariableList()
         self.controls = VariableList()
         self.states = VariableList()
-        self.time_grid = None
-        self.simulator = None  # type: Simulator
+        self.simulators = []  # type: [Simulator]
 
         self.guess = None
         self.lower_bound = None
@@ -56,23 +57,25 @@ class Optimizer(object):
         # Scaling should be done before setting a solver and solver settings
         # Sets scaling variables in optimizer and simulator
         if scale:
-            self.simulator._reset_scaling()
             self.scaling = self.guess
-            # for var in self.simulation._variables fails to iterate
-            for count in range(self.simulator._variables.size()[0]):
-                var = self.simulator._variables[count]
-                if var.is_symbolic():
-                    if var.name() in self.decision_var:
-                        current_guess = self.decision_var[var.name()].guess
-                        if current_guess == 0:
-                            self.simulator.scaling[count] = 1
+            for simulator in self.simulators:
+                simulator._reset_scaling()
+                # for var in self.simulation._variables fails to iterate
+                for count in range(simulator._variables.size()[0]):
+                    var = simulator._variables[count]
+                    if var.is_symbolic():
+                        if var.name() in self.decision_var:
+                            current_guess = self.decision_var[var.name()].guess
+                            if current_guess == 0:
+                                simulator.scaling[count] = 1
+                            else:
+                                simulator.scaling[count] = current_guess
                         else:
-                            self.simulator.scaling[count] = current_guess
-                    else:
-                        self.simulator.scaling[count] = 1
+                            simulator.scaling[count] = 1
         else:
             self.scaling = 1
-            self.simulator._reset_scaling()
+            for simulator in self.simulators:
+                simulator._reset_scaling()
 
     def _objective(self):
         # Returns a way to calculate and objective. Dependent on optimization type
@@ -105,47 +108,51 @@ class ParameterEstimation(Optimizer):
         self._setup_initialization()
 
     def _setup_simulator(self):
-        self.time_grid = np.ndarray((1, 0))
-
-        for var in self._input_variable_list.values():
-            # Generates time_grid based on available exp data
+        for var in self.variable_lists[0].values():
             if isinstance(var, State_variable):
                 self.states.add_variable(var)
-                if var.value.is_correct():
-                    self.time_grid = np.append(self.time_grid, var.value.time)
             elif isinstance(var, Parameter_variable):
                 self.parameters.add_variable(var)
                 if var.fixed is False:
                     self.decision_var.add_variable(var)
             elif isinstance(var, Control_variable):
-                var.fixed = True
                 self.controls.add_variable(var)
 
-        self.time_grid = np.unique(self.time_grid)
+        for variable_list in self.variable_lists:
+            time_grid = np.ndarray((1, 0))
 
-        self.simulator = Simulator(
-            self.model, self.time_grid, self._input_variable_list
-        )
+            for var in variable_list.values():
+                # Generates time_grid based on available exp data
+                if isinstance(var, State_variable):
+                    if var.value.is_correct():
+                        time_grid = np.append(time_grid, var.value.time)
+                elif isinstance(var, Control_variable):
+                    var.fixed = True
+
+            time_grid = np.unique(time_grid)
+            self.simulators.append(Simulator(self.model, time_grid, variable_list))
 
     def _objective(self):
-        res_simulation = self.simulator.generate_exp_data()
         error = 0
 
-        for var in self.states.values():
-            if var.value.is_correct():
-                for count_exp_point, time_point in enumerate(var.value.time[1:]):
-                    # Looks up an index in a time_grid that has given time_point
-                    res_index = np.nonzero(self.time_grid == time_point)
-                    res_index = res_index[0][0]
+        for simulator in self.simulators:
+            res_simulation = simulator.generate_exp_data()
 
-                    calculated_value = res_simulation[var.name].value.value[
-                        res_index - 1
-                    ]
-                    experimental_value = var.value.value[count_exp_point + 1]
-                    error_at_timepoint = (
-                        0.5 * (calculated_value - experimental_value)
-                    ) ** 2
-                    error = error + error_at_timepoint
+            for var in self.states.values():
+                if var.value.is_correct():
+                    for count_exp_point, time_point in enumerate(var.value.time[1:]):
+                        # Looks up an index in a time_grid that has given time_point
+                        res_index = np.nonzero(simulator.time_grid == time_point)
+                        res_index = res_index[0][0]
+
+                        calculated_value = res_simulation[var.name].value.value[
+                            res_index - 1
+                        ]
+                        experimental_value = var.value.value[count_exp_point + 1]
+                        error_at_timepoint = (
+                            0.5 * (calculated_value - experimental_value)
+                        ) ** 2
+                        error = error + error_at_timepoint
 
         return error
 
@@ -164,7 +171,7 @@ class OptimalExperimentalDesign(Optimizer):
 
     """Docstring for OptimalExperimentalDesign. """
 
-    def __init__(self, model: Model, variable_list: VariableList, time_grid):
+    def __init__(self, model: Model, variable_list: [VariableList], time_grid):
         """TODO: to be defined. """
         super().__init__(model, variable_list)
         self.time_grid = time_grid
@@ -174,7 +181,7 @@ class OptimalExperimentalDesign(Optimizer):
         self._setup_initialization()
 
     def _setup_simulator(self):
-        for var in self._input_variable_list.values():
+        for var in self.variable_lists[0].values():
             if isinstance(var, Control_variable):
                 if var.fixed is False:
                     self.decision_var.add_variable(var)
@@ -183,12 +190,12 @@ class OptimalExperimentalDesign(Optimizer):
                     self.parameters.add_variable(var)
                     self.parameter_values.append(var.value)
 
-        self.simulator = Simulator(
-            self.model, self.time_grid, self._input_variable_list
-        )
+        self.simulators.append(Simulator(
+            self.model, self.time_grid, self.variable_lists[0]
+        ))
 
     def _sensitivity_matrix(self):
-        res, res_jacobian = self.simulator.simulate(True)
+        res, res_jacobian = self.simulators[0].simulate(True)
 
         eval_jacobian = ca.Function(
             "eval_jacobian",
@@ -202,8 +209,8 @@ class OptimalExperimentalDesign(Optimizer):
 
         parameter_sensitivity_matrix = None
 
-        for count in range(self.simulator._variables.size()[0]):
-            var = self.simulator._variables[count]
+        for count in range(self.simulators[0]._variables.size()[0]):
+            var = self.simulators[0]._variables[count]
             if var.is_symbolic():
                 if var.name() in self.parameters:
                     # Count + 1 because first variable in sensitivity matrix is tau
@@ -216,7 +223,7 @@ class OptimalExperimentalDesign(Optimizer):
                         )
 
         # TODO use variabnces
-        sc_states = np.ones(len(self.simulator._state_variables)).tolist()
+        sc_states = np.ones(len(self.simulators[0]._state_variables)).tolist()
         scale_states = np.diagflat(np.tile(sc_states, len(self.time_grid) - 1))
         scale_parameters = np.diagflat(self.parameter_values)
 
