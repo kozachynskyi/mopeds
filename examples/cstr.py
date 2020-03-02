@@ -23,33 +23,33 @@ def initialize_problem():
 
     variable_list = par_est.VariableList()
 
+    # fmt: off
     variable_list.add_variable(par_est.State_variable("e0_T", 273.0, 10))
     variable_list.add_variable(par_est.State_variable("e0_c_i1", 3.0, 20))
     variable_list.add_variable(par_est.State_variable("e0_c_i2", 10.0, 30))
     variable_list.add_variable(par_est.State_variable("e0_c_i3", 0.0, 40))
     variable_list.add_variable(par_est.State_variable("e0_c_i4", 0.0, 50))
 
-    variable_list.add_variable(par_est.Parameter_variable("e0_E_r1", 96000.0))
-    variable_list.add_variable(par_est.Parameter_variable("e0_E_r2", 72000.0))
-    variable_list.add_variable(par_est.Parameter_variable("e0_E_r3", 69000.0))
-    variable_list.add_variable(par_est.Parameter_variable("e0_k_pre_r1", 5000000.0))
-    variable_list.add_variable(par_est.Parameter_variable("e0_k_pre_r2", 1.0e7))
-    variable_list.add_variable(par_est.Parameter_variable("e0_k_pre_r3", 500000.0))
-    variable_list.add_variable(par_est.Parameter_variable("e0_U", 1.4))
-    variable_list.add_variable(par_est.Parameter_variable("e0_c_p", 3.5))
-    variable_list.add_variable(par_est.Parameter_variable("e0_greek_Deltah_r1", 0.0045))
-    variable_list.add_variable(
-        par_est.Parameter_variable("e0_greek_Deltah_r2", -0.0055)
-    )
-    variable_list.add_variable(par_est.Parameter_variable("e0_greek_Deltah_r3", 0.0045))
+    variable_list.add_variable(par_est.Parameter_variable("e0_E_r1", 9.6e4, 9.0e4, 10.0e4))
+    variable_list.add_variable(par_est.Parameter_variable("e0_E_r2", 7.2e4, 6.8e4, 7.6e4))
+    variable_list.add_variable(par_est.Parameter_variable("e0_E_r3", 6.9e4, 6.5e4, 7.3e4))
+    variable_list.add_variable(par_est.Parameter_variable("e0_k_pre_r1", 5.0e6, 4.5e6, 5.5e6))
+    variable_list.add_variable(par_est.Parameter_variable("e0_k_pre_r2", 1.0e7, 0.5e7, 1.5e7))
+    variable_list.add_variable(par_est.Parameter_variable("e0_k_pre_r3", 5.0e5, 4.5e5, 5.5e5))
+    variable_list.add_variable(par_est.Parameter_variable("e0_U", 1.4, 1.0, 1.8))
+    variable_list.add_variable(par_est.Parameter_variable("e0_c_p", 3.5, 3.0, 4.0))
+    variable_list.add_variable(par_est.Parameter_variable("e0_greek_Deltah_r1", 4.5e-3, 4.0e-3, 5.0e-3))
+    variable_list.add_variable(par_est.Parameter_variable("e0_greek_Deltah_r2", -5.5e-3, -6.0e-3, -5.0e-3))
+    variable_list.add_variable(par_est.Parameter_variable("e0_greek_Deltah_r3", 4.5e-3, 4.0e-3, 5.0e-3))
 
-    variable_list.add_variable(par_est.Control_variable("e0_c_in_i1", 5.0))
-    variable_list.add_variable(par_est.Control_variable("e0_c_in_i2", 10.0))
-    variable_list.add_variable(par_est.Control_variable("e0_c_in_i3", 0.0))
-    variable_list.add_variable(par_est.Control_variable("e0_c_in_i4", 0.0))
-    variable_list.add_variable(par_est.Control_variable("e0_T_in", 373.0))
-    variable_list.add_variable(par_est.Control_variable("e0_T_j", 373.0))
-    variable_list.add_variable(par_est.Control_variable("e0_F", 6.5e-4))
+    variable_list.add_variable(par_est.Control_variable("e0_c_in_i1", 5.0, 4.0, 6.0))
+    variable_list.add_variable(par_est.Control_variable("e0_c_in_i2", 10.0, 9.0, 11.0))
+    variable_list.add_variable(par_est.Control_variable("e0_c_in_i3", 0.0, 0.0, 1.0))
+    variable_list.add_variable(par_est.Control_variable("e0_c_in_i4", 0.0, 0.0, 1.0))
+    variable_list.add_variable(par_est.Control_variable("e0_T_in", 373.0, 353.0, 393.0))
+    variable_list.add_variable(par_est.Control_variable("e0_T_j", 373.0, 353.0, 393.0))
+    variable_list.add_variable(par_est.Control_variable("e0_F", 6.5e-4, 6.0e-4, 7.0e-4))
+    # fmt: on
 
     m = par_est.Model(variable_list)
 
@@ -69,7 +69,7 @@ def initialize_problem():
 variable_list, m = initialize_problem()
 
 # Create time-grid. Zero should be first
-time_grid = np.linspace(10, 1000, 20)
+time_grid = np.linspace(10, 10000, 40)
 time_grid = np.insert(time_grid, 0, 0)
 
 # Generate experimental data
@@ -79,7 +79,7 @@ for var in var_list_fixed.values():
 
 sim_fixed = par_est.Simulator(m, time_grid, var_list_fixed)
 res = sim_fixed.generate_exp_data()
-# res.plot_states()
+res.plot_states()
 # np.savetxt("exp.txt", res.toarray().T, delimiter="\t")
 
 ss = par_est.Simulator(m, time_grid, variable_list)
@@ -89,58 +89,42 @@ var_list2 = copy.deepcopy(var_list_fixed)
 for key, var in var_list_exp.items():
     var_list2[key] = var
 
-# var_list2["e0_T"].value = Experimental_Data()
-# var_list2["e0_c_i4"].value = Experimental_Data()
+# var_list2["e0_T"].value = par_est.Experimental_Data()
+# var_list2["e0_c_i4"].value = par_est.Experimental_Data()
 
-var_list2["e0_k_pre_r1"].fixed = True
-var_list2["e0_k_pre_r1"].guess = 4000000.0
-var_list2["e0_k_pre_r1"].lower_bound = 4000000.0
-var_list2["e0_k_pre_r1"].upper_bound = 6000000.0
+var_list2["e0_E_r1"].fixed = False
+var_list2["e0_E_r1"].guess = var_list2["e0_E_r1"].lower_bound
+var_list2["e0_E_r2"].fixed = False
+var_list2["e0_E_r2"].guess = var_list2["e0_E_r2"].lower_bound
+var_list2["e0_E_r3"].fixed = False
+var_list2["e0_E_r3"].guess = var_list2["e0_E_r3"].lower_bound
 
+var_list2["e0_k_pre_r1"].fixed = False
+var_list2["e0_k_pre_r1"].guess = var_list2["e0_k_pre_r1"].lower_bound
 var_list2["e0_k_pre_r2"].fixed = False
-var_list2["e0_k_pre_r2"].guess = 1.0e6
-var_list2["e0_k_pre_r2"].lower_bound = 1.0e6
-var_list2["e0_k_pre_r2"].upper_bound = 1.0e8
-
-var_list2["e0_k_pre_r3"].fixed = True
-var_list2["e0_k_pre_r3"].guess = 400000.0
-var_list2["e0_k_pre_r3"].lower_bound = 400000.0
-var_list2["e0_k_pre_r3"].upper_bound = 600000.0
+var_list2["e0_k_pre_r2"].guess = var_list2["e0_k_pre_r2"].lower_bound
+var_list2["e0_k_pre_r3"].fixed = False
+var_list2["e0_k_pre_r3"].guess = var_list2["e0_k_pre_r3"].lower_bound
 
 var_list2["e0_U"].fixed = False
-var_list2["e0_U"].guess = 1.1
-var_list2["e0_U"].lower_bound = 1.0
-var_list2["e0_U"].upper_bound = 3.0
+var_list2["e0_U"].guess = var_list2["e0_U"].lower_bound
+var_list2["e0_c_p"].fixed = False
+var_list2["e0_c_p"].guess = var_list2["e0_c_p"].lower_bound
 
 var_list2["e0_c_in_i1"].fixed = False
-var_list2["e0_c_in_i1"].guess = 5.0
-var_list2["e0_c_in_i1"].lower_bound = 4.0
-var_list2["e0_c_in_i1"].upper_bound = 6.0
-
+var_list2["e0_c_in_i1"].guess = var_list2["e0_c_in_i1"].lower_bound
 var_list2["e0_c_in_i2"].fixed = False
-var_list2["e0_c_in_i2"].guess = 10.0
-var_list2["e0_c_in_i2"].lower_bound = 9.0
-var_list2["e0_c_in_i2"].upper_bound = 11.0
-
+var_list2["e0_c_in_i2"].guess = var_list2["e0_c_in_i2"].lower_bound
 var_list2["e0_c_in_i3"].fixed = False
-var_list2["e0_c_in_i3"].guess = 0.0
-var_list2["e0_c_in_i3"].lower_bound = 0.0
-var_list2["e0_c_in_i3"].upper_bound = 0.0
-
+var_list2["e0_c_in_i3"].guess = var_list2["e0_c_in_i3"].lower_bound
 var_list2["e0_c_in_i4"].fixed = False
-var_list2["e0_c_in_i4"].guess = 0.0
-var_list2["e0_c_in_i4"].lower_bound = 0.0
-var_list2["e0_c_in_i4"].upper_bound = 0.0
-
+var_list2["e0_c_in_i4"].guess = var_list2["e0_c_in_i4"].lower_bound
 var_list2["e0_T_in"].fixed = False
-var_list2["e0_T_in"].guess = 373.0
-var_list2["e0_T_in"].lower_bound = 353.0
-var_list2["e0_T_in"].upper_bound = 393.0
-
+var_list2["e0_T_in"].guess = var_list2["e0_T_in"].lower_bound
 var_list2["e0_T_j"].fixed = False
-var_list2["e0_T_j"].guess = 373.0
-var_list2["e0_T_j"].lower_bound = 353.0
-var_list2["e0_T_j"].upper_bound = 393.0
+var_list2["e0_T_j"].guess = var_list2["e0_T_j"].lower_bound
+var_list2["e0_F"].fixed = False
+var_list2["e0_F"].guess = var_list2["e0_F"].lower_bound
 
 # start_time = datetime(2018, 1, 1, 1, 0, 0, 0) + timedelta(days=1)
 # end_time = start_time + timedelta(seconds=1000)
@@ -149,13 +133,13 @@ var_list_oed = copy.deepcopy(var_list2)
 # var_list_exp.write_data_opcua(start_time)
 # var_list3.get_data_opcua(start_time, end_time)
 pe = par_est.ParameterEstimation(m, var_list2)
-# pe.optimize()
+pe.optimize()
 
-oed = par_est.OptimalExperimentalDesign(m, var_list_oed, time_grid)
-a = oed.get_fim_matrix()
-b = a[0].toarray()
+# oed = par_est.OptimalExperimentalDesign(m, var_list_oed, time_grid)
+# a = oed.get_fim_matrix()
+# b = a[0].toarray()
 # b = ca.fabs(b)
-c = a[1].toarray()
+# c = a[1].toarray()
 # turn_off_states = np.array([1, 1, 1, 1, 1])
 # sc_states = [1, 0.01, 0.01, 0.01, 0.01]
 # sc = np.diagflat(np.tile(turn_off_states, len(time_grid) - 1))
@@ -171,5 +155,5 @@ c = a[1].toarray()
 # fig.add_subplot(151).imshow(b, cmap=cm.Greens_r)
 # fig.add_subplot(152).imshow(ca.inv(c), cmap=cm.Greens_r)
 # plt.show()
-oed.optimize()
+# oed.optimize()
 # pe.optimize(False)
