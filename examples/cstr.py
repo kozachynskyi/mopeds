@@ -39,7 +39,7 @@ def initialize_problem():
     variable_list.add_variable(par_est.Parameter_variable("e0_U", 1.4, 1.0, 1.8))
     variable_list.add_variable(par_est.Parameter_variable("e0_c_p", 3.5, 3.0, 4.0))
     variable_list.add_variable(par_est.Parameter_variable("e0_greek_Deltah_r1", 4.5e-3, 4.0e-3, 5.0e-3))
-    variable_list.add_variable(par_est.Parameter_variable("e0_greek_Deltah_r2", -5.5e-3, -6.0e-3, -5.0e-3))
+    variable_list.add_variable(par_est.Parameter_variable("e0_greek_Deltah_r2", -5.5e-3, -5.0e-3, -6.0e-3))
     variable_list.add_variable(par_est.Parameter_variable("e0_greek_Deltah_r3", 4.5e-3, 4.0e-3, 5.0e-3))
 
     variable_list.add_variable(par_est.Control_variable("e0_c_in_i1", 5.0, 4.0, 6.0))
@@ -79,13 +79,14 @@ for var in var_list_fixed.values():
 
 sim_fixed = par_est.Simulator(m, time_grid, var_list_fixed)
 res = sim_fixed.generate_exp_data()
-res.plot_states()
+# res.plot_states()
 # np.savetxt("exp.txt", res.toarray().T, delimiter="\t")
 
 ss = par_est.Simulator(m, time_grid, variable_list)
 var_list_exp = sim_fixed.generate_exp_data()
 
-var_list2 = copy.deepcopy(var_list_fixed)
+# Replace empty state variables with results from simulation
+var_list2 = copy.deepcopy(variable_list)
 for key, var in var_list_exp.items():
     var_list2[key] = var
 
@@ -111,6 +112,13 @@ var_list2["e0_U"].guess = var_list2["e0_U"].lower_bound
 var_list2["e0_c_p"].fixed = False
 var_list2["e0_c_p"].guess = var_list2["e0_c_p"].lower_bound
 
+# var_list2["e0_greek_Deltah_r1"].fixed = False
+# var_list2["e0_greek_Deltah_r1"].guess = var_list2["e0_greek_Deltah_r1"].lower_bound
+# var_list2["e0_greek_Deltah_r2"].fixed = False
+# var_list2["e0_greek_Deltah_r2"].guess = var_list2["e0_greek_Deltah_r2"].lower_bound
+# var_list2["e0_greek_Deltah_r3"].fixed = False
+# var_list2["e0_greek_Deltah_r3"].guess = var_list2["e0_greek_Deltah_r3"].lower_bound
+
 var_list2["e0_c_in_i1"].fixed = False
 var_list2["e0_c_in_i1"].guess = var_list2["e0_c_in_i1"].lower_bound
 var_list2["e0_c_in_i2"].fixed = False
@@ -133,7 +141,7 @@ var_list_oed = copy.deepcopy(var_list2)
 # var_list_exp.write_data_opcua(start_time)
 # var_list3.get_data_opcua(start_time, end_time)
 pe = par_est.ParameterEstimation(m, [var_list2, var_list2])
-pe.optimize()
+# pe.optimize()
 
 oed = par_est.OptimalExperimentalDesign(m, [var_list_oed], time_grid)
 # a = oed.get_fim_matrix()

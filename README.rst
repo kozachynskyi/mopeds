@@ -14,7 +14,7 @@ Control variable can hold only one control value for one experiment. No control 
 Determine how to store time_grid - list or numpy array
 in Optimizer if guess is 0 it's set to 1, which shouldn't hold all the time. Consider to determine scalingn based on lb and ub
 
-Parameter estimation sequantially solves simulations. That can be speed up by multiprocessing.
+Parameter estimation sequantially solves simulations. Multiprocessing doesn't work, because of picklign problem. Multithreading can be tested, but not sure it works. I shouldn't concentrate on that.
 
 OED has builtin variances, it should be taken from state variables
 
