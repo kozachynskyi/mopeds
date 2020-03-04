@@ -12,7 +12,7 @@ class Simulator(object):
 
     def __init__(self, model: Model, time_grid, variable_list: VariableList):
         """TODO: to be defined. """
-        self.__input_variable_list = variable_list
+        self.__input_variable_list = copy.deepcopy(variable_list)
         self.model = model
         self.tau = ca.MX.sym("tau")
         self.scaling = None

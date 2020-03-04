@@ -1,3 +1,4 @@
+import copy
 import casadi as ca
 import numpy as np
 
@@ -14,9 +15,10 @@ from par_est import (
 class Optimizer(object):
     def __init__(self, model: Model, variable_lists: [VariableList]):
         if not isinstance(variable_lists, list):
-            raise(Exception("Variable list should be nested of type list"))
+            raise (Exception("Variable list should be nested of type list"))
         self.model = model
-        self.variable_lists = variable_lists
+        # Deepcopy is used to avoid manipulating input variable list
+        self.variable_lists = copy.deepcopy(variable_lists)
         self.decision_var = VariableList()
         self.parameters = VariableList()
         self.controls = VariableList()
@@ -92,11 +94,21 @@ class Optimizer(object):
             self.solver_settings,
         )
 
+        # Scaling of negative numbers requires switch bounds
+        lb_scaled = (self.lower_bound / self.scaling)
+        ub_scaled = (self.upper_bound / self.scaling)
+        for index, (lb, ub) in enumerate(zip(lb_scaled, ub_scaled)):
+            if lb > ub:
+                lb_scaled[index] = ub
+                ub_scaled[index] = lb
+
+
         res_solver = self.solver(
             x0=self.guess / self.scaling,
-            lbx=self.lower_bound / self.scaling,
-            ubx=self.upper_bound / self.scaling,
+            lbx=lb_scaled,
+            ubx=ub_scaled,
         )
+
         print(res_solver["x"])
         print(res_solver["x"] * self.scaling)
 
@@ -190,9 +202,9 @@ class OptimalExperimentalDesign(Optimizer):
                     self.parameters.add_variable(var)
                     self.parameter_values.append(var.value)
 
-        self.simulators.append(Simulator(
-            self.model, self.time_grid, self.variable_lists[0]
-        ))
+        self.simulators.append(
+            Simulator(self.model, self.time_grid, self.variable_lists[0])
+        )
 
     def _sensitivity_matrix(self):
         res, res_jacobian = self.simulators[0].simulate(True)
