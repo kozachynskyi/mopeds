@@ -4,9 +4,13 @@ from datetime import datetime, timedelta
 import casadi as ca
 import numpy as np
 from matplotlib import pyplot as plt
-from opcua import ua
-from opcua.ua import NumericNodeId
-from optipal.client import OptiPALClient
+
+try:
+    from opcua import ua
+    from opcua.ua import NumericNodeId
+    from optipal.client import OptiPALClient
+except Exception:
+    pass
 
 
 class Variable(object):

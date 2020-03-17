@@ -6,6 +6,12 @@ A project to play around with Parameter Estimation (PE) and Optimal Experimental
 
 Math is handled via casadi.
 
+Requirements
+============
+
+python => 3.5 <=3.7 (for casadi)
+casadi https://github.com/casadi/casadi/wiki/InstallationInstructions
+
 TODO
 ===========
 
@@ -53,12 +59,6 @@ parameter estimation determines time_grid for itself, based on available state_v
 OED uses time grid provided to it. It uses unfixed contoll variables as desicion variables and unfixed parameters to calculate sensitivities
 _sensitivity_matrix is used to calculated Jy/dp
 get_fim() is used to calculate FIM for a given set of variables
-
-Requirements
-============
-
-python => 3
-casadi https://github.com/casadi/casadi/wiki/InstallationInstructions
 
 Note
 ====
