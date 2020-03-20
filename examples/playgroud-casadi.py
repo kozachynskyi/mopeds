@@ -57,6 +57,7 @@ e0_c_in_i4 = 0.0
 e0_T_in = 373.0
 e0_T_j = 373.0
 
+
 # Create equations
 # fmt: off
 tdot = (((((e0_F / e0_V) * ((e0_T_in - e0_T))) + (((e0_U * e0_A) / (e0_greek_rho * (e0_c_p * e0_V))) * ((e0_T_j - e0_T)))) + (((-e0_greek_Deltah_r1) / (e0_greek_rho * e0_c_p)) * (e0_k_pre_r1 * (e0_c_i1 * ca.exp(((-e0_E_r1) / (e0_R * e0_T))))))) + (((-e0_greek_Deltah_r2) / (e0_greek_rho * e0_c_p)) * (e0_k_pre_r2 * (e0_c_i2 * ca.exp(((-e0_E_r2) / (e0_R * e0_T))))))) + (((-e0_greek_Deltah_r3) / (e0_greek_rho * e0_c_p)) * (e0_k_pre_r3 * (e0_c_i1 * ca.exp(((-e0_E_r3) / (e0_R * e0_T))))))
@@ -179,77 +180,78 @@ nlp_solver = ca.nlpsol(
 res_solver = nlp_solver(x0=parameters_guess, lbx=parameters_lb, ubx=parameters_ub)
 print(res_solver["x"])
 print(res_solver["x"] * parameters_scale)
-
+exit()
 """
 ODE Routine is currently not yeilding great results
 """
 
-# # ODE Routine
-# res_states_ode = []
-# x_init = states_init
-# prev_time_step = 0
-# for time_step in time_grid[1:]:
-#     res_integration_tau_ode = integrator_MAN_tau(
-#         x0=x_init, p=ca.vertcat(parameters, controls, time_step - prev_time_step),
-#     )
+# ODE Routine
+res_states_ode = []
+x_init = states_init
+prev_time_step = 0
+for time_step in time_grid[1:]:
+    res_integration_tau_ode = integrator_MAN_tau(
+        x0=x_init, p=ca.vertcat(parameters, controls, time_step - prev_time_step),
+    )
+
+    integrator_jac = integrator_MAN_tau.factory("I_fwd", ["x0", "p"], ["jac:xf:p"])
+
+    res_integration_jac = integrator_jac(
+        x0=x_init, p=ca.vertcat(parameters, controls, time_step - prev_time_step),
+    )
+
+    prev_time_step = time_step
+    x_init = res_integration_tau_ode["xf"]
+    if time_step == time_grid[1]:
+        res_jac_ode = res_integration_jac["jac_xf_p"][:, 0:4]
+    else:
+        res_jac_ode = ca.vertcat(res_jac_ode, res_integration_jac["jac_xf_p"][:, 0:4])
+
+res_jacobian = ca.jacobian(res_states_ode, ca.vertcat(parameters, controls))
+res_jacobian = ca.jacobian(res_states_ode, parameters)
+
+# Check objective
+eval_jacobian = ca.Function("eval_jacobian", [parameters, controls], [res_jac_ode])
+sensitivity_matrix = eval_jacobian(parameters_values, controls)[:, 0:4]
+
+# Calculate OBJ TRACE[FIM]
+sigma_diag = ca.DM([1, 1, 1, 1, 1]) * 1e20
+sigma_full = ca.diag(sigma_diag)
+
+measurement_matrix = ca.repmat(sigma_full, num_steps, num_steps)
+sensitivity_matrix = res_jac_ode
+fim_matrix = sensitivity_matrix.T @ measurement_matrix @ sensitivity_matrix
+
+eval_fim_matrix = ca.Function("eval_fim", [controls], [fim_matrix])
+fim_matrix_inv = ca.inv(fim_matrix)
+trace = ca.trace(fim_matrix_inv)
+
+eval_trace = ca.Function("eval_trace", [controls], [trace])
+
+fim = sensitivity_matrix.T @ measurement_matrix @ sensitivity_matrix
+trace = ca.trace(ca.inv(fim))
+
+trace = ca.trace(res_jac_ode@res_jac_ode.T)
+nlp_ode = {"x": ca.vertcat(parameters, controls), "f": trace}
+nlp_solver_ode = ca.nlpsol(
+    "solver",
+    "ipopt",
+    nlp_ode,
+    #     {"verbose": False, "ipopt": {"hessian_approximation": "exact", "max_iter": 200,"derivative_test": 'first-order'}},
+    {
+        "verbose": True,
+        "ipopt": {
+            "hessian_approximation": "limited-memory",
+            "max_iter": 200,
+            "derivative_test": "first-order",
+        },
+    },
+)
 #
-#     integrator_jac = integrator_MAN_tau.factory("I_fwd", ["x0", "p"], ["jac:xf:p"])
-#
-#     res_integration_jac = integrator_jac(
-#         x0=x_init, p=ca.vertcat(parameters, controls, time_step - prev_time_step),
-#     )
-#
-#     prev_time_step = time_step
-#     x_init = res_integration_tau_ode["xf"]
-#     if time_step == time_grid[1]:
-#         res_jac_ode = res_integration_jac["jac_xf_p"][:, 0:4]
-#     else:
-#         res_jac_ode = ca.vertcat(res_jac_ode, res_integration_jac["jac_xf_p"][:, 0:4])
-#
-# # res_jacobian = ca.jacobian(res_states_ode, ca.vertcat(parameters, controls))
-# # res_jacobian = ca.jacobian(res_states_ode, parameters)
-#
-# # Check objective
-# # eval_jacobian = ca.Function("eval_jacobian", [parameters, controls], [res_jac_ode])
-# # sensitivity_matrix = eval_jacobian(parameters_values, controls)[:, 0:4]
-#
-# # # Calculate OBJ TRACE[FIM]
-# sigma_diag = ca.DM([1, 1, 1, 1, 1]) * 1e20
-# sigma_full = ca.diag(sigma_diag)
-#
-# measurement_matrix = ca.repmat(sigma_full, num_steps, num_steps)
-# sensitivity_matrix = res_jac_ode
-# fim_matrix = sensitivity_matrix.T @ measurement_matrix @ sensitivity_matrix
-#
-# eval_fim_matrix = ca.Function("eval_fim", [controls], [fim_matrix])
-# fim_matrix_inv = ca.inv(fim_matrix)
-# trace = ca.trace(fim_matrix_inv)
-#
-# eval_trace = ca.Function("eval_trace", [controls], [trace])
-#
-# # fim = sensitivity_matrix.T @ measurement_matrix @ sensitivity_matrix
-# # trace = ca.trace(ca.inv(fim))
-#
-# nlp_ode = {"x": ca.vertcat(parameters, controls), "f": trace}
-# nlp_solver_ode = ca.nlpsol(
-#     "solver",
-#     "ipopt",
-#     nlp_ode,
-#     #     {"verbose": False, "ipopt": {"hessian_approximation": "exact", "max_iter": 200,"derivative_test": 'first-order'}},
-#     {
-#         "verbose": True,
-#         "ipopt": {
-#             "hessian_approximation": "limited-memory",
-#             "max_iter": 200,
-#             "derivative_test": "first-order",
-#         },
-#     },
-# )
-#
-# res_solver_ode = nlp_solver_ode(
-#     x0=ca.vertcat(parameters_values, controls_guess),
-#     lbx=ca.vertcat(parameters_values, controls_lb),
-#     ubx=ca.vertcat(parameters_values, controls_ub),
-# )
-# # res_solver_ode = nlp_solver_ode(x0=controls_guess, lbx=controls_lb, ubx=controls_ub)
-# print(res_solver_ode["x"])
+res_solver_ode = nlp_solver_ode(
+    x0=ca.vertcat(parameters_values, controls_guess),
+    lbx=ca.vertcat(parameters_values, controls_lb),
+    ubx=ca.vertcat(parameters_values, controls_ub),
+)
+# res_solver_ode = nlp_solver_ode(x0=controls_guess, lbx=controls_lb, ubx=controls_ub)
+print(res_solver_ode["x"])

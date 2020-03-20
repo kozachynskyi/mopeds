@@ -1,0 +1,153 @@
+from collections import OrderedDict
+from datetime import datetime, timedelta
+
+import casadi as ca
+import numpy as np
+from matplotlib import pyplot as plt
+
+try:
+    from opcua import ua
+    from opcua.ua import NumericNodeId
+    from optipal.client import OptiPALClient
+except Exception:
+    pass
+
+
+class Variable(object):
+
+    """Docstring for Variable. """
+
+    def __init__(self, name):
+        """TODO: to be defined. """
+        self.name = name
+        self.casadi_var = ca.MX.sym(self.name)
+        self.fixed = False
+        self.opc_ua_id = None
+        self.starting_value = None
+        self.value = None
+        self.guess = None
+        self.lower_bound = None
+        self.upper_bound = None
+
+
+class State_variable(Variable):
+    def __init__(self, name, starting_value=None, opc_ua_id=None):
+        super().__init__(name)
+        self.starting_value = starting_value
+        self.value = Experimental_Data()
+        self.opc_ua_id = opc_ua_id
+
+
+class Parameter_variable(Variable):
+    def __init__(self, name, value=None, lb=None, ub=None):
+        super().__init__(name)
+        self.value = value
+        self.lower_bound = lb
+        self.upper_bound = ub
+
+
+class Control_variable(Variable):
+    def __init__(self, name, value=None, lb=None, ub=None, opc_ua_id=None):
+        super().__init__(name)
+        self.value = value
+        self.lower_bound = lb
+        self.upper_bound = ub
+        self.opc_ua_id = opc_ua_id
+
+
+class VariableList(OrderedDict):
+    def __init__(self):
+        super().__init__()
+
+    def add_variable(self, variable: Variable):
+        """ TODO: add error handling if variable exists"""
+        self.update({variable.name: variable})
+
+    def get_casadi_var(self):
+        casadi_vars = []
+        for var in self.values():
+            casadi_vars.append(var.casadi_var)
+        return ca.vcat(casadi_vars)
+
+    def get_data_opcua(self, time_start: datetime, time_stop: datetime):
+        client = OptiPALClient("opc.tcp://admin@localhost:4840")  # type: OptiPALClient
+        client.connect()
+        try:
+            ns_working = client.get_working_ns_idx()
+            for var in self.values():
+                values_opcua = []
+                time_opcua = []
+                if isinstance(var, State_variable):
+                    sensor = client.get_node(NumericNodeId(var.opc_ua_id, ns_working))
+                    process_value = client.get_child_simple(sensor, ["d:ProcessValue"])
+                    results = process_value.read_raw_history(
+                        time_start, time_stop, 1000
+                    )
+                    var.value = Experimental_Data()
+
+                    for result in results:
+                        if not time_opcua:
+                            time_opcua.append(0.0)
+                            time_zero = result.SourceTimestamp
+                            var.starting_value = result.Value.Value
+                        else:
+                            time_from_ref = (
+                                result.SourceTimestamp - time_zero
+                            ).total_seconds()
+                            time_opcua.append(time_from_ref)
+
+                        values_opcua.append(result.Value.Value)
+
+                    var.value.value = np.array(values_opcua)
+                    var.value.time = np.array(time_opcua)
+        finally:
+            client.disconnect()
+
+    def write_data_opcua(self, time_start: datetime):
+        client = OptiPALClient("opc.tcp://admin@localhost:4840")  # type: OptiPALClient
+        client.connect()
+        try:
+            time_zero = time_start
+            ns_working = client.get_working_ns_idx()
+            for var in self.values():
+                if isinstance(var, State_variable):
+                    sensor = client.get_node(NumericNodeId(var.opc_ua_id, ns_working))
+                    process_value = client.get_child_simple(sensor, ["d:ProcessValue"])
+                    for value, time in zip(var.value.value, var.value.time):
+                        datavalue = ua.DataValue(value)
+                        datavalue.SourceTimestamp = time_zero + timedelta(seconds=time)
+                        process_value.set_attribute(ua.AttributeIds.Value, datavalue)
+        finally:
+            client.disconnect()
+
+    def plot_states(self, as_one_plot=False):
+        # Choose only state variables
+        state_var_list = VariableList()
+        for var in self.values():
+            if isinstance(var, State_variable):
+                state_var_list.add_variable(var)
+
+        if as_one_plot is True:
+            for var in state_var_list.values():
+                plt.plot(var.value.time, var.value.value, label=var.name)
+            plt.legend()
+        else:
+            figure, axes_array = plt.subplots(len(self))
+            for var, ax in zip(state_var_list.values(), axes_array):
+                ax.plot(var.value.time, var.value.value, label=var.name)
+                ax.legend()
+        plt.show()
+
+
+class Experimental_Data(object):
+    def __init__(self):
+        self.time = None
+        self.value = None
+
+    def is_correct(self):
+        if self.time is None or self.value is None:
+            return False
+        if self.time.size == self.value.size:
+            return True
+        else:
+            False
