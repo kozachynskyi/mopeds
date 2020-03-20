@@ -1,19 +1,13 @@
-=======
-par_est
-=======
+# par_est
 
 A project to play around with Parameter Estimation (PE) and Optimal Experimental Design (OED) for ODE and DAE system of equations.
 
-Math is handled via casadi.
-
-Requirements
-============
+## Requirements
 
 python => 3.5 <=3.7 (for casadi)
 casadi https://github.com/casadi/casadi/wiki/InstallationInstructions
 
-TODO
-===========
+## TODO
 
 State variable starting value is redundant. It should be taken/stored from Experimental Data.
 Control variable can hold only one control value for one experiment. No control change in time and additional experiments can be added.
@@ -24,8 +18,7 @@ Parameter estimation sequantially solves simulations. Multiprocessing doesn't wo
 
 OED has builtin variances, it should be taken from state variables
 
-Structure
-========
+## Structure
 
 Experimental Data is object that stores value and time arrays.
 
@@ -60,8 +53,7 @@ OED uses time grid provided to it. It uses unfixed contoll variables as desicion
 _sensitivity_matrix is used to calculated Jy/dp
 get_fim() is used to calculate FIM for a given set of variables
 
-Note
-====
+## Note
 
-This project has been set up using PyScaffold 3.2.2. For details and usage
+This project has been set up using PyScaffold 3.2.3. For details and usage
 information on PyScaffold see https://pyscaffold.org/.
