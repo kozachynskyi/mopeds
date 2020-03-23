@@ -51,8 +51,8 @@ if __name__ == "__main__":
     # variable_list_optimizer["e0_F"].fixed = True
 
     pe = par_est.ParameterEstimation(m, [variable_list_optimizer, variable_list_optimizer])
-    # pe.optimize()
-    # pe.optimize(False)
+    pe.optimize()
+    pe.optimize(False)
 
     # variable_list_optimizer["e0_E_r1"].fixed = True
     # variable_list_optimizer["e0_E_r2"].fixed = True

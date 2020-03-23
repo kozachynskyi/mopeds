@@ -3,7 +3,7 @@ import copy
 import casadi as ca
 import numpy as np
 
-from par_est import VariableList, Model, Experimental_Data, Variable, State_variable
+from par_est import VariableList, Model, Experimental_Data, Variable, State_variable, Algebraic_variable
 
 
 class Simulator(object):
@@ -21,17 +21,23 @@ class Simulator(object):
         self.ode_system = {
             "x": self.model.states.get_casadi_var(),
             "p": ca.vertcat(self.model.variables.get_casadi_var()),
-            "ode": self.model.equations,
+            "ode": self.model.differential_equations,
         }
         self.ode_system_tau = {
             "x": self.model.states.get_casadi_var(),
             "p": ca.vertcat(self.tau, self.model.variables.get_casadi_var()),
-            "ode": self.model.equations * self.tau,
+            "ode": self.model.differential_equations * self.tau,
         }
+
+        if self.model.algebraic_equations is not None:
+            self.ode_system["alg"] = self.model.algebraic_equations
+            self.ode_system_tau["alg"] = self.model.algebraic_equations
+            self.ode_system["z"] = self.model.algebraic_variables.get_casadi_var()
+            self.ode_system_tau["z"] = self.model.algebraic_variables.get_casadi_var()
 
         self.integrator = ca.integrator(
             "integrator",
-            "cvodes",
+            "idas",
             self.ode_system,
             {"grid": self.time_grid, "output_t0": False, "print_stats": False},
         )
@@ -39,17 +45,19 @@ class Simulator(object):
         # This integrator uses tau variable and is used in PE and OED
         self.integrator_tau = ca.integrator(
             "integrator",
-            "cvodes",
+            "idas",
             self.ode_system_tau,
             {
                 "tf": 1,
                 "output_t0": False,
                 "print_stats": False,
-                "linear_multistep_method": "adams",
+                "calc_ic": True,
+                # "linear_multistep_method": "adams", # was used for CVODES 
             },
         )
 
         self._state_variables = VariableList()
+        self._algebraic_variables = VariableList()
         # Arrays needed to initialize integrator.
         self._variables = []
         self._initial_states = []
@@ -59,6 +67,8 @@ class Simulator(object):
                 if isinstance(var, State_variable):
                     self._initial_states.append(var.starting_value)
                     self._state_variables.add_variable(var)
+                elif isinstance(var, Algebraic_variable):
+                    self._algebraic_variables.add_variable(var)
                 else:
                     if var.fixed:
                         self._variables.append(var.value)
@@ -74,6 +84,7 @@ class Simulator(object):
     def simulate(self, derivatives=False):
         prev_time_step = 0
         res_states = []
+        res_algebraic = []
         res_jacobian = []
         x_init = self._initial_states
 
@@ -100,10 +111,12 @@ class Simulator(object):
 
             if time_step == self.time_grid[1]:
                 res_states = res_integration["xf"]
+                res_algebraic = res_integration["zf"]
                 if derivatives:
                     res_jacobian = res_integration_jac["jac_xf_p"]
             else:
                 res_states = ca.horzcat(res_states, res_integration["xf"])
+                res_algebraic = ca.horzcat(res_algebraic, res_integration["zf"])
                 if derivatives:
                     res_jacobian = ca.vertcat(
                         res_jacobian, res_integration_jac["jac_xf_p"]
@@ -112,7 +125,7 @@ class Simulator(object):
         if derivatives:
             return res_states, res_jacobian
         else:
-            return res_states
+            return ca.vertcat(res_states, res_algebraic)
 
     def generate_exp_data(self):
         res_array = self.simulate()
@@ -121,19 +134,22 @@ class Simulator(object):
         if isinstance(res_array, ca.DM):
             convert_to_numpy = True
 
-        for count, var in enumerate(self._state_variables.values()):
-            new_var = copy.deepcopy(var)
-            new_var.value = Experimental_Data()
-            if convert_to_numpy:
-                new_var.value.time = self.time_grid
-                new_var.value.value = res_array[count, :].toarray()
-                new_var.value.value = np.insert(
-                    new_var.value.value, 0, var.starting_value
-                )
-            else:
-                new_var.value.time = self.time_grid[1:]
-                new_var.value.value = res_array[count, :]
+        shift_by = 0
+        for variable_list in [self._state_variables, self._algebraic_variables]:
+            for count, var in enumerate(variable_list.values()):
+                new_var = copy.deepcopy(var)
+                new_var.value = Experimental_Data()
+                if convert_to_numpy:
+                    new_var.value.time = self.time_grid
+                    new_var.value.value = res_array[count + shift_by, :].toarray()
+                    new_var.value.value = np.insert(
+                        new_var.value.value, 0, var.starting_value
+                    )
+                else:
+                    new_var.value.time = self.time_grid[1:]
+                    new_var.value.value = res_array[count + shift_by, :]
 
-            variables.add_variable(new_var)
+                variables.add_variable(new_var)
+            shift_by = count + 1
 
         return variables

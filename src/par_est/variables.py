@@ -38,6 +38,13 @@ class State_variable(Variable):
         self.opc_ua_id = opc_ua_id
 
 
+class Algebraic_variable(Variable):
+    def __init__(self, name, starting_value=None, opc_ua_id=None):
+        super().__init__(name)
+        self.starting_value = starting_value
+        self.value = Experimental_Data()
+
+
 class Parameter_variable(Variable):
     def __init__(self, name, value=None, lb=None, ub=None):
         super().__init__(name)
@@ -125,6 +132,8 @@ class VariableList(OrderedDict):
         state_var_list = VariableList()
         for var in self.values():
             if isinstance(var, State_variable):
+                state_var_list.add_variable(var)
+            elif isinstance(var, Algebraic_variable):
                 state_var_list.add_variable(var)
 
         if as_one_plot is True:

@@ -8,10 +8,11 @@ from matplotlib import pyplot as plt
 
 import par_est
 import cstr
+import cstr_dae
 
 if __name__ == "__main__":
 
-    variable_list, m = cstr.initialize_problem()
+    variable_list, m = cstr_dae.initialize_problem()
     # Create time-grid. Zero should be first
     time_grid = np.linspace(10, 10000, 40)
     time_grid = np.insert(time_grid, 0, 0)

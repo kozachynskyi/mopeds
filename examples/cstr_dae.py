@@ -30,6 +30,8 @@ def initialize_problem():
     variable_list.add_variable(par_est.State_variable("e0_c_i3", 0.0, 40))
     variable_list.add_variable(par_est.State_variable("e0_c_i4", 0.0, 50))
 
+    variable_list.add_variable(par_est.Algebraic_variable("e0_c_tot"))
+
     variable_list.add_variable(par_est.Parameter_variable("e0_E_r1", 9.6e4, 9.0e4, 10.0e4))
     variable_list.add_variable(par_est.Parameter_variable("e0_E_r2", 7.2e4, 6.8e4, 7.6e4))
     variable_list.add_variable(par_est.Parameter_variable("e0_E_r3", 6.9e4, 6.5e4, 7.3e4))
@@ -59,9 +61,15 @@ def initialize_problem():
     variable_list["e0_k_pre_r3"].guess = variable_list["e0_k_pre_r3"].lower_bound
     variable_list["e0_U"].guess = variable_list["e0_U"].lower_bound
     variable_list["e0_c_p"].guess = variable_list["e0_c_p"].lower_bound
-    variable_list["e0_greek_Deltah_r1"].guess = variable_list["e0_greek_Deltah_r1"].lower_bound
-    variable_list["e0_greek_Deltah_r2"].guess = variable_list["e0_greek_Deltah_r2"].lower_bound
-    variable_list["e0_greek_Deltah_r3"].guess = variable_list["e0_greek_Deltah_r3"].lower_bound
+    variable_list["e0_greek_Deltah_r1"].guess = variable_list[
+        "e0_greek_Deltah_r1"
+    ].lower_bound
+    variable_list["e0_greek_Deltah_r2"].guess = variable_list[
+        "e0_greek_Deltah_r2"
+    ].lower_bound
+    variable_list["e0_greek_Deltah_r3"].guess = variable_list[
+        "e0_greek_Deltah_r3"
+    ].lower_bound
 
     variable_list["e0_c_in_i1"].guess = variable_list["e0_c_in_i1"].lower_bound
     variable_list["e0_c_in_i2"].guess = variable_list["e0_c_in_i2"].lower_bound
@@ -79,9 +87,13 @@ def initialize_problem():
     c2dot = ((m._all_variables["e0_F"].casadi_var / e0_V) * ((m._all_variables["e0_c_in_i2"].casadi_var - m._all_variables["e0_c_i2"].casadi_var))) + (e0_greek_nu_i2_r2 * (m._all_variables["e0_k_pre_r2"].casadi_var * (m._all_variables["e0_c_i2"].casadi_var * ca.exp(((-m._all_variables["e0_E_r2"].casadi_var) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
     c3dot = ((m._all_variables["e0_F"].casadi_var / e0_V) * ((m._all_variables["e0_c_in_i3"].casadi_var - m._all_variables["e0_c_i3"].casadi_var))) + (e0_greek_nu_i3_r1 * (m._all_variables["e0_k_pre_r1"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-m._all_variables["e0_E_r1"].casadi_var) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
     c4dot = ((m._all_variables["e0_F"].casadi_var / e0_V) * ((m._all_variables["e0_c_in_i4"].casadi_var - m._all_variables["e0_c_i4"].casadi_var))) + (e0_greek_nu_i4_r3 * (m._all_variables["e0_k_pre_r3"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-m._all_variables["e0_E_r3"].casadi_var) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
+
+    c_tot = m._all_variables["e0_c_tot"].casadi_var - m._all_variables["e0_c_i1"].casadi_var - m._all_variables["e0_c_i2"].casadi_var - m._all_variables["e0_c_i3"].casadi_var - m._all_variables["e0_c_i4"].casadi_var
+
     # fmt: on
 
     m.add_differential_equations([tdot, c1dot, c2dot, c3dot, c4dot])
+    m.add_algebraic_equations([c_tot])
 
     return variable_list, m
 
