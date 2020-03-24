@@ -30,7 +30,7 @@ def initialize_problem():
     variable_list.add_variable(par_est.State_variable("e0_c_i3", 0.0, 40))
     variable_list.add_variable(par_est.State_variable("e0_c_i4", 0.0, 50))
 
-    variable_list.add_variable(par_est.Algebraic_variable("e0_c_tot"))
+    variable_list.add_variable(par_est.Algebraic_variable("e0_c_tot", 13.0))
 
     variable_list.add_variable(par_est.Parameter_variable("e0_E_r1", 9.6e4, 9.0e4, 10.0e4))
     variable_list.add_variable(par_est.Parameter_variable("e0_E_r2", 7.2e4, 6.8e4, 7.6e4))
@@ -114,31 +114,4 @@ if __name__ == "__main__":
     sim_fixed = par_est.Simulator(m, time_grid, var_list_fixed)
     res = sim_fixed.generate_exp_data()
     var_list_exp = sim_fixed.generate_exp_data()
-
-    start_time = datetime(2018, 1, 1, 1, 0, 0, 0) + timedelta(days=1)
-    end_time = start_time + timedelta(seconds=1000)
-    var_list3 = copy.deepcopy(var_list_fixed)
-    var_list_exp.write_data_opcua(start_time)
-    var_list3.get_data_opcua(start_time, end_time)
-
-    # a = oed.get_fim_matrix()
-    # b = a[0].toarray()
-    # b = ca.fabs(b)
-    # c = a[1].toarray()
-    # turn_off_states = np.array([1, 1, 1, 1, 1])
-    # sc_states = [1, 0.01, 0.01, 0.01, 0.01]
-    # sc = np.diagflat(np.tile(turn_off_states, len(time_grid) - 1))
-    # sc_full = np.diagflat(np.tile(turn_off_states / sc_states, len(time_grid) - 1))
-    # # num_states = 5
-    # # sc_full_params = np.tile(sc_params, ((len(time_grid) - 1) * num_states, 1)).T
-    # sc_params = [5000000.0, 10000000.0, 500000.0, 1.4]
-    # sc_full_params = np.diagflat(sc_params)
-    # b_scaled = sc @ b
-    # b_scaled_full = sc_full @ (b @ sc_full_params)
-    # # sc = np.tile(sc, 2)
-    # fig = plt.figure()
-    # fig.add_subplot(151).imshow(b, cmap=cm.Greens_r)
-    # fig.add_subplot(152).imshow(ca.inv(c), cmap=cm.Greens_r)
-    # plt.show()
-    oed.optimize()
-    # pe.optimize(False)
+    var_list_exp.plot_states()

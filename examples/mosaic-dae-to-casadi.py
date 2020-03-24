@@ -44,7 +44,7 @@ for line in Lines:
         counter += 1
         if counter > state_var:
             output.append(
-                f'    variable_list.add_variable(par_est.Algebraic_variable("{fields[4]}"))'
+                f'    variable_list.add_variable(par_est.Algebraic_variable("{fields[4]}", {fields[2][:-1]}))'
             )
         else:
             output.append(

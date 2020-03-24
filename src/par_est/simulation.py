@@ -51,7 +51,7 @@ class Simulator(object):
                 "tf": 1,
                 "output_t0": False,
                 "print_stats": False,
-                "calc_ic": True,
+                "calc_ic": False,
                 # "linear_multistep_method": "adams", # was used for CVODES 
             },
         )
@@ -61,6 +61,7 @@ class Simulator(object):
         # Arrays needed to initialize integrator.
         self._variables = []
         self._initial_states = []
+        self._initial_alg = []
 
         for var in self.__input_variable_list.values():
             if isinstance(var, Variable):
@@ -68,6 +69,7 @@ class Simulator(object):
                     self._initial_states.append(var.starting_value)
                     self._state_variables.add_variable(var)
                 elif isinstance(var, Algebraic_variable):
+                    self._initial_alg.append(var.starting_value)
                     self._algebraic_variables.add_variable(var)
                 else:
                     if var.fixed:
@@ -87,10 +89,12 @@ class Simulator(object):
         res_algebraic = []
         res_jacobian = []
         x_init = self._initial_states
+        alg_init = self._initial_alg
 
         for time_step in self.time_grid[1:]:
             res_integration = self.integrator_tau(
                 x0=x_init,
+                z0=alg_init,
                 p=ca.vertcat(
                     time_step - prev_time_step, self._variables * self.scaling
                 ),
@@ -108,6 +112,7 @@ class Simulator(object):
 
             prev_time_step = time_step
             x_init = res_integration["xf"]
+            alg_init = res_integration["zf"]
 
             if time_step == self.time_grid[1]:
                 res_states = res_integration["xf"]
