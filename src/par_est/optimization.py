@@ -112,6 +112,8 @@ class Optimizer(object):
         print(res_solver["x"])
         print(res_solver["x"] * self.scaling)
 
+        return res_solver
+
 
 class ParameterEstimation(Optimizer):
     def __init__(self, model: Model, variable_list: VariableList):
@@ -171,12 +173,13 @@ class ParameterEstimation(Optimizer):
     def optimize(self, scale=True):
         # Scaling decreases amount of iterations, but ipopt fails gradient check at big amount of timestamps
         self.solver_name = "ipopt"
-        self.solver_settings = {
-            "verbose": False,
-            "ipopt": {"max_iter": 300, "derivative_test": "first-order"},
-        }
+        if self.solver_settings is None:
+            self.solver_settings = {
+                "verbose": False,
+                "ipopt": {"max_iter": 300, "derivative_test": "first-order"},
+            }
 
-        self._optimize(scale)
+        return self._optimize(scale)
 
 
 class OptimalExperimentalDesign(Optimizer):
@@ -268,13 +271,14 @@ class OptimalExperimentalDesign(Optimizer):
     def optimize(self, scale=True):
         # Scaling decreases amount of iterations, but ipopt fails gradient check at big amount of timestamps
         self.solver_name = "ipopt"
-        self.solver_settings = {
-            "verbose": False,
-            "ipopt": {
-                "hessian_approximation": "limited-memory",
-                "max_iter": 20,
-                "derivative_test": "first-order",
-            },
-        }
+        if self.solver_settings is None:
+            self.solver_settings = {
+                "verbose": False,
+                "ipopt": {
+                    "hessian_approximation": "limited-memory",
+                    "max_iter": 20,
+                    "derivative_test": "first-order",
+                },
+            }
 
-        self._optimize(scale)
+        return self._optimize(scale)
