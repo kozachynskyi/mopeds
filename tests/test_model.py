@@ -11,8 +11,11 @@ def test_model():
     assert len(model.variables) == len(VARIABLE_NAMES) - 1
     assert len(model._all_variables) == len(VARIABLE_NAMES)
 
-    assert model.equations.size() == (1, 1)
+    assert model.differential_equations.size() == (1, 1)
 
     equation = ca.MX.sym("test")
     with pytest.raises(NotImplementedError):
-        model.add_equations([equation])
+        model.add_differential_equations([equation])
+
+
+test_model()
