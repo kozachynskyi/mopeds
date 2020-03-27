@@ -3,7 +3,14 @@ import copy
 import casadi as ca
 import numpy as np
 
-from par_est import VariableList, Model, Experimental_Data, Variable, State_variable, Algebraic_variable
+from par_est import (
+    VariableList,
+    Model,
+    Experimental_Data,
+    Variable,
+    State_variable,
+    Algebraic_variable,
+)
 
 
 class Simulator(object):
@@ -51,8 +58,8 @@ class Simulator(object):
                 "tf": 1,
                 "output_t0": False,
                 "print_stats": False,
-                "calc_ic": False,
-                # "linear_multistep_method": "adams", # was used for CVODES 
+                "calc_ic": True,
+                # "linear_multistep_method": "adams", # was used for CVODES
             },
         )
 
@@ -82,6 +89,50 @@ class Simulator(object):
 
     def _reset_scaling(self):
         self.scaling = ca.DM.ones(self._variables.size())
+
+    def analyze(self):
+        # ca.Function("equations", [self._state_variables, self._algebraic_variables, self._variables], [self.model.algebraic_equations, self.model.algebraic_equations], [
+        function = ca.Function(
+            "eq_sys",
+            [self.ode_system["x"], self.ode_system["z"], self.ode_system["p"]],
+            [self.ode_system["ode"], self.ode_system["alg"]],
+            ["x", "z", "p"],
+            ["ode", "alg"],
+        )
+
+        algebraic_eqsys = ca.Function(
+            "alg_eq_sys",
+            [self.ode_system["x"], self.ode_system["z"], self.ode_system["p"]],
+            [self.ode_system["alg"]],
+            ["x", "z", "p"],
+            ["alg"],
+        )
+
+        check_initials = function(x=self._initial_states, z=self._initial_alg, p=self._variables)
+        jacobian = function.factory("jac_alg", function.name_in(), ["jac:alg:z"])
+        check_jacobian = jacobian(x=self._initial_states, z=self._initial_alg, p=self._variables)
+
+        check_alg = algebraic_eqsys(x=self._initial_states, z=self._initial_alg, p=self._variables)
+
+        # should fail by DAE index > 1
+        ca.inv(check_jacobian["jac_alg_z"])
+
+        algebraic_eqsys_rootfinder = ca.Function(
+            "alg_eq_sys",
+            [self.ode_system["z"], ca.vertcat(self.ode_system["x"], self.ode_system["p"])],
+            [self.ode_system["alg"]],
+            ["x", "p"],
+            ["alg"],
+        )
+
+        rf = ca.rootfinder("inits", "newton", algebraic_eqsys_rootfinder)
+        res = rf(self._initial_alg, ca.vertcat(self._initial_states, self._variables))
+        
+        check_alg = function(x=self._initial_states, z=res, p=self._variables)
+        print(check_alg)
+        self._initial_alg = res
+        return [res, self._initial_alg]
+        # return check_initials, check_jacobian
 
     def simulate(self, derivatives=False):
         prev_time_step = 0

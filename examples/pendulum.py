@@ -82,20 +82,31 @@ if __name__ == "__main__":
     time_grid = np.linspace(0.01, 1, 40)
     time_grid = np.insert(time_grid, 0, 0)
 
-    # Generate experimental data
-    for [variable_list, m, sim_name] in zip(
-        [variable_list_dae1, variable_list_dae3],
-        [m1, m3],
-        ["dae-index=1", "dae-index=3"],
-    ):
-        var_list_fixed = copy.deepcopy(variable_list)
-        for var in var_list_fixed.values():
-            var.fixed = True
+    var_list_fixed = copy.deepcopy(variable_list_dae1)
+    for var in var_list_fixed.values():
+        var.fixed = True
 
-        try:
-            sim_fixed = par_est.Simulator(m, time_grid, var_list_fixed)
-            res = sim_fixed.generate_exp_data()
-            var_list_exp = sim_fixed.generate_exp_data()
-            var_list_exp.plot_states()
-        except Exception:
-            print(f"Simulation failed for {sim_name}")
+    sim_fixed = par_est.Simulator(m1, time_grid, var_list_fixed)
+    res = sim_fixed.generate_exp_data()
+    var_list_exp = sim_fixed.generate_exp_data()
+    # var_list_exp.plot_states()
+    r = sim_fixed.analyze()
+    print(r)
+
+    # # Generate experimental data
+    # for [variable_list, m, sim_name] in zip(
+    #     [variable_list_dae1, variable_list_dae3],
+    #     [m1, m3],
+    #     ["dae-index=1", "dae-index=3"],
+    # ):
+    #     var_list_fixed = copy.deepcopy(variable_list)
+    #     for var in var_list_fixed.values():
+    #         var.fixed = True
+
+    #     try:
+    #         sim_fixed = par_est.Simulator(m, time_grid, var_list_fixed)
+    #         res = sim_fixed.generate_exp_data()
+    #         var_list_exp = sim_fixed.generate_exp_data()
+    #         var_list_exp.plot_states()
+    #     except Exception:
+    #         print(f"Simulation failed for {sim_name}")
