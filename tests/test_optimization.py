@@ -2,14 +2,37 @@ import par_est
 import numpy as np
 
 import copy
-from conftest import (
-    generate_test_variables,
-    generate_test_model,
-    cstr_model_ode,
-)
+from conftest import cstr_model_ode, pendulum_dae_1
 
 
-def test_optimizer():
+def not_test_ode():
+    var_list, model = cstr_model_ode()
+    time_grid = np.insert(np.linspace(50, 1000, 4), 0, 0)
+
+    var_list_fixed = copy.deepcopy(var_list)
+    for var in var_list_fixed.values():
+        var.fixed = True
+    var_list_exp = par_est.Simulator(
+        model, time_grid, var_list_fixed
+    ).generate_exp_data()
+
+    for key, var in var_list_exp.items():
+        var_list[key] = var
+
+    # pe = par_est.ParameterEstimation(model, [var_list])
+    # pe.solver_settings = {"verbose": False, "ipopt": {"max_iter": 1},}
+    # pe.optimize()
+
+    oed = par_est.OptimalExperimentalDesign(model, [var_list], time_grid)
+    oed.solver_settings = {
+        "verbose": False,
+        "ipopt": {"hessian_approximation": "limited-memory", "max_iter": 1},
+    }
+    oed.optimize()
+    oed.get_fim_matrix()
+
+
+def not_test_optimizer():
     variable_list, m = cstr_model_ode()
 
     # Create time-grid. Zero should be first
@@ -65,7 +88,7 @@ def test_optimizer():
                     res_pe = pe.optimize(False)
                     if j == 0:
                         res_oed = oed.optimize(False)
-                
+
             oed.get_fim_matrix()
 
             if i == 0:
@@ -85,4 +108,6 @@ def test_optimizer():
                 assert res_oed["x"].size() == (1, 1)
 
 
-test_optimizer()
+if __name__ == "__main__":
+    test_ode()
+    # not_test_optimizer()

@@ -1,19 +1,6 @@
 import par_est
 import numpy as np
-from conftest import (
-    generate_test_variables,
-    generate_test_model,
-    cstr_model_ode,
-)
-
-
-def test_simulator():
-    variable_list = generate_test_variables(True)
-    model = generate_test_model()
-
-    time_grid = [0, 100]
-    simulator = par_est.Simulator(model, time_grid, variable_list)
-    np.testing.assert_equal(simulator.scaling.toarray(), np.array([[1.0], [1.0]]))
+from conftest import cstr_model_ode
 
 
 def test_cstr_ode():
@@ -57,3 +44,7 @@ def test_cstr_ode():
                 assert sim._variables[10].is_symbolic()
             elif i == 4:
                 assert not sim._variables[15].is_symbolic()
+
+
+if __name__ == "__main__":
+    test_cstr_ode()

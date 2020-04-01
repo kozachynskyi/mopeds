@@ -14,11 +14,7 @@ except Exception:
 
 
 class Variable(object):
-
-    """Docstring for Variable. """
-
     def __init__(self, name):
-        """TODO: to be defined. """
         self.name = name
         self.casadi_var = ca.MX.sym(self.name)
         self.fixed = False
@@ -28,6 +24,12 @@ class Variable(object):
         self.guess = None
         self.lower_bound = None
         self.upper_bound = None
+
+    @classmethod
+    def get_subclasses(cls):
+        for subclass in cls.__subclasses__():
+            yield from subclass.get_subclasses()
+            yield subclass
 
 
 class State_variable(Variable):

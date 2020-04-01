@@ -12,39 +12,36 @@ import casadi as ca
 import par_est
 
 
-VARIABLE_TYPES = [
-    par_est.Control_variable,
-    par_est.Parameter_variable,
-    par_est.State_variable,
-]
-
-VARIABLE_NAMES = ["control", "parameter", "state"]
-VARIABLE_VALUES = [1.0, 2.0, 3.0]
-
-
-def generate_test_variables(fixed=False):
+def pendulum_dae_1():
     variable_list = par_est.VariableList()
 
-    for variable_type, var_name, var_value in zip(VARIABLE_TYPES, VARIABLE_NAMES, VARIABLE_VALUES):
-        var = variable_type(var_name, var_value)
-        variable_list.add_variable(var)
-        if fixed:
-            var.fixed = True
+    # fmt: off
+    variable_list.add_variable(par_est.State_variable("x", 3.0))
+    variable_list.add_variable(par_est.State_variable("u", -1.0 / 3))
 
-    return variable_list
+    variable_list.add_variable(par_est.Algebraic_variable("y", 4.0))
+    variable_list.add_variable(par_est.Algebraic_variable("v", 1.0 / 4))
+    variable_list.add_variable(par_est.Algebraic_variable("lambda", 1147.0 / 720))
 
+    variable_list.add_variable(par_est.Control_variable("L", 5.0))
+    variable_list.add_variable(par_est.Parameter_variable("g", 10.0))
+    # fmt: on
 
-def generate_test_model():
-    variable_list = generate_test_variables()
+    m = par_est.Model(variable_list)
 
-    model = par_est.Model(variable_list)
-    equation = (
-        model._all_variables["state"].casadi_var
-        + model._all_variables["control"].casadi_var
-        + model._all_variables["parameter"].casadi_var
-    )
-    model.add_differential_equations([equation])
-    return model
+    # fmt: off
+    dydx1 = m._all_variables["u"].casadi_var
+    dydx2 = m._all_variables["lambda"].casadi_var * m._all_variables["x"].casadi_var
+
+    alg1 = m._all_variables["x"].casadi_var ** 2 + m._all_variables["y"].casadi_var ** 2 - m._all_variables["L"].casadi_var ** 2
+    alg2 = m._all_variables["u"].casadi_var * m._all_variables["x"].casadi_var + m._all_variables["v"].casadi_var * m._all_variables["y"].casadi_var
+    alg3 = m._all_variables["u"].casadi_var ** 2 - m._all_variables["g"].casadi_var * m._all_variables["y"].casadi_var + m._all_variables["v"].casadi_var ** 2 + m._all_variables["L"].casadi_var ** 2 * m._all_variables["lambda"].casadi_var
+
+    m.add_differential_equations([dydx1, dydx2, ])
+    m.add_algebraic_equations([alg1, alg2, alg3, ])
+    # fmt: on
+
+    return variable_list, m
 
 
 def cstr_model_ode():
