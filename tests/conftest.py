@@ -86,31 +86,33 @@ def cstr_model_ode():
     variable_list.add_variable(par_est.Control_variable("e0_F", 6.5e-4, 6.0e-4, 7.0e-4))
     # fmt: on
 
-    variable_list["e0_E_r1"].guess = variable_list["e0_E_r1"].lower_bound
-    variable_list["e0_E_r2"].guess = variable_list["e0_E_r2"].lower_bound
-    variable_list["e0_E_r3"].guess = variable_list["e0_E_r3"].lower_bound
-    variable_list["e0_k_pre_r1"].guess = variable_list["e0_k_pre_r1"].lower_bound
-    variable_list["e0_k_pre_r2"].guess = variable_list["e0_k_pre_r2"].lower_bound
-    variable_list["e0_k_pre_r3"].guess = variable_list["e0_k_pre_r3"].lower_bound
-    variable_list["e0_U"].guess = variable_list["e0_U"].lower_bound
-    variable_list["e0_c_p"].guess = variable_list["e0_c_p"].lower_bound
-    variable_list["e0_greek_Deltah_r1"].guess = variable_list[
-        "e0_greek_Deltah_r1"
-    ].lower_bound
-    variable_list["e0_greek_Deltah_r2"].guess = variable_list[
-        "e0_greek_Deltah_r2"
-    ].lower_bound
-    variable_list["e0_greek_Deltah_r3"].guess = variable_list[
-        "e0_greek_Deltah_r3"
-    ].lower_bound
+    for var in variable_list.values():
+        var.guess = var.lower_bound
+    # variable_list["e0_E_r1"].guess = variable_list["e0_E_r1"].lower_bound
+    # variable_list["e0_E_r2"].guess = variable_list["e0_E_r2"].lower_bound
+    # variable_list["e0_E_r3"].guess = variable_list["e0_E_r3"].lower_bound
+    # variable_list["e0_k_pre_r1"].guess = variable_list["e0_k_pre_r1"].lower_bound
+    # variable_list["e0_k_pre_r2"].guess = variable_list["e0_k_pre_r2"].lower_bound
+    # variable_list["e0_k_pre_r3"].guess = variable_list["e0_k_pre_r3"].lower_bound
+    # variable_list["e0_U"].guess = variable_list["e0_U"].lower_bound
+    # variable_list["e0_c_p"].guess = variable_list["e0_c_p"].lower_bound
+    # variable_list["e0_greek_Deltah_r1"].guess = variable_list[
+    #     "e0_greek_Deltah_r1"
+    # ].lower_bound
+    # variable_list["e0_greek_Deltah_r2"].guess = variable_list[
+    #     "e0_greek_Deltah_r2"
+    # ].lower_bound
+    # variable_list["e0_greek_Deltah_r3"].guess = variable_list[
+    #     "e0_greek_Deltah_r3"
+    # ].lower_bound
 
-    variable_list["e0_c_in_i1"].guess = variable_list["e0_c_in_i1"].lower_bound
-    variable_list["e0_c_in_i2"].guess = variable_list["e0_c_in_i2"].lower_bound
-    variable_list["e0_c_in_i3"].guess = variable_list["e0_c_in_i3"].lower_bound
-    variable_list["e0_c_in_i4"].guess = variable_list["e0_c_in_i4"].lower_bound
-    variable_list["e0_T_in"].guess = variable_list["e0_T_in"].lower_bound
-    variable_list["e0_T_j"].guess = variable_list["e0_T_j"].lower_bound
-    variable_list["e0_F"].guess = variable_list["e0_F"].lower_bound
+    # variable_list["e0_c_in_i1"].guess = variable_list["e0_c_in_i1"].lower_bound
+    # variable_list["e0_c_in_i2"].guess = variable_list["e0_c_in_i2"].lower_bound
+    # variable_list["e0_c_in_i3"].guess = variable_list["e0_c_in_i3"].lower_bound
+    # variable_list["e0_c_in_i4"].guess = variable_list["e0_c_in_i4"].lower_bound
+    # variable_list["e0_T_in"].guess = variable_list["e0_T_in"].lower_bound
+    # variable_list["e0_T_j"].guess = variable_list["e0_T_j"].lower_bound
+    # variable_list["e0_F"].guess = variable_list["e0_F"].lower_bound
 
     m = par_est.Model(variable_list)
 

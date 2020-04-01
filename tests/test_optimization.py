@@ -1,13 +1,16 @@
 import par_est
+import casadi as ca
 import numpy as np
 
 import copy
 from conftest import cstr_model_ode, pendulum_dae_1
+import logging
 
 
-def not_test_ode():
+def test_ode():
     var_list, model = cstr_model_ode()
-    time_grid = np.insert(np.linspace(50, 1000, 4), 0, 0)
+    time_grid = np.linspace(10, 10000, 4)
+    time_grid = np.insert(time_grid, 0, 0)
 
     var_list_fixed = copy.deepcopy(var_list)
     for var in var_list_fixed.values():
@@ -19,17 +22,37 @@ def not_test_ode():
     for key, var in var_list_exp.items():
         var_list[key] = var
 
-    # pe = par_est.ParameterEstimation(model, [var_list])
-    # pe.solver_settings = {"verbose": False, "ipopt": {"max_iter": 1},}
-    # pe.optimize()
+    for var in var_list.values():
+        var.fixed = True
+
+    var_list["e0_E_r1"].fixed = False
+
+    pe = par_est.ParameterEstimation(model, [var_list])
+
+    res = pe.optimize()
+    logging.warning(f"{res['f']}")
+    assert np.isclose(res["f"], ca.DM(1.93785816e-15), rtol=0, atol=1.0e-21)
+
+    res = pe.optimize(False)
+    logging.warning(f"{res['f']}")
+    assert np.isclose(res["f"], ca.DM(1.78126185e-11), rtol=0, atol=1.0e-17)
+
+    var_list["e0_c_in_i1"].fixed = False
 
     oed = par_est.OptimalExperimentalDesign(model, [var_list], time_grid)
-    oed.solver_settings = {
-        "verbose": False,
-        "ipopt": {"hessian_approximation": "limited-memory", "max_iter": 1},
-    }
-    oed.optimize()
-    oed.get_fim_matrix()
+    res = oed.optimize()
+    fim = oed.get_fim_matrix()
+
+    assert fim[0].size() == (20, 1)
+    assert fim[1].size() == (1, 1)
+
+    logging.warning(f"{res['f']}")
+    assert np.isclose(res["f"], ca.DM(45.16749745), rtol=0, atol=1.0e-8)
+
+    res = oed.optimize(False)
+
+    logging.warning(f"{res['f']}")
+    assert np.isclose(res["f"], ca.DM(45.16749745), rtol=0, atol=1.0e-8)
 
 
 def not_test_optimizer():
