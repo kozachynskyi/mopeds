@@ -638,9 +638,7 @@ def initialize_problem():
         m._all_variables["e0_r_r5"].casadi_var
     )
 
-    m.add_differential_equations(
-        [dydx1, dydx2, dydx3, dydx4, dydx5,]
-    )
+    m.add_differential_equations([dydx1, dydx2, dydx3, dydx4, dydx5])
     m.add_algebraic_equations(
         [
             dydx6,
@@ -681,7 +679,7 @@ if __name__ == "__main__":
 
     variable_list, m = initialize_problem()
     # Create time-grid. Zero should be first
-    time_grid = np.linspace(0, 10000, 11)
+    time_grid = np.linspace(0, 360, 40)
     # time_grid = np.insert(time_grid, 0, 0)
     # time_grid = np.array([0, 1000])
 
@@ -700,16 +698,4 @@ if __name__ == "__main__":
     # Run simulation and connect results with actual state variables, which can be plotted based on available data
     res = sim_fixed.generate_exp_data()
 
-    with open("outfile.csv", "w") as outfile:
-        outfile.write("")
-    for name, r in res.items():
-        for num, rr in enumerate(r.value.value):
-            with open("outfile.csv", "a") as outfile:
-                outfile.write(f"{name}, {r.value.time[num]} , {rr} \n")
-
-        with open("outfile.csv", "a") as outfile:
-            outfile.write(f"{name}, {r.value.time[10]} , {r.value.value[10]} \n")
-
-
-    # res.plot_states()
-    # np.savetxt("exp.txt", res.toarray().T, delimiter="	")
+    res.plot_states()
