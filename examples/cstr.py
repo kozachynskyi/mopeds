@@ -203,25 +203,3 @@ if __name__ == "__main__":
     var_list3 = copy.deepcopy(var_list_fixed)
     var_list_exp.write_data_opcua(start_time)
     var_list3.get_data_opcua(start_time, end_time)
-
-    # a = oed.get_fim_matrix()
-    # b = a[0].toarray()
-    # b = ca.fabs(b)
-    # c = a[1].toarray()
-    # turn_off_states = np.array([1, 1, 1, 1, 1])
-    # sc_states = [1, 0.01, 0.01, 0.01, 0.01]
-    # sc = np.diagflat(np.tile(turn_off_states, len(time_grid) - 1))
-    # sc_full = np.diagflat(np.tile(turn_off_states / sc_states, len(time_grid) - 1))
-    # # num_states = 5
-    # # sc_full_params = np.tile(sc_params, ((len(time_grid) - 1) * num_states, 1)).T
-    # sc_params = [5000000.0, 10000000.0, 500000.0, 1.4]
-    # sc_full_params = np.diagflat(sc_params)
-    # b_scaled = sc @ b
-    # b_scaled_full = sc_full @ (b @ sc_full_params)
-    # # sc = np.tile(sc, 2)
-    # fig = plt.figure()
-    # fig.add_subplot(151).imshow(b, cmap=cm.Greens_r)
-    # fig.add_subplot(152).imshow(ca.inv(c), cmap=cm.Greens_r)
-    # plt.show()
-    # oed.optimize()
-    # pe.optimize(False)
