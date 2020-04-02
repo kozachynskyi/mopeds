@@ -10,7 +10,7 @@ import casadi as ca
 # from opcua.ua import NumericNodeId
 # from optipal.client import OptiPALClient
 
-from par_est import Parameter_variable, Algebraic_variable, State_variable, Variable, VariableList
+from par_est import VariableParameter, VariableAlgebraic, VariableState, Variable, VariableList
 
 
 class Model(object):
@@ -28,12 +28,12 @@ class Model(object):
 
         for var in variable_list.values():
             if isinstance(var, Variable):
-                if isinstance(var, State_variable):
-                    self.states.add_variable(State_variable(var.name))
-                elif isinstance(var, Algebraic_variable):
-                    self.algebraic_variables.add_variable(Algebraic_variable(var.name))
+                if isinstance(var, VariableState):
+                    self.states.add_variable(VariableState(var.name))
+                elif isinstance(var, VariableAlgebraic):
+                    self.algebraic_variables.add_variable(VariableAlgebraic(var.name))
                 else:
-                    self.variables.add_variable(Parameter_variable(var.name))
+                    self.variables.add_variable(VariableParameter(var.name))
             else:
                 raise (ValueError)
 

@@ -6,10 +6,10 @@ import numpy as np
 from par_est import (
     VariableList,
     Model,
-    Experimental_Data,
+    ExperimentData,
     Variable,
-    State_variable,
-    Algebraic_variable,
+    VariableState,
+    VariableAlgebraic,
 )
 
 
@@ -72,10 +72,10 @@ class Simulator(object):
 
         for var in self.__input_variable_list.values():
             if isinstance(var, Variable):
-                if isinstance(var, State_variable):
+                if isinstance(var, VariableState):
                     self._initial_states.append(var.starting_value)
                     self._state_variables.add_variable(var)
-                elif isinstance(var, Algebraic_variable):
+                elif isinstance(var, VariableAlgebraic):
                     self._initial_alg.append(var.starting_value)
                     self._algebraic_variables.add_variable(var)
                 else:
@@ -194,7 +194,7 @@ class Simulator(object):
         for variable_list in [self._state_variables, self._algebraic_variables]:
             for count, var in enumerate(variable_list.values()):
                 new_var = copy.deepcopy(var)
-                new_var.value = Experimental_Data()
+                new_var.value = ExperimentData()
                 if convert_to_numpy:
                     new_var.value.time = self.time_grid
                     new_var.value.value = res_array[count + shift_by, :].toarray()

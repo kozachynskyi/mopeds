@@ -32,22 +32,22 @@ class Variable(object):
             yield subclass
 
 
-class State_variable(Variable):
+class VariableState(Variable):
     def __init__(self, name, starting_value=None, opc_ua_id=None):
         super().__init__(name)
         self.starting_value = starting_value
-        self.value = Experimental_Data()
+        self.value = ExperimentData()
         self.opc_ua_id = opc_ua_id
 
 
-class Algebraic_variable(Variable):
+class VariableAlgebraic(Variable):
     def __init__(self, name, starting_value=None, opc_ua_id=None):
         super().__init__(name)
         self.starting_value = starting_value
-        self.value = Experimental_Data()
+        self.value = ExperimentData()
 
 
-class Parameter_variable(Variable):
+class VariableParameter(Variable):
     def __init__(self, name, value=None, lb=None, ub=None):
         super().__init__(name)
         self.value = value
@@ -55,7 +55,7 @@ class Parameter_variable(Variable):
         self.upper_bound = ub
 
 
-class Control_variable(Variable):
+class VariableControl(Variable):
     def __init__(self, name, value=None, lb=None, ub=None, opc_ua_id=None):
         super().__init__(name)
         self.value = value
@@ -86,13 +86,13 @@ class VariableList(OrderedDict):
             for var in self.values():
                 values_opcua = []
                 time_opcua = []
-                if isinstance(var, State_variable):
+                if isinstance(var, VariableState):
                     sensor = client.get_node(NumericNodeId(var.opc_ua_id, ns_working))
                     process_value = client.get_child_simple(sensor, ["d:ProcessValue"])
                     results = process_value.read_raw_history(
                         time_start, time_stop, 1000
                     )
-                    var.value = Experimental_Data()
+                    var.value = ExperimentData()
 
                     for result in results:
                         if not time_opcua:
@@ -119,7 +119,7 @@ class VariableList(OrderedDict):
             time_zero = time_start
             ns_working = client.get_working_ns_idx()
             for var in self.values():
-                if isinstance(var, State_variable):
+                if isinstance(var, VariableState):
                     sensor = client.get_node(NumericNodeId(var.opc_ua_id, ns_working))
                     process_value = client.get_child_simple(sensor, ["d:ProcessValue"])
                     for value, time in zip(var.value.value, var.value.time):
@@ -133,9 +133,9 @@ class VariableList(OrderedDict):
         # Choose only state variables
         state_var_list = VariableList()
         for var in self.values():
-            if isinstance(var, State_variable):
+            if isinstance(var, VariableState):
                 state_var_list.add_variable(var)
-            elif isinstance(var, Algebraic_variable):
+            elif isinstance(var, VariableAlgebraic):
                 state_var_list.add_variable(var)
 
         if as_one_plot is True:
@@ -150,7 +150,7 @@ class VariableList(OrderedDict):
         plt.show()
 
 
-class Experimental_Data(object):
+class ExperimentData(object):
     def __init__(self):
         self.time = None
         self.value = None

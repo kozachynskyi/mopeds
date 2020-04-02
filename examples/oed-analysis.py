@@ -55,7 +55,7 @@ if __name__ == "__main__":
     # Generate scaling for parameters based on their values
     sc_params = []
     for var in variable_list.values():
-        if isinstance(var, par_est.Parameter_variable):
+        if isinstance(var, par_est.VariableParameter):
             if var.fixed is False:
                 sc_params.append(var.value)
     scaling_param_full = np.diagflat(sc_params)

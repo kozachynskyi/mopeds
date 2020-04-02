@@ -16,15 +16,15 @@ def pendulum_dae_1():
     variable_list = par_est.VariableList()
 
     # fmt: off
-    variable_list.add_variable(par_est.State_variable("x", 3.0))
-    variable_list.add_variable(par_est.State_variable("u", -1.0 / 3))
+    variable_list.add_variable(par_est.VariableState("x", 3.0))
+    variable_list.add_variable(par_est.VariableState("u", -1.0 / 3))
 
-    variable_list.add_variable(par_est.Algebraic_variable("y", 4.0))
-    variable_list.add_variable(par_est.Algebraic_variable("v", 1.0 / 4))
-    variable_list.add_variable(par_est.Algebraic_variable("lambda", 1147.0 / 720))
+    variable_list.add_variable(par_est.VariableAlgebraic("y", 4.0))
+    variable_list.add_variable(par_est.VariableAlgebraic("v", 1.0 / 4))
+    variable_list.add_variable(par_est.VariableAlgebraic("lambda", 1147.0 / 720))
 
-    variable_list.add_variable(par_est.Control_variable("L", 5.0))
-    variable_list.add_variable(par_est.Parameter_variable("g", 10.0))
+    variable_list.add_variable(par_est.VariableControl("L", 5.0))
+    variable_list.add_variable(par_est.VariableParameter("g", 10.0))
     # fmt: on
 
     m = par_est.Model(variable_list)
@@ -59,31 +59,31 @@ def cstr_model_ode():
     variable_list = par_est.VariableList()
 
     # fmt: off
-    variable_list.add_variable(par_est.State_variable("e0_T", 273.0, 10))
-    variable_list.add_variable(par_est.State_variable("e0_c_i1", 3.0, 20))
-    variable_list.add_variable(par_est.State_variable("e0_c_i2", 10.0, 30))
-    variable_list.add_variable(par_est.State_variable("e0_c_i3", 0.0, 40))
-    variable_list.add_variable(par_est.State_variable("e0_c_i4", 0.0, 50))
+    variable_list.add_variable(par_est.VariableState("e0_T", 273.0, 10))
+    variable_list.add_variable(par_est.VariableState("e0_c_i1", 3.0, 20))
+    variable_list.add_variable(par_est.VariableState("e0_c_i2", 10.0, 30))
+    variable_list.add_variable(par_est.VariableState("e0_c_i3", 0.0, 40))
+    variable_list.add_variable(par_est.VariableState("e0_c_i4", 0.0, 50))
 
-    variable_list.add_variable(par_est.Parameter_variable("e0_E_r1", 9.6e4, 9.0e4, 10.0e4))
-    variable_list.add_variable(par_est.Parameter_variable("e0_E_r2", 7.2e4, 6.8e4, 7.6e4))
-    variable_list.add_variable(par_est.Parameter_variable("e0_E_r3", 6.9e4, 6.5e4, 7.3e4))
-    variable_list.add_variable(par_est.Parameter_variable("e0_k_pre_r1", 5.0e6, 4.5e6, 5.5e6))
-    variable_list.add_variable(par_est.Parameter_variable("e0_k_pre_r2", 1.0e7, 0.5e7, 1.5e7))
-    variable_list.add_variable(par_est.Parameter_variable("e0_k_pre_r3", 5.0e5, 4.5e5, 5.5e5))
-    variable_list.add_variable(par_est.Parameter_variable("e0_U", 1.4, 1.0, 1.8))
-    variable_list.add_variable(par_est.Parameter_variable("e0_c_p", 3.5, 3.0, 4.0))
-    variable_list.add_variable(par_est.Parameter_variable("e0_greek_Deltah_r1", 4.5e-3, 4.0e-3, 5.0e-3))
-    variable_list.add_variable(par_est.Parameter_variable("e0_greek_Deltah_r2", -5.5e-3, -6.0e-3, -5.0e-3))
-    variable_list.add_variable(par_est.Parameter_variable("e0_greek_Deltah_r3", 4.5e-3, 4.0e-3, 5.0e-3))
+    variable_list.add_variable(par_est.VariableParameter("e0_E_r1", 9.6e4, 9.0e4, 10.0e4))
+    variable_list.add_variable(par_est.VariableParameter("e0_E_r2", 7.2e4, 6.8e4, 7.6e4))
+    variable_list.add_variable(par_est.VariableParameter("e0_E_r3", 6.9e4, 6.5e4, 7.3e4))
+    variable_list.add_variable(par_est.VariableParameter("e0_k_pre_r1", 5.0e6, 4.5e6, 5.5e6))
+    variable_list.add_variable(par_est.VariableParameter("e0_k_pre_r2", 1.0e7, 0.5e7, 1.5e7))
+    variable_list.add_variable(par_est.VariableParameter("e0_k_pre_r3", 5.0e5, 4.5e5, 5.5e5))
+    variable_list.add_variable(par_est.VariableParameter("e0_U", 1.4, 1.0, 1.8))
+    variable_list.add_variable(par_est.VariableParameter("e0_c_p", 3.5, 3.0, 4.0))
+    variable_list.add_variable(par_est.VariableParameter("e0_greek_Deltah_r1", 4.5e-3, 4.0e-3, 5.0e-3))
+    variable_list.add_variable(par_est.VariableParameter("e0_greek_Deltah_r2", -5.5e-3, -6.0e-3, -5.0e-3))
+    variable_list.add_variable(par_est.VariableParameter("e0_greek_Deltah_r3", 4.5e-3, 4.0e-3, 5.0e-3))
 
-    variable_list.add_variable(par_est.Control_variable("e0_c_in_i1", 5.0, 4.0, 6.0))
-    variable_list.add_variable(par_est.Control_variable("e0_c_in_i2", 10.0, 9.0, 11.0))
-    variable_list.add_variable(par_est.Control_variable("e0_c_in_i3", 0.0, 0.0, 1.0))
-    variable_list.add_variable(par_est.Control_variable("e0_c_in_i4", 0.0, 0.0, 1.0))
-    variable_list.add_variable(par_est.Control_variable("e0_T_in", 373.0, 353.0, 393.0))
-    variable_list.add_variable(par_est.Control_variable("e0_T_j", 373.0, 353.0, 393.0))
-    variable_list.add_variable(par_est.Control_variable("e0_F", 6.5e-4, 6.0e-4, 7.0e-4))
+    variable_list.add_variable(par_est.VariableControl("e0_c_in_i1", 5.0, 4.0, 6.0))
+    variable_list.add_variable(par_est.VariableControl("e0_c_in_i2", 10.0, 9.0, 11.0))
+    variable_list.add_variable(par_est.VariableControl("e0_c_in_i3", 0.0, 0.0, 1.0))
+    variable_list.add_variable(par_est.VariableControl("e0_c_in_i4", 0.0, 0.0, 1.0))
+    variable_list.add_variable(par_est.VariableControl("e0_T_in", 373.0, 353.0, 393.0))
+    variable_list.add_variable(par_est.VariableControl("e0_T_j", 373.0, 353.0, 393.0))
+    variable_list.add_variable(par_est.VariableControl("e0_F", 6.5e-4, 6.0e-4, 7.0e-4))
     # fmt: on
 
     for var in variable_list.values():

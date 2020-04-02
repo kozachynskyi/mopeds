@@ -3,11 +3,11 @@ import casadi as ca
 import numpy as np
 
 from par_est import (
-    Control_variable,
+    VariableControl,
     Model,
-    Parameter_variable,
+    VariableParameter,
     Simulator,
-    State_variable,
+    VariableState,
     VariableList
 )
 
@@ -123,13 +123,13 @@ class ParameterEstimation(Optimizer):
 
     def _setup_simulator(self):
         for var in self.variable_lists[0].values():
-            if isinstance(var, State_variable):
+            if isinstance(var, VariableState):
                 self.states.add_variable(var)
-            elif isinstance(var, Parameter_variable):
+            elif isinstance(var, VariableParameter):
                 self.parameters.add_variable(var)
                 if var.fixed is False:
                     self.decision_var.add_variable(var)
-            elif isinstance(var, Control_variable):
+            elif isinstance(var, VariableControl):
                 self.controls.add_variable(var)
 
         for variable_list in self.variable_lists:
@@ -137,10 +137,10 @@ class ParameterEstimation(Optimizer):
 
             for var in variable_list.values():
                 # Generates time_grid based on available exp data
-                if isinstance(var, State_variable):
+                if isinstance(var, VariableState):
                     if var.value.is_correct():
                         time_grid = np.append(time_grid, var.value.time)
-                elif isinstance(var, Control_variable):
+                elif isinstance(var, VariableControl):
                     var.fixed = True
 
             time_grid = np.unique(time_grid)
@@ -197,10 +197,10 @@ class OptimalExperimentalDesign(Optimizer):
 
     def _setup_simulator(self):
         for var in self.variable_lists[0].values():
-            if isinstance(var, Control_variable):
+            if isinstance(var, VariableControl):
                 if var.fixed is False:
                     self.decision_var.add_variable(var)
-            elif isinstance(var, Parameter_variable):
+            elif isinstance(var, VariableParameter):
                 if var.fixed is False:
                     self.parameters.add_variable(var)
                     self.parameter_values.append(var.value)
