@@ -12,7 +12,7 @@ import cstr
 
 if __name__ == "__main__":
 
-    variable_list, m = cstr.initialize_problem()
+    variable_list, m = cstr.initialize_problem_ode()
 
     # Create time-grid. Zero should be first
     time_grid = np.linspace(10, 10000, 4)
