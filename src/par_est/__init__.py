@@ -10,7 +10,7 @@ except DistributionNotFound:
 finally:
     del get_distribution, DistributionNotFound
 
-from .variables import *
-from .model import *
-from .simulation import *
-from .optimization import *
+from .variables import Variable, Parameter_variable, Algebraic_variable, State_variable, Control_variable, VariableList, Experimental_Data
+from .model import Model
+from .simulation import Simulator
+from .optimization import ParameterEstimation, OptimalExperimentalDesign
