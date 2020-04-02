@@ -1,8 +1,10 @@
 import par_est
 import numpy as np
 from conftest import cstr_model_ode
+import pytest
 
 
+@pytest.mark.skip(reason="WIP")
 def test_cstr_ode():
     variable_list, m = cstr_model_ode()
     # Create time-grid. Zero should be first

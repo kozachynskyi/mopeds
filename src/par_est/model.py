@@ -19,8 +19,8 @@ class Model(object):
 
     def __init__(self, variable_list):
         """TODO: to be defined. """
-        self.states = VariableList()
-        self.algebraic_variables = VariableList()
+        self.varlist_state = VariableList()
+        self.varlist_algebraic = VariableList()
         self.variables = VariableList()
         self._all_variables = VariableList()
         self.differential_equations = None
@@ -29,16 +29,16 @@ class Model(object):
         for var in variable_list.values():
             if isinstance(var, Variable):
                 if isinstance(var, VariableState):
-                    self.states.add_variable(VariableState(var.name))
+                    self.varlist_state.add_variable(VariableState(var.name))
                 elif isinstance(var, VariableAlgebraic):
-                    self.algebraic_variables.add_variable(VariableAlgebraic(var.name))
+                    self.varlist_algebraic.add_variable(VariableAlgebraic(var.name))
                 else:
                     self.variables.add_variable(VariableParameter(var.name))
             else:
                 raise (ValueError)
 
-        self._all_variables.update(self.states)
-        self._all_variables.update(self.algebraic_variables)
+        self._all_variables.update(self.varlist_state)
+        self._all_variables.update(self.varlist_algebraic)
         self._all_variables.update(self.variables)
 
     def add_differential_equations(self, equations):

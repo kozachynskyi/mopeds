@@ -1,12 +1,14 @@
 import par_est
 import casadi as ca
 import numpy as np
+import pytest
 
 import copy
 from conftest import cstr_model_ode, pendulum_dae_1
 import logging
 
 
+@pytest.mark.skip(reason="WIP")
 def test_ode():
     var_list, model = cstr_model_ode()
     time_grid = np.linspace(10, 10000, 4)

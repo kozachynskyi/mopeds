@@ -26,12 +26,12 @@ class Simulator(object):
         self.time_grid = time_grid
 
         self.ode_system = {
-            "x": self.model.states.get_casadi_var(),
+            "x": self.model.varlist_state.get_casadi_var(),
             "p": ca.vertcat(self.model.variables.get_casadi_var()),
             "ode": self.model.differential_equations,
         }
         self.ode_system_tau = {
-            "x": self.model.states.get_casadi_var(),
+            "x": self.model.varlist_state.get_casadi_var(),
             "p": ca.vertcat(self.tau, self.model.variables.get_casadi_var()),
             "ode": self.model.differential_equations * self.tau,
         }
@@ -39,8 +39,8 @@ class Simulator(object):
         if self.model.algebraic_equations is not None:
             self.ode_system["alg"] = self.model.algebraic_equations
             self.ode_system_tau["alg"] = self.model.algebraic_equations
-            self.ode_system["z"] = self.model.algebraic_variables.get_casadi_var()
-            self.ode_system_tau["z"] = self.model.algebraic_variables.get_casadi_var()
+            self.ode_system["z"] = self.model.varlist_algebraic.get_casadi_var()
+            self.ode_system_tau["z"] = self.model.varlist_algebraic.get_casadi_var()
 
         self.integrator = ca.integrator(
             "integrator",

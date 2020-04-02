@@ -2,6 +2,7 @@ import pytest
 from conftest import cstr_model_ode, pendulum_dae_1
 
 
+@pytest.mark.skip(reason="WIP")
 def test_model():
 
     var_list, model = cstr_model_ode()
