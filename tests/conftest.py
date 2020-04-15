@@ -30,15 +30,15 @@ def pendulum_dae_1():
     m = par_est.Model(variable_list)
 
     # fmt: off
-    dydx1 = m._all_variables["u"].casadi_var
-    dydx2 = m._all_variables["lambda"].casadi_var * m._all_variables["x"].casadi_var
+    dydx1 = m.varlist_all["u"].casadi_var
+    dydx2 = m.varlist_all["lambda"].casadi_var * m.varlist_all["x"].casadi_var
 
-    alg1 = m._all_variables["x"].casadi_var ** 2 + m._all_variables["y"].casadi_var ** 2 - m._all_variables["L"].casadi_var ** 2
-    alg2 = m._all_variables["u"].casadi_var * m._all_variables["x"].casadi_var + m._all_variables["v"].casadi_var * m._all_variables["y"].casadi_var
-    alg3 = m._all_variables["u"].casadi_var ** 2 - m._all_variables["g"].casadi_var * m._all_variables["y"].casadi_var + m._all_variables["v"].casadi_var ** 2 + m._all_variables["L"].casadi_var ** 2 * m._all_variables["lambda"].casadi_var
+    alg1 = m.varlist_all["x"].casadi_var ** 2 + m.varlist_all["y"].casadi_var ** 2 - m.varlist_all["L"].casadi_var ** 2
+    alg2 = m.varlist_all["u"].casadi_var * m.varlist_all["x"].casadi_var + m.varlist_all["v"].casadi_var * m.varlist_all["y"].casadi_var
+    alg3 = m.varlist_all["u"].casadi_var ** 2 - m.varlist_all["g"].casadi_var * m.varlist_all["y"].casadi_var + m.varlist_all["v"].casadi_var ** 2 + m.varlist_all["L"].casadi_var ** 2 * m.varlist_all["lambda"].casadi_var
 
-    m.add_differential_equations([dydx1, dydx2, ])
-    m.add_algebraic_equations([alg1, alg2, alg3, ])
+    m.add_equations_differential([dydx1, dydx2, ])
+    m.add_equations_algebraic([alg1, alg2, alg3, ])
     # fmt: on
 
     return variable_list, m
@@ -117,13 +117,13 @@ def cstr_model_ode():
     m = par_est.Model(variable_list)
 
     # fmt: off
-    tdot = (((((m._all_variables["e0_F"].casadi_var / e0_V) * ((m._all_variables["e0_T_in"].casadi_var - m._all_variables["e0_T"].casadi_var))) + (((m._all_variables["e0_U"].casadi_var * e0_A) / (e0_greek_rho * (m._all_variables["e0_c_p"].casadi_var * e0_V))) * ((m._all_variables["e0_T_j"].casadi_var - m._all_variables["e0_T"].casadi_var)))) + (((-m._all_variables["e0_greek_Deltah_r1"].casadi_var) / (e0_greek_rho * m._all_variables["e0_c_p"].casadi_var)) * (m._all_variables["e0_k_pre_r1"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-m._all_variables["e0_E_r1"].casadi_var) / (e0_R * m._all_variables["e0_T"].casadi_var))))))) + (((-m._all_variables["e0_greek_Deltah_r2"].casadi_var) / (e0_greek_rho * m._all_variables["e0_c_p"].casadi_var)) * (m._all_variables["e0_k_pre_r2"].casadi_var * (m._all_variables["e0_c_i2"].casadi_var * ca.exp(((-m._all_variables["e0_E_r2"].casadi_var) / (e0_R * m._all_variables["e0_T"].casadi_var))))))) + (((-m._all_variables["e0_greek_Deltah_r3"].casadi_var) / (e0_greek_rho * m._all_variables["e0_c_p"].casadi_var)) * (m._all_variables["e0_k_pre_r3"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-m._all_variables["e0_E_r3"].casadi_var) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
-    c1dot = ((((m._all_variables["e0_F"].casadi_var / e0_V) * ((m._all_variables["e0_c_in_i1"].casadi_var - m._all_variables["e0_c_i1"].casadi_var))) + (e0_greek_nu_i1_r1 * (m._all_variables["e0_k_pre_r1"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-m._all_variables["e0_E_r1"].casadi_var) / (e0_R * m._all_variables["e0_T"].casadi_var))))))) + (e0_greek_nu_i1_r2 * (m._all_variables["e0_k_pre_r2"].casadi_var * (m._all_variables["e0_c_i2"].casadi_var * ca.exp(((-m._all_variables["e0_E_r2"].casadi_var) / (e0_R * m._all_variables["e0_T"].casadi_var))))))) + (e0_greek_nu_i1_r3 * (m._all_variables["e0_k_pre_r3"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-m._all_variables["e0_E_r3"].casadi_var) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
-    c2dot = ((m._all_variables["e0_F"].casadi_var / e0_V) * ((m._all_variables["e0_c_in_i2"].casadi_var - m._all_variables["e0_c_i2"].casadi_var))) + (e0_greek_nu_i2_r2 * (m._all_variables["e0_k_pre_r2"].casadi_var * (m._all_variables["e0_c_i2"].casadi_var * ca.exp(((-m._all_variables["e0_E_r2"].casadi_var) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
-    c3dot = ((m._all_variables["e0_F"].casadi_var / e0_V) * ((m._all_variables["e0_c_in_i3"].casadi_var - m._all_variables["e0_c_i3"].casadi_var))) + (e0_greek_nu_i3_r1 * (m._all_variables["e0_k_pre_r1"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-m._all_variables["e0_E_r1"].casadi_var) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
-    c4dot = ((m._all_variables["e0_F"].casadi_var / e0_V) * ((m._all_variables["e0_c_in_i4"].casadi_var - m._all_variables["e0_c_i4"].casadi_var))) + (e0_greek_nu_i4_r3 * (m._all_variables["e0_k_pre_r3"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-m._all_variables["e0_E_r3"].casadi_var) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
+    tdot = (((((m.varlist_all["e0_F"].casadi_var / e0_V) * ((m.varlist_all["e0_T_in"].casadi_var - m.varlist_all["e0_T"].casadi_var))) + (((m.varlist_all["e0_U"].casadi_var * e0_A) / (e0_greek_rho * (m.varlist_all["e0_c_p"].casadi_var * e0_V))) * ((m.varlist_all["e0_T_j"].casadi_var - m.varlist_all["e0_T"].casadi_var)))) + (((-m.varlist_all["e0_greek_Deltah_r1"].casadi_var) / (e0_greek_rho * m.varlist_all["e0_c_p"].casadi_var)) * (m.varlist_all["e0_k_pre_r1"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r1"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))) + (((-m.varlist_all["e0_greek_Deltah_r2"].casadi_var) / (e0_greek_rho * m.varlist_all["e0_c_p"].casadi_var)) * (m.varlist_all["e0_k_pre_r2"].casadi_var * (m.varlist_all["e0_c_i2"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r2"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))) + (((-m.varlist_all["e0_greek_Deltah_r3"].casadi_var) / (e0_greek_rho * m.varlist_all["e0_c_p"].casadi_var)) * (m.varlist_all["e0_k_pre_r3"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r3"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))
+    c1dot = ((((m.varlist_all["e0_F"].casadi_var / e0_V) * ((m.varlist_all["e0_c_in_i1"].casadi_var - m.varlist_all["e0_c_i1"].casadi_var))) + (e0_greek_nu_i1_r1 * (m.varlist_all["e0_k_pre_r1"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r1"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))) + (e0_greek_nu_i1_r2 * (m.varlist_all["e0_k_pre_r2"].casadi_var * (m.varlist_all["e0_c_i2"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r2"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))) + (e0_greek_nu_i1_r3 * (m.varlist_all["e0_k_pre_r3"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r3"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))
+    c2dot = ((m.varlist_all["e0_F"].casadi_var / e0_V) * ((m.varlist_all["e0_c_in_i2"].casadi_var - m.varlist_all["e0_c_i2"].casadi_var))) + (e0_greek_nu_i2_r2 * (m.varlist_all["e0_k_pre_r2"].casadi_var * (m.varlist_all["e0_c_i2"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r2"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))
+    c3dot = ((m.varlist_all["e0_F"].casadi_var / e0_V) * ((m.varlist_all["e0_c_in_i3"].casadi_var - m.varlist_all["e0_c_i3"].casadi_var))) + (e0_greek_nu_i3_r1 * (m.varlist_all["e0_k_pre_r1"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r1"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))
+    c4dot = ((m.varlist_all["e0_F"].casadi_var / e0_V) * ((m.varlist_all["e0_c_in_i4"].casadi_var - m.varlist_all["e0_c_i4"].casadi_var))) + (e0_greek_nu_i4_r3 * (m.varlist_all["e0_k_pre_r3"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r3"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))
     # fmt: on
 
-    m.add_differential_equations([tdot, c1dot, c2dot, c3dot, c4dot])
+    m.add_equations_differential([tdot, c1dot, c2dot, c3dot, c4dot])
 
     return variable_list, m

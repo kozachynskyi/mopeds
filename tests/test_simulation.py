@@ -6,89 +6,23 @@ import pytest
 import casadi as ca
 
 
-def no_test_tau():
+def test_pendulum_dae():
     varlist, model = pendulum_dae_1()
 
-    time_grid = np.linspace(0, 1, 40)
+    time_grid = np.linspace(0, 1, 3)
     for var in varlist.values():
         var.fixed = True
     sim = par_est.Simulator(model, time_grid, varlist)
     res_tau = sim.simulate()
     res = sim.integrator(
-        x0=sim._initial_states,
-        z0=sim._initial_alg,
+        x0=sim._initial_state,
+        z0=sim._initial_algebraic,
         p=ca.vertcat(sim._variables * sim.scaling),
     )
-    print(res_tau - ca.vertcat(res["xf"], res["zf"]))
+
+    assert np.isclose(res_tau, ca.vertcat(res["xf"], res["zf"])).any()
 
 
-def try_map():
-    varlist, model = cstr_model_ode()
-    time_grid = np.linspace(0, 150, 6)
-    for var in varlist.values():
-        var.fixed = True
-    sim = par_est.Simulator(model, time_grid, varlist)
-
-
-    res0_x = sim.simulate(True)
-    rrrr = sim.generate_exp_data()
-    breakpoint()
-
-    accum = sim.integrator_tau.mapaccum("simulator", 3)
-
-    variables_copy = copy.deepcopy(sim._variables)
-    variables_copy[16] = 353
-
-    res = accum(
-        x0=sim._initial_states,
-        z0=sim._initial_alg,
-        p=ca.horzcat(
-            ca.vertcat(ca.DM(1), sim._variables * sim.scaling),
-            ca.vertcat(ca.DM(3), sim._variables * sim.scaling),
-            ca.vertcat(ca.DM(5), variables_copy * sim.scaling),
-        ),
-    )
-    # ca.vertcat(ca.horzcat(ca.DM(1),ca.DM(2), ca.DM(3)), ca.repmat(sim._variables,1,3))
-    par=ca.horzcat(
-        ca.vertcat(ca.DM(1), sim._variables * sim.scaling),
-        ca.vertcat(ca.DM(3), sim._variables * sim.scaling),
-        ca.vertcat(ca.DM(5), variables_copy * sim.scaling),
-    )
-
-
-    integrator_jac = sim.integrator_tau.factory(
-        "I_fwd", ["x0", "z0", "p"], ["jac:xf:p"]
-    )
-
-    imap = integrator_jac.mapaccum("jacobian", 3)
-    res_j = imap(
-        x0=sim._initial_states,
-        z0=sim._initial_alg,
-        p=ca.horzcat(
-            ca.vertcat(ca.DM(1), sim._variables * sim.scaling),
-            ca.vertcat(ca.DM(3), sim._variables * sim.scaling),
-            ca.vertcat(ca.DM(5), sim._variables * sim.scaling),
-        ),
-    )
-
-    mapmap = accum.factory("I_fwd", ["x0", "z0", "p"], ["jac:xf:p"])
-
-    res_jm = mapmap(
-        x0=sim._initial_states,
-        z0=sim._initial_alg,
-        p=ca.horzcat(
-            ca.vertcat(ca.DM(1), sim._variables * sim.scaling),
-            ca.vertcat(ca.DM(3), sim._variables * sim.scaling),
-            ca.vertcat(ca.DM(5), sim._variables * sim.scaling),
-        ),
-    )
-
-    # print(res0_x[:, 3] - res["xf"][:, 1])
-    # print(res0j[:, 38:57] - res_j["jac_xf_p"][:, 19:38])
-
-
-
-# @pytest.mark.skip(reason="WIP")
 def test_cstr_ode():
     variable_list, m = cstr_model_ode()
     # Create time-grid. Zero should be first
@@ -133,6 +67,5 @@ def test_cstr_ode():
 
 
 if __name__ == "__main__":
-    try_map()
-    # test_tau()
-    # test_cstr_ode()
+    test_pendulum_dae()
+    test_cstr_ode()

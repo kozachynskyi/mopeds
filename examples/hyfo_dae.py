@@ -649,8 +649,8 @@ def initialize_problem():
         m._all_variables["e0_r_r5"].casadi_var
     )
 
-    m.add_differential_equations([dydx1, dydx2, dydx3, dydx4, dydx5])
-    m.add_algebraic_equations(
+    m.add_equations_differential([dydx1, dydx2, dydx3, dydx4, dydx5])
+    m.add_equations_algebraic(
         [
             dydx6,
             dydx7,

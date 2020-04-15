@@ -9,6 +9,7 @@ casadi https://github.com/casadi/casadi/wiki/InstallationInstructions
 
 ## TODO
 
+Test_pendulum_dae fails if time_grid has more timesteps. Presicion of DAE solver should be checked
 State variable starting value is redundant. It should be taken/stored from Experimental Data.
 Control variable can hold only one control value for one experiment. No control change in time and additional experiments can be added.
 Determine how to store time_grid - list or numpy array
@@ -20,12 +21,14 @@ OED has builtin variances, it should be taken from state variables
 
 ## Development
 
+- To mark something as unfinished use WIP (work in progress)
 - To Debug casadi use: 
     - "print_in": True
     - "print_out": True
     - "verbose": True
     - "print_stats": True
 - TO get list of function options: integrator.print_options()
+
 ## Structure
 
 Experimental Data is object that stores value and time arrays.

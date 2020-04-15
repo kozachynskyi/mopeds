@@ -87,7 +87,7 @@ def initialize_problem_ode():
     c4dot = ((m._all_variables["e0_F"].casadi_var / e0_V) * ((m._all_variables["e0_c_in_i4"].casadi_var - m._all_variables["e0_c_i4"].casadi_var))) + (e0_greek_nu_i4_r3 * (m._all_variables["e0_k_pre_r3"].casadi_var * (m._all_variables["e0_c_i1"].casadi_var * ca.exp(((-m._all_variables["e0_E_r3"].casadi_var) / (e0_R * m._all_variables["e0_T"].casadi_var))))))
     # fmt: on
 
-    m.add_differential_equations([tdot, c1dot, c2dot, c3dot, c4dot])
+    m.add_equations_differential([tdot, c1dot, c2dot, c3dot, c4dot])
 
     return variable_list, m
 
@@ -175,8 +175,8 @@ def initialize_problem_dae():
 
     # fmt: on
 
-    m.add_differential_equations([tdot, c1dot, c2dot, c3dot, c4dot])
-    m.add_algebraic_equations([c_tot])
+    m.add_equations_differential([tdot, c1dot, c2dot, c3dot, c4dot])
+    m.add_equations_algebraic([c_tot])
 
     return variable_list, m
 
