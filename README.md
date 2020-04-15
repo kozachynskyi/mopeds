@@ -18,6 +18,14 @@ Parameter estimation sequantially solves simulations. Multiprocessing doesn't wo
 
 OED has builtin variances, it should be taken from state variables
 
+## Development
+
+- To Debug casadi use: 
+    - "print_in": True
+    - "print_out": True
+    - "verbose": True
+    - "print_stats": True
+- TO get list of function options: integrator.print_options()
 ## Structure
 
 Experimental Data is object that stores value and time arrays.

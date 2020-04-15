@@ -25,15 +25,14 @@ def no_test_tau():
 def try_map():
     varlist, model = cstr_model_ode()
     time_grid = np.linspace(0, 150, 6)
-    print(time_grid)
     for var in varlist.values():
         var.fixed = True
     sim = par_est.Simulator(model, time_grid, varlist)
 
-    print(ca.horzcat(*(time_grid[1:] - time_grid[:-1])))
 
     res0_x = sim.simulate(True)
     rrrr = sim.generate_exp_data()
+    breakpoint()
 
     accum = sim.integrator_tau.mapaccum("simulator", 3)
 
@@ -84,10 +83,9 @@ def try_map():
         ),
     )
 
-    print(res0_x[:, 3] - res["xf"][:, 1])
+    # print(res0_x[:, 3] - res["xf"][:, 1])
     # print(res0j[:, 38:57] - res_j["jac_xf_p"][:, 19:38])
 
-    breakpoint()
 
 
 # @pytest.mark.skip(reason="WIP")

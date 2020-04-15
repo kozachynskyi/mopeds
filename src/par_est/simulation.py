@@ -170,11 +170,11 @@ class Simulator(object):
             # TODO Generate on init and just call here
             if self.model.algebraic_equations is not None:
                 integrator_jac = self.integrator_tau.factory(
-                    "I_fwd", ["x0", "z0", "p"], ["jac:xf:p"]
+                    "I_fwd", ["x0", "z0", "p"], ["xf", "jac:xf:p"]
                 )
             else:
                 integrator_jac = self.integrator_tau.factory(
-                    "I_fwd", ["x0", "p"], ["jac:xf:p"]
+                    "I_fwd", ["x0", "p"], ["xf", "jac:xf:p"]
                 )
 
             integrator_jac_map = integrator_jac.mapaccum("jacobian", map_num)
@@ -200,7 +200,6 @@ class Simulator(object):
             res = ca.horzcat(res_algebraic)
         if derivatives:
             res_jacobian = res_integration_jac["jac_xf_p"]
-
 
         if derivatives:
             return res, res_jacobian
