@@ -108,18 +108,27 @@ class Simulator(object):
             ["alg"],
         )
 
-        check_initials = function(x=self._initial_states, z=self._initial_alg, p=self._variables)
+        check_initials = function(
+            x=self._initial_states, z=self._initial_alg, p=self._variables
+        )
         jacobian = function.factory("jac_alg", function.name_in(), ["jac:alg:z"])
-        check_jacobian = jacobian(x=self._initial_states, z=self._initial_alg, p=self._variables)
+        check_jacobian = jacobian(
+            x=self._initial_states, z=self._initial_alg, p=self._variables
+        )
 
-        check_alg = algebraic_eqsys(x=self._initial_states, z=self._initial_alg, p=self._variables)
+        check_alg = algebraic_eqsys(
+            x=self._initial_states, z=self._initial_alg, p=self._variables
+        )
 
         # should fail by DAE index > 1
         ca.inv(check_jacobian["jac_alg_z"])
 
         algebraic_eqsys_rootfinder = ca.Function(
             "alg_eq_sys",
-            [self.ode_system["z"], ca.vertcat(self.ode_system["x"], self.ode_system["p"])],
+            [
+                self.ode_system["z"],
+                ca.vertcat(self.ode_system["x"], self.ode_system["p"]),
+            ],
             [self.ode_system["alg"]],
             ["x", "p"],
             ["alg"],
@@ -127,7 +136,7 @@ class Simulator(object):
 
         rf = ca.rootfinder("inits", "newton", algebraic_eqsys_rootfinder)
         res = rf(self._initial_alg, ca.vertcat(self._initial_states, self._variables))
-        
+
         check_alg = function(x=self._initial_states, z=res, p=self._variables)
         print(check_alg)
         self._initial_alg = res
@@ -142,46 +151,60 @@ class Simulator(object):
         x_init = self._initial_states
         alg_init = self._initial_alg
 
-        for time_step in self.time_grid[1:]:
-            res_integration = self.integrator_tau(
-                x0=x_init,
-                z0=alg_init,
-                p=ca.vertcat(
-                    time_step - prev_time_step, self._variables * self.scaling
-                ),
-            )
-            if derivatives:
+        map_num = len(self.time_grid) - 1
+        param_init = ca.vertcat(
+            ca.horzcat(*(self.time_grid[1:] - self.time_grid[:-1])),
+            ca.repmat(self._variables * self.scaling, 1, map_num),
+        )
+        vova = self._variables * self.scaling
+
+        # TODO Generate on init and just call here
+        integrator_tau_map = self.integrator_tau.mapaccum("simulator", map_num)
+
+        if self.model.algebraic_equations is not None:
+            res_integration = integrator_tau_map(x0=x_init, z0=alg_init, p=param_init)
+        else:
+            res_integration = integrator_tau_map(x0=x_init, p=param_init)
+
+        if derivatives:
+            # TODO Generate on init and just call here
+            if self.model.algebraic_equations is not None:
+                integrator_jac = self.integrator_tau.factory(
+                    "I_fwd", ["x0", "z0", "p"], ["jac:xf:p"]
+                )
+            else:
                 integrator_jac = self.integrator_tau.factory(
                     "I_fwd", ["x0", "p"], ["jac:xf:p"]
                 )
-                res_integration_jac = integrator_jac(
+
+            integrator_jac_map = integrator_jac.mapaccum("jacobian", map_num)
+
+            if self.model.algebraic_equations is not None:
+                res_integration_jac = integrator_jac_map(
                     x0=x_init,
-                    p=ca.vertcat(
-                        time_step - prev_time_step, self._variables * self.scaling
-                    ),
+                    z0=alg_init,
+                    p=param_init
+                )
+            else:
+                print(x_init)
+                print(param_init)
+                res_integration_jac = integrator_jac_map(
+                    x0=x_init,
+                    p=param_init,
                 )
 
-            prev_time_step = time_step
-            x_init = res_integration["xf"]
-            alg_init = res_integration["zf"]
+        res = res_integration["xf"]
 
-            if time_step == self.time_grid[1]:
-                res_states = res_integration["xf"]
-                res_algebraic = res_integration["zf"]
-                if derivatives:
-                    res_jacobian = res_integration_jac["jac_xf_p"]
-            else:
-                res_states = ca.horzcat(res_states, res_integration["xf"])
-                res_algebraic = ca.horzcat(res_algebraic, res_integration["zf"])
-                if derivatives:
-                    res_jacobian = ca.vertcat(
-                        res_jacobian, res_integration_jac["jac_xf_p"]
-                    )
+        if self.model.algebraic_equations is not None:
+            res_algebraic = res_integration["zf"]
+            res = ca.horzcat(res_algebraic)
+        if derivatives:
+            res_jacobian = res_integration_jac["jac_xf_p"]
+
 
         if derivatives:
-            return res_states, res_jacobian
-        else:
-            return ca.vertcat(res_states, res_algebraic)
+            return res, res_jacobian
+        return res
 
     def generate_exp_data(self):
         res_array = self.simulate()
