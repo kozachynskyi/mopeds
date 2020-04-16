@@ -154,11 +154,3 @@ class ExperimentData(object):
     def __init__(self):
         self.time = None
         self.value = None
-
-    def is_correct(self):
-        if self.time is None or self.value is None:
-            return False
-        if self.time.size == self.value.size:
-            return True
-        else:
-            False

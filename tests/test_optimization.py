@@ -1,4 +1,5 @@
 import par_est
+import logging
 import casadi as ca
 import numpy as np
 import pytest
@@ -11,7 +12,7 @@ import logging
 @pytest.mark.skip(reason="WIP")
 def test_ode():
     var_list, model = cstr_model_ode()
-    time_grid = np.linspace(10, 10000, 4)
+    time_grid = np.linspace(10, 10000, 3)
     time_grid = np.insert(time_grid, 0, 0)
 
     var_list_fixed = copy.deepcopy(var_list)
@@ -68,7 +69,7 @@ def not_test_optimizer():
     var_list_fixed = copy.deepcopy(variable_list)
     for var in var_list_fixed.values():
         var.fixed = True
-    var_list_exp = par_est.Simulator(m, time_grid, var_list_fixed).generate_exp_data()
+    var_list_exp = par_est.Simulator(m, time_grid, var_list_fixed).get_symbolic_result()
 
     # Replace empty state variables with results from simulation
     for key, var in var_list_exp.items():
@@ -134,5 +135,6 @@ def not_test_optimizer():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(format='%(name)s:%(levelname)s:%(message)s', level=logging.DEBUG)
     test_ode()
     # not_test_optimizer()

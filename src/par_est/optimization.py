@@ -1,6 +1,8 @@
 import copy
+import logging
 import casadi as ca
 import numpy as np
+from typing import List
 
 from par_est import (
     VariableControl,
@@ -16,14 +18,15 @@ class Optimizer(object):
     def __init__(self, model: Model, variable_lists: [VariableList]):
         if not isinstance(variable_lists, list):
             raise (Exception("Variable list should be nested of type list"))
+        self.logger = logging.getLogger(__name__)
         self.model = model
         # Deepcopy is used to avoid manipulating input variable list
-        self.variable_lists = copy.deepcopy(variable_lists)
-        self.decision_var = VariableList()
-        self.parameters = VariableList()
-        self.controls = VariableList()
-        self.states = VariableList()
-        self.simulators = []  # type: [Simulator]
+        self.list_input_varlist = copy.deepcopy(variable_lists)
+        self.varlist_decision = VariableList()
+        self.varlist_parameter = VariableList()
+        self.varlist_control = VariableList()
+        self.varlist_state = VariableList()
+        self.list_simulators = []  # type: List[Simulator]
 
         self.guess = None
         self.lower_bound = None
@@ -34,7 +37,7 @@ class Optimizer(object):
         self.solver_settings = None
 
     def _setup_simulator(self):
-        # Sets all variable lists of the class from __input_var_list. Optimizer dependent
+        # Creates simulator
         raise (NotImplementedError)
 
     def _setup_initialization(self):
@@ -43,7 +46,7 @@ class Optimizer(object):
         lower_bound = []
         upper_bound = []
 
-        for var in self.decision_var.values():
+        for var in self.varlist_decision.values():
             if var.guess == 0:
                 guess.append(1)
             else:
@@ -60,14 +63,14 @@ class Optimizer(object):
         # Sets scaling variables in optimizer and simulator
         if scale:
             self.scaling = self.guess
-            for simulator in self.simulators:
+            for simulator in self.list_simulators:
                 simulator._reset_scaling()
                 # for var in self.simulation._variables fails to iterate
                 for count in range(simulator._variables.size()[0]):
                     var = simulator._variables[count]
                     if var.is_symbolic():
-                        if var.name() in self.decision_var:
-                            current_guess = self.decision_var[var.name()].guess
+                        if var.name() in self.varlist_decision:
+                            current_guess = self.varlist_decision[var.name()].guess
                             if current_guess == 0:
                                 simulator.scaling[count] = 1
                             else:
@@ -76,7 +79,7 @@ class Optimizer(object):
                             simulator.scaling[count] = 1
         else:
             self.scaling = 1
-            for simulator in self.simulators:
+            for simulator in self.list_simulators:
                 simulator._reset_scaling()
 
     def _objective(self):
@@ -90,7 +93,7 @@ class Optimizer(object):
         self.solver = ca.nlpsol(
             "solver",
             self.solver_name,
-            {"x": self.decision_var.get_casadi_var(), "f": self._objective()},
+            {"x": self.varlist_decision.get_casadi_var(), "f": self._objective()},
             self.solver_settings,
         )
 
@@ -122,51 +125,51 @@ class ParameterEstimation(Optimizer):
         self._setup_initialization()
 
     def _setup_simulator(self):
-        for var in self.variable_lists[0].values():
+        # It's not checked if all supplied varlist have same states etc.
+        for var in self.list_input_varlist[0].values():
             if isinstance(var, VariableState):
-                self.states.add_variable(var)
+                self.varlist_state.add_variable(var)
             elif isinstance(var, VariableParameter):
-                self.parameters.add_variable(var)
+                self.varlist_parameter.add_variable(var)
                 if var.fixed is False:
-                    self.decision_var.add_variable(var)
+                    self.varlist_decision.add_variable(var)
             elif isinstance(var, VariableControl):
-                self.controls.add_variable(var)
+                self.varlist_control.add_variable(var)
 
-        for variable_list in self.variable_lists:
+        for varlist_input in self.list_input_varlist:
             time_grid = np.ndarray((1, 0))
 
-            for var in variable_list.values():
+            for var in varlist_input.values():
                 # Generates time_grid based on available exp data
                 if isinstance(var, VariableState):
-                    if var.value.is_correct():
-                        time_grid = np.append(time_grid, var.value.time)
+                    time_grid = np.append(time_grid, var.value.time)
+                    var.starting_value = var.value.value[0]
                 elif isinstance(var, VariableControl):
                     var.fixed = True
 
             time_grid = np.unique(time_grid)
-            self.simulators.append(Simulator(self.model, time_grid, variable_list))
+            self.list_simulators.append(Simulator(self.model, time_grid, varlist_input))
 
     def _objective(self):
         error = 0
 
-        for simulator in self.simulators:
-            res_simulation = simulator.generate_exp_data()
+        for simulator in self.list_simulators:
+            res_simulation = simulator.simulate()
 
-            for var in self.states.values():
-                if var.value.is_correct():
-                    for count_exp_point, time_point in enumerate(var.value.time[1:]):
-                        # Looks up an index in a time_grid that has given time_point
-                        res_index = np.nonzero(simulator.time_grid == time_point)
-                        res_index = res_index[0][0]
+            for var in self.varlist_state.values():
+                for count_exp_point, time_point in enumerate(var.value.time[1:]):
+                    # Looks up an index in a time_grid that has given time_point
+                    res_index = np.nonzero(simulator.time_grid == time_point)
+                    res_index = res_index[0][0]
 
-                        calculated_value = res_simulation[var.name].value.value[
-                            res_index - 1
-                        ]
-                        experimental_value = var.value.value[count_exp_point + 1]
-                        error_at_timepoint = (
-                            0.5 * (calculated_value - experimental_value)
-                        ) ** 2
-                        error = error + error_at_timepoint
+                    calculated_value = res_simulation[var.name].value.value[
+                        res_index - 1
+                    ]
+                    experimental_value = var.value.value[count_exp_point + 1]
+                    error_at_timepoint = (
+                        0.5 * (calculated_value - experimental_value)
+                    ) ** 2
+                    error = error + error_at_timepoint
 
         return error
 
@@ -196,38 +199,38 @@ class OptimalExperimentalDesign(Optimizer):
         self._setup_initialization()
 
     def _setup_simulator(self):
-        for var in self.variable_lists[0].values():
+        for var in self.list_input_varlist[0].values():
             if isinstance(var, VariableControl):
                 if var.fixed is False:
-                    self.decision_var.add_variable(var)
+                    self.varlist_decision.add_variable(var)
             elif isinstance(var, VariableParameter):
                 if var.fixed is False:
-                    self.parameters.add_variable(var)
+                    self.varlist_parameter.add_variable(var)
                     self.parameter_values.append(var.value)
 
-        self.simulators.append(
-            Simulator(self.model, self.time_grid, self.variable_lists[0])
+        self.list_simulators.append(
+            Simulator(self.model, self.time_grid, self.list_input_varlist[0])
         )
 
     def _sensitivity_matrix(self):
-        res, res_jacobian = self.simulators[0].simulate(True)
+        res, res_jacobian = self.list_simulators[0].simulate(True)
 
         eval_jacobian = ca.Function(
             "eval_jacobian",
-            [self.parameters.get_casadi_var(), self.decision_var.get_casadi_var()],
+            [self.varlist_parameter.get_casadi_var(), self.varlist_decision.get_casadi_var()],
             [res_jacobian],
         )
 
         sensitivity_matrix = eval_jacobian(
-            self.parameter_values, self.decision_var.get_casadi_var()
+            self.parameter_values, self.varlist_decision.get_casadi_var()
         )
 
         parameter_sensitivity_matrix = None
 
-        for count in range(self.simulators[0]._variables.size()[0]):
-            var = self.simulators[0]._variables[count]
+        for count in range(self.list_simulators[0]._variables.size()[0]):
+            var = self.list_simulators[0]._variables[count]
             if var.is_symbolic():
-                if var.name() in self.parameters:
+                if var.name() in self.varlist_parameter:
                     # Count + 1 because first variable in sensitivity matrix is tau
                     if parameter_sensitivity_matrix is None:
                         parameter_sensitivity_matrix = sensitivity_matrix[:, count + 1]
@@ -238,7 +241,7 @@ class OptimalExperimentalDesign(Optimizer):
                         )
 
         # TODO use variabnces
-        sc_states = np.ones(len(self.simulators[0]._state_variables)).tolist()
+        sc_states = np.ones(len(self.list_simulators[0]._state_variables)).tolist()
         scale_states = np.diagflat(np.tile(sc_states, len(self.time_grid) - 1))
         scale_parameters = np.diagflat(self.parameter_values)
 
@@ -252,7 +255,7 @@ class OptimalExperimentalDesign(Optimizer):
         self._setup_scaling(False)
         sensitivity_matrix = self._sensitivity_matrix()
         evaluate = ca.Function(
-            "eval_fim", [self.decision_var.get_casadi_var()], [sensitivity_matrix]
+            "eval_fim", [self.varlist_decision.get_casadi_var()], [sensitivity_matrix]
         )
         sensitivity_matrix = evaluate(self.guess)
         fim_matrix = sensitivity_matrix.T @ sensitivity_matrix
