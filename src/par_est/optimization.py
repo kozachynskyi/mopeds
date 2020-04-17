@@ -136,6 +136,9 @@ class ParameterEstimation(Optimizer):
             elif isinstance(var, VariableControl):
                 self.varlist_control.add_variable(var)
 
+        self.array_data_mask = [[]] * len(self.varlist_state)
+        self.array_data = None
+
         for varlist_input in self.list_input_varlist:
             time_grid = np.ndarray((1, 0))
 
@@ -148,28 +151,54 @@ class ParameterEstimation(Optimizer):
                     var.fixed = True
 
             time_grid = np.unique(time_grid)
+
             self.list_simulators.append(Simulator(self.model, time_grid, varlist_input))
+            var_index = 0
+
+            for var in varlist_input.values():
+                if isinstance(var, VariableState):
+                    time_grid_var = np.array(var.value.time)
+                    data_mask_var = np.isin(time_grid, time_grid_var)[1:]
+                    data_mask_var = np.flatnonzero(data_mask_var).tolist()
+                    data_var = np.array(var.value.value)[1:]
+                    print(ca.DM(data_mask_var))
+                    print(self.array_data_mask)
+                    if self.array_data is None:
+                        self.array_data = data_var
+                    else:
+                        self.array_data = np.hstack((self.array_data, data_var[:]))
+
+                    self.array_data_mask[var_index] = [var_index, data_mask_var]
+                    var_index += 1
+
 
     def _objective(self):
         error = 0
 
         for simulator in self.list_simulators:
             res_simulation = simulator.simulate()
+            print(self.array_data_mask)
+            print(res_simulation[[0,1],[0,1]].shape)
+            print(self.array_data)
+            print(res_simulation[self.array_data_mask])
 
-            for var in self.varlist_state.values():
-                for count_exp_point, time_point in enumerate(var.value.time[1:]):
-                    # Looks up an index in a time_grid that has given time_point
-                    res_index = np.nonzero(simulator.time_grid == time_point)
-                    res_index = res_index[0][0]
+            error_simulator = 0.5 * (res_simulation[self.array_data_mask] - self.array_data) ** 2
+            error = error + error_simulator
 
-                    calculated_value = res_simulation[var.name].value.value[
-                        res_index - 1
-                    ]
-                    experimental_value = var.value.value[count_exp_point + 1]
-                    error_at_timepoint = (
-                        0.5 * (calculated_value - experimental_value)
-                    ) ** 2
-                    error = error + error_at_timepoint
+            # for var in self.varlist_state.values():
+            #     for count_exp_point, time_point in enumerate(var.value.time[1:]):
+            #         # Looks up an index in a time_grid that has given time_point
+            #         res_index = np.nonzero(simulator.time_grid == time_point)
+            #         res_index = res_index[0][0]
+
+            #         calculated_value = res_simulation[var.name].value.value[
+            #             res_index - 1
+            #         ]
+            #         experimental_value = var.value.value[count_exp_point + 1]
+            #         error_at_timepoint = (
+            #             0.5 * (calculated_value - experimental_value)
+            #         ) ** 2
+            #         error = error + error_at_timepoint
 
         return error
 

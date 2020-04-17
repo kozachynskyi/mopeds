@@ -15,6 +15,23 @@ def test_ode():
     time_grid = np.linspace(10, 10000, 3)
     time_grid = np.insert(time_grid, 0, 0)
 
+    x = np.array([0,1,2,3])
+    xx = np.array([[0,1,2,3],[4,5,6,7]])
+    xxx = np.vstack((xx,[8,8,8,8]))
+    y = np.array([0,1])
+    z = np.array([2,3])
+    mask_y = np.isin(x,y)
+    mask_z = np.isin(x,z)
+    maskmask = np.vstack((mask_y,mask_z))
+    masknonzero = np.nonzero(maskmask)
+    print(xx.shape)
+    print(maskmask.shape)
+    print(xx[maskmask])
+
+    M = ca.SX([[0,1,2,3],[4,5,6,7]])
+    print(M.get(True,ca.Slice(0,2),ca.Slice(0,3)))
+    exit()
+
     var_list_fixed = copy.deepcopy(var_list)
     for var in var_list_fixed.values():
         var.fixed = True
@@ -29,6 +46,11 @@ def test_ode():
         var.fixed = True
 
     var_list["e0_E_r1"].fixed = False
+
+    var_list["e0_T"].value.value = var_list["e0_T"].value.value[0:2]
+    var_list["e0_T"].value.time = var_list["e0_T"].value.time[0:2]
+    # var_list["e0_c_i1"].value.value = var_list["e0_c_i1"].value.value[0:2]
+    # var_list["e0_c_i1"].value.time = var_list["e0_c_i1"].value.time[0:2]
 
     pe = par_est.ParameterEstimation(model, [var_list])
 

@@ -16,7 +16,7 @@ from par_est import (
 class Simulator(object):
     def __init__(self, model: Model, time_grid, variable_list: VariableList):
         self.logger = logging.getLogger(__name__)
-        self.logger.error("Creating Simulator object: \n timegrid \n {0}".format(time_grid))
+        self.logger.error("Creating Simulator object: \n timegrid \n {0} \n".format(time_grid))
         self.__input_variable_list = copy.deepcopy(variable_list)
         self.model = model
         self.tau = ca.MX.sym("tau")
@@ -167,9 +167,9 @@ class Simulator(object):
             ca.repmat(self._variables * self.scaling, 1, map_num),
         )
 
-        self.logger.debug("Simulating: \n Initial States x0 \n {} \n Independent Variables p \n {}".format(self._initial_state, initial_independent))
+        self.logger.debug("Simulating: \n Initial States x0 \n {} \n Independent Variables p \n {} \n".format(self._initial_state, initial_independent))
         if self.DAE:
-            self.logger.debug("Initial Algebraic z0 \n {}".format(self._initial_algebraic))
+            self.logger.debug("Initial Algebraic z0 \n {} \n".format(self._initial_algebraic))
 
         if not derivatives:
             if self.DAE:
