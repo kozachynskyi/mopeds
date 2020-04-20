@@ -16,7 +16,7 @@ from par_est import (
 class Simulator(object):
     def __init__(self, model: Model, time_grid, variable_list: VariableList):
         self.logger = logging.getLogger(__name__)
-        self.logger.error("Creating Simulator object: \n timegrid \n {0} \n".format(time_grid))
+        self.logger.debug("Creating Simulator object: \n timegrid \n {0} \n".format(time_grid))
         self.__input_variable_list = copy.deepcopy(variable_list)
         self.model = model
         self.tau = ca.MX.sym("tau")

@@ -3,6 +3,7 @@ import logging
 import casadi as ca
 import numpy as np
 from typing import List
+from scipy.sparse import csc_matrix, vstack
 
 from par_est import (
     VariableControl,
@@ -10,7 +11,7 @@ from par_est import (
     VariableParameter,
     Simulator,
     VariableState,
-    VariableList
+    VariableList,
 )
 
 
@@ -98,18 +99,15 @@ class Optimizer(object):
         )
 
         # Scaling of negative numbers requires switch bounds
-        lb_scaled = (self.lower_bound / self.scaling)
-        ub_scaled = (self.upper_bound / self.scaling)
+        lb_scaled = self.lower_bound / self.scaling
+        ub_scaled = self.upper_bound / self.scaling
         for index, (lb, ub) in enumerate(zip(lb_scaled, ub_scaled)):
             if lb > ub:
                 lb_scaled[index] = ub
                 ub_scaled[index] = lb
 
-
         res_solver = self.solver(
-            x0=self.guess / self.scaling,
-            lbx=lb_scaled,
-            ubx=ub_scaled,
+            x0=self.guess / self.scaling, lbx=lb_scaled, ubx=ub_scaled,
         )
 
         print(res_solver["x"])
@@ -122,6 +120,7 @@ class ParameterEstimation(Optimizer):
     def __init__(self, model: Model, variable_list: VariableList):
         super().__init__(model, variable_list)
         self._setup_simulator()
+        self.logger.debug("Created Optimizer object: \n Data Shape {} \n Desicion Variables {}".format(self.array_data.shape, self.varlist_decision.get_variable_name()))
         self._setup_initialization()
 
     def _setup_simulator(self):
@@ -136,7 +135,6 @@ class ParameterEstimation(Optimizer):
             elif isinstance(var, VariableControl):
                 self.varlist_control.add_variable(var)
 
-        self.array_data_mask = [[]] * len(self.varlist_state)
         self.array_data = None
 
         for varlist_input in self.list_input_varlist:
@@ -153,52 +151,35 @@ class ParameterEstimation(Optimizer):
             time_grid = np.unique(time_grid)
 
             self.list_simulators.append(Simulator(self.model, time_grid, varlist_input))
-            var_index = 0
 
             for var in varlist_input.values():
                 if isinstance(var, VariableState):
                     time_grid_var = np.array(var.value.time)
                     data_mask_var = np.isin(time_grid, time_grid_var)[1:]
-                    data_mask_var = np.flatnonzero(data_mask_var).tolist()
                     data_var = np.array(var.value.value)[1:]
-                    print(ca.DM(data_mask_var))
-                    print(self.array_data_mask)
+
+                    sparsity_pattern = csc_matrix(data_mask_var.astype(int))
+                    sparsity_pattern.data = data_var
+
                     if self.array_data is None:
-                        self.array_data = data_var
+                        self.array_data = sparsity_pattern
                     else:
-                        self.array_data = np.hstack((self.array_data, data_var[:]))
+                        self.array_data = vstack([self.array_data, sparsity_pattern])
 
-                    self.array_data_mask[var_index] = [var_index, data_mask_var]
-                    var_index += 1
-
+            self.array_data_sparcity = ca.DM(self.array_data).sparsity()
 
     def _objective(self):
-        error = 0
+        array_simulation = None
 
         for simulator in self.list_simulators:
             res_simulation = simulator.simulate()
-            print(self.array_data_mask)
-            print(res_simulation[[0,1],[0,1]].shape)
-            print(self.array_data)
-            print(res_simulation[self.array_data_mask])
 
-            error_simulator = 0.5 * (res_simulation[self.array_data_mask] - self.array_data) ** 2
-            error = error + error_simulator
+            if array_simulation is None:
+                array_simulation = res_simulation
+            else:
+                array_simulation = ca.vertcat(array_simulation, res_simulation)
 
-            # for var in self.varlist_state.values():
-            #     for count_exp_point, time_point in enumerate(var.value.time[1:]):
-            #         # Looks up an index in a time_grid that has given time_point
-            #         res_index = np.nonzero(simulator.time_grid == time_point)
-            #         res_index = res_index[0][0]
-
-            #         calculated_value = res_simulation[var.name].value.value[
-            #             res_index - 1
-            #         ]
-            #         experimental_value = var.value.value[count_exp_point + 1]
-            #         error_at_timepoint = (
-            #             0.5 * (calculated_value - experimental_value)
-            #         ) ** 2
-            #         error = error + error_at_timepoint
+        error = ca.sumsqr(array_simulation.get(False, self.array_data_sparcity) - self.array_data)
 
         return error
 
@@ -242,11 +223,15 @@ class OptimalExperimentalDesign(Optimizer):
         )
 
     def _sensitivity_matrix(self):
+        # Change of basis https://www.youtube.com/watch?v=P2LTAUO1TdA&list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab&index=13
         res, res_jacobian = self.list_simulators[0].simulate(True)
 
         eval_jacobian = ca.Function(
             "eval_jacobian",
-            [self.varlist_parameter.get_casadi_var(), self.varlist_decision.get_casadi_var()],
+            [
+                self.varlist_parameter.get_casadi_var(),
+                self.varlist_decision.get_casadi_var(),
+            ],
             [res_jacobian],
         )
 
@@ -270,8 +255,17 @@ class OptimalExperimentalDesign(Optimizer):
                         )
 
         # TODO use variabnces
-        sc_states = np.ones(len(self.list_simulators[0]._state_variables)).tolist()
-        scale_states = np.diagflat(np.tile(sc_states, len(self.time_grid) - 1))
+        breakpoint()
+        old_shape = res_jacobian.shape
+        total = old_shape[0] * old_shape[1]
+        num_param = len(self.varlist_parameter)
+        new_col = int(total/num_param)
+        print(num_param, total, new_col)
+        jac = ca.reshape(res_jacobian, num_param, int(total/num_param))
+        # sc_states = np.ones(len(self.list_simulators[0].model.varlist_state)).tolist()
+        # scale_states = np.diagflat(np.tile(sc_states, len(self.time_grid) - 1))
+        scale_states = np.diagflat(sc_states)
+        print(np.tile(scale_states, (19,1)))
         scale_parameters = np.diagflat(self.parameter_values)
 
         sensitivity_scaled = scale_states @ (
@@ -291,7 +285,7 @@ class OptimalExperimentalDesign(Optimizer):
         return sensitivity_matrix, fim_matrix
 
     def _objective(self):
-        # Only trace is programmed in Casadi
+        # Only trace criterium is programmed in Casadi
         sensitivity_matrix = self._sensitivity_matrix()
 
         fim_matrix = sensitivity_matrix.T @ sensitivity_matrix

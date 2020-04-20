@@ -72,6 +72,12 @@ class VariableList(OrderedDict):
         """ TODO: add error handling if variable exists"""
         self.update({variable.name: variable})
 
+    def get_variable_name(self):
+        names = []
+        for var in self.values():
+            names.append(var.name)
+        return names
+
     def get_casadi_var(self):
         casadi_vars = []
         for var in self.values():

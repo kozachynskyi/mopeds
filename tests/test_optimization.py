@@ -9,28 +9,12 @@ from conftest import cstr_model_ode, pendulum_dae_1
 import logging
 
 
-@pytest.mark.skip(reason="WIP")
+# @pytest.mark.skip(reason="WIP")
 def test_ode():
     var_list, model = cstr_model_ode()
     time_grid = np.linspace(10, 10000, 3)
     time_grid = np.insert(time_grid, 0, 0)
 
-    x = np.array([0,1,2,3])
-    xx = np.array([[0,1,2,3],[4,5,6,7]])
-    xxx = np.vstack((xx,[8,8,8,8]))
-    y = np.array([0,1])
-    z = np.array([2,3])
-    mask_y = np.isin(x,y)
-    mask_z = np.isin(x,z)
-    maskmask = np.vstack((mask_y,mask_z))
-    masknonzero = np.nonzero(maskmask)
-    print(xx.shape)
-    print(maskmask.shape)
-    print(xx[maskmask])
-
-    M = ca.SX([[0,1,2,3],[4,5,6,7]])
-    print(M.get(True,ca.Slice(0,2),ca.Slice(0,3)))
-    exit()
 
     var_list_fixed = copy.deepcopy(var_list)
     for var in var_list_fixed.values():
@@ -49,24 +33,31 @@ def test_ode():
 
     var_list["e0_T"].value.value = var_list["e0_T"].value.value[0:2]
     var_list["e0_T"].value.time = var_list["e0_T"].value.time[0:2]
-    # var_list["e0_c_i1"].value.value = var_list["e0_c_i1"].value.value[0:2]
-    # var_list["e0_c_i1"].value.time = var_list["e0_c_i1"].value.time[0:2]
+    var_list["e0_c_i1"].value.value = var_list["e0_c_i1"].value.value[0:2]
+    var_list["e0_c_i1"].value.time = var_list["e0_c_i1"].value.time[0:2]
 
     pe = par_est.ParameterEstimation(model, [var_list])
 
     res = pe.optimize()
     logging.warning(f"{res['f']}")
-    assert np.isclose(res["f"], ca.DM(1.93785816e-15), rtol=0, atol=1.0e-21)
-
+    assert np.isclose(res["f"], ca.DM(8.39521e-15), rtol=0, atol=1.0e-18)
     res = pe.optimize(False)
     logging.warning(f"{res['f']}")
-    assert np.isclose(res["f"], ca.DM(1.78126185e-11), rtol=0, atol=1.0e-17)
+    assert np.isclose(res["f"], ca.DM(9.26777e-12), rtol=0, atol=1.0e-15)
 
+
+def test_ode_oed():
+    var_list, model = cstr_model_ode()
+    time_grid = np.linspace(10, 10000, 3)
+    time_grid = np.insert(time_grid, 0, 0)
+    for var in var_list.values():
+        var.fixed = True
     var_list["e0_c_in_i1"].fixed = False
+    var_list["e0_E_r1"].fixed = False
 
     oed = par_est.OptimalExperimentalDesign(model, [var_list], time_grid)
-    res = oed.optimize()
     fim = oed.get_fim_matrix()
+    res = oed.optimize()
 
     assert fim[0].size() == (20, 1)
     assert fim[1].size() == (1, 1)
@@ -158,5 +149,5 @@ def not_test_optimizer():
 
 if __name__ == "__main__":
     logging.basicConfig(format='%(name)s:%(levelname)s:%(message)s', level=logging.DEBUG)
-    test_ode()
+    test_ode_oed()
     # not_test_optimizer()
