@@ -5,12 +5,12 @@ import numpy as np
 import pytest
 
 import copy
-from conftest import cstr_model_ode, pendulum_dae_1, cstr_model_dae
+from conftest import cstr_model_ode, cstr_model_dae
 import logging
 
 
 # @pytest.mark.skip(reason="WIP")
-def test_pe_dae():
+def test_pe():
     for cstr_model in [cstr_model_ode, cstr_model_dae]:
         var_list, model = cstr_model()
         time_grid = np.linspace(10, 10000, 3)
@@ -36,11 +36,6 @@ def test_pe_dae():
         var_list["e0_T"].value.time = var_list["e0_T"].value.time[0:2]
 
         pe = par_est.ParameterEstimation(model, [var_list])
-        pe.solver_settings = {
-            "verbose": False,
-            "ipopt": {"max_iter": 300, "print_level": 5},
-        }
-
 
         if model.DAE:
             answer_scaled = 1.26485e-13
@@ -180,35 +175,30 @@ def test_scaling():
 
     var_list["e0_E_r1"].fixed = False
 
-    var_list["e0_T"].value.value = var_list["e0_T"].value.value[0:2]
-    var_list["e0_T"].value.time = var_list["e0_T"].value.time[0:2]
-
     pe = par_est.ParameterEstimation(m, [var_list])
-    pe.solver_settings = {
-        "verbose": False,
-        "ipopt": {"max_iter": 300, "derivative_test": "first-order", "print_level": 3},
-    }
 
     pe._setup_scaling(False)
-    result_unscaled = pe.list_simulators[0].simulate()
-    ev2 = ca.Function("aha", [pe.varlist_decision.get_casadi_var()], [result_unscaled["xf"]])
-    res1 = ev2(90000)
+    result_unscaled = pe.list_simulators[0].simulate(True)
+    ev_unscaled = ca.Function("aha", [pe.varlist_decision.get_casadi_var()], [result_unscaled["xf"], result_unscaled["jac_xf_p"]])
+
+    res1 = ev_unscaled(90000)
 
     pe._setup_scaling(True)
-    result_scaled = pe.list_simulators[0].simulate()
-    ev1 = ca.Function("aha", [pe.varlist_decision.get_casadi_var()], [result_scaled["xf"]])
-    res2 = ev1(1)
-    sim = pe.list_simulators[0]
+    result_scaled = pe.list_simulators[0].simulate(True)
+    ev_scaled = ca.Function("aha", [pe.varlist_decision.get_casadi_var()], [result_scaled["xf"], result_scaled["jac_xf_p"]])
+    res2 = ev_scaled(1)
 
-    print(res2-res1)
+    print(res2[0]-res1[0])
 
-    breakpoint()
+    difference_jacobian = res2[1]-res1[1]
+    print(difference_jacobian[:,0:19])
+    print(difference_jacobian[:,19:38])
+    print(difference_jacobian[:,38:57])
+    print(difference_jacobian[:,57:76])
 
-    print(result_scaled["zf"])
-    print(result_unscaled["zf"])
 
 if __name__ == "__main__":
-    # logging.basicConfig(format='%(name)s:%(levelname)s:%(message)s', level=logging.DEBUG)
+    logging.basicConfig(format='%(name)s:%(levelname)s:%(message)s', level=logging.DEBUG)
     # test_ode_oed()
-    test_pe_dae()
-    # test_scaling()
+    # test_pe()
+    test_scaling()

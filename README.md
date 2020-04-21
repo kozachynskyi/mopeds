@@ -9,6 +9,8 @@ casadi https://github.com/casadi/casadi/wiki/InstallationInstructions
 
 ## TODO
 
+Test_scaling in test_optimization shows that derivatives for first step with and without scaling are different, but it depends on a length of steps. Independent of ODE or DAE
+
 Test_pendulum_dae fails if time_grid has more timesteps. Presicion of DAE solver should be checked
 State variable starting value is redundant. It should be taken/stored from Experimental Data.
 Control variable can hold only one control value for one experiment. No control change in time and additional experiments can be added.

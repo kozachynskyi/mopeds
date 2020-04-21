@@ -162,7 +162,7 @@ class Simulator(object):
 
     def simulate(self, derivatives=False):
         # Return dictionary with results "xf" - state,
-        # "zf" - algebraic, "jac_dx_dp" - derivatives
+        # "zf" - algebraic, "jac_xf_p" - derivatives
         map_num = len(self.time_grid) - 1
         initial_independent = ca.vertcat(
             ca.horzcat(*(self.time_grid[1:] - self.time_grid[:-1])),

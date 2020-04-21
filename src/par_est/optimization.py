@@ -189,7 +189,7 @@ class ParameterEstimation(Optimizer):
         if self.solver_settings is None:
             self.solver_settings = {
                 "verbose": False,
-                "ipopt": {"max_iter": 300, "derivative_test": "first-order"},
+                "ipopt": {"max_iter": 300},
             }
 
         return self._optimize(scale)
