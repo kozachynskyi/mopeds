@@ -4,7 +4,7 @@ A project to play around with Parameter Estimation (PE) and Optimal Experimental
 
 ## Requirements
 
-python => 3.5 <=3.7 (for casadi)
+python_requires = >=3.7,<3.8
 casadi https://github.com/casadi/casadi/wiki/InstallationInstructions
 
 ## TODO
