@@ -1,7 +1,7 @@
 import par_est
 import copy
 import numpy as np
-from conftest import cstr_model_ode, pendulum_dae_1
+from conftest import cstr_model_ode, pendulum_dae_1, cstr_model_dae
 import pytest
 import casadi as ca
 
@@ -20,7 +20,7 @@ def test_pendulum_dae():
         p=ca.vertcat(sim._variables * sim.scaling),
     )
 
-    assert np.isclose(res_tau, ca.vertcat(res["xf"], res["zf"])).any()
+    assert np.isclose(ca.vertcat(res_tau["xf"], res_tau["zf"]), ca.vertcat(res["xf"], res["zf"])).any()
 
 
 def test_cstr_ode():
@@ -45,12 +45,12 @@ def test_cstr_ode():
             if j == 0:
                 res_simple = sim.simulate()
             else:
-                res_simple, jac_simple = sim.simulate(True)
+                res_simple = sim.simulate(True)
 
             res = sim.generate_exp_data()
             if j == 1:
-                assert jac_simple.size() == (5, 76)
-            assert res_simple.size() == (5, 4)
+                assert res_simple["jac_xf_p"].size() == (5, 76)
+            assert res_simple["xf"].size() == (5, 4)
             assert len(res) == 5
 
             if i == 0:
@@ -67,5 +67,6 @@ def test_cstr_ode():
 
 
 if __name__ == "__main__":
-    test_pendulum_dae()
-    test_cstr_ode()
+    # test_pendulum_dae()
+    # test_cstr_ode()
+    test_csrt()

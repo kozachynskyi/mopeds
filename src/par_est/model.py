@@ -11,6 +11,7 @@ class Model(object):
         self.varlist_all = VariableList()
         self.equations_differential = None
         self.equations_algebraic = None
+        self.DAE = False
 
         for var in variable_list.values():
             if isinstance(var, Variable):
@@ -37,6 +38,7 @@ class Model(object):
     def add_equations_algebraic(self, equations):
         if self.equations_algebraic is None:
             self.equations_algebraic = ca.vcat(equations)
+            self.DAE = True
         else:
             # Adding additional equations is not implemented
             raise (NotImplementedError)

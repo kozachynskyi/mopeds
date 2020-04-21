@@ -24,9 +24,9 @@ class Simulator(object):
         self.time_grid = time_grid
 
         if self.model.equations_algebraic is None:
-            self.DAE = False
+            self.model.DAE = False
         else:
-            self.DAE = True
+            self.model.DAE = True
 
         self.ode_system = {
             "x": self.model.varlist_state.get_casadi_var(),
@@ -40,7 +40,7 @@ class Simulator(object):
             "ode": self.model.equations_differential * self.tau,
         }
 
-        if self.DAE:
+        if self.model.DAE:
             self.ode_system["alg"] = self.model.equations_algebraic
             self.ode_system_tau["alg"] = self.model.equations_algebraic
             self.ode_system["z"] = self.model.varlist_algebraic.get_casadi_var()
@@ -66,7 +66,7 @@ class Simulator(object):
             "integrator_full", steps_integrator
         )
 
-        if self.DAE:
+        if self.model.DAE:
             self.integrator_tau_jacobian = self.integrator_tau.factory(
                 "integrator_tau_jacobian",
                 self.integrator_full.name_in(),
@@ -161,6 +161,8 @@ class Simulator(object):
         # return check_initials, check_jacobian
 
     def simulate(self, derivatives=False):
+        # Return dictionary with results "xf" - state,
+        # "zf" - algebraic, "jac_dx_dp" - derivatives
         map_num = len(self.time_grid) - 1
         initial_independent = ca.vertcat(
             ca.horzcat(*(self.time_grid[1:] - self.time_grid[:-1])),
@@ -168,11 +170,11 @@ class Simulator(object):
         )
 
         self.logger.debug("Simulating: \n Initial States x0 \n {} \n Independent Variables p \n {} \n".format(self._initial_state, initial_independent))
-        if self.DAE:
+        if self.model.DAE:
             self.logger.debug("Initial Algebraic z0 \n {} \n".format(self._initial_algebraic))
 
         if not derivatives:
-            if self.DAE:
+            if self.model.DAE:
                 result_integration = self.integrator_full(
                     x0=self._initial_state,
                     z0=self._initial_algebraic,
@@ -183,7 +185,7 @@ class Simulator(object):
                     x0=self._initial_state, p=initial_independent
                 )
         else:
-            if self.DAE:
+            if self.model.DAE:
                 result_integration = self.integrator_full_jacobian(
                         x0=self._initial_state,
                         z0=self._initial_algebraic,
@@ -195,19 +197,11 @@ class Simulator(object):
                         p=initial_independent,
                 )
 
-            result_jacobian = result_integration["jac_xf_p"]
-
-        if self.DAE:
-            result = ca.vertcat(result_integration["xf"], result_integration["zf"])
-        else:
-            result = result_integration["xf"]
-
-        if derivatives:
-            return result, result_jacobian
-        return result
+        return result_integration
 
     def generate_exp_data(self):
-        res_array = self.simulate()
+        result_simulation = self.simulate()
+        res_array = result_simulation["xf"]
         variables = VariableList()
 
         convert_to_numpy = False
@@ -215,7 +209,7 @@ class Simulator(object):
             convert_to_numpy = True
 
         shift_by = 0
-        for variable_list in [self.model.varlist_state, self.model.varlist_algebraic]:
+        for variable_list in [self.model.varlist_state]:
             for count, var in enumerate(variable_list.values()):
                 new_var = copy.deepcopy(var)
                 new_var.value = ExperimentData()

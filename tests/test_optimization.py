@@ -5,48 +5,60 @@ import numpy as np
 import pytest
 
 import copy
-from conftest import cstr_model_ode, pendulum_dae_1
+from conftest import cstr_model_ode, pendulum_dae_1, cstr_model_dae
 import logging
 
 
 # @pytest.mark.skip(reason="WIP")
-def test_ode():
-    var_list, model = cstr_model_ode()
-    time_grid = np.linspace(10, 10000, 3)
-    time_grid = np.insert(time_grid, 0, 0)
+def test_pe_dae():
+    for cstr_model in [cstr_model_ode, cstr_model_dae]:
+        var_list, model = cstr_model()
+        time_grid = np.linspace(10, 10000, 3)
+        time_grid = np.insert(time_grid, 0, 0)
 
 
-    var_list_fixed = copy.deepcopy(var_list)
-    for var in var_list_fixed.values():
-        var.fixed = True
-    var_list_exp = par_est.Simulator(
-        model, time_grid, var_list_fixed
-    ).generate_exp_data()
+        var_list_fixed = copy.deepcopy(var_list)
+        for var in var_list_fixed.values():
+            var.fixed = True
+        var_list_exp = par_est.Simulator(
+            model, time_grid, var_list_fixed
+        ).generate_exp_data()
 
-    for key, var in var_list_exp.items():
-        var_list[key] = var
+        for key, var in var_list_exp.items():
+            var_list[key] = var
 
-    for var in var_list.values():
-        var.fixed = True
+        for var in var_list.values():
+            var.fixed = True
 
-    var_list["e0_E_r1"].fixed = False
+        var_list["e0_E_r1"].fixed = False
 
-    var_list["e0_T"].value.value = var_list["e0_T"].value.value[0:2]
-    var_list["e0_T"].value.time = var_list["e0_T"].value.time[0:2]
-    var_list["e0_c_i1"].value.value = var_list["e0_c_i1"].value.value[0:2]
-    var_list["e0_c_i1"].value.time = var_list["e0_c_i1"].value.time[0:2]
+        var_list["e0_T"].value.value = var_list["e0_T"].value.value[0:2]
+        var_list["e0_T"].value.time = var_list["e0_T"].value.time[0:2]
 
-    pe = par_est.ParameterEstimation(model, [var_list])
-
-    res = pe.optimize()
-    logging.warning(f"{res['f']}")
-    assert np.isclose(res["f"], ca.DM(8.39521e-15), rtol=0, atol=1.0e-18)
-    res = pe.optimize(False)
-    logging.warning(f"{res['f']}")
-    assert np.isclose(res["f"], ca.DM(9.26777e-12), rtol=0, atol=1.0e-15)
+        pe = par_est.ParameterEstimation(model, [var_list])
+        pe.solver_settings = {
+            "verbose": False,
+            "ipopt": {"max_iter": 300, "print_level": 5},
+        }
 
 
-def test_ode_oed():
+        if model.DAE:
+            answer_scaled = 1.26485e-13
+            answer = 9.75963e-12
+        else:
+            answer_scaled = 8.39521e-15
+            answer = 9.26777e-12
+
+        res = pe.optimize()
+        logging.warning(f"Model.DAE: {model.DAE}, Result: {res['f']}, Expecting: {answer_scaled}")
+        assert np.isclose(res["f"], ca.DM(answer_scaled), rtol=0, atol=1.0e-13)
+
+        res = pe.optimize(False)
+        logging.warning(f"Model.DAE: {model.DAE}, Result: {res['f']}, Expecting: {answer}")
+        assert np.isclose(res["f"], ca.DM(answer), rtol=0, atol=1.0e-12)
+
+@pytest.mark.skip(reason="WIP")
+def test_oed():
     var_list, model = cstr_model_ode()
     time_grid = np.linspace(10, 10000, 3)
     time_grid = np.insert(time_grid, 0, 0)
@@ -147,7 +159,56 @@ def not_test_optimizer():
                 assert res_oed["x"].size() == (1, 1)
 
 
+def test_scaling():
+    var_list, m = cstr_model_dae()
+    # Create time-grid. Zero should be first
+    time_grid = np.linspace(10, 10000, 4)
+    time_grid = np.insert(time_grid, 0, 0)
+
+    var_list_fixed = copy.deepcopy(var_list)
+    for var in var_list_fixed.values():
+        var.fixed = True
+    var_list_exp = par_est.Simulator(
+        m, time_grid, var_list_fixed
+    ).generate_exp_data()
+
+    for key, var in var_list_exp.items():
+        var_list[key] = var
+
+    for var in var_list.values():
+        var.fixed = True
+
+    var_list["e0_E_r1"].fixed = False
+
+    var_list["e0_T"].value.value = var_list["e0_T"].value.value[0:2]
+    var_list["e0_T"].value.time = var_list["e0_T"].value.time[0:2]
+
+    pe = par_est.ParameterEstimation(m, [var_list])
+    pe.solver_settings = {
+        "verbose": False,
+        "ipopt": {"max_iter": 300, "derivative_test": "first-order", "print_level": 3},
+    }
+
+    pe._setup_scaling(False)
+    result_unscaled = pe.list_simulators[0].simulate()
+    ev2 = ca.Function("aha", [pe.varlist_decision.get_casadi_var()], [result_unscaled["xf"]])
+    res1 = ev2(90000)
+
+    pe._setup_scaling(True)
+    result_scaled = pe.list_simulators[0].simulate()
+    ev1 = ca.Function("aha", [pe.varlist_decision.get_casadi_var()], [result_scaled["xf"]])
+    res2 = ev1(1)
+    sim = pe.list_simulators[0]
+
+    print(res2-res1)
+
+    breakpoint()
+
+    print(result_scaled["zf"])
+    print(result_unscaled["zf"])
+
 if __name__ == "__main__":
-    logging.basicConfig(format='%(name)s:%(levelname)s:%(message)s', level=logging.DEBUG)
-    test_ode_oed()
-    # not_test_optimizer()
+    # logging.basicConfig(format='%(name)s:%(levelname)s:%(message)s', level=logging.DEBUG)
+    # test_ode_oed()
+    test_pe_dae()
+    # test_scaling()

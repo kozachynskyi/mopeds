@@ -175,9 +175,9 @@ class ParameterEstimation(Optimizer):
             res_simulation = simulator.simulate()
 
             if array_simulation is None:
-                array_simulation = res_simulation
+                array_simulation = res_simulation["xf"]
             else:
-                array_simulation = ca.vertcat(array_simulation, res_simulation)
+                array_simulation = ca.vertcat(array_simulation, res_simulation["xf"])
 
         error = ca.sumsqr(array_simulation.get(False, self.array_data_sparcity) - self.array_data)
 
@@ -224,7 +224,9 @@ class OptimalExperimentalDesign(Optimizer):
 
     def _sensitivity_matrix(self):
         # Change of basis https://www.youtube.com/watch?v=P2LTAUO1TdA&list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab&index=13
-        res, res_jacobian = self.list_simulators[0].simulate(True)
+        result_simulation = self.list_simulators[0].simulate(True)
+        res = result_simulation["xf"]
+        res_jacobian = result_simulation["jac_xf_p"]
 
         eval_jacobian = ca.Function(
             "eval_jacobian",
