@@ -201,4 +201,5 @@ if __name__ == "__main__":
     logging.basicConfig(format='%(name)s:%(levelname)s:%(message)s', level=logging.DEBUG)
     # test_ode_oed()
     # test_pe()
-    test_scaling()
+    # test_scaling()
+    test_oed()

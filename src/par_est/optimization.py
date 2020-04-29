@@ -257,17 +257,19 @@ class OptimalExperimentalDesign(Optimizer):
                         )
 
         # TODO use variabnces
-        breakpoint()
-        old_shape = res_jacobian.shape
-        total = old_shape[0] * old_shape[1]
-        num_param = len(self.varlist_parameter)
-        new_col = int(total/num_param)
-        print(num_param, total, new_col)
-        jac = ca.reshape(res_jacobian, num_param, int(total/num_param))
-        # sc_states = np.ones(len(self.list_simulators[0].model.varlist_state)).tolist()
-        # scale_states = np.diagflat(np.tile(sc_states, len(self.time_grid) - 1))
-        scale_states = np.diagflat(sc_states)
-        print(np.tile(scale_states, (19,1)))
+        sc_states = np.ones(len(self.list_simulators[0].model.varlist_state)).tolist()
+        scale_states = np.diagflat(np.tile(sc_states, len(self.time_grid) - 1))
+        # breakpoint()
+        # old_shape = res_jacobian.shape
+        # total = old_shape[0] * old_shape[1]
+        # num_param = len(self.varlist_parameter)
+        # new_col = int(total/num_param)
+        # print(num_param, total, new_col)
+        # jac = ca.reshape(res_jacobian, num_param, int(total/num_param))
+        # # sc_states = np.ones(len(self.list_simulators[0].model.varlist_state)).tolist()
+        # # scale_states = np.diagflat(np.tile(sc_states, len(self.time_grid) - 1))
+        # scale_states = np.diagflat(sc_states)
+        # print(np.tile(scale_states, (19,1)))
         scale_parameters = np.diagflat(self.parameter_values)
 
         sensitivity_scaled = scale_states @ (
