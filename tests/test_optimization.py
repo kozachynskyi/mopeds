@@ -16,7 +16,6 @@ def test_pe():
         time_grid = np.linspace(10, 10000, 3)
         time_grid = np.insert(time_grid, 0, 0)
 
-
         var_list_fixed = copy.deepcopy(var_list)
         for var in var_list_fixed.values():
             var.fixed = True
@@ -45,12 +44,66 @@ def test_pe():
             answer = 9.26777e-12
 
         res = pe.optimize()
-        logging.warning(f"Model.DAE: {model.DAE}, Result: {res['f']}, Expecting: {answer_scaled}")
+        logging.warning(
+            f"Model.DAE: {model.DAE}, Result: {res['f']}, Expecting: {answer_scaled}"
+        )
         assert np.isclose(res["f"], ca.DM(answer_scaled), rtol=0, atol=1.0e-13)
 
         res = pe.optimize(False)
-        logging.warning(f"Model.DAE: {model.DAE}, Result: {res['f']}, Expecting: {answer}")
+        logging.warning(
+            f"Model.DAE: {model.DAE}, Result: {res['f']}, Expecting: {answer}"
+        )
         assert np.isclose(res["f"], ca.DM(answer), rtol=0, atol=1.0e-12)
+
+
+def test_covariance_manipulation():
+    # Covariance calculation produces square matrix with size (NumOfParam * NumOfTimepoints)
+    num_time = 3
+    varlist, model = cstr_model_ode()
+
+    time_grid = np.linspace(0, 100, num_time+1)
+    for var in varlist.values():
+        var.fixed = True
+    sim = par_est.Simulator(model, time_grid, varlist)
+    res = sim.simulate(True)
+
+    num_param = 19
+    num_state = 5
+    c = np.eye(num_state)
+
+    from scipy.linalg import block_diag
+
+    resj = res["jac_xf_p"]
+    cov = resj.T @ c @ resj
+
+    c_reshape = np.kron(np.eye(num_time,dtype=int),c)
+    print(c_reshape)
+
+    resj_reshape = ca.reshape(resj, num_state * num_time, num_param)
+    cov_reshape = resj_reshape.T @ c_reshape @ resj_reshape
+
+    cov_sum = None
+    for test_time in range(num_time):
+        index_from = test_time * num_param
+        index_till = num_param * test_time + (num_param)
+        print(index_till)
+        jac_at_timepoint = resj[:, index_from:index_till]
+        cov_at_timepoint = jac_at_timepoint.T @ c @ jac_at_timepoint
+
+        assert (
+            cov[index_from:index_till, index_from:index_till] - cov_at_timepoint
+        ).is_zero()
+
+        if cov_sum is None:
+            cov_sum = cov_at_timepoint
+        else:
+            cov_sum =+ cov_sum
+
+    print(cov_sum - cov_at_timepoint)
+
+    breakpoint()
+
+
 
 @pytest.mark.skip(reason="WIP")
 def test_oed():
@@ -163,9 +216,7 @@ def test_scaling():
     var_list_fixed = copy.deepcopy(var_list)
     for var in var_list_fixed.values():
         var.fixed = True
-    var_list_exp = par_est.Simulator(
-        m, time_grid, var_list_fixed
-    ).generate_exp_data()
+    var_list_exp = par_est.Simulator(m, time_grid, var_list_fixed).generate_exp_data()
 
     for key, var in var_list_exp.items():
         var_list[key] = var
@@ -179,27 +230,35 @@ def test_scaling():
 
     pe._setup_scaling(False)
     result_unscaled = pe.list_simulators[0].simulate(True)
-    ev_unscaled = ca.Function("aha", [pe.varlist_decision.get_casadi_var()], [result_unscaled["xf"], result_unscaled["jac_xf_p"]])
+    ev_unscaled = ca.Function(
+        "aha",
+        [pe.varlist_decision.get_casadi_var()],
+        [result_unscaled["xf"], result_unscaled["jac_xf_p"]],
+    )
 
     res1 = ev_unscaled(90000)
 
     pe._setup_scaling(True)
     result_scaled = pe.list_simulators[0].simulate(True)
-    ev_scaled = ca.Function("aha", [pe.varlist_decision.get_casadi_var()], [result_scaled["xf"], result_scaled["jac_xf_p"]])
+    ev_scaled = ca.Function(
+        "aha",
+        [pe.varlist_decision.get_casadi_var()],
+        [result_scaled["xf"], result_scaled["jac_xf_p"]],
+    )
     res2 = ev_scaled(1)
 
-    print(res2[0]-res1[0])
+    print(res2[0] - res1[0])
 
-    difference_jacobian = res2[1]-res1[1]
-    print(difference_jacobian[:,0:19])
-    print(difference_jacobian[:,19:38])
-    print(difference_jacobian[:,38:57])
-    print(difference_jacobian[:,57:76])
+    difference_jacobian = res2[1] - res1[1]
+    print(difference_jacobian[:, 0:19])
+    print(difference_jacobian[:, 19:38])
+    print(difference_jacobian[:, 38:57])
+    print(difference_jacobian[:, 57:76])
 
 
 if __name__ == "__main__":
-    logging.basicConfig(format='%(name)s:%(levelname)s:%(message)s', level=logging.DEBUG)
     # test_ode_oed()
     # test_pe()
     # test_scaling()
-    test_oed()
+    # test_oed()
+    test_covariance_manipulation()

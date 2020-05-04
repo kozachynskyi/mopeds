@@ -69,4 +69,4 @@ def test_cstr_ode():
 if __name__ == "__main__":
     # test_pendulum_dae()
     # test_cstr_ode()
-    test_csrt()
+    test_jacobian()
