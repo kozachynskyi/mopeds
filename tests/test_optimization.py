@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 import copy
-from conftest import cstr_model_ode, cstr_model_dae
+from conftest import cstr_model_ode, cstr_model_dae, pendulum_dae_1
 import logging
 
 
@@ -58,48 +58,102 @@ def test_pe():
 
 def test_covariance_manipulation():
     # Covariance calculation produces square matrix with size (NumOfParam * NumOfTimepoints)
-    num_time = 3
-    varlist, model = cstr_model_ode()
 
-    time_grid = np.linspace(0, 100, num_time+1)
+    # a, b, c, d, e, f, g, h = [1e-50,2e50,3e30,4e-30,5e40,6e-75,7e-100,8e300]
+
+    # m1 = np.array([[a, e],[ b,f],[c,g],[d,h]])
+    # c1 = np.eye(2)
+    # r1 = m1 @ c1 @ m1.T
+
+    # m2 = np.array([[a,e,c,g],[b,f,d,h]])
+    # c2 = np.eye(4)
+    # r2 = m2 @ c2 @ m2.T
+
+    # r1s = r1[0:2,0:2] + r1[2:4,2:4]
+    # print(r1s - r2)
+
+
+
+
+
+    num_time = 6
+    varlist, model = pendulum_dae_1()
+
+    time_grid = np.linspace(0, 1, num_time+1)
     for var in varlist.values():
         var.fixed = True
     sim = par_est.Simulator(model, time_grid, varlist)
     res = sim.simulate(True)
 
-    num_param = 19
-    num_state = 5
-    c = np.eye(num_state)
+
+    num_param = 1
+    num_state = 2
+    c1 = np.eye(num_state)
 
     from scipy.linalg import block_diag
 
-    resj = res["jac_xf_p"]
-    cov = resj.T @ c @ resj
+    resj = res["jac_xf_p"].toarray()
+    cov = resj.T @ c1 @ resj
 
-    c_reshape = np.kron(np.eye(num_time,dtype=int),c)
-    print(c_reshape)
+    c_reshape = np.kron(np.eye(num_time,dtype=int),c1)
+    # c_reshape = ca.repmat(c, num_time, num_time)
 
-    resj_reshape = ca.reshape(resj, num_state * num_time, num_param)
-    cov_reshape = resj_reshape.T @ c_reshape @ resj_reshape
+    # cov_reshape = resj_reshape.T @ c_reshape @ resj_reshape
 
+    from matplotlib import pyplot as plt
+    import matplotlib.cm as cm
+
+    # resj_reshape_temp = np.zeros((15,19))
+    resj_reshape = None
     cov_sum = None
     for test_time in range(num_time):
         index_from = test_time * num_param
         index_till = num_param * test_time + (num_param)
-        print(index_till)
-        jac_at_timepoint = resj[:, index_from:index_till]
-        cov_at_timepoint = jac_at_timepoint.T @ c @ jac_at_timepoint
+        print(index_from, index_till)
+        jac_at_timepoint = resj.T[index_from:index_till,:]
+        cov_at_timepoint = jac_at_timepoint @ c1 @ jac_at_timepoint.T
 
-        assert (
-            cov[index_from:index_till, index_from:index_till] - cov_at_timepoint
-        ).is_zero()
+        if resj_reshape is None:
+            resj_reshape = resj[:,index_from:index_till]
+        else:
+            resj_reshape = ca.vertcat(resj_reshape, resj[:,index_from:index_till])
+        # resj_reshape_temp[test_time * num_state : (test_time *num_state +num_state), 0:19] = resj[:,index_from:index_till]
+
+
+        ddd = cov[index_from:index_till, index_from:index_till] - cov_at_timepoint
+        # print(ddd)
+        print(ddd)
+        # fig = plt.figure()
+        # fig.add_subplot(121).imshow(ddd, cmap=cm.Greens_r)
+        # fig.add_subplot(122).imshow(jac_at_timepoint, cmap=cm.Greens_r)
+        # plt.show()
 
         if cov_sum is None:
             cov_sum = cov_at_timepoint
         else:
-            cov_sum =+ cov_sum
+            cov_sum = cov_sum + cov_at_timepoint
 
-    print(cov_sum - cov_at_timepoint)
+        # plt.imshow(cov_sum, cmap=cm.Greens_r)
+        # fig = plt.figure()
+        # fig.add_subplot(131).imshow(jac_at_timepoint, cmap=cm.Greens_r)
+        # fig.add_subplot(132).imshow(cov_at_timepoint, cmap=cm.Greens_r)
+        # fig.add_subplot(133).imshow(cov_sum, cmap=cm.Greens_r)
+        # plt.show()
+
+
+    cov_reshape = resj_reshape.T @ c_reshape @ resj_reshape
+    
+    diff =cov_sum - cov_reshape
+    print(diff)
+
+    # fig = plt.figure()
+    # # fig.add_subplot(121).imshow(diff, cmap=cm.prism)
+    # # fig.add_subplot(122).imshow(resj_reshape, cmap=cm.bwr)
+    plt.show()
+
+    plt.imshow(diff, cmap=cm.Greens_r)
+    # plt.show()
+
 
     breakpoint()
 
