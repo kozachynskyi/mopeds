@@ -23,6 +23,112 @@ This is the documentation of **par_est**.
     `Google style`_ (recommended!), `NumPy style`_ and `classical style`_.
 
 
+Jacobian Matrix
+===============
+
+Jacobian Matrix from Simulator is provided in a given form (first parameter is tau):
+
+.. math::
+
+        \begin{bmatrix}
+        \begin{matrix}
+            \frac{\partial{Y_1}^{t=1}}{\partial{p_1}}  & \frac{\partial{Y_1}^{t=1}}{\partial{p_2}}  & ... & \frac{\partial{Y_1}^{t=1}}{\partial{p_{np+1}}}  \\
+            \frac{\partial{Y_2}^{t=1}}{\partial{p_1}}  &  \frac{\partial{Y_1}^{t=1}}{\partial{p_2}} & ...  & \frac{\partial{Y_2}^{t=1}}{\partial{p_{np+1}}}  \\
+            ...  & ... & ... & ...  \\
+            \frac{\partial{Y_{ns}}^{t=1}}{\partial{p_1}} & \frac{\partial{Y_{ns}}^{t=1}}{\partial{p_2}} & ... & \frac{\partial{Y_{ns}}^{t=1}}{\partial{p_{np+1}}}         
+        \end{matrix}
+        \begin{vmatrix}
+            \frac{\partial{Y_1}^{t=2}}{\partial{p_1}}  & \frac{\partial{Y_1}^{t=2}}{\partial{p_2}}  & ... & \frac{\partial{Y_1}^{t=2}}{\partial{p_{np+1}}} \\
+            \frac{\partial{Y_2}^{t=2}}{\partial{p_1}}  &  \frac{\partial{Y_1}^{t=2}}{\partial{p_2}} & ...  & \frac{\partial{Y_2}^{t=2}}{\partial{p_{np+1}}} \\
+            ...  & ... & ... & ... \\
+            \frac{\partial{Y_{ns}}^{t=2}}{\partial{p_1}} & \frac{\partial{Y_{ns}}^{t=2}}{\partial{p_2}} & ... & \frac{\partial{Y_{ns}}^{t=2}}{\partial{p_{np+1}}}
+        \end{vmatrix}
+        \begin{matrix}
+            \frac{\partial{Y_1}^{t=nt}}{\partial{p_1}}  & \frac{\partial{Y_1}^{t=nt}}{\partial{p_2}}  & ... & \frac{\partial{Y_1}^{t=nt}}{\partial{p_{np+1}}} \\
+            \frac{\partial{Y_2}^{t=nt}}{\partial{p_1}}  &  \frac{\partial{Y_1}^{t=nt}}{\partial{p_2}} & ...  & \frac{\partial{Y_2}^{t=nt}}{\partial{p_{np+1}}} \\
+            ...  & ... & ... & ... \\
+            \frac{\partial{Y_{ns}}^{t=nt}}{\partial{p_1}} & \frac{\partial{Y_{ns}}^{t=nt}}{\partial{p_2}} & ... & \frac{\partial{Y_{ns}}^{t=nt}}{\partial{p_{np+1}}}
+        \end{matrix}
+        \end{bmatrix}
+
+     
+Covariance measurement matrix is diagonal matrix in form:
+
+.. math::
+
+        \begin{bmatrix}
+            \sigma_1 & 0 & 0 & ... & 0 \\
+            0 & \sigma_2 & 0 & ... & 0 \\
+            0 & 0 & \sigma_3 & ... & 0 \\
+            ... & ... & ... & ...  & 0 \\
+            0 & 0 & 0 & 0 & \sigma_{ns} 
+        \end{bmatrix}
+
+Covariance matrix is calculated as following:
+
+.. math::
+
+    \left(\cfrac{\partial{Y}^{t}}{\partial{p}}\right)^T \times COV_Y \times \cfrac{\partial{Y}^{t}}{\partial{p}}
+
+which outputs a matrix, where only diagonal sub-matrixes are of interest:
+
+.. math::
+
+
+      
+    \begin{equation*}
+    \begin{array}{|c c c c|c c c c|c c c c|}
+    \hline
+    \frac{\partial Y_{1}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{1}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{1}^{t=1}}{\partial p_{np+1}} & \frac{\partial Y_{1}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{1}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{1}^{t=1}}{\partial p_{np+1}} & \frac{\partial Y_{1}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{1}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{1}^{t=1}}{\partial p_{np+1}}\\
+    \frac{\partial Y_{2}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{1}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{2}^{t=1}}{\partial p_{np+1}} & \frac{\partial Y_{2}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{1}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{2}^{t=1}}{\partial p_{np+1}} & \frac{\partial Y_{2}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{1}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{2}^{t=1}}{\partial p_{np+1}}\\
+    \cdots  & \cdots  & \vdots  & \cdots  & \cdots  & \cdots  & \vdots  & \cdots  & \cdots  & \cdots  & \vdots  & \cdots \\
+    \frac{\partial Y_{ns}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{ns}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{ns}^{t=1}}{\partial p_{np+1}} & \frac{\partial Y_{ns}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{ns}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{ns}^{t=1}}{\partial p_{np+1}} & \frac{\partial Y_{ns}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{ns}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{ns}^{t=1}}{\partial p_{np+1}}\\
+    \hline
+    \frac{\partial Y_{1}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{1}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{1}^{t=1}}{\partial p_{np+1}} & \frac{\partial Y_{1}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{1}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{1}^{t=1}}{\partial p_{np+1}} & \frac{\partial Y_{1}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{1}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{1}^{t=1}}{\partial p_{np+1}}\\
+    \frac{\partial Y_{2}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{1}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{2}^{t=1}}{\partial p_{np+1}} & \frac{\partial Y_{2}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{1}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{2}^{t=1}}{\partial p_{np+1}} & \frac{\partial Y_{2}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{1}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{2}^{t=1}}{\partial p_{np+1}}\\
+    \cdots  & \cdots  & \vdots  & \cdots  & \cdots  & \cdots  & \vdots  & \cdots  & \cdots  & \cdots  & \vdots  & \cdots \\
+    \frac{\partial Y_{ns}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{ns}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{ns}^{t=1}}{\partial p_{np+1}} & \frac{\partial Y_{ns}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{ns}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{ns}^{t=1}}{\partial p_{np+1}} & \frac{\partial Y_{ns}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{ns}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{ns}^{t=1}}{\partial p_{np+1}}\\
+    \hline
+    \frac{\partial Y_{1}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{1}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{1}^{t=1}}{\partial p_{np+1}} & \frac{\partial Y_{1}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{1}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{1}^{t=1}}{\partial p_{np+1}} & \frac{\partial Y_{1}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{1}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{1}^{t=1}}{\partial p_{np+1}}\\
+    \frac{\partial Y_{2}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{1}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{2}^{t=1}}{\partial p_{np+1}} & \frac{\partial Y_{2}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{1}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{2}^{t=1}}{\partial p_{np+1}} & \frac{\partial Y_{2}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{1}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{2}^{t=1}}{\partial p_{np+1}}\\
+    \cdots  & \cdots  & \vdots  & \cdots  & \cdots  & \cdots  & \vdots  & \cdots  & \cdots  & \cdots  & \vdots  & \cdots \\
+    \frac{\partial Y_{ns}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{ns}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{ns}^{t=1}}{\partial p_{np+1}} & \frac{\partial Y_{ns}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{ns}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{ns}^{t=1}}{\partial p_{np+1}} & \frac{\partial Y_{ns}^{t=1}}{\partial p_{1}} & \frac{\partial Y_{ns}^{t=1}}{\partial p_{2}} & \vdots  & \frac{\partial Y_{ns}^{t=1}}{\partial p_{np+1}}\\
+    \hline
+    \end{array}
+    \end{equation*}
+
+And
+
+.. math::
+    
+
+    \begin{gather*}
+    \begin{array}{|c|c|}
+    & Vova \\
+    Viva & \begin{array}{|c c c c|c c c c|c c c c|}
+    \hline
+    \frac{\partial Y^{t=1}_{1}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{1}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{1}}{\partial p_{np+1}} & \frac{\partial Y^{t=1}_{1}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{1}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{1}}{\partial p_{np+1}} & \frac{\partial Y^{t=1}_{1}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{1}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{1}}{\partial p_{np+1}}\\
+    \frac{\partial Y^{t=1}_{2}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{1}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{2}}{\partial p_{np+1}} & \frac{\partial Y^{t=1}_{2}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{1}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{2}}{\partial p_{np+1}} & \frac{\partial Y^{t=1}_{2}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{1}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{2}}{\partial p_{np+1}}\\
+    \cdots  & \cdots  & \vdots  & \cdots  & \cdots  & \cdots  & \vdots  & \cdots  & \cdots  & \cdots  & \vdots  & \cdots \\
+    \frac{\partial Y^{t=1}_{ns}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{ns}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{ns}}{\partial p_{np+1}} & \frac{\partial Y^{t=1}_{ns}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{ns}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{ns}}{\partial p_{np+1}} & \frac{\partial Y^{t=1}_{ns}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{ns}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{ns}}{\partial p_{np+1}}\\
+    \hline
+    \frac{\partial Y^{t=1}_{1}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{1}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{1}}{\partial p_{np+1}} & \frac{\partial Y^{t=1}_{1}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{1}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{1}}{\partial p_{np+1}} & \frac{\partial Y^{t=1}_{1}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{1}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{1}}{\partial p_{np+1}}\\
+    \frac{\partial Y^{t=1}_{2}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{1}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{2}}{\partial p_{np+1}} & \frac{\partial Y^{t=1}_{2}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{1}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{2}}{\partial p_{np+1}} & \frac{\partial Y^{t=1}_{2}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{1}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{2}}{\partial p_{np+1}}\\
+    \cdots  & \cdots  & \vdots  & \cdots  & \cdots  & \cdots  & \vdots  & \cdots  & \cdots  & \cdots  & \vdots  & \cdots \\
+    \frac{\partial Y^{t=1}_{ns}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{ns}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{ns}}{\partial p_{np+1}} & \frac{\partial Y^{t=1}_{ns}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{ns}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{ns}}{\partial p_{np+1}} & \frac{\partial Y^{t=1}_{ns}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{ns}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{ns}}{\partial p_{np+1}}\\
+    \hline
+    \frac{\partial Y^{t=1}_{1}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{1}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{1}}{\partial p_{np+1}} & \frac{\partial Y^{t=1}_{1}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{1}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{1}}{\partial p_{np+1}} & \frac{\partial Y^{t=1}_{1}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{1}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{1}}{\partial p_{np+1}}\\
+    \frac{\partial Y^{t=1}_{2}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{1}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{2}}{\partial p_{np+1}} & \frac{\partial Y^{t=1}_{2}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{1}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{2}}{\partial p_{np+1}} & \frac{\partial Y^{t=1}_{2}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{1}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{2}}{\partial p_{np+1}}\\
+    \cdots  & \cdots  & \vdots  & \cdots  & \cdots  & \cdots  & \vdots  & \cdots  & \cdots  & \cdots  & \vdots  & \cdots \\
+    \frac{\partial Y^{t=1}_{ns}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{ns}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{ns}}{\partial p_{np+1}} & \frac{\partial Y^{t=1}_{ns}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{ns}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{ns}}{\partial p_{np+1}} & \frac{\partial Y^{t=1}_{ns}}{\partial p_{1}} & \frac{\partial Y^{t=1}_{ns}}{\partial p_{2}} & \vdots  & \frac{\partial Y^{t=1}_{ns}}{\partial p_{np+1}}\\
+    \hline
+    \end{array} \\
+    \end{array}
+    \end{gather*}
+    
+
+
+
 Contents
 ========
 

@@ -57,106 +57,71 @@ def test_pe():
 
 
 def test_covariance_manipulation():
-    # Covariance calculation produces square matrix with size (NumOfParam * NumOfTimepoints)
+    """ Covariance calculation produces square matrix with size (NumOfParam * NumOfTimepoints)
+    Something in matrix multiplication makes covariance_difference_fail to be not excatly zero. """
 
-    # a, b, c, d, e, f, g, h = [1e-50,2e50,3e30,4e-30,5e40,6e-75,7e-100,8e300]
+    num_time = 10
+    varlist, model = cstr_model_ode()
 
-    # m1 = np.array([[a, e],[ b,f],[c,g],[d,h]])
-    # c1 = np.eye(2)
-    # r1 = m1 @ c1 @ m1.T
-
-    # m2 = np.array([[a,e,c,g],[b,f,d,h]])
-    # c2 = np.eye(4)
-    # r2 = m2 @ c2 @ m2.T
-
-    # r1s = r1[0:2,0:2] + r1[2:4,2:4]
-    # print(r1s - r2)
-
-
-
-
-
-    num_time = 6
-    varlist, model = pendulum_dae_1()
-
-    time_grid = np.linspace(0, 1, num_time+1)
+    time_grid = np.linspace(0, 1000, num_time + 1)
     for var in varlist.values():
         var.fixed = True
     sim = par_est.Simulator(model, time_grid, varlist)
     res = sim.simulate(True)
 
+    num_param = 19
+    num_state = 5
+    covariance_measurement = np.eye(num_state)
 
-    num_param = 1
-    num_state = 2
-    c1 = np.eye(num_state)
+    res_jacobian = res["jac_xf_p"]
+    covariance_full = res_jacobian.T @ covariance_measurement @ res_jacobian
 
-    from scipy.linalg import block_diag
+    covariance_measurement_reshape = np.kron(
+        np.eye(num_time, dtype=int), covariance_measurement
+    )
 
-    resj = res["jac_xf_p"].toarray()
-    cov = resj.T @ c1 @ resj
+    split_vector = np.linspace(0, num_time, num_time + 1, dtype=int) * num_param
 
-    c_reshape = np.kron(np.eye(num_time,dtype=int),c1)
-    # c_reshape = ca.repmat(c, num_time, num_time)
+    list_jacobian_at_timepoint = ca.horzsplit(res_jacobian, split_vector)
 
-    # cov_reshape = resj_reshape.T @ c_reshape @ resj_reshape
+    jacobian_reshape = None
+    covariance_full_sum = None
 
-    from matplotlib import pyplot as plt
-    import matplotlib.cm as cm
+    for count_time_step in range(num_time):
+        index_from = count_time_step * num_param
+        index_till = num_param * count_time_step + (num_param)
 
-    # resj_reshape_temp = np.zeros((15,19))
-    resj_reshape = None
-    cov_sum = None
-    for test_time in range(num_time):
-        index_from = test_time * num_param
-        index_till = num_param * test_time + (num_param)
-        print(index_from, index_till)
-        jac_at_timepoint = resj.T[index_from:index_till,:]
-        cov_at_timepoint = jac_at_timepoint @ c1 @ jac_at_timepoint.T
+        jac_at_timepoint = res_jacobian[:, index_from:index_till][:, 1:]
+        cov_at_timepoint = (
+            jac_at_timepoint.T @ covariance_measurement @ jac_at_timepoint
+        )
 
-        if resj_reshape is None:
-            resj_reshape = resj[:,index_from:index_till]
+        assert (
+            list_jacobian_at_timepoint[count_time_step][:, 1:] - jac_at_timepoint
+        ).is_zero()
+
+        if jacobian_reshape is None:
+            jacobian_reshape = jac_at_timepoint
         else:
-            resj_reshape = ca.vertcat(resj_reshape, resj[:,index_from:index_till])
-        # resj_reshape_temp[test_time * num_state : (test_time *num_state +num_state), 0:19] = resj[:,index_from:index_till]
+            jacobian_reshape = ca.vertcat(jacobian_reshape, jac_at_timepoint)
 
+        covariance_difference = (
+            covariance_full[index_from + 1 : index_till, index_from + 1 : index_till]
+            - cov_at_timepoint
+        )
+        assert covariance_difference.is_zero()
 
-        ddd = cov[index_from:index_till, index_from:index_till] - cov_at_timepoint
-        # print(ddd)
-        print(ddd)
-        # fig = plt.figure()
-        # fig.add_subplot(121).imshow(ddd, cmap=cm.Greens_r)
-        # fig.add_subplot(122).imshow(jac_at_timepoint, cmap=cm.Greens_r)
-        # plt.show()
-
-        if cov_sum is None:
-            cov_sum = cov_at_timepoint
+        if covariance_full_sum is None:
+            covariance_full_sum = cov_at_timepoint
         else:
-            cov_sum = cov_sum + cov_at_timepoint
+            covariance_full_sum = covariance_full_sum + cov_at_timepoint
 
-        # plt.imshow(cov_sum, cmap=cm.Greens_r)
-        # fig = plt.figure()
-        # fig.add_subplot(131).imshow(jac_at_timepoint, cmap=cm.Greens_r)
-        # fig.add_subplot(132).imshow(cov_at_timepoint, cmap=cm.Greens_r)
-        # fig.add_subplot(133).imshow(cov_sum, cmap=cm.Greens_r)
-        # plt.show()
+    covariance_reshape = (
+        jacobian_reshape.T @ covariance_measurement_reshape @ jacobian_reshape
+    )
 
-
-    cov_reshape = resj_reshape.T @ c_reshape @ resj_reshape
-    
-    diff =cov_sum - cov_reshape
-    print(diff)
-
-    # fig = plt.figure()
-    # # fig.add_subplot(121).imshow(diff, cmap=cm.prism)
-    # # fig.add_subplot(122).imshow(resj_reshape, cmap=cm.bwr)
-    plt.show()
-
-    plt.imshow(diff, cmap=cm.Greens_r)
-    # plt.show()
-
-
-    breakpoint()
-
+    covariance_difference_fail = covariance_full_sum - covariance_reshape
+    assert not covariance_difference_fail.is_zero()
 
 
 @pytest.mark.skip(reason="WIP")
