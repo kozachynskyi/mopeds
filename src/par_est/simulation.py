@@ -62,6 +62,7 @@ class Simulator(object):
             self.ode_system_tau,
             {
                 "tf": 1,
+                # "monitor": "jacF"
                 # "print_in": True,
                 # "print_out": True,
                 # "verbose": True,
@@ -177,6 +178,7 @@ class Simulator(object):
             ca.horzcat(*(self.time_grid[1:] - self.time_grid[:-1])),
             ca.repmat(self._variables * self.scaling, 1, map_num),
         )
+        print(initial_independent)
 
         self.logger.debug(
             "Simulating: \n Initial States x0 \n {} \n Independent Variables p \n {} \n".format(

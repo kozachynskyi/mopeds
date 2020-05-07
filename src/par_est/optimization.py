@@ -248,46 +248,9 @@ class OptimalExperimentalDesign(Optimizer):
             Simulator(self.model, self.time_grid, self.list_input_varlist[0])
         )
 
-    def _sensitivity_matrix(self):
+
+    def _objective(self, analyze=False, values=None):
         # Change of basis https://www.youtube.com/watch?v=P2LTAUO1TdA&list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab&index=13
-        result_simulation = self.list_simulators[0].simulate(True)
-        res_jacobian = result_simulation["jac_xf_p"]
-        num_time = len(self.time_grid) - 1
-        num_param = len(self.model.varlist_independent) + 1
-        num_state = len(self.model.varlist_state)
-
-        # eval_jacobian = ca.Function(
-        #     "eval_jacobian",
-        #     [
-        #         self.varlist_parameter.get_casadi_var(),
-        #         self.varlist_decision.get_casadi_var(),
-        #     ],
-        #     [self.list_simulators[0].simulate(True)["jac_xf_p"]]
-        # )
-
-        # sensitivity_matrix = eval_jacobian(
-        #     self.parameter_values, self.varlist_decision.get_casadi_var()
-        # )
-
-        list_jacobian_at_timepoint = [res_jacobian]
-
-        # split_vector = np.linspace(0, num_time, num_time + 1, dtype=int) * num_param
-        # list_jacobian_at_timepoint = ca.horzsplit(res_jacobian, split_vector)
-
-        return list_jacobian_at_timepoint
-
-    def get_fim_matrix(self):
-        # self._setup_scaling(False)
-        # sensitivity_matrix = self._sensitivity_matrix()
-        # evaluate = ca.Function(
-        #     "eval_fim", [self.varlist_decision.get_casadi_var()], [sensitivity_matrix]
-        # )
-        # sensitivity_matrix = evaluate(self.guess)
-        # fim_matrix = sensitivity_matrix.T @ sensitivity_matrix
-        # return sensitivity_matrix, fim_matrix
-        pass
-
-    def _objective(self):
         # Only trace criterium is programmed in Casadi
         covariance_full = None
         num_time = len(self.time_grid) - 1
@@ -296,24 +259,41 @@ class OptimalExperimentalDesign(Optimizer):
         result_simulation = self.list_simulators[0].simulate(True)
         res_jacobian = result_simulation["jac_xf_p"]
 
-        # list_jacobian_at_timepoint = self._sensitivity_matrix()
-        # jacobian = list_jacobian_at_timepoint[0]
+        if analyze is True:
+            self._setup_scaling(False)
+            evaluate = ca.Function(
+                "eval_fim", [self.varlist_decision.get_casadi_var()], [res_jacobian]
+            )
+            if values is None:
+                res_jacobian = evaluate(self.guess)
+            else:
+                res_jacobian = evaluate(values)
 
         split_vector = np.linspace(0, num_time, num_time + 1, dtype=int) * num_param
         list_jacobian_at_timepoint = ca.horzsplit(res_jacobian, split_vector)
 
         covariance_measurement = np.eye(num_state)
 
-        for jacobian in list_jacobian_at_timepoint:
-            jacobian_selected = jacobian.get(False, self.index_all_states, self.select_independent)
+        parameter_scaling = ca.repmat(ca.DM(self.parameter_values).T, num_state, 1)
 
-            cov_at_timepoint = jacobian_selected.T @ covariance_measurement @ jacobian_selected
+        for jacobian in list_jacobian_at_timepoint:
+            jacobian_selected = jacobian.get(
+                False, self.index_all_states, self.select_independent
+            )
+            jacobian_selected = jacobian_selected * parameter_scaling
+
+            cov_at_timepoint = (
+                jacobian_selected.T @ covariance_measurement @ jacobian_selected
+            )
             if covariance_full is None:
                 covariance_full = cov_at_timepoint
             else:
                 covariance_full = covariance_full + cov_at_timepoint
 
-        error = ca.trace(covariance_full)
+        error = ca.trace(ca.inv(covariance_full))
+
+        if analyze:
+            return error, covariance_full
 
         return error
 
@@ -323,9 +303,11 @@ class OptimalExperimentalDesign(Optimizer):
         if self.solver_settings is None:
             self.solver_settings = {
                 "verbose": False,
+                # "monitor": "asens1_asens5_integrator_tau",
                 "ipopt": {
                     # "hessian_approximation": "limited-memory",
-                    "max_iter": 2,
+                    "max_iter": 100,
+                    # "print_level": 6,
                 },
             }
 
