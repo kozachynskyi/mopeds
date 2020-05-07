@@ -16,7 +16,9 @@ from par_est import (
 class Simulator(object):
     def __init__(self, model: Model, time_grid, variable_list: VariableList):
         self.logger = logging.getLogger(__name__)
-        self.logger.debug("Creating Simulator object: \n timegrid \n {0} \n".format(time_grid))
+        self.logger.debug(
+            "Creating Simulator object: \n timegrid \n {0} \n".format(time_grid)
+        )
         self.__input_variable_list = copy.deepcopy(variable_list)
         self.model = model
         self.tau = ca.MX.sym("tau")
@@ -58,7 +60,14 @@ class Simulator(object):
             "integrator_tau",
             "idas",
             self.ode_system_tau,
-            {"tf": 1, "output_t0": False, "print_stats": False, "calc_ic": True},
+            {
+                "tf": 1,
+                # "print_in": True,
+                # "print_out": True,
+                # "verbose": True,
+                # "print_stats": True,
+            }
+            # "output_t0": False, "print_stats": False, "calc_ic": True},
         )
 
         steps_integrator = len(self.time_grid) - 1
@@ -76,7 +85,7 @@ class Simulator(object):
             self.integrator_tau_jacobian = self.integrator_tau.factory(
                 "integrator_tau_jacobian",
                 self.integrator_full.name_in(),
-                ["xf", "jac:xf:p"],
+                ["xf", "qf", "zf", "rxf", "rqf", "rzf", "jac:xf:p"],
             )
 
         self.integrator_full_jacobian = self.integrator_tau_jacobian.mapaccum(
@@ -169,9 +178,15 @@ class Simulator(object):
             ca.repmat(self._variables * self.scaling, 1, map_num),
         )
 
-        self.logger.debug("Simulating: \n Initial States x0 \n {} \n Independent Variables p \n {} \n".format(self._initial_state, initial_independent))
+        self.logger.debug(
+            "Simulating: \n Initial States x0 \n {} \n Independent Variables p \n {} \n".format(
+                self._initial_state, initial_independent
+            )
+        )
         if self.model.DAE:
-            self.logger.debug("Initial Algebraic z0 \n {} \n".format(self._initial_algebraic))
+            self.logger.debug(
+                "Initial Algebraic z0 \n {} \n".format(self._initial_algebraic)
+            )
 
         if not derivatives:
             if self.model.DAE:
@@ -187,14 +202,13 @@ class Simulator(object):
         else:
             if self.model.DAE:
                 result_integration = self.integrator_full_jacobian(
-                        x0=self._initial_state,
-                        z0=self._initial_algebraic,
-                        p=initial_independent,
+                    x0=self._initial_state,
+                    z0=self._initial_algebraic,
+                    p=initial_independent,
                 )
             else:
                 result_integration = self.integrator_full_jacobian(
-                        x0=self._initial_state,
-                        p=initial_independent,
+                    x0=self._initial_state, p=initial_independent,
                 )
 
         return result_integration
@@ -217,7 +231,9 @@ class Simulator(object):
                     new_var.value.time = self.time_grid
                     new_var.value.value = res_array[count + shift_by, :].toarray()
                     new_var.value.value = np.insert(
-                        new_var.value.value, 0, self.__input_variable_list[var.name].starting_value
+                        new_var.value.value,
+                        0,
+                        self.__input_variable_list[var.name].starting_value,
                     )
                 else:
                     new_var.value.time = self.time_grid[1:]

@@ -1,4 +1,5 @@
 import par_est
+import par_est.tools
 import logging
 import casadi as ca
 import numpy as np
@@ -35,6 +36,7 @@ def test_pe():
         var_list["e0_T"].value.time = var_list["e0_T"].value.time[0:2]
 
         pe = par_est.ParameterEstimation(model, [var_list])
+        breakpoint()
 
         if model.DAE:
             answer_scaled = 1.26485e-13
@@ -127,27 +129,37 @@ def test_covariance_manipulation():
 @pytest.mark.skip(reason="WIP")
 def test_oed():
     var_list, model = cstr_model_ode()
-    time_grid = np.linspace(10, 10000, 3)
+    time_grid = np.linspace(10, 100, 3)
     time_grid = np.insert(time_grid, 0, 0)
     for var in var_list.values():
         var.fixed = True
-    var_list["e0_c_in_i1"].fixed = False
+
     var_list["e0_E_r1"].fixed = False
+    var_list["e0_c_in_i1"].fixed = False
 
     oed = par_est.OptimalExperimentalDesign(model, [var_list], time_grid)
-    fim = oed.get_fim_matrix()
+    # fim = oed.get_fim_matrix()
+    # print(oed.list_simulators[0].simulate())
+    res = oed.optimize()
+    res = oed.optimize()
+    res = oed.optimize()
     res = oed.optimize()
 
-    assert fim[0].size() == (20, 1)
-    assert fim[1].size() == (1, 1)
+    # print(oed.list_simulators[0].simulate())
+    # breakpoint()
+    # assert fim[0].size() == (20, 1)
+    # assert fim[1].size() == (1, 1)
 
-    logging.warning(f"{res['f']}")
-    assert np.isclose(res["f"], ca.DM(45.16749745), rtol=0, atol=1.0e-8)
+    # logging.warning(f"{res['f']}")
+    # assert np.isclose(res["f"], ca.DM(45.16749745), rtol=0, atol=1.0e-8)
 
-    res = oed.optimize(False)
+    # res = oed.optimize(True)
+    # print(oed.list_simulators[0].simulate())
+    # breakpoint()
 
-    logging.warning(f"{res['f']}")
-    assert np.isclose(res["f"], ca.DM(45.16749745), rtol=0, atol=1.0e-8)
+    # logging.warning(f"{res['f']}")
+    # assert np.isclose(res["f"], ca.DM(45.16749745), rtol=0, atol=1.0e-8)
+    breakpoint()
 
 
 def not_test_optimizer():
@@ -161,7 +173,7 @@ def not_test_optimizer():
     var_list_fixed = copy.deepcopy(variable_list)
     for var in var_list_fixed.values():
         var.fixed = True
-    var_list_exp = par_est.Simulator(m, time_grid, var_list_fixed).get_symbolic_result()
+    var_list_exp = par_est.Simulator(m, time_grid, var_list_fixed).generate_exp_data()
 
     # Replace empty state variables with results from simulation
     for key, var in var_list_exp.items():
@@ -207,7 +219,7 @@ def not_test_optimizer():
                     if j == 0:
                         res_oed = oed.optimize(False)
 
-            oed.get_fim_matrix()
+            # oed.get_fim_matrix()
 
             if i == 0:
                 assert res_pe["x"].size() == (11, 1)
@@ -275,9 +287,46 @@ def test_scaling():
     print(difference_jacobian[:, 57:76])
 
 
+def test_jacobian_manipulation():
+    """ Covariance calculation produces square matrix with size (NumOfParam * NumOfTimepoints)
+    Something in matrix multiplication makes covariance_difference_fail to be not excatly zero. """
+
+    num_time = 3
+    varlist, model = cstr_model_ode()
+
+    time_grid = np.linspace(0, 1000, num_time + 1)
+    for var in varlist.values():
+        var.fixed = True
+    sim = par_est.Simulator(model, time_grid, varlist)
+    res = sim.simulate(True)
+
+    num_param = 19
+    num_state = 5
+    covariance_measurement = np.eye(num_state)
+
+    res_jacobian = res["jac_xf_p"]
+
+    index_all_states = list(range(len(model.varlist_state)))
+
+
+    split_vector = np.linspace(0, num_time, num_time + 1, dtype=int) * num_param
+
+    list_jacobian_at_timepoint = ca.horzsplit(res_jacobian, split_vector)
+
+    for jacobian in list_jacobian_at_timepoint:
+        selected = jacobian.get(False,index_all_states,[0,2])
+        par_est.tools.plot_arrays([jacobian,selected])
+
+
+
+
 if __name__ == "__main__":
     # test_ode_oed()
+    # not_test_optimizer()
     # test_pe()
     # test_scaling()
-    # test_oed()
-    test_covariance_manipulation()
+    import timeit
+    aa = timeit.timeit(test_oed,number=1)
+    breakpoint()
+    # test_covariance_manipulation()
+    # test_jacobian_manipulation()

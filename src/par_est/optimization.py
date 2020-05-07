@@ -101,6 +101,7 @@ class Optimizer(object):
         # Scaling of negative numbers requires switch bounds
         lb_scaled = self.lower_bound / self.scaling
         ub_scaled = self.upper_bound / self.scaling
+
         for index, (lb, ub) in enumerate(zip(lb_scaled, ub_scaled)):
             if lb > ub:
                 lb_scaled[index] = ub
@@ -120,7 +121,11 @@ class ParameterEstimation(Optimizer):
     def __init__(self, model: Model, variable_list: VariableList):
         super().__init__(model, variable_list)
         self._setup_simulator()
-        self.logger.debug("Created Optimizer object: \n Data Shape {} \n Desicion Variables {}".format(self.array_data.shape, self.varlist_decision.get_variable_name()))
+        self.logger.debug(
+            "Created Optimizer object: \n Data Shape {} \n Desicion Variables {}".format(
+                self.array_data.shape, self.varlist_decision.get_variable_name()
+            )
+        )
         self._setup_initialization()
 
     def _setup_simulator(self):
@@ -179,7 +184,9 @@ class ParameterEstimation(Optimizer):
             else:
                 array_simulation = ca.vertcat(array_simulation, res_simulation["xf"])
 
-        error = ca.sumsqr(array_simulation.get(False, self.array_data_sparcity) - self.array_data)
+        error = ca.sumsqr(
+            array_simulation.get(False, self.array_data_sparcity) - self.array_data
+        )
 
         return error
 
@@ -204,19 +211,38 @@ class OptimalExperimentalDesign(Optimizer):
         super().__init__(model, variable_list)
         self.time_grid = time_grid
         self.parameter_values = []
+        self.ignore_independent = []
+        self.select_independent = []
 
         self._setup_simulator()
         self._setup_initialization()
 
     def _setup_simulator(self):
+
         for var in self.list_input_varlist[0].values():
             if isinstance(var, VariableControl):
+                index = list(self.model.varlist_independent).index(var.name) + 1
+                self.ignore_independent.append(index)
                 if var.fixed is False:
                     self.varlist_decision.add_variable(var)
             elif isinstance(var, VariableParameter):
+                index = list(self.model.varlist_independent).index(var.name) + 1
                 if var.fixed is False:
                     self.varlist_parameter.add_variable(var)
                     self.parameter_values.append(var.value)
+                    var.fixed = True
+                    print(var.name)
+                    self.select_independent.append(index)
+                else:
+                    index = list(self.model.varlist_independent).index(var.name) + 1
+                    self.ignore_independent.append(index)
+
+        # First parameter is always tau
+        self.ignore_independent.append(0)
+        self.ignore_independent.sort()
+
+        self.index_all_parameters = list(range(len(self.model.varlist_independent) + 1))
+        self.index_all_states = list(range(len(self.model.varlist_state)))
 
         self.list_simulators.append(
             Simulator(self.model, self.time_grid, self.list_input_varlist[0])
@@ -225,76 +251,69 @@ class OptimalExperimentalDesign(Optimizer):
     def _sensitivity_matrix(self):
         # Change of basis https://www.youtube.com/watch?v=P2LTAUO1TdA&list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab&index=13
         result_simulation = self.list_simulators[0].simulate(True)
-        res = result_simulation["xf"]
         res_jacobian = result_simulation["jac_xf_p"]
+        num_time = len(self.time_grid) - 1
+        num_param = len(self.model.varlist_independent) + 1
+        num_state = len(self.model.varlist_state)
 
-        eval_jacobian = ca.Function(
-            "eval_jacobian",
-            [
-                self.varlist_parameter.get_casadi_var(),
-                self.varlist_decision.get_casadi_var(),
-            ],
-            [res_jacobian],
-        )
+        # eval_jacobian = ca.Function(
+        #     "eval_jacobian",
+        #     [
+        #         self.varlist_parameter.get_casadi_var(),
+        #         self.varlist_decision.get_casadi_var(),
+        #     ],
+        #     [self.list_simulators[0].simulate(True)["jac_xf_p"]]
+        # )
 
-        sensitivity_matrix = eval_jacobian(
-            self.parameter_values, self.varlist_decision.get_casadi_var()
-        )
+        # sensitivity_matrix = eval_jacobian(
+        #     self.parameter_values, self.varlist_decision.get_casadi_var()
+        # )
 
-        parameter_sensitivity_matrix = None
+        list_jacobian_at_timepoint = [res_jacobian]
 
-        for count in range(self.list_simulators[0]._variables.size()[0]):
-            var = self.list_simulators[0]._variables[count]
-            if var.is_symbolic():
-                if var.name() in self.varlist_parameter:
-                    # Count + 1 because first variable in sensitivity matrix is tau
-                    if parameter_sensitivity_matrix is None:
-                        parameter_sensitivity_matrix = sensitivity_matrix[:, count + 1]
-                    else:
-                        parameter_sensitivity_matrix = ca.horzcat(
-                            parameter_sensitivity_matrix,
-                            sensitivity_matrix[:, count + 1],
-                        )
+        # split_vector = np.linspace(0, num_time, num_time + 1, dtype=int) * num_param
+        # list_jacobian_at_timepoint = ca.horzsplit(res_jacobian, split_vector)
 
-        # TODO use variabnces
-        sc_states = np.ones(len(self.list_simulators[0].model.varlist_state)).tolist()
-        scale_states = np.diagflat(np.tile(sc_states, len(self.time_grid) - 1))
-        # breakpoint()
-        # old_shape = res_jacobian.shape
-        # total = old_shape[0] * old_shape[1]
-        # num_param = len(self.varlist_parameter)
-        # new_col = int(total/num_param)
-        # print(num_param, total, new_col)
-        # jac = ca.reshape(res_jacobian, num_param, int(total/num_param))
-        # # sc_states = np.ones(len(self.list_simulators[0].model.varlist_state)).tolist()
-        # # scale_states = np.diagflat(np.tile(sc_states, len(self.time_grid) - 1))
-        # scale_states = np.diagflat(sc_states)
-        # print(np.tile(scale_states, (19,1)))
-        scale_parameters = np.diagflat(self.parameter_values)
-
-        sensitivity_scaled = scale_states @ (
-            parameter_sensitivity_matrix @ scale_parameters
-        )
-
-        return sensitivity_scaled
+        return list_jacobian_at_timepoint
 
     def get_fim_matrix(self):
-        self._setup_scaling(False)
-        sensitivity_matrix = self._sensitivity_matrix()
-        evaluate = ca.Function(
-            "eval_fim", [self.varlist_decision.get_casadi_var()], [sensitivity_matrix]
-        )
-        sensitivity_matrix = evaluate(self.guess)
-        fim_matrix = sensitivity_matrix.T @ sensitivity_matrix
-        return sensitivity_matrix, fim_matrix
+        # self._setup_scaling(False)
+        # sensitivity_matrix = self._sensitivity_matrix()
+        # evaluate = ca.Function(
+        #     "eval_fim", [self.varlist_decision.get_casadi_var()], [sensitivity_matrix]
+        # )
+        # sensitivity_matrix = evaluate(self.guess)
+        # fim_matrix = sensitivity_matrix.T @ sensitivity_matrix
+        # return sensitivity_matrix, fim_matrix
+        pass
 
     def _objective(self):
         # Only trace criterium is programmed in Casadi
-        sensitivity_matrix = self._sensitivity_matrix()
+        covariance_full = None
+        num_time = len(self.time_grid) - 1
+        num_param = len(self.model.varlist_independent) + 1
+        num_state = len(self.model.varlist_state)
+        result_simulation = self.list_simulators[0].simulate(True)
+        res_jacobian = result_simulation["jac_xf_p"]
 
-        fim_matrix = sensitivity_matrix.T @ sensitivity_matrix
-        error = ca.trace(ca.inv(fim_matrix))
-        # error = ca.eig_symbolic(ca.inv(fim_matrix))
+        # list_jacobian_at_timepoint = self._sensitivity_matrix()
+        # jacobian = list_jacobian_at_timepoint[0]
+
+        split_vector = np.linspace(0, num_time, num_time + 1, dtype=int) * num_param
+        list_jacobian_at_timepoint = ca.horzsplit(res_jacobian, split_vector)
+
+        covariance_measurement = np.eye(num_state)
+
+        for jacobian in list_jacobian_at_timepoint:
+            jacobian_selected = jacobian.get(False, self.index_all_states, self.select_independent)
+
+            cov_at_timepoint = jacobian_selected.T @ covariance_measurement @ jacobian_selected
+            if covariance_full is None:
+                covariance_full = cov_at_timepoint
+            else:
+                covariance_full = covariance_full + cov_at_timepoint
+
+        error = ca.trace(covariance_full)
 
         return error
 
@@ -305,9 +324,8 @@ class OptimalExperimentalDesign(Optimizer):
             self.solver_settings = {
                 "verbose": False,
                 "ipopt": {
-                    "hessian_approximation": "limited-memory",
-                    "max_iter": 20,
-                    "derivative_test": "first-order",
+                    # "hessian_approximation": "limited-memory",
+                    "max_iter": 2,
                 },
             }
 
