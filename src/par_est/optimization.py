@@ -305,7 +305,7 @@ class OptimalExperimentalDesign(Optimizer):
                 "verbose": False,
                 # "monitor": "asens1_asens5_integrator_tau",
                 "ipopt": {
-                    # "hessian_approximation": "limited-memory",
+                    "hessian_approximation": "limited-memory",
                     "max_iter": 100,
                     # "print_level": 6,
                 },

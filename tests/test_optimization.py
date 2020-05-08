@@ -129,24 +129,24 @@ def test_covariance_manipulation():
 @pytest.mark.skip(reason="WIP")
 def test_oed():
     var_list, model = cstr_model_ode()
-    time_grid = np.linspace(10, 1000, 3)
+    time_grid = np.linspace(10, 10000, 4)
     time_grid = np.insert(time_grid, 0, 0)
     for var in var_list.values():
         var.fixed = True
 
     var_list["e0_E_r1"].fixed = False
-    var_list["e0_E_r2"].fixed = False
-    var_list["e0_E_r3"].fixed = False
-    var_list["e0_k_pre_r1"].fixed = False
-    var_list["e0_k_pre_r2"].fixed = False
-    var_list["e0_k_pre_r3"].fixed = False
+    # var_list["e0_E_r2"].fixed = False
+    # var_list["e0_E_r3"].fixed = False
+    # var_list["e0_k_pre_r1"].fixed = False
+    # var_list["e0_k_pre_r2"].fixed = False
+    # var_list["e0_k_pre_r3"].fixed = False
 
     var_list["e0_c_in_i1"].fixed = False
-    var_list["e0_c_in_i2"].fixed = False
-    var_list["e0_c_in_i3"].fixed = False
-    var_list["e0_c_in_i4"].fixed = False
-    var_list["e0_T_in"].fixed = False
-    var_list["e0_T_j"].fixed = False
+    # var_list["e0_c_in_i2"].fixed = False
+    # var_list["e0_c_in_i3"].fixed = False
+    # var_list["e0_c_in_i4"].fixed = False
+    # var_list["e0_T_in"].fixed = False
+    # var_list["e0_T_j"].fixed = False
     # var_list["e0_F"].fixed = False
 
 
