@@ -1,5 +1,4 @@
 import par_est
-import pytest
 
 
 def test_variables():

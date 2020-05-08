@@ -1,10 +1,10 @@
 import pytest
-from conftest import cstr_model_ode, pendulum_dae_1
+import par_est.examples
 
 
 def test_model():
 
-    var_list, model = cstr_model_ode()
+    var_list, model = par_est.examples.cstr_ode()
 
     assert len(model.varlist_state) == 5
     assert len(model.varlist_independent) == 18
@@ -15,7 +15,7 @@ def test_model():
     with pytest.raises(NotImplementedError):
         model.add_equations_differential(model.equations_differential[1])
 
-    var_list, model = pendulum_dae_1()
+    var_list, model = par_est.examples.pendulum_dae_1()
 
     assert len(model.varlist_state) == 2
     assert len(model.varlist_independent) == 2
