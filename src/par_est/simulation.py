@@ -165,7 +165,6 @@ class Simulator(object):
         )
 
         check_alg = function(x=self._initial_state, z=res, p=self._variables)
-        print(check_alg)
         self._initial_algebraic = res
         return [res, self._initial_algebraic]
         # return check_initials, check_jacobian
@@ -178,7 +177,6 @@ class Simulator(object):
             ca.horzcat(*(self.time_grid[1:] - self.time_grid[:-1])),
             ca.repmat(self._variables * self.scaling, 1, map_num),
         )
-        print(initial_independent)
 
         self.logger.debug(
             "Simulating: \n Initial States x0 \n {} \n Independent Variables p \n {} \n".format(

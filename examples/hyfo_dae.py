@@ -55,8 +55,8 @@ def initialize_problem():
     variable_list.add_variable(par_est.VariableParameter("e0_M_i5", 198.34))
     variable_list.add_variable(par_est.VariableParameter("e0_M_Water", 18.0153))
     variable_list.add_variable(par_est.VariableParameter("e0_M_Surfactant", 513.0))
-    variable_list.add_variable(par_est.VariableParameter("e0_T", 368.15))
-    variable_list.add_variable(par_est.VariableParameter("e0_p_Reactor", 15.0))
+    variable_list.add_variable(par_est.VariableControl("e0_T", 368.15))
+    variable_list.add_variable(par_est.VariableControl("e0_p_Reactor", 15.0))
     variable_list.add_variable(par_est.VariableParameter("e0_P_i6_Sol1", -6.4909e-5))
     variable_list.add_variable(par_est.VariableParameter("e0_P_i6_Sol2", 1.1885e-5))
     variable_list.add_variable(par_est.VariableParameter("e0_P_i6_Sol3", 0.0010631))
@@ -125,9 +125,11 @@ def initialize_problem():
     variable_list.add_variable(par_est.VariableParameter("e0_k_ref_r6", 0.010987442))
 
     for var in variable_list.values():
-        if isinstance(var, par_est.VariableParameter) or isinstance(var, par_est.VariableControl):
-            lb = var.value - var.value * 0.5
-            ub = var.value + var.value * 0.5
+        if isinstance(var, par_est.VariableParameter) or isinstance(
+            var, par_est.VariableControl
+        ):
+            lb = var.value - var.value * 0.01
+            ub = var.value + var.value * 0.01
 
             var.lower_bound = lb if var.value > 0 else ub
             var.upper_bound = ub if var.value > 0 else lb
@@ -137,517 +139,491 @@ def initialize_problem():
 
     m = par_est.Model(variable_list)
 
-    dydx1 = m._all_variables["e0_r_i1"].casadi_var * 60.0
-    dydx2 = m._all_variables["e0_r_i2"].casadi_var * 60.0
-    dydx3 = m._all_variables["e0_r_i3"].casadi_var * 60.0
-    dydx4 = m._all_variables["e0_r_i4"].casadi_var * 60.0
-    dydx5 = m._all_variables["e0_r_i5"].casadi_var * 60.0
-    dydx6 = m._all_variables["e0_n_i1"].casadi_var - (
-        m._all_variables["e0_c_i1"].casadi_var
-        * m._all_variables["e0_V_Reactor"].casadi_var
+    dydx1 = m.varlist_all["e0_r_i1"].casadi_var * 60.0
+    dydx2 = m.varlist_all["e0_r_i2"].casadi_var * 60.0
+    dydx3 = m.varlist_all["e0_r_i3"].casadi_var * 60.0
+    dydx4 = m.varlist_all["e0_r_i4"].casadi_var * 60.0
+    dydx5 = m.varlist_all["e0_r_i5"].casadi_var * 60.0
+    dydx6 = m.varlist_all["e0_n_i1"].casadi_var - (
+        m.varlist_all["e0_c_i1"].casadi_var * m.varlist_all["e0_V_Reactor"].casadi_var
     )
-    dydx7 = m._all_variables["e0_n_i2"].casadi_var - (
-        m._all_variables["e0_c_i2"].casadi_var
-        * m._all_variables["e0_V_Reactor"].casadi_var
+    dydx7 = m.varlist_all["e0_n_i2"].casadi_var - (
+        m.varlist_all["e0_c_i2"].casadi_var * m.varlist_all["e0_V_Reactor"].casadi_var
     )
-    dydx8 = m._all_variables["e0_n_i3"].casadi_var - (
-        m._all_variables["e0_c_i3"].casadi_var
-        * m._all_variables["e0_V_Reactor"].casadi_var
+    dydx8 = m.varlist_all["e0_n_i3"].casadi_var - (
+        m.varlist_all["e0_c_i3"].casadi_var * m.varlist_all["e0_V_Reactor"].casadi_var
     )
-    dydx9 = m._all_variables["e0_n_i4"].casadi_var - (
-        m._all_variables["e0_c_i4"].casadi_var
-        * m._all_variables["e0_V_Reactor"].casadi_var
+    dydx9 = m.varlist_all["e0_n_i4"].casadi_var - (
+        m.varlist_all["e0_c_i4"].casadi_var * m.varlist_all["e0_V_Reactor"].casadi_var
     )
-    dydx10 = m._all_variables["e0_n_i5"].casadi_var - (
-        m._all_variables["e0_c_i5"].casadi_var
-        * m._all_variables["e0_V_Reactor"].casadi_var
+    dydx10 = m.varlist_all["e0_n_i5"].casadi_var - (
+        m.varlist_all["e0_c_i5"].casadi_var * m.varlist_all["e0_V_Reactor"].casadi_var
     )
-    dydx11 = m._all_variables["e0_n_L"].casadi_var - (
+    dydx11 = m.varlist_all["e0_n_L"].casadi_var - (
         (
-            m._all_variables["e0_n_i1"].casadi_var
-            + m._all_variables["e0_n_i2"].casadi_var
-            + m._all_variables["e0_n_i3"].casadi_var
-            + m._all_variables["e0_n_i4"].casadi_var
-            + m._all_variables["e0_n_i5"].casadi_var
+            m.varlist_all["e0_n_i1"].casadi_var
+            + m.varlist_all["e0_n_i2"].casadi_var
+            + m.varlist_all["e0_n_i3"].casadi_var
+            + m.varlist_all["e0_n_i4"].casadi_var
+            + m.varlist_all["e0_n_i5"].casadi_var
         )
-        + m._all_variables["e0_n_Water"].casadi_var
-        + m._all_variables["e0_n_Surfactant"].casadi_var
+        + m.varlist_all["e0_n_Water"].casadi_var
+        + m.varlist_all["e0_n_Surfactant"].casadi_var
     )
-    dydx12 = m._all_variables["e0_greek_alpha"].casadi_var - (
+    dydx12 = m.varlist_all["e0_greek_alpha"].casadi_var - (
         (
             (
-                m._all_variables["e0_c_i1"].casadi_var
-                * m._all_variables["e0_V_Reactor"].casadi_var
-                * m._all_variables["e0_M_i1"].casadi_var
-                + m._all_variables["e0_c_i2"].casadi_var
-                * m._all_variables["e0_V_Reactor"].casadi_var
-                * m._all_variables["e0_M_i2"].casadi_var
-                + m._all_variables["e0_c_i3"].casadi_var
-                * m._all_variables["e0_V_Reactor"].casadi_var
-                * m._all_variables["e0_M_i3"].casadi_var
-                + m._all_variables["e0_c_i4"].casadi_var
-                * m._all_variables["e0_V_Reactor"].casadi_var
-                * m._all_variables["e0_M_i4"].casadi_var
-                + m._all_variables["e0_c_i5"].casadi_var
-                * m._all_variables["e0_V_Reactor"].casadi_var
-                * m._all_variables["e0_M_i5"].casadi_var
+                m.varlist_all["e0_c_i1"].casadi_var
+                * m.varlist_all["e0_V_Reactor"].casadi_var
+                * m.varlist_all["e0_M_i1"].casadi_var
+                + m.varlist_all["e0_c_i2"].casadi_var
+                * m.varlist_all["e0_V_Reactor"].casadi_var
+                * m.varlist_all["e0_M_i2"].casadi_var
+                + m.varlist_all["e0_c_i3"].casadi_var
+                * m.varlist_all["e0_V_Reactor"].casadi_var
+                * m.varlist_all["e0_M_i3"].casadi_var
+                + m.varlist_all["e0_c_i4"].casadi_var
+                * m.varlist_all["e0_V_Reactor"].casadi_var
+                * m.varlist_all["e0_M_i4"].casadi_var
+                + m.varlist_all["e0_c_i5"].casadi_var
+                * m.varlist_all["e0_V_Reactor"].casadi_var
+                * m.varlist_all["e0_M_i5"].casadi_var
             )
         )
         / (
             (
-                m._all_variables["e0_c_i1"].casadi_var
-                * m._all_variables["e0_V_Reactor"].casadi_var
-                * m._all_variables["e0_M_i1"].casadi_var
-                + m._all_variables["e0_c_i2"].casadi_var
-                * m._all_variables["e0_V_Reactor"].casadi_var
-                * m._all_variables["e0_M_i2"].casadi_var
-                + m._all_variables["e0_c_i3"].casadi_var
-                * m._all_variables["e0_V_Reactor"].casadi_var
-                * m._all_variables["e0_M_i3"].casadi_var
-                + m._all_variables["e0_c_i4"].casadi_var
-                * m._all_variables["e0_V_Reactor"].casadi_var
-                * m._all_variables["e0_M_i4"].casadi_var
-                + m._all_variables["e0_c_i5"].casadi_var
-                * m._all_variables["e0_V_Reactor"].casadi_var
-                * m._all_variables["e0_M_i5"].casadi_var
+                m.varlist_all["e0_c_i1"].casadi_var
+                * m.varlist_all["e0_V_Reactor"].casadi_var
+                * m.varlist_all["e0_M_i1"].casadi_var
+                + m.varlist_all["e0_c_i2"].casadi_var
+                * m.varlist_all["e0_V_Reactor"].casadi_var
+                * m.varlist_all["e0_M_i2"].casadi_var
+                + m.varlist_all["e0_c_i3"].casadi_var
+                * m.varlist_all["e0_V_Reactor"].casadi_var
+                * m.varlist_all["e0_M_i3"].casadi_var
+                + m.varlist_all["e0_c_i4"].casadi_var
+                * m.varlist_all["e0_V_Reactor"].casadi_var
+                * m.varlist_all["e0_M_i4"].casadi_var
+                + m.varlist_all["e0_c_i5"].casadi_var
+                * m.varlist_all["e0_V_Reactor"].casadi_var
+                * m.varlist_all["e0_M_i5"].casadi_var
             )
-            + m._all_variables["e0_n_Water"].casadi_var
-            * m._all_variables["e0_M_Water"].casadi_var
+            + m.varlist_all["e0_n_Water"].casadi_var
+            * m.varlist_all["e0_M_Water"].casadi_var
         )
     )
-    dydx13 = m._all_variables["e0_greek_gamma"].casadi_var - (
+    dydx13 = m.varlist_all["e0_greek_gamma"].casadi_var - (
         (
-            m._all_variables["e0_n_Surfactant"].casadi_var
-            * m._all_variables["e0_M_Surfactant"].casadi_var
+            m.varlist_all["e0_n_Surfactant"].casadi_var
+            * m.varlist_all["e0_M_Surfactant"].casadi_var
         )
         / (
             (
-                m._all_variables["e0_c_i1"].casadi_var
-                * m._all_variables["e0_V_Reactor"].casadi_var
-                * m._all_variables["e0_M_i1"].casadi_var
-                + m._all_variables["e0_c_i2"].casadi_var
-                * m._all_variables["e0_V_Reactor"].casadi_var
-                * m._all_variables["e0_M_i2"].casadi_var
-                + m._all_variables["e0_c_i3"].casadi_var
-                * m._all_variables["e0_V_Reactor"].casadi_var
-                * m._all_variables["e0_M_i3"].casadi_var
-                + m._all_variables["e0_c_i4"].casadi_var
-                * m._all_variables["e0_V_Reactor"].casadi_var
-                * m._all_variables["e0_M_i4"].casadi_var
-                + m._all_variables["e0_c_i5"].casadi_var
-                * m._all_variables["e0_V_Reactor"].casadi_var
-                * m._all_variables["e0_M_i5"].casadi_var
+                m.varlist_all["e0_c_i1"].casadi_var
+                * m.varlist_all["e0_V_Reactor"].casadi_var
+                * m.varlist_all["e0_M_i1"].casadi_var
+                + m.varlist_all["e0_c_i2"].casadi_var
+                * m.varlist_all["e0_V_Reactor"].casadi_var
+                * m.varlist_all["e0_M_i2"].casadi_var
+                + m.varlist_all["e0_c_i3"].casadi_var
+                * m.varlist_all["e0_V_Reactor"].casadi_var
+                * m.varlist_all["e0_M_i3"].casadi_var
+                + m.varlist_all["e0_c_i4"].casadi_var
+                * m.varlist_all["e0_V_Reactor"].casadi_var
+                * m.varlist_all["e0_M_i4"].casadi_var
+                + m.varlist_all["e0_c_i5"].casadi_var
+                * m.varlist_all["e0_V_Reactor"].casadi_var
+                * m.varlist_all["e0_M_i5"].casadi_var
             )
-            + m._all_variables["e0_n_Water"].casadi_var
-            * m._all_variables["e0_M_Water"].casadi_var
-            + m._all_variables["e0_n_Surfactant"].casadi_var
-            * m._all_variables["e0_M_Surfactant"].casadi_var
+            + m.varlist_all["e0_n_Water"].casadi_var
+            * m.varlist_all["e0_M_Water"].casadi_var
+            + m.varlist_all["e0_n_Surfactant"].casadi_var
+            * m.varlist_all["e0_M_Surfactant"].casadi_var
         )
     )
-    dydx14 = m._all_variables["e0_X"].casadi_var - (
+    dydx14 = m.varlist_all["e0_X"].casadi_var - (
         (
             (
-                m._all_variables["e0_c_i3"].casadi_var
-                * m._all_variables["e0_M_i3"].casadi_var
-                + m._all_variables["e0_c_i5"].casadi_var
-                * m._all_variables["e0_M_i5"].casadi_var
+                m.varlist_all["e0_c_i3"].casadi_var
+                * m.varlist_all["e0_M_i3"].casadi_var
+                + m.varlist_all["e0_c_i5"].casadi_var
+                * m.varlist_all["e0_M_i5"].casadi_var
             )
-            * m._all_variables["e0_V_Reactor"].casadi_var
+            * m.varlist_all["e0_V_Reactor"].casadi_var
         )
         / (
             (
-                m._all_variables["e0_c_i1"].casadi_var
-                * m._all_variables["e0_V_Reactor"].casadi_var
-                * m._all_variables["e0_M_i1"].casadi_var
-                + m._all_variables["e0_c_i2"].casadi_var
-                * m._all_variables["e0_V_Reactor"].casadi_var
-                * m._all_variables["e0_M_i2"].casadi_var
-                + m._all_variables["e0_c_i3"].casadi_var
-                * m._all_variables["e0_V_Reactor"].casadi_var
-                * m._all_variables["e0_M_i3"].casadi_var
-                + m._all_variables["e0_c_i4"].casadi_var
-                * m._all_variables["e0_V_Reactor"].casadi_var
-                * m._all_variables["e0_M_i4"].casadi_var
-                + m._all_variables["e0_c_i5"].casadi_var
-                * m._all_variables["e0_V_Reactor"].casadi_var
-                * m._all_variables["e0_M_i5"].casadi_var
+                m.varlist_all["e0_c_i1"].casadi_var
+                * m.varlist_all["e0_V_Reactor"].casadi_var
+                * m.varlist_all["e0_M_i1"].casadi_var
+                + m.varlist_all["e0_c_i2"].casadi_var
+                * m.varlist_all["e0_V_Reactor"].casadi_var
+                * m.varlist_all["e0_M_i2"].casadi_var
+                + m.varlist_all["e0_c_i3"].casadi_var
+                * m.varlist_all["e0_V_Reactor"].casadi_var
+                * m.varlist_all["e0_M_i3"].casadi_var
+                + m.varlist_all["e0_c_i4"].casadi_var
+                * m.varlist_all["e0_V_Reactor"].casadi_var
+                * m.varlist_all["e0_M_i4"].casadi_var
+                + m.varlist_all["e0_c_i5"].casadi_var
+                * m.varlist_all["e0_V_Reactor"].casadi_var
+                * m.varlist_all["e0_M_i5"].casadi_var
             )
         )
     )
-    dydx15 = m._all_variables["e0_x_i6"].casadi_var - (
+    dydx15 = m.varlist_all["e0_x_i6"].casadi_var - (
         (
-            m._all_variables["e0_p_Reactor"].casadi_var
-            * m._all_variables["e0_P_i6_Sol1"].casadi_var
-            + (m._all_variables["e0_T"].casadi_var - 273.15)
-            * m._all_variables["e0_P_i6_Sol2"].casadi_var
-            + m._all_variables["e0_greek_alpha"].casadi_var
-            * m._all_variables["e0_P_i6_Sol3"].casadi_var
-            + m._all_variables["e0_greek_gamma"].casadi_var
-            * m._all_variables["e0_P_i6_Sol4"].casadi_var
-            + m._all_variables["e0_X"].casadi_var
-            * m._all_variables["e0_P_i6_Sol5"].casadi_var
-            + ((m._all_variables["e0_greek_gamma"].casadi_var)) ** (2.0)
-            * m._all_variables["e0_P_i6_Sol6"].casadi_var
-            + ((m._all_variables["e0_X"].casadi_var)) ** (2.0)
-            * m._all_variables["e0_P_i6_Sol7"].casadi_var
-            + m._all_variables["e0_p_Reactor"].casadi_var
-            * (m._all_variables["e0_T"].casadi_var - 273.15)
-            * m._all_variables["e0_P_i6_Sol8"].casadi_var
-            + m._all_variables["e0_p_Reactor"].casadi_var
-            * m._all_variables["e0_greek_alpha"].casadi_var
-            * m._all_variables["e0_P_i6_Sol9"].casadi_var
-            + m._all_variables["e0_p_Reactor"].casadi_var
-            * m._all_variables["e0_greek_gamma"].casadi_var
-            * m._all_variables["e0_P_i6_Sol10"].casadi_var
-            + m._all_variables["e0_p_Reactor"].casadi_var
-            * m._all_variables["e0_X"].casadi_var
-            * m._all_variables["e0_P_i6_Sol11"].casadi_var
-            + (m._all_variables["e0_T"].casadi_var - 273.15)
-            * m._all_variables["e0_greek_alpha"].casadi_var
-            * m._all_variables["e0_P_i6_Sol12"].casadi_var
-            + (m._all_variables["e0_T"].casadi_var - 273.15)
-            * m._all_variables["e0_greek_gamma"].casadi_var
-            * m._all_variables["e0_P_i6_Sol13"].casadi_var
-            + (m._all_variables["e0_T"].casadi_var - 273.15)
-            * m._all_variables["e0_X"].casadi_var
-            * m._all_variables["e0_P_i6_Sol14"].casadi_var
-            + m._all_variables["e0_greek_alpha"].casadi_var
-            * m._all_variables["e0_X"].casadi_var
-            * m._all_variables["e0_P_i6_Sol15"].casadi_var
+            m.varlist_all["e0_p_Reactor"].casadi_var
+            * m.varlist_all["e0_P_i6_Sol1"].casadi_var
+            + (m.varlist_all["e0_T"].casadi_var - 273.15)
+            * m.varlist_all["e0_P_i6_Sol2"].casadi_var
+            + m.varlist_all["e0_greek_alpha"].casadi_var
+            * m.varlist_all["e0_P_i6_Sol3"].casadi_var
+            + m.varlist_all["e0_greek_gamma"].casadi_var
+            * m.varlist_all["e0_P_i6_Sol4"].casadi_var
+            + m.varlist_all["e0_X"].casadi_var
+            * m.varlist_all["e0_P_i6_Sol5"].casadi_var
+            + ((m.varlist_all["e0_greek_gamma"].casadi_var)) ** (2.0)
+            * m.varlist_all["e0_P_i6_Sol6"].casadi_var
+            + ((m.varlist_all["e0_X"].casadi_var)) ** (2.0)
+            * m.varlist_all["e0_P_i6_Sol7"].casadi_var
+            + m.varlist_all["e0_p_Reactor"].casadi_var
+            * (m.varlist_all["e0_T"].casadi_var - 273.15)
+            * m.varlist_all["e0_P_i6_Sol8"].casadi_var
+            + m.varlist_all["e0_p_Reactor"].casadi_var
+            * m.varlist_all["e0_greek_alpha"].casadi_var
+            * m.varlist_all["e0_P_i6_Sol9"].casadi_var
+            + m.varlist_all["e0_p_Reactor"].casadi_var
+            * m.varlist_all["e0_greek_gamma"].casadi_var
+            * m.varlist_all["e0_P_i6_Sol10"].casadi_var
+            + m.varlist_all["e0_p_Reactor"].casadi_var
+            * m.varlist_all["e0_X"].casadi_var
+            * m.varlist_all["e0_P_i6_Sol11"].casadi_var
+            + (m.varlist_all["e0_T"].casadi_var - 273.15)
+            * m.varlist_all["e0_greek_alpha"].casadi_var
+            * m.varlist_all["e0_P_i6_Sol12"].casadi_var
+            + (m.varlist_all["e0_T"].casadi_var - 273.15)
+            * m.varlist_all["e0_greek_gamma"].casadi_var
+            * m.varlist_all["e0_P_i6_Sol13"].casadi_var
+            + (m.varlist_all["e0_T"].casadi_var - 273.15)
+            * m.varlist_all["e0_X"].casadi_var
+            * m.varlist_all["e0_P_i6_Sol14"].casadi_var
+            + m.varlist_all["e0_greek_alpha"].casadi_var
+            * m.varlist_all["e0_X"].casadi_var
+            * m.varlist_all["e0_P_i6_Sol15"].casadi_var
         )
-        - m._all_variables["e0_x_i7"].casadi_var
+        - m.varlist_all["e0_x_i7"].casadi_var
     )
-    dydx16 = m._all_variables["e0_x_i7"].casadi_var - (
-        (m._all_variables["e0_p_Reactor"].casadi_var)
+    dydx16 = m.varlist_all["e0_x_i7"].casadi_var - (
+        (m.varlist_all["e0_p_Reactor"].casadi_var)
         / (2.0)
-        * m._all_variables["e0_P_i7_Sol1"].casadi_var
-        + (m._all_variables["e0_T"].casadi_var - 273.15)
-        * m._all_variables["e0_P_i7_Sol2"].casadi_var
-        + m._all_variables["e0_greek_alpha"].casadi_var
-        * m._all_variables["e0_P_i7_Sol3"].casadi_var
-        + m._all_variables["e0_greek_gamma"].casadi_var
-        * m._all_variables["e0_P_i7_Sol4"].casadi_var
-        + m._all_variables["e0_X"].casadi_var
-        * m._all_variables["e0_P_i7_Sol5"].casadi_var
-        + ((m._all_variables["e0_greek_gamma"].casadi_var)) ** (2.0)
-        * m._all_variables["e0_P_i7_Sol6"].casadi_var
-        + ((m._all_variables["e0_X"].casadi_var)) ** (2.0)
-        * m._all_variables["e0_P_i7_Sol7"].casadi_var
-        + (m._all_variables["e0_p_Reactor"].casadi_var)
+        * m.varlist_all["e0_P_i7_Sol1"].casadi_var
+        + (m.varlist_all["e0_T"].casadi_var - 273.15)
+        * m.varlist_all["e0_P_i7_Sol2"].casadi_var
+        + m.varlist_all["e0_greek_alpha"].casadi_var
+        * m.varlist_all["e0_P_i7_Sol3"].casadi_var
+        + m.varlist_all["e0_greek_gamma"].casadi_var
+        * m.varlist_all["e0_P_i7_Sol4"].casadi_var
+        + m.varlist_all["e0_X"].casadi_var * m.varlist_all["e0_P_i7_Sol5"].casadi_var
+        + ((m.varlist_all["e0_greek_gamma"].casadi_var)) ** (2.0)
+        * m.varlist_all["e0_P_i7_Sol6"].casadi_var
+        + ((m.varlist_all["e0_X"].casadi_var)) ** (2.0)
+        * m.varlist_all["e0_P_i7_Sol7"].casadi_var
+        + (m.varlist_all["e0_p_Reactor"].casadi_var)
         / (2.0)
-        * (m._all_variables["e0_T"].casadi_var - 273.15)
-        * m._all_variables["e0_P_i7_Sol8"].casadi_var
-        + (m._all_variables["e0_p_Reactor"].casadi_var)
+        * (m.varlist_all["e0_T"].casadi_var - 273.15)
+        * m.varlist_all["e0_P_i7_Sol8"].casadi_var
+        + (m.varlist_all["e0_p_Reactor"].casadi_var)
         / (2.0)
-        * m._all_variables["e0_greek_alpha"].casadi_var
-        * m._all_variables["e0_P_i7_Sol9"].casadi_var
-        + (m._all_variables["e0_p_Reactor"].casadi_var)
+        * m.varlist_all["e0_greek_alpha"].casadi_var
+        * m.varlist_all["e0_P_i7_Sol9"].casadi_var
+        + (m.varlist_all["e0_p_Reactor"].casadi_var)
         / (2.0)
-        * m._all_variables["e0_greek_gamma"].casadi_var
-        * m._all_variables["e0_P_i7_Sol10"].casadi_var
-        + (m._all_variables["e0_p_Reactor"].casadi_var)
+        * m.varlist_all["e0_greek_gamma"].casadi_var
+        * m.varlist_all["e0_P_i7_Sol10"].casadi_var
+        + (m.varlist_all["e0_p_Reactor"].casadi_var)
         / (2.0)
-        * m._all_variables["e0_X"].casadi_var
-        * m._all_variables["e0_P_i7_Sol11"].casadi_var
-        + (m._all_variables["e0_T"].casadi_var - 273.15)
-        * m._all_variables["e0_greek_alpha"].casadi_var
-        * m._all_variables["e0_P_i7_Sol12"].casadi_var
-        + (m._all_variables["e0_T"].casadi_var - 273.15)
-        * m._all_variables["e0_greek_gamma"].casadi_var
-        * m._all_variables["e0_P_i7_Sol13"].casadi_var
-        + (m._all_variables["e0_T"].casadi_var - 273.15)
-        * m._all_variables["e0_X"].casadi_var
-        * m._all_variables["e0_P_i7_Sol14"].casadi_var
-        + m._all_variables["e0_greek_alpha"].casadi_var
-        * m._all_variables["e0_X"].casadi_var
-        * m._all_variables["e0_P_i7_Sol15"].casadi_var
+        * m.varlist_all["e0_X"].casadi_var
+        * m.varlist_all["e0_P_i7_Sol11"].casadi_var
+        + (m.varlist_all["e0_T"].casadi_var - 273.15)
+        * m.varlist_all["e0_greek_alpha"].casadi_var
+        * m.varlist_all["e0_P_i7_Sol12"].casadi_var
+        + (m.varlist_all["e0_T"].casadi_var - 273.15)
+        * m.varlist_all["e0_greek_gamma"].casadi_var
+        * m.varlist_all["e0_P_i7_Sol13"].casadi_var
+        + (m.varlist_all["e0_T"].casadi_var - 273.15)
+        * m.varlist_all["e0_X"].casadi_var
+        * m.varlist_all["e0_P_i7_Sol14"].casadi_var
+        + m.varlist_all["e0_greek_alpha"].casadi_var
+        * m.varlist_all["e0_X"].casadi_var
+        * m.varlist_all["e0_P_i7_Sol15"].casadi_var
     )
-    dydx17 = m._all_variables["e0_c_i6"].casadi_var * m._all_variables[
+    dydx17 = m.varlist_all["e0_c_i6"].casadi_var * m.varlist_all[
         "e0_V_Reactor"
     ].casadi_var - (
-        (m._all_variables["e0_n_L"].casadi_var * m._all_variables["e0_x_i6"].casadi_var)
-        / (1.0 - m._all_variables["e0_x_i6"].casadi_var)
+        (m.varlist_all["e0_n_L"].casadi_var * m.varlist_all["e0_x_i6"].casadi_var)
+        / (1.0 - m.varlist_all["e0_x_i6"].casadi_var)
     )
-    dydx18 = m._all_variables["e0_c_i7"].casadi_var * m._all_variables[
+    dydx18 = m.varlist_all["e0_c_i7"].casadi_var * m.varlist_all[
         "e0_V_Reactor"
     ].casadi_var - (
-        (m._all_variables["e0_n_L"].casadi_var * m._all_variables["e0_x_i7"].casadi_var)
-        / (1.0 - m._all_variables["e0_x_i7"].casadi_var)
+        (m.varlist_all["e0_n_L"].casadi_var * m.varlist_all["e0_x_i7"].casadi_var)
+        / (1.0 - m.varlist_all["e0_x_i7"].casadi_var)
     )
-    dydx19 = m._all_variables["e0_greek_psi_cat"].casadi_var * (
+    dydx19 = m.varlist_all["e0_greek_psi_cat"].casadi_var * (
         1.0
-        + m._all_variables["e0_K_cat_e1"].casadi_var
-        * m._all_variables["e0_c_i7"].casadi_var
-        + m._all_variables["e0_K_cat_e2"].casadi_var
-        * (m._all_variables["e0_c_i7"].casadi_var)
-        / (m._all_variables["e0_c_i6"].casadi_var)
-    ) - (m._all_variables["e0_c_cat"].casadi_var)
-    dydx20 = m._all_variables["e0_greek_DeltaG_r3"].casadi_var - (
+        + m.varlist_all["e0_K_cat_e1"].casadi_var * m.varlist_all["e0_c_i7"].casadi_var
+        + m.varlist_all["e0_K_cat_e2"].casadi_var
+        * (m.varlist_all["e0_c_i7"].casadi_var)
+        / (m.varlist_all["e0_c_i6"].casadi_var)
+    ) - (m.varlist_all["e0_c_cat"].casadi_var)
+    dydx20 = m.varlist_all["e0_greek_DeltaG_r3"].casadi_var - (
         (
             -126.28
-            + 0.13 * m._all_variables["e0_T"].casadi_var
-            + 6.8
-            * ((10.0)) ** (-6.0)
-            * ((m._all_variables["e0_T"].casadi_var)) ** (2.0)
+            + 0.13 * m.varlist_all["e0_T"].casadi_var
+            + 6.8 * ((10.0)) ** (-6.0) * ((m.varlist_all["e0_T"].casadi_var)) ** (2.0)
         )
         * ((10.0)) ** (3.0)
     )
-    dydx21 = m._all_variables["e0_K_eq_r3"].casadi_var - (
+    dydx21 = m.varlist_all["e0_K_eq_r3"].casadi_var - (
         ca.exp(
-            -(m._all_variables["e0_greek_DeltaG_r3"].casadi_var)
-            / (
-                m._all_variables["e0_R"].casadi_var
-                * m._all_variables["e0_T"].casadi_var
-            )
+            -(m.varlist_all["e0_greek_DeltaG_r3"].casadi_var)
+            / (m.varlist_all["e0_R"].casadi_var * m.varlist_all["e0_T"].casadi_var)
         )
     )
-    dydx22 = m._all_variables["e0_K_eq_r1"].casadi_var - (
+    dydx22 = m.varlist_all["e0_K_eq_r1"].casadi_var - (
         ca.exp(
-            (m._all_variables["e0_greek_DeltaG_r1"].casadi_var)
-            / (
-                m._all_variables["e0_R"].casadi_var
-                * m._all_variables["e0_T"].casadi_var
-            )
+            (m.varlist_all["e0_greek_DeltaG_r1"].casadi_var)
+            / (m.varlist_all["e0_R"].casadi_var * m.varlist_all["e0_T"].casadi_var)
         )
     )
-    dydx23 = m._all_variables["e0_r_r1"].casadi_var * (
+    dydx23 = m.varlist_all["e0_r_r1"].casadi_var * (
         1.0
-        + m._all_variables["e0_K_r1_e1"].casadi_var
-        * m._all_variables["e0_c_i1"].casadi_var
-        + m._all_variables["e0_K_r1_e2"].casadi_var
-        * m._all_variables["e0_c_i2"].casadi_var
+        + m.varlist_all["e0_K_r1_e1"].casadi_var * m.varlist_all["e0_c_i1"].casadi_var
+        + m.varlist_all["e0_K_r1_e2"].casadi_var * m.varlist_all["e0_c_i2"].casadi_var
     ) - (
         (
             (
-                (m._all_variables["e0_n_Surfactant"].casadi_var)
-                / (m._all_variables["e0_V_Reactor"].casadi_var)
+                (m.varlist_all["e0_n_Surfactant"].casadi_var)
+                / (m.varlist_all["e0_V_Reactor"].casadi_var)
             )
         )
-        ** (m._all_variables["e0_P_Surfactant"].casadi_var)
+        ** (m.varlist_all["e0_P_Surfactant"].casadi_var)
         * (
             1.0
-            + (m._all_variables["e0_k_LM_r1"].casadi_var)
+            + (m.varlist_all["e0_k_LM_r1"].casadi_var)
             / (
                 1.0
                 + ca.exp(
                     -(
-                        m._all_variables["e0_K_LM"].casadi_var
-                        - (m._all_variables["e0_n_Lig"].casadi_var)
-                        / (m._all_variables["e0_n_Cat"].casadi_var)
+                        m.varlist_all["e0_K_LM"].casadi_var
+                        - (m.varlist_all["e0_n_Lig"].casadi_var)
+                        / (m.varlist_all["e0_n_Cat"].casadi_var)
                     )
-                    * m._all_variables["e0_P_trig_r1"].casadi_var
+                    * m.varlist_all["e0_P_trig_r1"].casadi_var
                 )
             )
         )
-        * m._all_variables["e0_greek_psi_cat"].casadi_var
-        * m._all_variables["e0_k_ref_r1"].casadi_var
+        * m.varlist_all["e0_greek_psi_cat"].casadi_var
+        * m.varlist_all["e0_k_ref_r1"].casadi_var
         * ca.exp(
-            -(m._all_variables["e0_E_r1"].casadi_var)
-            / (m._all_variables["e0_R"].casadi_var)
+            -(m.varlist_all["e0_E_r1"].casadi_var)
+            / (m.varlist_all["e0_R"].casadi_var)
             * (
-                (1.0) / (m._all_variables["e0_T"].casadi_var)
-                - (1.0) / (m._all_variables["e0_T_ref"].casadi_var)
+                (1.0) / (m.varlist_all["e0_T"].casadi_var)
+                - (1.0) / (m.varlist_all["e0_T_ref"].casadi_var)
             )
         )
         * (
-            m._all_variables["e0_c_i1"].casadi_var
-            - (m._all_variables["e0_c_i2"].casadi_var)
-            / (m._all_variables["e0_K_eq_r1"].casadi_var)
+            m.varlist_all["e0_c_i1"].casadi_var
+            - (m.varlist_all["e0_c_i2"].casadi_var)
+            / (m.varlist_all["e0_K_eq_r1"].casadi_var)
         )
     )
-    dydx24 = m._all_variables["e0_r_r2"].casadi_var - (
+    dydx24 = m.varlist_all["e0_r_r2"].casadi_var - (
         (
             (
-                (m._all_variables["e0_n_Surfactant"].casadi_var)
-                / (m._all_variables["e0_V_Reactor"].casadi_var)
+                (m.varlist_all["e0_n_Surfactant"].casadi_var)
+                / (m.varlist_all["e0_V_Reactor"].casadi_var)
             )
         )
-        ** (m._all_variables["e0_P_Surfactant"].casadi_var)
-        * m._all_variables["e0_greek_psi_cat"].casadi_var
-        * m._all_variables["e0_k_ref_r2"].casadi_var
+        ** (m.varlist_all["e0_P_Surfactant"].casadi_var)
+        * m.varlist_all["e0_greek_psi_cat"].casadi_var
+        * m.varlist_all["e0_k_ref_r2"].casadi_var
         * ca.exp(
-            -(m._all_variables["e0_E_r2"].casadi_var)
-            / (m._all_variables["e0_R"].casadi_var)
+            -(m.varlist_all["e0_E_r2"].casadi_var)
+            / (m.varlist_all["e0_R"].casadi_var)
             * (
-                (1.0) / (m._all_variables["e0_T"].casadi_var)
-                - (1.0) / (m._all_variables["e0_T_ref"].casadi_var)
+                (1.0) / (m.varlist_all["e0_T"].casadi_var)
+                - (1.0) / (m.varlist_all["e0_T_ref"].casadi_var)
             )
         )
-        * m._all_variables["e0_c_i2"].casadi_var
-        * m._all_variables["e0_c_i6"].casadi_var
+        * m.varlist_all["e0_c_i2"].casadi_var
+        * m.varlist_all["e0_c_i6"].casadi_var
     )
-    dydx25 = m._all_variables["e0_r_r3"].casadi_var * (
+    dydx25 = m.varlist_all["e0_r_r3"].casadi_var * (
         1.0
-        + m._all_variables["e0_K_r3_e1"].casadi_var
-        * m._all_variables["e0_c_i1"].casadi_var
-        + m._all_variables["e0_K_r3_e2"].casadi_var
-        * m._all_variables["e0_c_i4"].casadi_var
-        + m._all_variables["e0_K_r3_e3"].casadi_var
-        * m._all_variables["e0_c_i6"].casadi_var
+        + m.varlist_all["e0_K_r3_e1"].casadi_var * m.varlist_all["e0_c_i1"].casadi_var
+        + m.varlist_all["e0_K_r3_e2"].casadi_var * m.varlist_all["e0_c_i4"].casadi_var
+        + m.varlist_all["e0_K_r3_e3"].casadi_var * m.varlist_all["e0_c_i6"].casadi_var
     ) - (
         (
             (
-                (m._all_variables["e0_n_Surfactant"].casadi_var)
-                / (m._all_variables["e0_V_Reactor"].casadi_var)
+                (m.varlist_all["e0_n_Surfactant"].casadi_var)
+                / (m.varlist_all["e0_V_Reactor"].casadi_var)
             )
         )
-        ** (m._all_variables["e0_P_Surfactant"].casadi_var)
-        * m._all_variables["e0_greek_psi_cat"].casadi_var
-        * m._all_variables["e0_k_ref_r3"].casadi_var
+        ** (m.varlist_all["e0_P_Surfactant"].casadi_var)
+        * m.varlist_all["e0_greek_psi_cat"].casadi_var
+        * m.varlist_all["e0_k_ref_r3"].casadi_var
         * ca.exp(
-            -(m._all_variables["e0_E_r3"].casadi_var)
-            / (m._all_variables["e0_R"].casadi_var)
+            -(m.varlist_all["e0_E_r3"].casadi_var)
+            / (m.varlist_all["e0_R"].casadi_var)
             * (
-                (1.0) / (m._all_variables["e0_T"].casadi_var)
-                - (1.0) / (m._all_variables["e0_T_ref"].casadi_var)
+                (1.0) / (m.varlist_all["e0_T"].casadi_var)
+                - (1.0) / (m.varlist_all["e0_T_ref"].casadi_var)
             )
         )
         * (
-            m._all_variables["e0_c_i2"].casadi_var
-            * m._all_variables["e0_c_i6"].casadi_var
-            - (m._all_variables["e0_c_i4"].casadi_var)
-            / (m._all_variables["e0_K_eq_r3"].casadi_var)
+            m.varlist_all["e0_c_i2"].casadi_var * m.varlist_all["e0_c_i6"].casadi_var
+            - (m.varlist_all["e0_c_i4"].casadi_var)
+            / (m.varlist_all["e0_K_eq_r3"].casadi_var)
         )
     )
-    dydx26 = m._all_variables["e0_r_r4"].casadi_var - (
+    dydx26 = m.varlist_all["e0_r_r4"].casadi_var - (
         (
             (
-                (m._all_variables["e0_n_Surfactant"].casadi_var)
-                / (m._all_variables["e0_V_Reactor"].casadi_var)
+                (m.varlist_all["e0_n_Surfactant"].casadi_var)
+                / (m.varlist_all["e0_V_Reactor"].casadi_var)
             )
         )
-        ** (m._all_variables["e0_P_Surfactant"].casadi_var)
+        ** (m.varlist_all["e0_P_Surfactant"].casadi_var)
         * (
             1.0
-            + (m._all_variables["e0_k_LM_Hyfo"].casadi_var)
+            + (m.varlist_all["e0_k_LM_Hyfo"].casadi_var)
             / (
                 1.0
                 + ca.exp(
                     -(
-                        m._all_variables["e0_K_LM"].casadi_var
-                        - (m._all_variables["e0_n_Lig"].casadi_var)
-                        / (m._all_variables["e0_n_Cat"].casadi_var)
+                        m.varlist_all["e0_K_LM"].casadi_var
+                        - (m.varlist_all["e0_n_Lig"].casadi_var)
+                        / (m.varlist_all["e0_n_Cat"].casadi_var)
                     )
-                    * m._all_variables["e0_P_trig_Hyfo"].casadi_var
+                    * m.varlist_all["e0_P_trig_Hyfo"].casadi_var
                 )
             )
         )
-        * m._all_variables["e0_greek_psi_cat"].casadi_var
-        * m._all_variables["e0_k_ref_r4"].casadi_var
+        * m.varlist_all["e0_greek_psi_cat"].casadi_var
+        * m.varlist_all["e0_k_ref_r4"].casadi_var
         * ca.exp(
-            -(m._all_variables["e0_E_r4"].casadi_var)
-            / (m._all_variables["e0_R"].casadi_var)
+            -(m.varlist_all["e0_E_r4"].casadi_var)
+            / (m.varlist_all["e0_R"].casadi_var)
             * (
-                (1.0) / (m._all_variables["e0_T"].casadi_var)
-                - (1.0) / (m._all_variables["e0_T_ref"].casadi_var)
+                (1.0) / (m.varlist_all["e0_T"].casadi_var)
+                - (1.0) / (m.varlist_all["e0_T_ref"].casadi_var)
             )
         )
-        * m._all_variables["e0_c_i2"].casadi_var
-        * m._all_variables["e0_c_i6"].casadi_var
-        * m._all_variables["e0_c_i7"].casadi_var
+        * m.varlist_all["e0_c_i2"].casadi_var
+        * m.varlist_all["e0_c_i6"].casadi_var
+        * m.varlist_all["e0_c_i7"].casadi_var
     )
-    dydx27 = m._all_variables["e0_r_r5"].casadi_var * (
+    dydx27 = m.varlist_all["e0_r_r5"].casadi_var * (
         1.0
-        + m._all_variables["e0_K_r5_e1"].casadi_var
-        * m._all_variables["e0_c_i1"].casadi_var
-        + m._all_variables["e0_K_r5_e2"].casadi_var
-        * m._all_variables["e0_c_i5"].casadi_var
-        + m._all_variables["e0_K_r5_e3"].casadi_var
-        * m._all_variables["e0_c_i6"].casadi_var
+        + m.varlist_all["e0_K_r5_e1"].casadi_var * m.varlist_all["e0_c_i1"].casadi_var
+        + m.varlist_all["e0_K_r5_e2"].casadi_var * m.varlist_all["e0_c_i5"].casadi_var
+        + m.varlist_all["e0_K_r5_e3"].casadi_var * m.varlist_all["e0_c_i6"].casadi_var
     ) - (
         (
             (
-                (m._all_variables["e0_n_Surfactant"].casadi_var)
-                / (m._all_variables["e0_V_Reactor"].casadi_var)
+                (m.varlist_all["e0_n_Surfactant"].casadi_var)
+                / (m.varlist_all["e0_V_Reactor"].casadi_var)
             )
         )
-        ** (m._all_variables["e0_P_Surfactant"].casadi_var)
+        ** (m.varlist_all["e0_P_Surfactant"].casadi_var)
         * (
             1.0
-            + (m._all_variables["e0_k_LM_Hyfo"].casadi_var)
+            + (m.varlist_all["e0_k_LM_Hyfo"].casadi_var)
             / (
                 1.0
                 + ca.exp(
                     -(
-                        m._all_variables["e0_K_LM"].casadi_var
-                        - (m._all_variables["e0_n_Lig"].casadi_var)
-                        / (m._all_variables["e0_n_Cat"].casadi_var)
+                        m.varlist_all["e0_K_LM"].casadi_var
+                        - (m.varlist_all["e0_n_Lig"].casadi_var)
+                        / (m.varlist_all["e0_n_Cat"].casadi_var)
                     )
-                    * m._all_variables["e0_P_trig_Hyfo"].casadi_var
+                    * m.varlist_all["e0_P_trig_Hyfo"].casadi_var
                 )
             )
         )
-        * m._all_variables["e0_greek_psi_cat"].casadi_var
-        * m._all_variables["e0_k_ref_r5"].casadi_var
+        * m.varlist_all["e0_greek_psi_cat"].casadi_var
+        * m.varlist_all["e0_k_ref_r5"].casadi_var
         * ca.exp(
-            -(m._all_variables["e0_E_r5"].casadi_var)
-            / (m._all_variables["e0_R"].casadi_var)
+            -(m.varlist_all["e0_E_r5"].casadi_var)
+            / (m.varlist_all["e0_R"].casadi_var)
             * (
-                (1.0) / (m._all_variables["e0_T"].casadi_var)
-                - (1.0) / (m._all_variables["e0_T_ref"].casadi_var)
+                (1.0) / (m.varlist_all["e0_T"].casadi_var)
+                - (1.0) / (m.varlist_all["e0_T_ref"].casadi_var)
             )
         )
-        * m._all_variables["e0_c_i1"].casadi_var
-        * m._all_variables["e0_c_i6"].casadi_var
-        * m._all_variables["e0_c_i7"].casadi_var
+        * m.varlist_all["e0_c_i1"].casadi_var
+        * m.varlist_all["e0_c_i6"].casadi_var
+        * m.varlist_all["e0_c_i7"].casadi_var
     )
-    dydx28 = m._all_variables["e0_r_r6"].casadi_var - (
+    dydx28 = m.varlist_all["e0_r_r6"].casadi_var - (
         (
             (
-                (m._all_variables["e0_n_Surfactant"].casadi_var)
-                / (m._all_variables["e0_V_Reactor"].casadi_var)
+                (m.varlist_all["e0_n_Surfactant"].casadi_var)
+                / (m.varlist_all["e0_V_Reactor"].casadi_var)
             )
         )
-        ** (m._all_variables["e0_P_Surfactant"].casadi_var)
+        ** (m.varlist_all["e0_P_Surfactant"].casadi_var)
         * (
             1.0
-            + (m._all_variables["e0_k_LM_Hyfo"].casadi_var)
+            + (m.varlist_all["e0_k_LM_Hyfo"].casadi_var)
             / (
                 1.0
                 + ca.exp(
                     -(
-                        m._all_variables["e0_K_LM"].casadi_var
-                        - (m._all_variables["e0_n_Lig"].casadi_var)
-                        / (m._all_variables["e0_n_Cat"].casadi_var)
+                        m.varlist_all["e0_K_LM"].casadi_var
+                        - (m.varlist_all["e0_n_Lig"].casadi_var)
+                        / (m.varlist_all["e0_n_Cat"].casadi_var)
                     )
-                    * m._all_variables["e0_P_trig_Hyfo"].casadi_var
+                    * m.varlist_all["e0_P_trig_Hyfo"].casadi_var
                 )
             )
         )
-        * m._all_variables["e0_greek_psi_cat"].casadi_var
-        * m._all_variables["e0_k_ref_r6"].casadi_var
+        * m.varlist_all["e0_greek_psi_cat"].casadi_var
+        * m.varlist_all["e0_k_ref_r6"].casadi_var
         * ca.exp(
-            -(m._all_variables["e0_E_r6"].casadi_var)
-            / (m._all_variables["e0_R"].casadi_var)
+            -(m.varlist_all["e0_E_r6"].casadi_var)
+            / (m.varlist_all["e0_R"].casadi_var)
             * (
-                (1.0) / (m._all_variables["e0_T"].casadi_var)
-                - (1.0) / (m._all_variables["e0_T_ref"].casadi_var)
+                (1.0) / (m.varlist_all["e0_T"].casadi_var)
+                - (1.0) / (m.varlist_all["e0_T_ref"].casadi_var)
             )
         )
-        * m._all_variables["e0_c_i1"].casadi_var
-        * m._all_variables["e0_c_i6"].casadi_var
-        * m._all_variables["e0_c_i7"].casadi_var
+        * m.varlist_all["e0_c_i1"].casadi_var
+        * m.varlist_all["e0_c_i6"].casadi_var
+        * m.varlist_all["e0_c_i7"].casadi_var
     )
-    dydx29 = m._all_variables["e0_r_i1"].casadi_var - (
-        -m._all_variables["e0_r_r1"].casadi_var
-        - m._all_variables["e0_r_r3"].casadi_var
-        - m._all_variables["e0_r_r5"].casadi_var
-        - m._all_variables["e0_r_r6"].casadi_var
+    dydx29 = m.varlist_all["e0_r_i1"].casadi_var - (
+        -m.varlist_all["e0_r_r1"].casadi_var
+        - m.varlist_all["e0_r_r3"].casadi_var
+        - m.varlist_all["e0_r_r5"].casadi_var
+        - m.varlist_all["e0_r_r6"].casadi_var
     )
-    dydx30 = m._all_variables["e0_r_i2"].casadi_var - (
-        m._all_variables["e0_r_r1"].casadi_var
-        - m._all_variables["e0_r_r2"].casadi_var
-        - m._all_variables["e0_r_r4"].casadi_var
+    dydx30 = m.varlist_all["e0_r_i2"].casadi_var - (
+        m.varlist_all["e0_r_r1"].casadi_var
+        - m.varlist_all["e0_r_r2"].casadi_var
+        - m.varlist_all["e0_r_r4"].casadi_var
     )
-    dydx31 = m._all_variables["e0_r_i3"].casadi_var - (
-        m._all_variables["e0_r_r4"].casadi_var + m._all_variables["e0_r_r6"].casadi_var
+    dydx31 = m.varlist_all["e0_r_i3"].casadi_var - (
+        m.varlist_all["e0_r_r4"].casadi_var + m.varlist_all["e0_r_r6"].casadi_var
     )
-    dydx32 = m._all_variables["e0_r_i4"].casadi_var - (
-        m._all_variables["e0_r_r2"].casadi_var + m._all_variables["e0_r_r3"].casadi_var
+    dydx32 = m.varlist_all["e0_r_i4"].casadi_var - (
+        m.varlist_all["e0_r_r2"].casadi_var + m.varlist_all["e0_r_r3"].casadi_var
     )
-    dydx33 = m._all_variables["e0_r_i5"].casadi_var - (
-        m._all_variables["e0_r_r5"].casadi_var
-    )
+    dydx33 = m.varlist_all["e0_r_i5"].casadi_var - (m.varlist_all["e0_r_r5"].casadi_var)
 
     m.add_equations_differential([dydx1, dydx2, dydx3, dydx4, dydx5])
     m.add_equations_algebraic(
@@ -701,12 +677,31 @@ if __name__ == "__main__":
 
     # Create simulation Object
     sim_fixed = par_est.Simulator(m, time_grid, var_list_fixed)
-    r = sim_fixed.analyze()
 
-    print(r)
-    # Run simulation and get simple results as array of numbers, but information about state variables and timestamp is lost
-    res_simple = sim_fixed.simulate()
     # Run simulation and connect results with actual state variables, which can be plotted based on available data
-    res = sim_fixed.generate_exp_data()
+    var_list_exp = sim_fixed.generate_exp_data()
 
-    res.plot_states()
+    # Replace empty state variables with results from simulation
+    variable_list_optimizer = copy.deepcopy(variable_list)
+    for var in variable_list_optimizer.values():
+        var.fixed = True
+
+    variable_list_optimizer["e0_E_r1"].fixed = False
+    # variable_list_optimizer["e0_E_r2"].fixed = False
+    # variable_list_optimizer["e0_E_r3"].fixed = False
+    # variable_list_optimizer["e0_T"].fixed = False
+    variable_list_optimizer["e0_p_Reactor"].fixed = False
+
+    for key, var in var_list_exp.items():
+        variable_list_optimizer[key] = var
+        variable_list_optimizer[key].starting_value = var.value.value[0]
+
+    pe = par_est.ParameterEstimation(
+        m, [variable_list_optimizer, variable_list_optimizer]
+    )
+    pe.optimize()
+    pe.optimize(False)
+
+    oed = par_est.OptimalExperimentalDesign(m, [variable_list_optimizer], time_grid)
+    oed.optimize()
+    oed.optimize(False)

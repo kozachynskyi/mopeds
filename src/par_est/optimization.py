@@ -196,7 +196,7 @@ class ParameterEstimation(Optimizer):
         if self.solver_settings is None:
             self.solver_settings = {
                 "verbose": False,
-                "ipopt": {"max_iter": 300},
+                "ipopt": {"hessian_approximation": "limited-memory", "max_iter": 300},
             }
 
         return self._optimize(scale)
@@ -247,7 +247,6 @@ class OptimalExperimentalDesign(Optimizer):
         self.list_simulators.append(
             Simulator(self.model, self.time_grid, self.list_input_varlist[0])
         )
-
 
     def _objective(self, analyze=False, values=None):
         # Change of basis https://www.youtube.com/watch?v=P2LTAUO1TdA&list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab&index=13
