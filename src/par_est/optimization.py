@@ -302,7 +302,7 @@ class OptimalExperimentalDesign(Optimizer):
         if self.solver_settings is None:
             self.solver_settings = {
                 "verbose": False,
-                # "monitor": "asens1_asens5_integrator_tau",
+                # "monitor": ["nlp_grad_f", "nlp_f"],
                 "ipopt": {
                     "hessian_approximation": "limited-memory",
                     "max_iter": 100,

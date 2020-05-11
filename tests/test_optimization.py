@@ -322,6 +322,6 @@ def test_jacobian_manipulation():
 
 if __name__ == "__main__":
     # test_optimizer()
-    # test_oed()
+    test_oed()
     # test_jacobian_manipulation()
-    test_pe()
+    # test_pe()
