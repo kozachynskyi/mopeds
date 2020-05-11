@@ -88,8 +88,8 @@ output.append(
     f"""
     # fmt: on"
 
-    m.add_differential_equations([{diff_equations}])
-    m.add_algebraic_equations([{alg_equations}])
+    m.add_equations_differential([{diff_equations}])
+    m.add_equations_algebraic([{alg_equations}])
 
     return variable_list, m
 

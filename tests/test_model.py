@@ -1,32 +1,32 @@
 import pytest
-from conftest import cstr_model_ode, pendulum_dae_1
+import par_est.examples
 
 
 def test_model():
 
-    var_list, model = cstr_model_ode()
+    var_list, model = par_est.examples.cstr_ode()
 
-    assert len(model.states) == 5
-    assert len(model.variables) == 18
-    assert len(model._all_variables) == 23
+    assert len(model.varlist_state) == 5
+    assert len(model.varlist_independent) == 18
+    assert len(model.varlist_all) == 23
 
-    assert model.differential_equations.size() == (5, 1)
-
-    with pytest.raises(NotImplementedError):
-        model.add_differential_equations(model.differential_equations[1])
-
-    var_list, model = pendulum_dae_1()
-
-    assert len(model.states) == 2
-    assert len(model.variables) == 2
-    assert len(model.algebraic_variables) == 3
-    assert len(model._all_variables) == 7
-
-    assert model.differential_equations.size() == (2, 1)
-    assert model.algebraic_equations.size() == (3, 1)
+    assert model.equations_differential.size() == (5, 1)
 
     with pytest.raises(NotImplementedError):
-        model.add_algebraic_equations(model.algebraic_equations[1])
+        model.add_equations_differential(model.equations_differential[1])
+
+    var_list, model = par_est.examples.pendulum_dae_1()
+
+    assert len(model.varlist_state) == 2
+    assert len(model.varlist_independent) == 2
+    assert len(model.varlist_algebraic) == 3
+    assert len(model.varlist_all) == 7
+
+    assert model.equations_differential.size() == (2, 1)
+    assert model.equations_algebraic.size() == (3, 1)
+
+    with pytest.raises(NotImplementedError):
+        model.add_equations_algebraic(model.equations_algebraic[1])
 
 
 if __name__ == "__main__":

@@ -1,17 +1,12 @@
 import copy
-from datetime import datetime, timedelta
-
-import casadi as ca
-import matplotlib.cm as cm
 import numpy as np
-from matplotlib import pyplot as plt
 
 import par_est
-import cstr
+import par_est.examples
 
 if __name__ == "__main__":
 
-    variable_list, m = cstr.initialize_problem_dae()
+    variable_list, m = par_est.examples.cstr_ode()
     # Create time-grid. Zero should be first
     time_grid = np.linspace(10, 10000, 40)
     time_grid = np.insert(time_grid, 0, 0)
@@ -29,4 +24,3 @@ if __name__ == "__main__":
     res = sim_fixed.generate_exp_data()
     res.plot_states()
     # np.savetxt("exp.txt", res.toarray().T, delimiter="\t")
-
