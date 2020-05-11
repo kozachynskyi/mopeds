@@ -3,7 +3,6 @@ from par_est import VariableAlgebraic, VariableState, Variable, VariableList
 
 
 class Model(object):
-
     def __init__(self, variable_list):
         self.varlist_state = VariableList()
         self.varlist_algebraic = VariableList()

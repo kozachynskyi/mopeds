@@ -42,7 +42,7 @@ class Optimizer(object):
         raise (NotImplementedError)
 
     def _setup_initialization(self):
-        # Sets initials and bounds for optimizer, and as default no scaling
+        """ Sets initials and bounds for optimizer, and as default no scaling. """
         guess = []
         lower_bound = []
         upper_bound = []
@@ -60,8 +60,9 @@ class Optimizer(object):
         self.upper_bound = np.array(upper_bound)
 
     def _setup_scaling(self, scale=False):
-        # Scaling should be done before setting a solver and solver settings
-        # Sets scaling variables in optimizer and simulator
+        """ Scaling should be done before setting a solver and solver settings.
+        Sets scaling variables in optimizer and simulator.
+        """
         if scale:
             self.scaling = self.guess
             for simulator in self.list_simulators:
@@ -84,11 +85,11 @@ class Optimizer(object):
                 simulator._reset_scaling()
 
     def _objective(self):
-        # Returns a way to calculate and objective. Dependent on optimization type
+        """ Returns a way to calculate and objective. Dependent on optimization type. """
         raise (NotImplementedError)
 
     def _optimize(self, scale):
-        # Scaling should be done before setting a solver and solver settings
+        """ Scaling should be done before setting a solver and solver settings. """
         self._setup_scaling(scale)
 
         self.solver = ca.nlpsol(
@@ -98,7 +99,7 @@ class Optimizer(object):
             self.solver_settings,
         )
 
-        # Scaling of negative numbers requires switch bounds
+        # Scaling of negative numbers requires a switch bounds
         lb_scaled = self.lower_bound / self.scaling
         ub_scaled = self.upper_bound / self.scaling
 
@@ -191,7 +192,9 @@ class ParameterEstimation(Optimizer):
         return error
 
     def optimize(self, scale=True):
-        # Scaling decreases amount of iterations, but ipopt fails gradient check at big amount of timestamps
+        """ Solves optimization problem. Scaling decreases amount of iterations,
+        and should be used as a first option.
+        """
         self.solver_name = "ipopt"
         if self.solver_settings is None:
             self.solver_settings = {
@@ -203,45 +206,35 @@ class ParameterEstimation(Optimizer):
 
 
 class OptimalExperimentalDesign(Optimizer):
-
-    """Docstring for OptimalExperimentalDesign. """
-
     def __init__(self, model: Model, variable_list: [VariableList], time_grid):
-        """TODO: to be defined. """
         super().__init__(model, variable_list)
         self.time_grid = time_grid
         self.parameter_values = []
-        self.ignore_independent = []
         self.select_independent = []
 
         self._setup_simulator()
         self._setup_initialization()
 
     def _setup_simulator(self):
+        """ Initializes simulator class. Parameter variables are fixed, and an index of an unfixed
+        parameter is saved in self.select_independent list.
+        This list is used during the calculation of the objective, to ignore jacobian of fixed parameters.
+        self.index_all_states is used additionaly to self.select_independent list to get required jacobian.
+        """
 
         for var in self.list_input_varlist[0].values():
             if isinstance(var, VariableControl):
-                index = list(self.model.varlist_independent).index(var.name) + 1
-                self.ignore_independent.append(index)
                 if var.fixed is False:
                     self.varlist_decision.add_variable(var)
             elif isinstance(var, VariableParameter):
-                index = list(self.model.varlist_independent).index(var.name) + 1
                 if var.fixed is False:
                     self.varlist_parameter.add_variable(var)
                     self.parameter_values.append(var.value)
                     var.fixed = True
-                    print(var.name)
-                    self.select_independent.append(index)
-                else:
+                    # index has + 1 to account for tau variable, that is a parameter of a simulation.
                     index = list(self.model.varlist_independent).index(var.name) + 1
-                    self.ignore_independent.append(index)
+                    self.select_independent.append(index)
 
-        # First parameter is always tau
-        self.ignore_independent.append(0)
-        self.ignore_independent.sort()
-
-        self.index_all_parameters = list(range(len(self.model.varlist_independent) + 1))
         self.index_all_states = list(range(len(self.model.varlist_state)))
 
         self.list_simulators.append(
@@ -249,32 +242,48 @@ class OptimalExperimentalDesign(Optimizer):
         )
 
     def _objective(self, analyze=False, values=None):
-        # Change of basis https://www.youtube.com/watch?v=P2LTAUO1TdA&list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab&index=13
-        # Only trace criterium is programmed in Casadi
+        """ Calculates an A OED criteria, beacuse casadi cannot do other.
+        "analyze" Flag and values are used for debugging.
+
+        Args:
+            analyze: used for debugging, calculates objective and covariance.
+            values: this values are used as desicionb variables for calculating of the objective.
+        """
         covariance_full = None
+        # -1 ignores time point zero in self.time_grid
         num_time = len(self.time_grid) - 1
+        # +1 account for tau variable in Simulator class
         num_param = len(self.model.varlist_independent) + 1
         num_state = len(self.model.varlist_state)
-        result_simulation = self.list_simulators[0].simulate(True)
-        res_jacobian = result_simulation["jac_xf_p"]
 
+        result_simulation = self.list_simulators[0].simulate(True)
+        result_jacobian = result_simulation["jac_xf_p"]
+
+        # Used only for debugging
         if analyze is True:
             self._setup_scaling(False)
             evaluate = ca.Function(
-                "eval_fim", [self.varlist_decision.get_casadi_var()], [res_jacobian]
+                "eval_fim", [self.varlist_decision.get_casadi_var()], [result_jacobian]
             )
             if values is None:
-                res_jacobian = evaluate(self.guess)
+                result_jacobian = evaluate(self.guess)
             else:
-                res_jacobian = evaluate(values)
+                result_jacobian = evaluate(values)
 
+        # Simulation returns jacobian that has to be split, to get jac at each time point.
+        # list_jacobian_at_timepoint contains a list of that jacobians.
         split_vector = np.linspace(0, num_time, num_time + 1, dtype=int) * num_param
-        list_jacobian_at_timepoint = ca.horzsplit(res_jacobian, split_vector)
+        list_jacobian_at_timepoint = ca.horzsplit(result_jacobian, split_vector)
 
+        # For now the measurement covariance is fixed, but it should be taken as input.
         covariance_measurement = np.eye(num_state)
 
+        # Jacobian is also scaled based on parameter values.
         parameter_scaling = ca.repmat(ca.DM(self.parameter_values).T, num_state, 1)
 
+        # For jacobian at each timepoint, select only unfixed parameters.
+        # Afterwards scale the jacobiand and calculate a parameter covariabce matrix.
+        # Finally, sum covariances at every time point.
         for jacobian in list_jacobian_at_timepoint:
             jacobian_selected = jacobian.get(
                 False, self.index_all_states, self.select_independent
@@ -297,6 +306,11 @@ class OptimalExperimentalDesign(Optimizer):
         return error
 
     def optimize(self, scale=True):
+        """ Run optimization.
+
+        Args:
+            scale: scaling should be used as default, allows for faster convergence
+        """
         # Scaling decreases amount of iterations, but ipopt fails gradient check at big amount of timestamps
         self.solver_name = "ipopt"
         if self.solver_settings is None:

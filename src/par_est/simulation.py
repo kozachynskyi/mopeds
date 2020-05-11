@@ -117,6 +117,7 @@ class Simulator(object):
         self.scaling = ca.DM.ones(self._variables.size())
 
     def analyze_WIP(self):
+        """ This function was working for previous version of the module."""
         function = ca.Function(
             "eq_sys",
             [self.ode_system["x"], self.ode_system["z"], self.ode_system["p"]],
@@ -170,8 +171,9 @@ class Simulator(object):
         # return check_initials, check_jacobian
 
     def simulate(self, derivatives=False):
-        # Return dictionary with results "xf" - state,
-        # "zf" - algebraic, "jac_xf_p" - derivatives
+        """ Return dictionary with results "xf" - state,
+        "zf" - algebraic, "jac_xf_p" - derivatives.
+        """
         map_num = len(self.time_grid) - 1
         initial_independent = ca.vertcat(
             ca.horzcat(*(self.time_grid[1:] - self.time_grid[:-1])),
@@ -214,6 +216,7 @@ class Simulator(object):
         return result_integration
 
     def generate_exp_data(self):
+        """ Runs simulation and returns results in VariableList class."""
         result_simulation = self.simulate()
         res_array = result_simulation["xf"]
         variables = VariableList()

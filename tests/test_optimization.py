@@ -8,8 +8,10 @@ import par_est
 import par_est.tools
 
 
-# @pytest.mark.skip(reason="WIP")
 def test_pe():
+    """ Test that ParameterEstimation on ODE and DAE always yields same result.
+    Helpfull to see if any drastic changes in calculation were made
+    """
     for cstr_model in [par_est.examples.cstr_ode, par_est.examples.cstr_dae]:
         var_list, model = cstr_model()
         time_grid = np.linspace(10, 10000, 3)
@@ -55,110 +57,36 @@ def test_pe():
         assert np.isclose(res["f"], ca.DM(answer), rtol=0, atol=1.0e-9)
 
 
-def test_covariance_manipulation():
-    """ Covariance calculation produces square matrix with size (NumOfParam * NumOfTimepoints)
-    Something in matrix multiplication makes covariance_difference_fail to be not excatly zero. """
-
-    num_time = 10
-    varlist, model = par_est.examples.cstr_ode()
-
-    time_grid = np.linspace(0, 1000, num_time + 1)
-    for var in varlist.values():
-        var.fixed = True
-    sim = par_est.Simulator(model, time_grid, varlist)
-    res = sim.simulate(True)
-
-    num_param = 19
-    num_state = 5
-    covariance_measurement = np.eye(num_state)
-
-    res_jacobian = res["jac_xf_p"]
-    covariance_full = res_jacobian.T @ covariance_measurement @ res_jacobian
-
-    covariance_measurement_reshape = np.kron(
-        np.eye(num_time, dtype=int), covariance_measurement
-    )
-
-    split_vector = np.linspace(0, num_time, num_time + 1, dtype=int) * num_param
-
-    list_jacobian_at_timepoint = ca.horzsplit(res_jacobian, split_vector)
-
-    jacobian_reshape = None
-    covariance_full_sum = None
-
-    for count_time_step in range(num_time):
-        index_from = count_time_step * num_param
-        index_till = num_param * count_time_step + (num_param)
-
-        jac_at_timepoint = res_jacobian[:, index_from:index_till][:, 1:]
-        cov_at_timepoint = (
-            jac_at_timepoint.T @ covariance_measurement @ jac_at_timepoint
-        )
-
-        assert (
-            list_jacobian_at_timepoint[count_time_step][:, 1:] - jac_at_timepoint
-        ).is_zero()
-
-        if jacobian_reshape is None:
-            jacobian_reshape = jac_at_timepoint
-        else:
-            jacobian_reshape = ca.vertcat(jacobian_reshape, jac_at_timepoint)
-
-        covariance_difference = (
-            covariance_full[index_from + 1 : index_till, index_from + 1 : index_till]
-            - cov_at_timepoint
-        )
-        assert covariance_difference.is_zero()
-
-        if covariance_full_sum is None:
-            covariance_full_sum = cov_at_timepoint
-        else:
-            covariance_full_sum = covariance_full_sum + cov_at_timepoint
-
-    covariance_reshape = (
-        jacobian_reshape.T @ covariance_measurement_reshape @ jacobian_reshape
-    )
-
-    covariance_difference_fail = covariance_full_sum - covariance_reshape
-    assert not covariance_difference_fail.is_zero()
-
-
 def test_oed():
-    var_list, model = par_est.examples.cstr_ode()
-    time_grid = np.linspace(10, 10000, 4)
-    time_grid = np.insert(time_grid, 0, 0)
-    for var in var_list.values():
-        var.fixed = True
+    """ Test that OptimalExperimentalDesign on ODE and DAE always yields same result.
+    Helpfull to see if any drastic changes in calculation were made
+    """
+    for cstr_model in [par_est.examples.cstr_ode, par_est.examples.cstr_dae]:
+        var_list, model = cstr_model()
+        time_grid = np.linspace(10, 10000, 4)
+        time_grid = np.insert(time_grid, 0, 0)
+        for var in var_list.values():
+            var.fixed = True
 
-    var_list["e0_E_r1"].fixed = False
-    # var_list["e0_E_r2"].fixed = False
-    # var_list["e0_E_r3"].fixed = False
-    # var_list["e0_k_pre_r1"].fixed = False
-    # var_list["e0_k_pre_r2"].fixed = False
-    # var_list["e0_k_pre_r3"].fixed = False
+        var_list["e0_E_r1"].fixed = False
+        var_list["e0_c_in_i1"].fixed = False
 
-    var_list["e0_c_in_i1"].fixed = False
-    # var_list["e0_c_in_i2"].fixed = False
-    # var_list["e0_c_in_i3"].fixed = False
-    # var_list["e0_c_in_i4"].fixed = False
-    # var_list["e0_T_in"].fixed = False
-    # var_list["e0_T_j"].fixed = False
-    # var_list["e0_F"].fixed = False
+        oed = par_est.OptimalExperimentalDesign(model, [var_list], time_grid)
+        res = oed.optimize()
 
-    oed = par_est.OptimalExperimentalDesign(model, [var_list], time_grid)
-    res = oed.optimize()
+        logging.warning(f"{res['f']}")
+        assert np.isclose(res["f"], ca.DM(45.1675), rtol=0, atol=1.0e-4)
 
-    logging.warning(f"{res['f']}")
-    assert np.isclose(res["f"], ca.DM(45.1675), rtol=0, atol=1.0e-4)
+        res = oed.optimize(True)
 
-    res = oed.optimize(True)
-    print(oed.list_simulators[0].simulate())
-
-    logging.warning(f"{res['f']}")
-    assert np.isclose(res["f"], ca.DM(45.1675), rtol=0, atol=1.0e-4)
+        logging.warning(f"{res['f']}")
+        assert np.isclose(res["f"], ca.DM(45.1675), rtol=0, atol=1.0e-4)
 
 
 def test_optimizer():
+    """ Tests if optimizer can deal with variable list of fixed and unfixed parameters.
+    Not well designed, and may yield false positives, but let it be.
+    """
     variable_list, m = par_est.examples.cstr_ode()
 
     # Create time-grid. Zero should be first
@@ -224,8 +152,6 @@ def test_optimizer():
                     if j == 0:
                         res_oed = oed.optimize(False)
 
-            # oed.get_fim_matrix()
-
             if i == 0:
                 assert res_pe["x"].size() == (11, 1)
                 assert res_oed["x"].size() == (7, 1)
@@ -243,85 +169,7 @@ def test_optimizer():
                 assert res_oed["x"].size() == (1, 1)
 
 
-def test_scaling():
-    var_list, m = par_est.examples.cstr_dae()
-    # Create time-grid. Zero should be first
-    time_grid = np.linspace(10, 10000, 4)
-    time_grid = np.insert(time_grid, 0, 0)
-
-    var_list_fixed = copy.deepcopy(var_list)
-    for var in var_list_fixed.values():
-        var.fixed = True
-    var_list_exp = par_est.Simulator(m, time_grid, var_list_fixed).generate_exp_data()
-
-    for key, var in var_list_exp.items():
-        var_list[key] = var
-
-    for var in var_list.values():
-        var.fixed = True
-
-    var_list["e0_E_r1"].fixed = False
-
-    pe = par_est.ParameterEstimation(m, [var_list])
-
-    pe._setup_scaling(False)
-    result_unscaled = pe.list_simulators[0].simulate(True)
-    ev_unscaled = ca.Function(
-        "aha",
-        [pe.varlist_decision.get_casadi_var()],
-        [result_unscaled["xf"], result_unscaled["jac_xf_p"]],
-    )
-
-    res1 = ev_unscaled(90000)
-
-    pe._setup_scaling(True)
-    result_scaled = pe.list_simulators[0].simulate(True)
-    ev_scaled = ca.Function(
-        "aha",
-        [pe.varlist_decision.get_casadi_var()],
-        [result_scaled["xf"], result_scaled["jac_xf_p"]],
-    )
-    res2 = ev_scaled(1)
-
-    print(res2[0] - res1[0])
-
-    difference_jacobian = res2[1] - res1[1]
-    print(difference_jacobian[:, 0:19])
-    print(difference_jacobian[:, 19:38])
-    print(difference_jacobian[:, 38:57])
-    print(difference_jacobian[:, 57:76])
-
-
-def test_jacobian_manipulation():
-    """ Covariance calculation produces square matrix with size (NumOfParam * NumOfTimepoints)
-    Something in matrix multiplication makes covariance_difference_fail to be not excatly zero. """
-
-    num_time = 3
-    varlist, model = par_est.examples.cstr_ode()
-
-    time_grid = np.linspace(0, 1000, num_time + 1)
-    for var in varlist.values():
-        var.fixed = True
-    sim = par_est.Simulator(model, time_grid, varlist)
-    res = sim.simulate(True)
-
-    num_param = 19
-
-    res_jacobian = res["jac_xf_p"]
-
-    index_all_states = list(range(len(model.varlist_state)))
-
-    split_vector = np.linspace(0, num_time, num_time + 1, dtype=int) * num_param
-
-    list_jacobian_at_timepoint = ca.horzsplit(res_jacobian, split_vector)
-
-    for jacobian in list_jacobian_at_timepoint:
-        selected = jacobian.get(False, index_all_states, [0, 2])
-        # par_est.tools.plot_arrays([jacobian, selected])
-
-
 if __name__ == "__main__":
     # test_optimizer()
-    test_oed()
-    # test_jacobian_manipulation()
-    # test_pe()
+    # test_oed()
+    test_pe()
