@@ -7,6 +7,18 @@ A project to play around with Parameter Estimation (PE) and Optimal Experimental
 python_requires = >=3.7,<3.8
 casadi https://github.com/casadi/casadi/wiki/InstallationInstructions
 
+## Installation
+
+Optionally: Create a new environment with conda / venv. Easier to manage dependencies.
+
+- pip install git+https://gitlab.tubit.tu-berlin.de/vovakozach/par_est_casadi
+
+### Development
+
+- Clone this repository
+- From the main folder run: `pip install -e .`
+- Run tests via `pytest`, finall tests should be run with `tox -r` command
+
 ## TODO
 
 Test_scaling in test_optimization shows that derivatives for first step with and without scaling are different, but it depends on a length of steps. Independent of ODE or DAE
@@ -21,7 +33,7 @@ Parameter estimation sequantially solves simulations. Multiprocessing doesn't wo
 
 OED has builtin variances, it should be taken from state variables
 
-## Development
+## Development tips
 
 - To mark something as unfinished use WIP (work in progress)
 - To Debug casadi use: 
