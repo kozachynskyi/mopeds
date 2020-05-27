@@ -14,7 +14,15 @@ from par_est import (
 
 
 class Simulator(object):
-    def __init__(self, model: Model, time_grid, variable_list: VariableList):
+    def __init__(
+        self,
+        model: Model,
+        time_grid,
+        variable_list: VariableList,
+        integrator_name="idas",
+        integrator_settings=None,
+    ):
+
         self.logger = logging.getLogger(__name__)
         self.logger.debug(
             "Creating Simulator object: \n timegrid \n {0} \n".format(time_grid)
@@ -23,6 +31,8 @@ class Simulator(object):
         self.model = model
         self.tau = ca.MX.sym("tau")
         self.scaling = None
+        self.integrator_settings = None
+        self.integrator_name = None
         self.time_grid = time_grid
 
         if self.model.equations_algebraic is None:
@@ -48,6 +58,39 @@ class Simulator(object):
             self.ode_system["z"] = self.model.varlist_algebraic.get_casadi_var()
             self.ode_system_tau["z"] = self.model.varlist_algebraic.get_casadi_var()
 
+        if integrator_name == "idas":
+            self.integrator_name = "idas"
+        else:
+            self.integrator_name = "collocation"
+
+        if integrator_settings is not None:
+            self.integrator_settings = integrator_settings
+        else:
+            if self.integrator_name == "idas":
+                self.integrator_settings = {
+                    "tf": 1,
+                    # "calc_ic": False,
+                    # 'abstol': 1,
+                    # "reltol": 1,
+                    # "monitor": "jacF",
+                    # "print_in": True,
+                    # "print_out": True,
+                    # "verbose": True,
+                    # "print_stats": True,
+                }
+            else:
+                self.integrator_settings = {
+                    "number_of_finite_elements": 3,
+                    "simplify": True,
+                    "rootfinder": "fast_newton",
+                    # "monitor": "jacF",
+                    # "print_in": True,
+                    # "print_out": True,
+                    # "verbose": True,
+                    # "print_stats": True,
+                }
+
+        # TODO This integrator is not used so far...
         self.integrator = ca.integrator(
             "integrator",
             "idas",
@@ -55,20 +98,11 @@ class Simulator(object):
             {"grid": self.time_grid, "output_t0": False, "print_stats": False},
         )
 
-        # This integrator uses tau variable and is used in PE and OED
         self.integrator_tau = ca.integrator(
             "integrator_tau",
-            "idas",
+            self.integrator_name,
             self.ode_system_tau,
-            {
-                "tf": 1,
-                # "monitor": "jacF"
-                # "print_in": True,
-                # "print_out": True,
-                # "verbose": True,
-                # "print_stats": True,
-            }
-            # "output_t0": False, "print_stats": False, "calc_ic": True},
+            self.integrator_settings,
         )
 
         steps_integrator = len(self.time_grid) - 1

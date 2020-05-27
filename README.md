@@ -22,6 +22,7 @@ Optionally: Create a new environment with conda / venv. Easier to manage depende
 ## TODO
 
 Test_scaling in test_optimization shows that derivatives for first step with and without scaling are different, but it depends on a length of steps. Independent of ODE or DAE
+Add tests for different integrators: ["idas", "collocation"]
 
 Test_pendulum_dae fails if time_grid has more timesteps. Presicion of DAE solver should be checked
 State variable starting value is redundant. It should be taken/stored from Experimental Data.

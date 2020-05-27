@@ -17,7 +17,13 @@ from par_est import (
 
 
 class Optimizer(object):
-    def __init__(self, model: Model, variable_lists: [VariableList]):
+    def __init__(
+        self,
+        model: Model,
+        variable_lists: [VariableList],
+        integrator_name,
+        integrator_settings,
+    ):
         if not isinstance(variable_lists, list):
             raise (Exception("Variable list should be nested of type list"))
         self.logger = logging.getLogger(__name__)
@@ -28,6 +34,8 @@ class Optimizer(object):
         self.varlist_parameter = VariableList()
         self.varlist_control = VariableList()
         self.varlist_state = VariableList()
+        self.integrator_name = integrator_name
+        self.integrator_settings = integrator_settings
         self.list_simulators = []  # type: List[Simulator]
 
         self.guess = None
@@ -120,8 +128,14 @@ class Optimizer(object):
 
 
 class ParameterEstimation(Optimizer):
-    def __init__(self, model: Model, variable_list: VariableList):
-        super().__init__(model, variable_list)
+    def __init__(
+        self,
+        model: Model,
+        variable_list: VariableList,
+        integrator_name="idas",
+        integrator_settings=None,
+    ):
+        super().__init__(model, variable_list, integrator_name, integrator_settings)
         self._setup_simulator()
         self.logger.debug(
             "Created Optimizer object: \n Data Shape {} \n Desicion Variables {}".format(
@@ -157,7 +171,15 @@ class ParameterEstimation(Optimizer):
 
             time_grid = np.unique(time_grid)
 
-            self.list_simulators.append(Simulator(self.model, time_grid, varlist_input))
+            self.list_simulators.append(
+                Simulator(
+                    self.model,
+                    time_grid,
+                    varlist_input,
+                    self.integrator_name,
+                    self.integrator_settings,
+                )
+            )
 
             for var in varlist_input.values():
                 if isinstance(var, VariableState):
@@ -207,8 +229,15 @@ class ParameterEstimation(Optimizer):
 
 
 class OptimalExperimentalDesign(Optimizer):
-    def __init__(self, model: Model, variable_list: [VariableList], time_grid):
-        super().__init__(model, variable_list)
+    def __init__(
+        self,
+        model: Model,
+        variable_list: [VariableList],
+        time_grid,
+        integrator_name="idas",
+        integrator_settings=None,
+    ):
+        super().__init__(model, variable_list, integrator_name, integrator_settings)
         self.time_grid = time_grid
         self.parameter_values = []
         self.select_independent = []
@@ -239,7 +268,13 @@ class OptimalExperimentalDesign(Optimizer):
         self.index_all_states = list(range(len(self.model.varlist_state)))
 
         self.list_simulators.append(
-            Simulator(self.model, self.time_grid, self.list_input_varlist[0])
+            Simulator(
+                self.model,
+                self.time_grid,
+                self.list_input_varlist[0],
+                self.integrator_name,
+                self.integrator_settings,
+            )
         )
 
     def _objective(self, analyze=False, values=None):
@@ -265,9 +300,7 @@ class OptimalExperimentalDesign(Optimizer):
         if analyze is True:
             self._setup_scaling(False)
             evaluate = ca.Function(
-                "eval_fim",
-                [self.varlist_decision.get_casadi_var()],
-                [result_jacobian],
+                "eval_fim", [self.varlist_decision.get_casadi_var()], [result_jacobian],
             )
             if values is None:
                 result_jacobian = evaluate(self.guess)

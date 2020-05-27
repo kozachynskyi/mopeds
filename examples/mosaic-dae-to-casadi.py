@@ -1,4 +1,9 @@
 import sys
+import re
+import logging
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG, format="%(message)s")
 
 if len(sys.argv) == 2:
     path_to_file = sys.argv[1]
@@ -28,7 +33,7 @@ def initialize_problem():
 
     variable_list = par_est.VariableList()
 
-    # fmt: off """
+    # fmt: off"""
 )
 
 counter = 0
@@ -44,15 +49,15 @@ for line in Lines:
         counter += 1
         if counter > state_var:
             output.append(
-                f'    variable_list.add_variable(par_est.Algebraic_variable("{fields[4]}", {fields[2][:-1]}))'
+                f'    variable_list.add_variable(par_est.VariableAlgebraic("{fields[4]}", {fields[2][:-1]}))'
             )
         else:
             output.append(
-                f'    variable_list.add_variable(par_est.State_variable("{fields[4]}", {fields[2][:-1]}))'
+                f'    variable_list.add_variable(par_est.VariableState("{fields[4]}", {fields[2][:-1]}))'
             )
     elif "PARAMS(" in line and "%" in line:
         output.append(
-            f'    variable_list.add_variable(par_est.Parameter_variable("{fields[4]}", {fields[2][:-1]}))'
+            f'    variable_list.add_variable(par_est.VariableParameter("{fields[4]}", {fields[2][:-1]}))'
         )
 
 output.append("\n    m = par_est.Model(variable_list)\n")
@@ -60,8 +65,8 @@ output.append("\n    m = par_est.Model(variable_list)\n")
 counter = 0
 diff_equations = ""
 alg_equations = ""
+
 for line in Lines:
-    fields = line.strip().split()
     if "DYDX(" in line:
         counter += 1
         new_line = f"    dydx{counter} = "
@@ -70,23 +75,22 @@ for line in Lines:
         else:
             diff_equations += f"dydx{counter} ,"
 
-        for field in fields[2:]:
-            if "e0_" in field:
-                field = f'm._all_variables["{field}"].casadi_var'
-            elif "exp" in field:
-                field = field.replace("exp", "ca.exp")
-            elif "^" in field:
-                field = field.replace("^", "**")
-            elif ";" in field:
-                field = field.replace(";", "")
+        line.strip()
+        line = re.sub("DYDX\(\d*\) =", "", line)
+        while "power" in line:
+            line = re.sub(r"(power)(\()(\(.*?\)),", "\g<3> ** (", line)
+        line = re.sub(r"e0_\w*", r"m.varlist_all['\g<0>'].casadi_var", line)
+        line = re.sub("exp", "ca.exp", line)
+        line = re.sub("log", "ca.log", line)
+        line = re.sub(r"\^", r"**", line)
+        line = re.sub(";", "", line)
 
-            new_line += f" {field} "
+        new_line += line
         output.append(new_line)
-        # print(new_line)
 
 output.append(
     f"""
-    # fmt: on"
+    # fmt: on
 
     m.add_equations_differential([{diff_equations}])
     m.add_equations_algebraic([{alg_equations}])
@@ -111,7 +115,7 @@ if __name__ == "__main__":
     res_simple = sim_fixed.simulate()
     # Run simulation and connect results with actual state variables, which can be plotted based on available data
     res = sim_fixed.generate_exp_data()
-    res.plot_states()
+    # res.plot_states()
     # np.savetxt("exp.txt", res.toarray().T, delimiter="\t")"""
 )
 
