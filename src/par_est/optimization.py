@@ -4,6 +4,7 @@ import casadi as ca
 import numpy as np
 from typing import List
 from scipy.sparse import csc_matrix, vstack
+from scipy import linalg
 
 from par_est import (
     VariableControl,
@@ -250,6 +251,7 @@ class OptimalExperimentalDesign(Optimizer):
             values: this values are used as desicionb variables for calculating of the objective.
         """
         covariance_full = None
+        jacobian_full = None
         # -1 ignores time point zero in self.time_grid
         num_time = len(self.time_grid) - 1
         # +1 account for tau variable in Simulator class
@@ -263,7 +265,9 @@ class OptimalExperimentalDesign(Optimizer):
         if analyze is True:
             self._setup_scaling(False)
             evaluate = ca.Function(
-                "eval_fim", [self.varlist_decision.get_casadi_var()], [result_jacobian]
+                "eval_fim",
+                [self.varlist_decision.get_casadi_var()],
+                [result_jacobian],
             )
             if values is None:
                 result_jacobian = evaluate(self.guess)
@@ -293,15 +297,28 @@ class OptimalExperimentalDesign(Optimizer):
             cov_at_timepoint = (
                 jacobian_selected.T @ covariance_measurement @ jacobian_selected
             )
+
             if covariance_full is None:
                 covariance_full = cov_at_timepoint
             else:
                 covariance_full = covariance_full + cov_at_timepoint
 
+        if analyze:
+            for jacobian in list_jacobian_at_timepoint:
+                jacobian_selected = jacobian.get(
+                    False, self.index_all_states, self.select_independent
+                )
+                jacobian_selected = jacobian_selected * parameter_scaling
+
+                if jacobian_full is None:
+                    jacobian_full = jacobian_selected
+                else:
+                    jacobian_full = ca.vertcat(jacobian_full, jacobian_selected)
+
         error = ca.trace(ca.inv(covariance_full))
 
         if analyze:
-            return error, covariance_full
+            return error, covariance_full, jacobian_full
 
         return error
 
@@ -325,3 +342,94 @@ class OptimalExperimentalDesign(Optimizer):
             }
 
         return self._optimize(scale)
+
+    def identifiability_analysis(self, reset_self=False):
+        """ Taken from Erik/Diana Subset0. Many questions arrise about how it works. """
+        _, _, jacobian = self._objective(True)
+        cond_threshold = 1000
+        colin_threshold = 15
+
+        states, parameters = jacobian.shape
+
+        if states < parameters:
+            jacobian = np.pad(
+                jacobian,
+                ((0, parameters - states), (0, 0)),
+                mode="constant",
+                constant_values=0,
+            )
+
+        u, s, vh = np.linalg.svd(jacobian, False)
+
+        # 2. rank determination of J
+        values = abs(s)
+        dimSVal = len(values)
+        maxVal = np.max(values)
+        minVal = np.min(values)
+
+        CondN_Sub = maxVal / values
+        ColIdx_Sub = 1 / values
+
+        smallval = []
+        for i in range(0, dimSVal):
+            if (
+                np.abs(CondN_Sub[i]) <= cond_threshold
+                and np.abs(ColIdx_Sub[i]) <= colin_threshold
+            ):
+                smallval.append(CondN_Sub[i])
+
+        rank = len(smallval)
+
+        SummationSv = np.sum(values)
+        NeglectSv = np.sum(values[rank:] / SummationSv)
+
+        # Determination of permutation matrix P by construction a RRQR of S
+        Q, R, P = linalg.qr(jacobian, pivoting=True)
+
+        # Use this for ranking
+        IdentifOrd = P
+        # Why
+        # IdentifOrd.append(P)
+
+        # Condition Number of J (Golub, 1996 & Hansen, 1998)
+        CondN = maxVal / minVal
+
+        # Still to understand!!!
+        # collinIndex.Colind
+        # collinIndex.Sub
+
+        Jsqr = jacobian ** 2
+
+        ParNorm = np.empty(jacobian.shape[1])
+
+        for i in range(0, jacobian.shape[1]):
+            ParNorm[i] = np.sqrt(np.sum(Jsqr[:, i] / jacobian.shape[0]))
+
+        SensitivityOrder = np.argsort(ParNorm)[::-1]
+        B = np.sort(ParNorm)[::-1]
+
+        SensityOrd = B, SensitivityOrder
+
+        TotalVariance = np.sum(values ** 2)
+        NeglectVariance = np.sum(values[rank:] ** 2 / TotalVariance)
+
+        unfix_parameters = []
+        for index in range(rank):
+            parameter_name = list(self.varlist_parameter.values())[
+                IdentifOrd[index]
+            ].name
+            unfix_parameters.append(parameter_name)
+
+        if reset_self:
+            new_varlist = copy.deepcopy(self.list_input_varlist)
+
+            for var in new_varlist[0].values():
+                if isinstance(var, VariableParameter):
+                    if var.name in unfix_parameters:
+                        var.fixed = False
+                    else:
+                        var.fixed = True
+
+            self.__init__(self.model, new_varlist, self.time_grid)
+
+        return unfix_parameters
