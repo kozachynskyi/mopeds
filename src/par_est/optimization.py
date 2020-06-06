@@ -6,6 +6,7 @@ from typing import List
 from scipy.sparse import csc_matrix, vstack
 from scipy import linalg
 
+from par_est import tools
 from par_est import (
     VariableControl,
     Model,
@@ -50,6 +51,10 @@ class Optimizer(object):
         # Creates simulator
         raise (NotImplementedError)
 
+    def optimize(self):
+        # Runs optimization once
+        raise (NotImplementedError)
+
     def _setup_initialization(self):
         """ Sets initials and bounds for optimizer, and as default no scaling. """
         guess = []
@@ -71,9 +76,10 @@ class Optimizer(object):
     def _setup_scaling(self, scale=False):
         """ Scaling should be done before setting a solver and solver settings.
         Sets scaling variables in optimizer and simulator.
+        TODO: Whole loop can be replaced by simple np.where, isn't it?
         """
         if scale:
-            self.scaling = self.guess
+            self.scaling = np.where(self.guess == 0, 1, self.guess)
             for simulator in self.list_simulators:
                 simulator._reset_scaling()
                 # for var in self.simulation._variables fails to iterate
@@ -121,10 +127,33 @@ class Optimizer(object):
             x0=self.guess / self.scaling, lbx=lb_scaled, ubx=ub_scaled,
         )
 
-        print(res_solver["x"])
-        print(res_solver["x"] * self.scaling)
 
         return res_solver
+
+    def optimize_multistart(self, num_initials, scale=True, max_iterations=20):
+        hammersley_seeds = np.array(list(zip(self.lower_bound, self.upper_bound)))
+
+        list_startpoint = tools.make_startpoints(hammersley_seeds, num_initials)
+
+        result = []
+
+        for index, guess in enumerate(list_startpoint):
+            self.guess = guess
+            self.solver_settings = {
+                "verbose": False,
+                "print_time": False,
+                "ipopt": {
+                    "hessian_approximation": "limited-memory",
+                    "max_iter": max_iterations,
+                    "print_level": 0,
+                },
+            }
+            print(f"Optimization number {index} started")
+            res = self.optimize(scale)
+            print(f"Objective: {res['f']}")
+            result.append(res)
+
+        return result
 
 
 class ParameterEstimation(Optimizer):
@@ -398,7 +427,7 @@ class OptimalExperimentalDesign(Optimizer):
         values = abs(s)
         dimSVal = len(values)
         maxVal = np.max(values)
-        minVal = np.min(values)
+        # minVal = np.min(values)
 
         CondN_Sub = maxVal / values
         ColIdx_Sub = 1 / values
@@ -413,8 +442,8 @@ class OptimalExperimentalDesign(Optimizer):
 
         rank = len(smallval)
 
-        SummationSv = np.sum(values)
-        NeglectSv = np.sum(values[rank:] / SummationSv)
+        # SummationSv = np.sum(values)
+        # NeglectSv = np.sum(values[rank:] / SummationSv)
 
         # Determination of permutation matrix P by construction a RRQR of S
         Q, R, P = linalg.qr(jacobian, pivoting=True)
@@ -425,7 +454,7 @@ class OptimalExperimentalDesign(Optimizer):
         # IdentifOrd.append(P)
 
         # Condition Number of J (Golub, 1996 & Hansen, 1998)
-        CondN = maxVal / minVal
+        # CondN = maxVal / minVal
 
         # Still to understand!!!
         # collinIndex.Colind
@@ -438,13 +467,13 @@ class OptimalExperimentalDesign(Optimizer):
         for i in range(0, jacobian.shape[1]):
             ParNorm[i] = np.sqrt(np.sum(Jsqr[:, i] / jacobian.shape[0]))
 
-        SensitivityOrder = np.argsort(ParNorm)[::-1]
-        B = np.sort(ParNorm)[::-1]
+        # SensitivityOrder = np.argsort(ParNorm)[::-1]
+        # B = np.sort(ParNorm)[::-1]
 
-        SensityOrd = B, SensitivityOrder
+        # SensityOrd = B, SensitivityOrder
 
-        TotalVariance = np.sum(values ** 2)
-        NeglectVariance = np.sum(values[rank:] ** 2 / TotalVariance)
+        # TotalVariance = np.sum(values ** 2)
+        # NeglectVariance = np.sum(values[rank:] ** 2 / TotalVariance)
 
         unfix_parameters = []
         for index in range(rank):
