@@ -280,3 +280,82 @@ class Simulator(object):
             shift_by = count + 1
 
         return variables
+
+
+class SimulatorNLE():
+    def __init__(self, model: Model, variable_list: VariableList):
+        self.model = model
+        self.__input_variable_list = copy.deepcopy(variable_list)
+
+        self._variables = []
+        self._initial_state = []
+
+        # Fügt Variablen hinzu und sotiert nach festen/zu schätzenden Werten
+        for var in self.__input_variable_list.values():
+            if isinstance(var, Variable):
+                if isinstance(var, VariableState):
+                    self._initial_state.append(var.starting_value)
+                else:
+                    if var.fixed:
+                        self._variables.append(var.value)
+                    else:
+                        self._variables.append(var.casadi_var)
+
+        self._variables = ca.vcat(self._variables)
+
+        self.function = ca.Function("f", [self.model.varlist_state.get_casadi_var(), self.model.varlist_independent.get_casadi_var()], [self.model.equations_differential], ["x0", "p"], ["r"] )
+        self._reset_scaling()
+
+    def generate_exp_data(self):
+        opts = {}
+        opts_ipopt = {}
+        # opts["strategy"] = "linesearch"
+        opts["nlpsol"] = "ipopt"
+        opts_ipopt["print_time"] = False
+        opts_ipopt["ipopt.print_level"] = 0
+        opts["nlpsol_options"] = opts_ipopt
+        # opts["abstol"] = 1e-14
+        # opts["constraints"] = [2, -2]
+
+        sim = ca.rootfinder("s", "nlpsol", self.function, opts)
+        # breakpoint()
+
+        res_array = sim(self._initial_state, self._variables)
+
+        variables = VariableList()
+
+        for variable_list in [self.model.varlist_state]:
+            for count, var in enumerate(variable_list.values()):
+                new_var = copy.deepcopy(var)
+                new_var.value = ExperimentData()
+                new_var.value.time = 0
+                new_var.value.value = res_array[count]
+                variables.add_variable(new_var)
+
+        return variables
+
+    def _reset_scaling(self):
+        self.scaling = ca.DM.ones(self._variables.size())
+
+    def simulate_sym(self):
+        opts = {}
+        opts_ipopt = {}
+        # opts["strategy"] = "linesearch"
+        opts["nlpsol"] = "ipopt"
+        opts_ipopt["print_time"] = False
+        opts_ipopt["ipopt.print_level"] = 0
+        opts["nlpsol_options"] = opts_ipopt
+        # opts["strategy"] = "linesearch"
+        # opts["abstol"] = 1e-14
+        # opts["constraints"] = [2, -2]
+        # opts["verbose"] = True
+        # opts["print_in"] = True
+        # opts["print_out"] = True
+        # opts["print_stats"] = True
+
+        sim = ca.rootfinder("s", "nlpsol", self.function, opts)
+        arg = {'x0':ca.DM(self._initial_state),'p':self._variables}
+
+        # res = sim(x0=self._initial_state, p=self._variables)
+        res = sim.call(arg)
+        return res

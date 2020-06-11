@@ -1,5 +1,6 @@
 from collections import OrderedDict
 from datetime import datetime, timedelta
+import copy
 
 import casadi as ca
 import numpy as np
@@ -63,10 +64,10 @@ class VariableControl(Variable):
         self.upper_bound = ub
         self.opc_ua_id = opc_ua_id
 
-
 class VariableList(OrderedDict):
     def __init__(self):
         super().__init__()
+        self.name = None
 
     def add_variable(self, variable: Variable):
         if variable.name in self:
@@ -120,6 +121,48 @@ class VariableList(OrderedDict):
         finally:
             client.disconnect()
 
+    def set_variable_list_fixed(self, fix_list = None):
+        self._list_fixation(fix_list, True)
+
+    def set_variable_list_unfixed(self, unfix_list = None):
+        self._list_fixation(unfix_list, False)
+
+    def _list_fixation(self, fixation_list, val):
+        if fixation_list == None:
+            for var in self.values():
+                var.fixed = val
+        else:
+            for var in self.values():
+                if var.name in fixation_list:
+                    var.fixed = val
+
+    def set_starting_values(self, values_simulation, NLE_Flag = False):
+        for key, var in values_simulation.items(): 
+            if NLE_Flag == True: 
+                var.starting_value = var.value.value
+                self[key] = var
+
+    def set_bounds(self, val = 0.25, emerg_val = None):
+        for var in self.values():
+            if isinstance(var, VariableParameter) and var.fixed == False:
+                if var.value > 0:
+                    var.lower_bound = var.value - var.value*val
+                    var.upper_bound = var.value + var.value*val
+                elif var.value < 0:
+                    var.lower_bound = var.value + var.value*val
+                    var.upper_bound = var.value - var.value*val
+                elif var.value == 0:
+                    if emerg_val is None:
+                        # Setting bounds for val == 0 without emerg_val is not implemented
+                        raise (NotImplementedError)
+                    else:
+                        var.lower_bound = var.value - emerg_val
+                        var.upper_bound = var.value + emerg_val
+                else:
+                        # Setting bounds for arrays is not implemented
+                        raise (NotImplementedError)
+                var.guess = var.lower_bound
+
     def write_data_opcua(self, time_start: datetime):
         client = OptiPALClient("opc.tcp://admin@localhost:4840")  # type: OptiPALClient
         client.connect()
@@ -162,7 +205,6 @@ class VariableList(OrderedDict):
                     ax.plot(var.value.time, var.value.value, label=var.name)
                     ax.legend()
             plt.show()
-
 
 class ExperimentData(object):
     def __init__(self):
