@@ -64,16 +64,21 @@ class VariableControl(Variable):
         self.upper_bound = ub
         self.opc_ua_id = opc_ua_id
 
+
 class VariableList(OrderedDict):
     def __init__(self):
         super().__init__()
-        self.name = None
 
     def add_variable(self, variable: Variable):
+<<<<<<< HEAD
         if variable.name in self:
             raise SameVariableNameError(variable.name)
         else:
             self.update({variable.name: variable})
+=======
+        """ TODO: add error handling if variable exists"""
+        self.update({variable.name: variable})
+>>>>>>> Missed this point
 
     def get_variable_name(self):
         names = []
@@ -205,6 +210,7 @@ class VariableList(OrderedDict):
                     ax.plot(var.value.time, var.value.value, label=var.name)
                     ax.legend()
             plt.show()
+
 
 class ExperimentData(object):
     def __init__(self):
