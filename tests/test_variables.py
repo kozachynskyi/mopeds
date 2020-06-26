@@ -59,9 +59,6 @@ def test_variables():
     with pytest.raises(PlottingError):
         res_no_var.plot_states()
 
-    # plot_states()
-    res.plot_states()
-
 
 if __name__ == "__main__":
     test_variables()

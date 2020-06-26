@@ -171,10 +171,7 @@ class ExperimentData(object):
 
 class SameVariableNameError(Exception):
     def __init__(self, name):
-        message = (
-            "There is already an existing variable with the same name! Wrong variable with name: "
-            + name
-        )
+        message = f"There is already an existing variable with the same name! Wrong variable with name: {name}"
         super().__init__(message)
 
 
@@ -184,4 +181,6 @@ class PlottingError(Exception):
             message = "There are no variables to plot!"
         elif error_switch == "time grid":
             message = "There is no time grid to plot against!"
+        else:
+            message = "Plotting not possible"
         super().__init__(message)

@@ -56,8 +56,5 @@ class Model(object):
 
 class VariableTypeError(Exception):
     def __init__(self, name):
-        message = (
-            "Not a supported par_est_casadi variable class! Wrong variable with name: "
-            + name
-        )
+        message = f"Not a supported par_est_casadi variable class! Wrong variable with name: {name}"
         super().__init__(message)
