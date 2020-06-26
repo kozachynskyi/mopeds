@@ -1,5 +1,12 @@
 import casadi as ca
-from par_est import VariableAlgebraic, VariableState, Variable, VariableList
+from par_est import (
+    VariableAlgebraic,
+    VariableState,
+    VariableParameter,
+    VariableControl,
+    Variable,
+    VariableList,
+)
 
 
 class Model(object):
@@ -18,10 +25,14 @@ class Model(object):
                     self.varlist_state.add_variable(VariableState(var.name))
                 elif isinstance(var, VariableAlgebraic):
                     self.varlist_algebraic.add_variable(VariableAlgebraic(var.name))
-                else:
+                elif isinstance(var, VariableParameter) or isinstance(
+                    var, VariableControl
+                ):
                     self.varlist_independent.add_variable(type(var)(var.name))
+                else:
+                    raise VariableTypeError(var.name)
             else:
-                raise (TypeError)
+                raise VariableTypeError(var.name)
 
         self.varlist_all.update(self.varlist_state)
         self.varlist_all.update(self.varlist_algebraic)
@@ -41,3 +52,12 @@ class Model(object):
         else:
             # Adding additional equations is not implemented
             raise (NotImplementedError)
+
+
+class VariableTypeError(Exception):
+    def __init__(self, name):
+        message = (
+            "Not a supported par_est_casadi variable class! Wrong variable with name: "
+            + name
+        )
+        super().__init__(message)

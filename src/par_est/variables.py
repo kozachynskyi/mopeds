@@ -69,8 +69,10 @@ class VariableList(OrderedDict):
         super().__init__()
 
     def add_variable(self, variable: Variable):
-        """ TODO: add error handling if variable exists"""
-        self.update({variable.name: variable})
+        if variable.name in self:
+            raise SameVariableNameError(variable.name)
+        else:
+            self.update({variable.name: variable})
 
     def get_variable_name(self):
         names = []
@@ -144,19 +146,42 @@ class VariableList(OrderedDict):
             elif isinstance(var, VariableAlgebraic):
                 state_var_list.add_variable(var)
 
-        if as_one_plot is True:
-            for var in state_var_list.values():
-                plt.plot(var.value.time, var.value.value, label=var.name)
-            plt.legend()
+        if not state_var_list or not var.value.value.any():
+            raise PlottingError("variables")
+        elif var.value.time is None or not var.value.time.any():
+            raise PlottingError("time grid")
         else:
-            figure, axes_array = plt.subplots(len(self))
-            for var, ax in zip(state_var_list.values(), axes_array):
-                ax.plot(var.value.time, var.value.value, label=var.name)
-                ax.legend()
-        plt.show()
+            if as_one_plot is True:
+                for var in state_var_list.values():
+                    plt.plot(var.value.time, var.value.value, label=var.name)
+                plt.legend()
+            else:
+                figure, axes_array = plt.subplots(len(self))
+                for var, ax in zip(state_var_list.values(), axes_array):
+                    ax.plot(var.value.time, var.value.value, label=var.name)
+                    ax.legend()
+            plt.show()
 
 
 class ExperimentData(object):
     def __init__(self):
         self.time = None
         self.value = None
+
+
+class SameVariableNameError(Exception):
+    def __init__(self, name):
+        message = (
+            "There is already an existing variable with the same name! Wrong variable with name: "
+            + name
+        )
+        super().__init__(message)
+
+
+class PlottingError(Exception):
+    def __init__(self, error_switch):
+        if error_switch == "variables":
+            message = "There are no variables to plot!"
+        elif error_switch == "time grid":
+            message = "There is no time grid to plot against!"
+        super().__init__(message)
