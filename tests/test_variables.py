@@ -33,7 +33,7 @@ def test_variables():
 
     # Test plot_states() and PlottingError
     variable_list, m = par_est.examples.cstr_ode()
-    time_grid = np.linspace(10, 10000, 10)
+    time_grid = np.linspace(0, 1, 2)
     time_grid = np.insert(time_grid, 0, 0)
 
     var_list_fixed = copy.deepcopy(variable_list)

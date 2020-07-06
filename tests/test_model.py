@@ -1,5 +1,6 @@
 import pytest
 import par_est.examples
+from par_est.model import VariableTypeError
 
 
 def test_model():
@@ -27,6 +28,14 @@ def test_model():
 
     with pytest.raises(NotImplementedError):
         model.add_equations_algebraic(model.equations_algebraic[1])
+
+    var_list = par_est.VariableList()
+    var_list.add_variable(par_est.Variable("a_test"))
+    with pytest.raises(VariableTypeError):
+        model = par_est.Model(var_list)
+
+    var_list, model = par_est.examples.cstr_ode_short()
+    print(model)
 
 
 if __name__ == "__main__":
