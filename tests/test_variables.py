@@ -31,33 +31,24 @@ def test_variables():
 
     assert len(variable_list) == 1
 
-    # Test plot_states() and PlottingError
-    variable_list, m = par_est.examples.cstr_ode()
-    time_grid = np.linspace(0, 1, 2)
-    time_grid = np.insert(time_grid, 0, 0)
+    # Test PlottingError
+    variable_list = par_est.VariableList()
 
-    var_list_fixed = copy.deepcopy(variable_list)
-    for var in var_list_fixed.values():
-        var.fixed = True
+    var_1 = par_est.VariableState("Var1")
+    var_2 = par_est.VariableState("Var2")
 
-    sim_fixed = par_est.Simulator(m, time_grid, var_list_fixed)
-    res = sim_fixed.generate_exp_data()
+    variable_list.add_variable(var_1)
+    variable_list.add_variable(var_2)
 
-    # PlottingError
-    res_no_time = copy.deepcopy(res)
-    res_no_var = copy.deepcopy(res)
-
-    for var in res_no_time.values():
-        var.value.time = np.array([])
+    variable_list["Var1"].value.value = [0, 1, 2]
+    variable_list["Var2"].value.time = [0, 1, 2]
 
     with pytest.raises(PlottingError):
-        res_no_time.plot_states()
-
-    for var in res_no_var.values():
-        var.value.value = np.array([])
+        variable_list.plot_states()
 
     with pytest.raises(PlottingError):
-        res_no_var.plot_states()
+        variable_list["Var1"].value.time = [0, 1, 2]
+        variable_list.plot_states()
 
 
 if __name__ == "__main__":

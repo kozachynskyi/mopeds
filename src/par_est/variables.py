@@ -141,15 +141,16 @@ class VariableList(OrderedDict):
         # Choose only state variables
         state_var_list = VariableList()
         for var in self.values():
+            if var.value.value is None:
+                raise PlottingError("variables")
+            elif var.value.time is None:
+                raise PlottingError("time grid")
+
             if isinstance(var, VariableState):
                 state_var_list.add_variable(var)
             elif isinstance(var, VariableAlgebraic):
                 state_var_list.add_variable(var)
 
-        if not state_var_list or not var.value.value.any():
-            raise PlottingError("variables")
-        elif var.value.time is None or not var.value.time.any():
-            raise PlottingError("time grid")
         else:
             if as_one_plot is True:
                 for var in state_var_list.values():

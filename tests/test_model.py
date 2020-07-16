@@ -34,9 +34,6 @@ def test_model():
     with pytest.raises(VariableTypeError):
         model = par_est.Model(var_list)
 
-    var_list, model = par_est.examples.cstr_ode_short()
-    print(model)
-
 
 if __name__ == "__main__":
     test_model()

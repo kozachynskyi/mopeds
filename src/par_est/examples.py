@@ -156,26 +156,3 @@ def cstr_dae():
     m.add_equations_algebraic([ctot])
 
     return variable_list, m
-
-def cstr_ode_short():
-
-    variable_list = par_est.VariableList()
-
-    e0_tau_h = 30.0
-
-    variable_list.add_variable(par_est.VariableParameter("e0_k_pre_r1", 5.0e6, 4.5e6, 5.5e6))
-    variable_list.add_variable(par_est.VariableParameter("e0_A", 0, 10, 20))
-    variable_list.add_variable(par_est.VariableParameter("e0_c_in_i1", 5.0, 4.0, 6.0))
-
-    variable_list.add_variable(par_est.VariableState("e0_c_i1", 1, 20))
-
-
-    for var in variable_list.values():
-        var.guess = var.lower_bound
-
-    model = par_est.Model(variable_list)
-
-    c1dot = (1 / e0_tau_h) * ((model.varlist_all["e0_c_in_i1"].casadi_var) - model.varlist_all["e0_c_i1"].casadi_var) - (model.varlist_all["e0_k_pre_r1"].casadi_var * ca.exp(model.varlist_all["e0_A"].casadi_var))
-    model.add_equations_differential([c1dot])
-
-    return variable_list, model
