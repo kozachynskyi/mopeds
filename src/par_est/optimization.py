@@ -3,7 +3,7 @@ import logging
 import casadi as ca
 import numpy as np
 from typing import List
-from scipy.sparse import csc_matrix, vstack
+from scipy.sparse import csc_matrix, vstack, hstack
 from scipy import linalg
 
 from par_est import tools
@@ -500,7 +500,9 @@ class OptimalExperimentalDesign(Optimizer):
 
 class ParameterEstimationNLE(Optimizer):
     def __init__(self, model: Model, variable_list: VariableList):
-        super().__init__(model, variable_list)
+        integrator_name=None,
+        integrator_settings=None,
+        super().__init__(model, variable_list, integrator_name, integrator_settings)
         self._setup_simulator()
         self.logger.debug("Created Optimizer object: \n Data Shape {} \n Desicion Variables {}".format(self.array_data.shape, self.varlist_decision.get_variable_name()))
         self._setup_initialization()
