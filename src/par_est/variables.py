@@ -70,15 +70,10 @@ class VariableList(OrderedDict):
         super().__init__()
 
     def add_variable(self, variable: Variable):
-<<<<<<< HEAD
         if variable.name in self:
             raise SameVariableNameError(variable.name)
         else:
             self.update({variable.name: variable})
-=======
-        """ TODO: add error handling if variable exists"""
-        self.update({variable.name: variable})
->>>>>>> Missed this point
 
     def get_variable_name(self):
         names = []
