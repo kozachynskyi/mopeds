@@ -39,8 +39,8 @@ def initialize_problem():
     #     c = [-46.9659,   -39.7239] # c in K
 
     variable_list.add_variable(par_est.VariableState("T", 373))
-    variable_list.add_variable(par_est.VariableParameter("x", 0.5))
-    variable_list.add_variable(par_est.VariableParameter("P", 1e5))
+    variable_list.add_variable(par_est.VariableControl("x", 0.5))
+    variable_list.add_variable(par_est.VariableControl("P", 1e5))
     variable_list.add_variable(par_est.VariableParameter("a1", 5.24125))
     variable_list.add_variable(par_est.VariableParameter("a2", 5.19625))
     variable_list.add_variable(par_est.VariableParameter("b1", 1592.864))
