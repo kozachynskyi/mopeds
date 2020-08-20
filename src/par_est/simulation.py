@@ -294,7 +294,7 @@ class SimulatorNLE():
         for var in self.__input_variable_list.values():
             if isinstance(var, Variable):
                 if isinstance(var, VariableState):
-                    self._initial_state.append(var.starting_value)
+                    self._initial_state.append(var.guess)
                 else:
                     if var.fixed:
                         self._variables.append(var.value)

@@ -333,7 +333,7 @@ if __name__ == "__main__":
     """Erstelle Startwerte"""
     variable_list_optimizer = copy.deepcopy(variable_list)
     for key, var in res.items():
-        var.starting_value = var.value.value
+        var.guess = var.value.value
         variable_list_optimizer[key] = var
 
     """Obere und untere Grenze"""

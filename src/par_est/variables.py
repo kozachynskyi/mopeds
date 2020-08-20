@@ -37,6 +37,7 @@ class VariableState(Variable):
     def __init__(self, name, starting_value=None, opc_ua_id=None):
         super().__init__(name)
         self.starting_value = starting_value
+        self.guess = starting_value
         self.value = ExperimentData()
         self.opc_ua_id = opc_ua_id
 
@@ -45,6 +46,7 @@ class VariableAlgebraic(Variable):
     def __init__(self, name, starting_value=None, opc_ua_id=None):
         super().__init__(name)
         self.starting_value = starting_value
+        self.guess = starting_value
         self.value = ExperimentData()
 
 
@@ -139,6 +141,9 @@ class VariableList(OrderedDict):
     def set_starting_values(self, values_simulation, NLE_Flag = False):
         for key, var in values_simulation.items(): 
             if NLE_Flag == True: 
+                var.guess = var.value.value
+                self[key] = var
+            elif NLE_Flag == False: 
                 var.starting_value = var.value.value
                 self[key] = var
 
