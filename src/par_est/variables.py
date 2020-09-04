@@ -64,6 +64,13 @@ class VariableControl(Variable):
         self.opc_ua_id = opc_ua_id
 
 
+class VariableConstant(Variable):
+    def __init__(self, name, value=None, opc_ua_id=None):
+        super().__init__(name)
+        self.value = value
+        self.opc_ua_id = opc_ua_id
+
+
 class VariableList(OrderedDict):
     def __init__(self):
         super().__init__()

@@ -24,8 +24,9 @@ def test_pendulum_dae():
 
 
 def test_cstr():
-    for cstr_model in [par_est.examples.cstr_ode, par_est.examples.cstr_dae]:
+    for cstr_model in [par_est.examples.cstr_ode, par_est.examples.cstr_dae, par_est.examples.cstr_dae_constant, par_est.examples.cstr_ode_constant]:
         variable_list, m = cstr_model()
+
         # Create time-grid. Zero should be first
         time_grid = np.linspace(10, 10000, 4)
         time_grid = np.insert(time_grid, 0, 0)
