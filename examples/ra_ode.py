@@ -13588,7 +13588,7 @@ if __name__ == "__main__":
 
     variable_list, m = initialize_problem()
     # Create time-grid. Zero should be first
-    time_grid = np.linspace(0, 4, 30)
+    time_grid = np.linspace(0, 4, 10)
     # time_grid = np.insert(time_grid, 0, 0)
 
     for var in variable_list.values():

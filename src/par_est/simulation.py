@@ -61,6 +61,8 @@ class Simulator(object):
 
         if integrator_name == "idas":
             self.integrator_name = "idas"
+        elif integrator_name == "cvodes":
+            self.integrator_name = "cvodes"
         else:
             self.integrator_name = "collocation"
 
@@ -77,6 +79,17 @@ class Simulator(object):
                     # "print_in": True,
                     # "print_out": True,
                     # "verbose": True,
+                    # "print_stats": True,
+                }
+            elif self.integrator_name == "cvodes":
+                self.integrator_settings = {
+                    "tf": 1,
+                    # 'abstol': 1,
+                    # "reltol": 1,
+                    # "monitor": "jacF",
+                    # "print_in": True,
+                    # "print_out": True,
+                    "verbose": True,
                     # "print_stats": True,
                 }
             else:
