@@ -308,7 +308,7 @@ def initialize_problem():
 
     # fmt: on"
 
-    m.add_equations_differential([dydx1 ,dydx2 ,dydx3 ,dydx4 ,dydx5 ,dydx6 ,dydx7 ,dydx8 ,dydx9 ,dydx10 ,dydx11 ,dydx12 ,dydx13 ,dydx14 ,dydx15 ,dydx16 ,dydx17 ,dydx18 ,dydx19 ,dydx20 ,dydx21 ,dydx22 ,dydx23 ,dydx24 ,dydx25 ,dydx26 ,dydx27 ,dydx28 ,dydx29 ,dydx30 ,dydx31 ,dydx32 ,dydx33 ,dydx34 ,dydx35 ,dydx36 ,dydx37 ,dydx38 ,dydx39 ,dydx40 ,dydx41 ,dydx42 ,dydx43 ,dydx44 ,dydx45 ,dydx46 ,dydx47 ,dydx48 ,dydx49 ,dydx50 ,dydx51 ,dydx52 ,dydx53 ,dydx54 ,dydx55 ,dydx56 ,dydx57 ,dydx58 ,dydx59 ,dydx60 ,dydx61 ,])
+    m.add_equations_algebraic([dydx1 ,dydx2 ,dydx3 ,dydx4 ,dydx5 ,dydx6 ,dydx7 ,dydx8 ,dydx9 ,dydx10 ,dydx11 ,dydx12 ,dydx13 ,dydx14 ,dydx15 ,dydx16 ,dydx17 ,dydx18 ,dydx19 ,dydx20 ,dydx21 ,dydx22 ,dydx23 ,dydx24 ,dydx25 ,dydx26 ,dydx27 ,dydx28 ,dydx29 ,dydx30 ,dydx31 ,dydx32 ,dydx33 ,dydx34 ,dydx35 ,dydx36 ,dydx37 ,dydx38 ,dydx39 ,dydx40 ,dydx41 ,dydx42 ,dydx43 ,dydx44 ,dydx45 ,dydx46 ,dydx47 ,dydx48 ,dydx49 ,dydx50 ,dydx51 ,dydx52 ,dydx53 ,dydx54 ,dydx55 ,dydx56 ,dydx57 ,dydx58 ,dydx59 ,dydx60 ,dydx61 ,])
 
     return variable_list, m
 

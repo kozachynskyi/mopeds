@@ -52,7 +52,7 @@ def initialize_problem():
 
     # Equations
     RES = model.varlist_all['P'].casadi_var- (model.varlist_all["x"].casadi_var*10**(model.varlist_all['a1'].casadi_var-model.varlist_all['b1'].casadi_var/(model.varlist_all['c1'].casadi_var+model.varlist_all["T"].casadi_var))*1E5 + (1-model.varlist_all["x"].casadi_var)*10**(model.varlist_all['a2'].casadi_var-model.varlist_all['b2'].casadi_var/(model.varlist_all['c2'].casadi_var+model.varlist_all["T"].casadi_var))*1E5)
-    model.add_equations_differential([RES])  # adding the equations to model
+    model.add_equations_algebraic([RES])  # adding the equations to model
 
     return variable_list, model
 

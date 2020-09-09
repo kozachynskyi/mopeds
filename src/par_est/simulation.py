@@ -303,7 +303,7 @@ class SimulatorNLE():
 
         self._variables = ca.vcat(self._variables)
 
-        self.function = ca.Function("f", [self.model.varlist_state.get_casadi_var(), self.model.varlist_independent.get_casadi_var()], [self.model.equations_differential], ["x0", "p"], ["r"] )
+        self.function = ca.Function("f", [self.model.varlist_state.get_casadi_var(), self.model.varlist_independent.get_casadi_var()], [self.model.equations_algebraic], ["x0", "p"], ["r"] )
         self._reset_scaling()
 
     def generate_exp_data(self):
