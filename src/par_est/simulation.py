@@ -288,13 +288,13 @@ class SimulatorNLE():
         self.__input_variable_list = copy.deepcopy(variable_list)
 
         self._variables = []
-        self._initial_state = []
+        self._guess = []
 
         # Fügt Variablen hinzu und sotiert nach festen/zu schätzenden Werten
         for var in self.__input_variable_list.values():
             if isinstance(var, Variable):
-                if isinstance(var, VariableState):
-                    self._initial_state.append(var.guess)
+                if isinstance(var, VariableAlgebraic):
+                    self._guess.append(var.guess)
                 else:
                     if var.fixed:
                         self._variables.append(var.value)
@@ -303,7 +303,7 @@ class SimulatorNLE():
 
         self._variables = ca.vcat(self._variables)
 
-        self.function = ca.Function("f", [self.model.varlist_state.get_casadi_var(), self.model.varlist_independent.get_casadi_var()], [self.model.equations_algebraic], ["x0", "p"], ["r"] )
+        self.function = ca.Function("f", [self.model.varlist_algebraic.get_casadi_var(), self.model.varlist_independent.get_casadi_var()], [self.model.equations_algebraic], ["x0", "p"], ["r"] )
         self._reset_scaling()
 
     def generate_exp_data(self):
@@ -320,11 +320,11 @@ class SimulatorNLE():
         sim = ca.rootfinder("s", "nlpsol", self.function, opts)
         # breakpoint()
 
-        res_array = sim(self._initial_state, self._variables)
+        res_array = sim(self._guess, self._variables)
 
         variables = VariableList()
 
-        for variable_list in [self.model.varlist_state]:
+        for variable_list in [self.model.varlist_algebraic]:
             for count, var in enumerate(variable_list.values()):
                 new_var = copy.deepcopy(var)
                 new_var.value = ExperimentData()
@@ -354,8 +354,8 @@ class SimulatorNLE():
         # opts["print_stats"] = True
 
         sim = ca.rootfinder("s", "nlpsol", self.function, opts)
-        arg = {'x0':ca.DM(self._initial_state),'p':self._variables}
+        arg = {'x0':ca.DM(self._guess),'p':self._variables}
 
-        # res = sim(x0=self._initial_state, p=self._variables)
+        # res = sim(x0=self._guess, p=self._variables)
         res = sim.call(arg)
         return res

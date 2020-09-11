@@ -13,6 +13,7 @@ from par_est import (
     VariableParameter,
     Simulator,
     VariableState,
+    VariableAlgebraic,
     VariableList,
 )
 
@@ -36,6 +37,7 @@ class Optimizer(object):
         self.varlist_parameter = VariableList()
         self.varlist_control = VariableList()
         self.varlist_state = VariableList()
+        self.varlist_algebraic = VariableList()
         self.integrator_name = integrator_name
         self.integrator_settings = integrator_settings
         self.list_simulators = []  # type: List[Simulator]
@@ -510,8 +512,8 @@ class ParameterEstimationNLE(Optimizer):
     def _setup_simulator(self):
         # It's not checked if all supplied varlist have same states etc.
         for var in self.list_input_varlist[0].values():
-            if isinstance(var, VariableState):
-                self.varlist_state.add_variable(var)
+            if isinstance(var, VariableAlgebraic):
+                self.varlist_algebraic.add_variable(var)
             elif isinstance(var, VariableParameter):
                 self.varlist_parameter.add_variable(var)
                 if var.fixed is False:
@@ -527,15 +529,15 @@ class ParameterEstimationNLE(Optimizer):
 
             for var in varlist_input.values():
                 # Generates time_grid based on available exp data
-                if isinstance(var, VariableState):
-                    var.starting_value = var.starting_value
+                if isinstance(var, VariableAlgebraic):
+                    var.guess = var.guess
                 elif isinstance(var, VariableControl):
                     var.fixed = True
 
             self.list_simulators.append(SimulatorNLE(self.model, varlist_input))
 
             for var in varlist_input.values():
-                if isinstance(var, VariableState):
+                if isinstance(var, VariableAlgebraic):
                     if var.value.value is None:
                         data_mask_var.append(0)
                     else:
