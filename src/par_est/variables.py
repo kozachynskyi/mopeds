@@ -160,8 +160,8 @@ class VariableList(OrderedDict):
                         # Setting bounds for val == 0 without emerg_val is not implemented
                         raise (NotImplementedError)
                     else:
-                        var.lower_bound = var.value - emerg_val
-                        var.upper_bound = var.value + emerg_val
+                        var.lower_bound = - emerg_val
+                        var.upper_bound = emerg_val
                 else:
                     # Setting bounds for arrays is not implemented
                     raise (NotImplementedError)

@@ -3,11 +3,11 @@ import numpy as np
 
 import par_est
 import par_est.examples
-import hyfo_dae
+import dae_ode.hyfo_dae
 
 if __name__ == "__main__":
 
-    variable_list, m = hyfo_dae.initialize_problem()
+    variable_list, m = dae_ode.hyfo_dae.initialize_problem()
 
     for var in variable_list.values():
         if isinstance(var, par_est.VariableParameter) or isinstance(

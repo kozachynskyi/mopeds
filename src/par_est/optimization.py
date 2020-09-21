@@ -12,10 +12,10 @@ from par_est import (
     Model,
     VariableParameter,
     Simulator,
+    SimulatorNLE,
     VariableState,
     VariableAlgebraic,
     VariableList,
-    SimulatorNLE
 )
 
 
