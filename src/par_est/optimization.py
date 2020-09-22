@@ -19,6 +19,7 @@ from par_est import (
 
 from par_est.simulation import SimulatorNLE
 
+
 class Optimizer(object):
     def __init__(
         self,
@@ -129,7 +130,6 @@ class Optimizer(object):
         res_solver = self.solver(
             x0=self.guess / self.scaling, lbx=lb_scaled, ubx=ub_scaled,
         )
-
 
         return res_solver
 
@@ -502,11 +502,15 @@ class OptimalExperimentalDesign(Optimizer):
 
 class ParameterEstimationNLE(Optimizer):
     def __init__(self, model: Model, variable_list: VariableList):
-        integrator_name=None,
-        integrator_settings=None,
+        integrator_name = (None,)
+        integrator_settings = (None,)
         super().__init__(model, variable_list, integrator_name, integrator_settings)
         self._setup_simulator()
-        self.logger.debug("Created Optimizer object: \n Data Shape {} \n Desicion Variables {}".format(self.array_data.shape, self.varlist_decision.get_variable_name()))
+        self.logger.debug(
+            "Created Optimizer object: \n Data Shape {} \n Desicion Variables {}".format(
+                self.array_data.shape, self.varlist_decision.get_variable_name()
+            )
+        )
         self._setup_initialization()
 
     def _setup_simulator(self):

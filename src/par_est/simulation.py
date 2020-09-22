@@ -282,7 +282,7 @@ class Simulator(object):
         return variables
 
 
-class SimulatorNLE():
+class SimulatorNLE:
     def __init__(self, model: Model, variable_list: VariableList):
         self.model = model
         self.__input_variable_list = copy.deepcopy(variable_list)
@@ -303,7 +303,16 @@ class SimulatorNLE():
 
         self._variables = ca.vcat(self._variables)
 
-        self.function = ca.Function("f", [self.model.varlist_algebraic.get_casadi_var(), self.model.varlist_independent.get_casadi_var()], [self.model.equations_algebraic], ["x0", "p"], ["r"] )
+        self.function = ca.Function(
+            "f",
+            [
+                self.model.varlist_algebraic.get_casadi_var(),
+                self.model.varlist_independent.get_casadi_var(),
+            ],
+            [self.model.equations_algebraic],
+            ["x0", "p"],
+            ["r"],
+        )
         self._reset_scaling()
 
     def generate_exp_data(self):
@@ -354,7 +363,7 @@ class SimulatorNLE():
         # opts["print_stats"] = True
 
         sim = ca.rootfinder("s", "nlpsol", self.function, opts)
-        arg = {'x0':ca.DM(self._guess),'p':self._variables}
+        arg = {"x0": ca.DM(self._guess), "p": self._variables}
 
         # res = sim(x0=self._guess, p=self._variables)
         res = sim.call(arg)

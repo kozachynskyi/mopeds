@@ -6,11 +6,19 @@ try:
     dist_name = __name__
     __version__ = get_distribution(dist_name).version
 except DistributionNotFound:
-    __version__ = 'unknown'
+    __version__ = "unknown"
 finally:
     del get_distribution, DistributionNotFound
 
-from .variables import Variable, VariableParameter, VariableAlgebraic, VariableState, VariableControl, VariableList, ExperimentData
+from .variables import (
+    Variable,
+    VariableParameter,
+    VariableAlgebraic,
+    VariableState,
+    VariableControl,
+    VariableList,
+    ExperimentData,
+)
 from .model import Model
 from .simulation import Simulator
 from .optimization import ParameterEstimation, OptimalExperimentalDesign

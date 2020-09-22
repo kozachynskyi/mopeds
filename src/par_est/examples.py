@@ -138,7 +138,8 @@ def cstr_dae():
     # fmt: on
 
     for var in variable_list.values():
-        var.guess = var.lower_bound
+        if isinstance(var, (par_est.VariableParameter, par_est.VariableControl)):
+            var.guess = var.lower_bound
 
     m = par_est.Model(variable_list)
 

@@ -45,6 +45,7 @@ class VariableAlgebraic(Variable):
     def __init__(self, name, guess=None, opc_ua_id=None):
         super().__init__(name)
         self.guess = guess
+        self.opc_ua_id = opc_ua_id
         self.value = ExperimentData()
 
 
@@ -121,10 +122,10 @@ class VariableList(OrderedDict):
         finally:
             client.disconnect()
 
-    def set_variable_list_fixed(self, fix_list = None):
+    def set_variable_list_fixed(self, fix_list=None):
         self._list_fixation(fix_list, True)
 
-    def set_variable_list_unfixed(self, unfix_list = None):
+    def set_variable_list_unfixed(self, unfix_list=None):
         self._list_fixation(unfix_list, False)
 
     def _list_fixation(self, fixation_list, val):
@@ -136,24 +137,24 @@ class VariableList(OrderedDict):
                 if var.name in fixation_list:
                     var.fixed = val
 
-    def set_starting_values(self, values_simulation, NLE_Flag = False):
-        for key, var in values_simulation.items(): 
-            if NLE_Flag == True: 
+    def set_starting_values(self, values_simulation, NLE_Flag=False):
+        for key, var in values_simulation.items():
+            if NLE_Flag == True:
                 var.guess = var.value.value
                 self[key] = var
-            elif NLE_Flag == False: 
+            elif NLE_Flag == False:
                 var.starting_value = var.value.value
                 self[key] = var
 
-    def set_bounds(self, val = 0.25, emerg_val = None):
+    def set_bounds(self, val=0.25, emerg_val=None):
         for var in self.values():
             if isinstance(var, VariableParameter) and var.fixed == False:
                 if var.value > 0:
-                    var.lower_bound = var.value - var.value*val
-                    var.upper_bound = var.value + var.value*val
+                    var.lower_bound = var.value - var.value * val
+                    var.upper_bound = var.value + var.value * val
                 elif var.value < 0:
-                    var.lower_bound = var.value + var.value*val
-                    var.upper_bound = var.value - var.value*val
+                    var.lower_bound = var.value + var.value * val
+                    var.upper_bound = var.value - var.value * val
                 elif var.value == 0:
                     if emerg_val is None:
                         # Setting bounds for val == 0 without emerg_val is not implemented
@@ -162,8 +163,8 @@ class VariableList(OrderedDict):
                         var.lower_bound = var.value - emerg_val
                         var.upper_bound = var.value + emerg_val
                 else:
-                        # Setting bounds for arrays is not implemented
-                        raise (NotImplementedError)
+                    # Setting bounds for arrays is not implemented
+                    raise (NotImplementedError)
                 var.guess = var.lower_bound
 
     def write_data_opcua(self, time_start: datetime):
