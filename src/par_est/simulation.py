@@ -137,7 +137,7 @@ class Simulator(object):
                 if isinstance(var, VariableState):
                     self._initial_state.append(var.starting_value)
                 elif isinstance(var, VariableAlgebraic):
-                    self._initial_algebraic.append(var.starting_value)
+                    self._initial_algebraic.append(var.guess)
                 else:
                     if var.fixed:
                         self._variables.append(var.value)

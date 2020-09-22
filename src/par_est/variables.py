@@ -42,10 +42,9 @@ class VariableState(Variable):
 
 
 class VariableAlgebraic(Variable):
-    def __init__(self, name, starting_value=None, opc_ua_id=None):
+    def __init__(self, name, guess=None, opc_ua_id=None):
         super().__init__(name)
-        self.starting_value = starting_value
-        self.guess = starting_value
+        self.guess = guess
         self.value = ExperimentData()
 
 
