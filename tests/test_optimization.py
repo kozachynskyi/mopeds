@@ -7,11 +7,13 @@ import par_est.examples
 import par_est
 import par_est.tools
 
-
 def test_pe():
     """ Test that ParameterEstimation on ODE and DAE always yields same result.
+    Test that ParameterEstimationNLE on NLE always yields same result.
     Helpfull to see if any drastic changes in calculation were made
     """
+
+    """ ODE and DAE """
     for cstr_model in [par_est.examples.cstr_ode, par_est.examples.cstr_dae]:
         var_list, model = cstr_model()
         time_grid = np.linspace(10, 10000, 3)
@@ -55,6 +57,44 @@ def test_pe():
             f"Model.DAE: {model.DAE}, Result: {res['f']}, Expecting: {answer}"
         )
         assert np.isclose(res["f"], ca.DM(answer), rtol=0, atol=1.0e-9)
+
+
+    """ NLE """
+    variable_list, model = par_est.examples.vle_nle_problem()
+
+    param_list = [
+        "c1",
+        "a2"
+    ]  
+
+    var_list_fixed = copy.deepcopy(variable_list)
+    var_list_fixed.set_variable_list_fixed()
+    optimizer_list = []
+    x = [0.00, 0.10, 0.25, 0.50, 0.75, 0.90, 1.00]
+
+    for val in x:
+        var_list_fixed['x'].value = val 
+        variable_list_optimizer = par_est.tools.generate_exp_data_list_NLE(model, var_list_fixed)
+        variable_list_optimizer.set_variable_list_unfixed(param_list)
+        variable_list_optimizer.set_bounds(emerg_val=50)
+        optimizer_list.append(variable_list_optimizer)
+
+    pe = par_est.optimization.ParameterEstimationNLE(
+        model, optimizer_list
+    )
+    res = pe.optimize(False)
+    answer_f = 0
+    answer_param = [5.19625, -46.9659]
+
+    logging.warning(
+            f"Model.NLE: {model}, Result: {res['f']}, Expecting: {answer_f}"
+        )
+    assert np.isclose(res["f"], ca.DM(answer_f), rtol=0, atol=1.0e-9)
+
+    logging.warning(
+            f"Model.NLE: {model}, Result: {res['x']}, Expecting: {answer_param}"
+        )
+    assert np.all(np.isclose(res["x"], ca.DM(answer_param), rtol=0, atol=1.0e-9))
 
 
 def test_oed():

@@ -7,63 +7,16 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 import par_est
-from par_est.simulation import SimulatorNLE
-from par_est.optimization import ParameterEstimationNLE
-
-def generate_exp_data_list_NLE(model, var_list_fixed):
-        # Create simulation Object
-        sim_fixed = SimulatorNLE(model, var_list_fixed)
-        # Run simulation and connect results with actual state variables
-        val_fix = sim_fixed.generate_exp_data()
-        # Copy variable_list
-        variable_list_optimizer = copy.deepcopy(var_list_fixed)
-        # Set startings values
-        variable_list_optimizer.set_starting_values(val_fix, True)
-
-        return variable_list_optimizer
-
-
-def initialize_problem():
-    # Id. VLE of EtOH and Water
-
-    # Variables
-    variable_list = par_est.variables.VariableList()  # Preallocate variable_list
-
-    # Define variables
-    #     T in K
-    #     x in 1
-    #     P in Pa
-    #     # EtOH = 1,      H2O = 2
-    #     a = [5.24125,    5.19625] # a in 1
-    #     b = [1592.864,   1730.630]# b in K
-    #     c = [-46.9659,   -39.7239] # c in K
-
-    variable_list.add_variable(par_est.VariableAlgebraic("T", 373))
-    variable_list.add_variable(par_est.VariableControl("x", 0.5))
-    variable_list.add_variable(par_est.VariableControl("P", 1e5))
-    variable_list.add_variable(par_est.VariableParameter("a1", 5.24125))
-    variable_list.add_variable(par_est.VariableParameter("a2", 5.19625))
-    variable_list.add_variable(par_est.VariableParameter("b1", 1592.864))
-    variable_list.add_variable(par_est.VariableParameter("b2", 1730.630))
-    variable_list.add_variable(par_est.VariableParameter("c1", -46.9659))
-    variable_list.add_variable(par_est.VariableParameter("c2", -39.7239))
-
-    model = par_est.Model(variable_list)  # adding all variables to the model
-
-    # Equations
-    RES = model.varlist_all['P'].casadi_var- (model.varlist_all["x"].casadi_var*10**(model.varlist_all['a1'].casadi_var-model.varlist_all['b1'].casadi_var/(model.varlist_all['c1'].casadi_var+model.varlist_all["T"].casadi_var))*1E5 + (1-model.varlist_all["x"].casadi_var)*10**(model.varlist_all['a2'].casadi_var-model.varlist_all['b2'].casadi_var/(model.varlist_all['c2'].casadi_var+model.varlist_all["T"].casadi_var))*1E5)
-    model.add_equations_algebraic([RES])  # adding the equations to model
-
-    return variable_list, model
-
+from par_est.examples import vle_nle_problem
+from par_est.tools import generate_exp_data_list_NLE
 
 if __name__ == "__main__":
 
-    variable_list, model = initialize_problem()
+    variable_list, model = vle_nle_problem()
 
     param_list = [
-        "a1",
-        "b1",
+       # "a1",
+       # "b1",
         "c1",
         "a2",
         # "b2",
@@ -102,7 +55,7 @@ if __name__ == "__main__":
 
 
     # Define ParameterEstimationNLE
-    pe = ParameterEstimationNLE(
+    pe = par_est.optimization.ParameterEstimationNLE(
         model, optimizer_list
     )
 
