@@ -1,7 +1,9 @@
 import par_est
 import numpy as np
+import logging
 import par_est.examples
 import casadi as ca
+
 
 
 def test_pendulum_dae():
@@ -21,6 +23,20 @@ def test_pendulum_dae():
     assert np.isclose(
         ca.vertcat(res_tau["xf"], res_tau["zf"]), ca.vertcat(res["xf"], res["zf"])
     ).any()
+
+def test_vle_nle():
+    variable_list, model = par_est.examples.vle_nle_problem()
+
+    variable_list.set_variable_list_fixed()
+    variable_list['x'].value = 0.5 
+    sim = par_est.simulation.SimulatorNLE(model, variable_list)
+    res = sim.simulate_sym()
+    true_answer_T = 359.451
+
+    logging.warning(
+            f"Model.NLE: {model}, Result: {res['r']}, Expecting: {true_answer_T}"
+        )
+    assert np.isclose(res["r"], ca.DM(true_answer_T), rtol=0, atol=1.0e-3)
 
 
 def test_cstr():
@@ -70,3 +86,4 @@ def test_cstr():
 if __name__ == "__main__":
     test_pendulum_dae()
     test_cstr()
+    test_vle_nle()
