@@ -130,6 +130,7 @@ class Optimizer(object):
             x0=self.guess / self.scaling, lbx=lb_scaled, ubx=ub_scaled,
         )
 
+        res_solver["x"] = res_solver["x"] * self.scaling
         return res_solver
 
     def optimize_multistart(self, num_initials, scale=True, max_iterations=20):
@@ -317,7 +318,6 @@ class OptimalExperimentalDesign(Optimizer):
             values: this values are used as desicionb variables for calculating of the objective.
         """
         covariance_full = None
-        jacobian_full = None
         # -1 ignores time point zero in self.time_grid
         num_time = len(self.time_grid) - 1
         # +1 account for tau variable in Simulator class
@@ -329,6 +329,10 @@ class OptimalExperimentalDesign(Optimizer):
 
         # Used only for debugging
         if analyze is True:
+            jacobian_full = None
+            covariance_all = []
+            objective_all = []
+
             self._setup_scaling(False)
             evaluate = ca.Function(
                 "eval_fim", [self.varlist_decision.get_casadi_var()], [result_jacobian],
@@ -362,6 +366,10 @@ class OptimalExperimentalDesign(Optimizer):
                 jacobian_selected.T @ covariance_measurement @ jacobian_selected
             )
 
+            if analyze:
+                covariance_all.append(cov_at_timepoint)
+                objective_all.append(ca.trace(ca.inv(cov_at_timepoint)))
+
             if covariance_full is None:
                 covariance_full = cov_at_timepoint
             else:
@@ -382,7 +390,7 @@ class OptimalExperimentalDesign(Optimizer):
         error = ca.trace(ca.inv(covariance_full))
 
         if analyze:
-            return error, covariance_full, jacobian_full
+            return error, covariance_full, jacobian_full, covariance_all, objective_all
 
         return error
 
@@ -409,7 +417,7 @@ class OptimalExperimentalDesign(Optimizer):
 
     def identifiability_analysis(self, reset_self=False):
         """ Taken from Erik/Diana Subset0. Many questions arrise about how it works. """
-        _, _, jacobian = self._objective(True)
+        _, _, jacobian, _, _, = self._objective(True)
         cond_threshold = 1000
         colin_threshold = 15
 
