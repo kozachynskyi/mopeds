@@ -118,5 +118,3 @@ class prime_class:
 
     def List(self, nMax):
         return [n for n in np.arange(2, nMax) if self.isPrime(n)]
-
-

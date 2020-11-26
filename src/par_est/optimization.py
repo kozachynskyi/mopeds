@@ -15,9 +15,8 @@ from par_est import (
     VariableState,
     VariableAlgebraic,
     VariableList,
+    SimulatorNLE
 )
-
-from par_est.simulation import SimulatorNLE
 
 
 class Optimizer(object):
@@ -575,7 +574,9 @@ class ParameterEstimationNLE(Optimizer):
 
         return error
 
-    def optimize(self, scale=True):
+    def optimize(self, scale=False):
+        if scale is True:
+            raise NotImplementedError("Scaling is not implemented")
         # Scaling decreases amount of iterations, but ipopt fails gradient check at big amount of timestamps
         self.solver_name = "ipopt"
         if self.solver_settings is None:

@@ -20,5 +20,5 @@ from .variables import (
     ExperimentData,
 )
 from .model import Model
-from .simulation import Simulator
+from .simulation import Simulator, SimulatorNLE
 from .optimization import ParameterEstimation, OptimalExperimentalDesign
