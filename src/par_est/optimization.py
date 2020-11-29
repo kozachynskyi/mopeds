@@ -414,7 +414,7 @@ class OptimalExperimentalDesign(Optimizer):
         num_param = len(self.model.varlist_independent) + 1
         num_state = len(self.model.varlist_state)
 
-        result_simulation = self.list_simulators[0].simulate(True)
+        result_simulation = self.list_simulators[0].simulate_jac()
         result_jacobian = result_simulation["jac_xf_p"]
 
         # Used only for debugging

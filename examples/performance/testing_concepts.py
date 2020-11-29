@@ -15,7 +15,7 @@ def jacobian_manipulation():
     for var in varlist.values():
         var.fixed = True
     sim = par_est.Simulator(model, time_grid, varlist)
-    res = sim.simulate(True)
+    res = sim.simulate_jac()
 
     num_param = 19
 

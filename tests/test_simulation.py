@@ -74,7 +74,7 @@ def test_cstr():
                 if j == 0:
                     res_simple = sim.simulate()
                 else:
-                    res_simple = sim.simulate(True)
+                    res_simple = sim.simulate_jac()
 
                 res = sim.generate_exp_data()
                 if j == 1:
