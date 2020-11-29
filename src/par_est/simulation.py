@@ -60,6 +60,8 @@ class Simulator(object):
 
         if integrator_name == "idas":
             self.integrator_name = "idas"
+        elif integrator_name == "cvodes":
+            self.integrator_name = "cvodes"
         else:
             self.integrator_name = "collocation"
 
@@ -69,9 +71,26 @@ class Simulator(object):
             if self.integrator_name == "idas":
                 self.integrator_settings = {
                     "tf": 1,
+                    "expand": True,
                     # "calc_ic": False,
                     # 'abstol': 1,
                     # "reltol": 1,
+                    # "monitor": "jacF",
+                    # "print_in": True,
+                    # "print_out": True,
+                    # "verbose": True,
+                    # "print_stats": True,
+                }
+            elif self.integrator_name == "cvodes":
+                self.integrator_settings = {
+                    "tf": 1,
+                    "expand": True,
+                    # "linear_multistep_method": "adams",# was used for CVODES
+                    # "output_t0": False,
+                    # "use_preconditioner": False,
+                    # "calc_ic": False,
+                    # 'abstol': 1e-5,
+                    # "reltol": 1e-5,
                     # "monitor": "jacF",
                     # "print_in": True,
                     # "print_out": True,
@@ -82,6 +101,7 @@ class Simulator(object):
                 self.integrator_settings = {
                     "number_of_finite_elements": 3,
                     "simplify": True,
+                    "expand": True,
                     "rootfinder": "fast_newton",
                     # "monitor": "jacF",
                     # "print_in": True,
@@ -95,7 +115,7 @@ class Simulator(object):
             "integrator",
             "idas",
             self.ode_system,
-            {"grid": self.time_grid, "output_t0": False, "print_stats": False},
+            {"grid": self.time_grid, "output_t0": False, "print_stats": True},
         )
 
         self.integrator_tau = ca.integrator(
@@ -150,7 +170,7 @@ class Simulator(object):
     def _reset_scaling(self):
         self.scaling = ca.DM.ones(self._variables.size())
 
-    def analyze_WIP(self):
+    def analyze_WIP(self, state_value=None):
         """ This function was working for previous version of the module."""
         function = ca.Function(
             "eq_sys",
@@ -195,13 +215,18 @@ class Simulator(object):
         )
 
         rf = ca.rootfinder("inits", "newton", algebraic_eqsys_rootfinder)
-        res = rf(
-            self._initial_algebraic, ca.vertcat(self._initial_state, self._variables)
-        )
+        if state_value is not None:
+            res = rf(self._initial_algebraic, ca.vertcat(state_value, self._variables))
+        else:
+            res = rf(
+                self._initial_algebraic,
+                ca.vertcat(self._initial_state, self._variables),
+            )
 
         check_alg = function(x=self._initial_state, z=res, p=self._variables)
-        self._initial_algebraic = res
-        return [res, self._initial_algebraic]
+        old_initial = self._initial_algebraic
+        # self._initial_algebraic = res
+        return [res, old_initial]
         # return check_initials, check_jacobian
 
     def simulate(self, derivatives=False):
