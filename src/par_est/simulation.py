@@ -230,7 +230,7 @@ class Simulator(object):
         # return check_initials, check_jacobian
 
     def simulate(self, derivatives=False):
-        """ Return dictionary with results "xf" - state,
+        """Return dictionary with results "xf" - state,
         "zf" - algebraic, "jac_xf_p" - derivatives.
         """
         map_num = len(self.time_grid) - 1
@@ -269,23 +269,29 @@ class Simulator(object):
                 )
             else:
                 result_integration = self.integrator_full_jacobian(
-                    x0=self._initial_state, p=initial_independent,
+                    x0=self._initial_state,
+                    p=initial_independent,
                 )
 
         return result_integration
 
-    def generate_exp_data(self):
+    def generate_exp_data(self, algebraic=False):
         """ Runs simulation and returns results in VariableList class."""
-        result_simulation = self.simulate()
-        res_array = result_simulation["xf"]
         variables = VariableList()
+        result_simulation = self.simulate()
+        if not algebraic:
+            result_varlist = [self.model.varlist_state]
+            res_array = result_simulation["xf"]
+        else:
+            result_varlist = [self.model.varlist_state, self.model.varlist_algebraic]
+            res_array = ca.vertcat(result_simulation["xf"], result_simulation["zf"])
 
         convert_to_numpy = False
         if isinstance(res_array, ca.DM):
             convert_to_numpy = True
 
         shift_by = 0
-        for variable_list in [self.model.varlist_state]:
+        for variable_list in result_varlist:
             for count, var in enumerate(variable_list.values()):
                 new_var = copy.deepcopy(var)
                 new_var.value = ExperimentData()

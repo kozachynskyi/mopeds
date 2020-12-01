@@ -6,7 +6,7 @@ import par_est.examples
 
 if __name__ == "__main__":
 
-    variable_list, m = par_est.examples.cstr_ode()
+    variable_list, m = par_est.examples.cstr_dae()
     # Create time-grid. Zero should be first
     time_grid = np.linspace(10, 10000, 40)
     time_grid = np.insert(time_grid, 0, 0)
@@ -21,6 +21,6 @@ if __name__ == "__main__":
     # Run simulation and get simple results as array of numbers, but information about state variables and timestamp is lost
     res_simple = sim_fixed.simulate()
     # Run simulation and connect results with actual state variables, which can be plotted based on available data
-    res = sim_fixed.generate_exp_data()
-    res.plot_states()
+    res = sim_fixed.generate_exp_data(algebraic=True)
+    res.plot_states(algebraic=True)
     # np.savetxt("exp.txt", res.toarray().T, delimiter="\t")

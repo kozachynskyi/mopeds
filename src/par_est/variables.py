@@ -184,9 +184,9 @@ class VariableList(OrderedDict):
         finally:
             client.disconnect()
 
-    def plot_states(self, as_one_plot=False):
+    def plot_states(self, as_one_plot=False, algebraic=False):
         # Choose only state variables
-        state_var_list = VariableList()
+        plot_varlist = VariableList()
         for var in self.values():
             if var.value.value is None:
                 raise PlottingError("variables")
@@ -194,21 +194,21 @@ class VariableList(OrderedDict):
                 raise PlottingError("time grid")
 
             if isinstance(var, VariableState):
-                state_var_list.add_variable(var)
+                plot_varlist.add_variable(var)
             elif isinstance(var, VariableAlgebraic):
-                state_var_list.add_variable(var)
+                if algebraic is True:
+                    plot_varlist.add_variable(var)
 
+        if as_one_plot is True:
+            for var in plot_varlist.values():
+                plt.plot(var.value.time, var.value.value, label=var.name)
+            plt.legend()
         else:
-            if as_one_plot is True:
-                for var in state_var_list.values():
-                    plt.plot(var.value.time, var.value.value, label=var.name)
-                plt.legend()
-            else:
-                figure, axes_array = plt.subplots(len(self))
-                for var, ax in zip(state_var_list.values(), axes_array):
-                    ax.plot(var.value.time, var.value.value, label=var.name)
-                    ax.legend()
-            plt.show()
+            figure, axes_array = plt.subplots(len(plot_varlist))
+            for var, ax in zip(plot_varlist.values(), axes_array):
+                ax.plot(var.value.time, var.value.value, label=var.name)
+                ax.legend()
+        plt.show()
 
 
 class ExperimentData(object):
