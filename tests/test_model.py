@@ -1,4 +1,5 @@
 import pytest
+import casadi as ca
 import par_est.examples
 from par_est.model import VariableTypeError
 
@@ -33,6 +34,35 @@ def test_model():
     var_list.add_variable(par_est.Variable("a_test"))
     with pytest.raises(VariableTypeError):
         model = par_est.Model(var_list)
+
+    for model in [par_est.examples.cstr_ode, par_est.examples.cstr_dae, par_est.examples.cstr_dae_constant, par_est.examples.cstr_ode_constant]:
+        var_list, model = model()
+        ode_system = {
+            "x": model.varlist_state.get_casadi_var(),
+            "p": ca.vertcat(model.varlist_independent.get_casadi_var()),
+            "ode": model.equations_differential,
+        }
+
+        function = ca.Function(
+            "eq_sys",
+            [ode_system["x"], ode_system["p"]],
+            [ode_system["ode"]],
+            ["x", "p"],
+            ["ode"],
+        )
+
+        if model.DAE:
+            ode_system["z"] = model.varlist_algebraic.get_casadi_var()
+            ode_system["alg"] = model.equations_algebraic
+
+            function = ca.Function(
+                "eq_sys",
+                [ode_system["x"], ode_system["z"], ode_system["p"]],
+                [ode_system["ode"], ode_system["alg"]],
+                ["x", "z", "p"],
+                ["ode", "alg"],
+            )
+        assert len(function.free_mx()) == 0
 
 
 if __name__ == "__main__":

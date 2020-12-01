@@ -15,10 +15,15 @@ from .variables import (
     VariableParameter,
     VariableAlgebraic,
     VariableState,
+    VariableConstant,
     VariableControl,
     VariableList,
     ExperimentData,
 )
 from .model import Model
 from .simulation import Simulator, SimulatorNLE
-from .optimization import ParameterEstimation, OptimalExperimentalDesign, ParameterEstimationNLE
+from .optimization import (
+    ParameterEstimation,
+    OptimalExperimentalDesign,
+    ParameterEstimationNLE,
+)

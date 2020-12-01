@@ -10,6 +10,7 @@ from par_est import (
     Variable,
     VariableState,
     VariableAlgebraic,
+    VariableConstant
 )
 
 
@@ -158,6 +159,8 @@ class Simulator(object):
                     self._initial_state.append(var.starting_value)
                 elif isinstance(var, VariableAlgebraic):
                     self._initial_algebraic.append(var.guess)
+                elif isinstance(var, VariableConstant):
+                    pass
                 else:
                     if var.fixed:
                         self._variables.append(var.value)

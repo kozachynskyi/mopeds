@@ -7,14 +7,15 @@ import par_est.examples
 import par_est
 import par_est.tools
 
+
 def test_pe():
-    """ Test that ParameterEstimation on ODE and DAE always yields same result.
+    """Test that ParameterEstimation on ODE and DAE always yields same result.
     Test that ParameterEstimationNLE on NLE always yields same result.
     Helpfull to see if any drastic changes in calculation were made
     """
 
     """ ODE and DAE """
-    for cstr_model in [par_est.examples.cstr_ode, par_est.examples.cstr_dae]:
+    for cstr_model in [par_est.examples.cstr_ode, par_est.examples.cstr_ode_constant, par_est.examples.cstr_dae, par_est.examples.cstr_dae_constant]:
         var_list, model = cstr_model()
         time_grid = np.linspace(10, 10000, 3)
         time_grid = np.insert(time_grid, 0, 0)
@@ -58,15 +59,16 @@ def test_pe():
         )
         assert np.isclose(res["f"], ca.DM(answer), rtol=0, atol=1.0e-9)
 
-
     """ NLE """
     variable_list, model = par_est.examples.vle_nle_problem()
 
     var_list_fixed = copy.deepcopy(variable_list)
     var_list_fixed.set_variable_list_fixed()
 
-    var_list_fixed['x'].value = 0.5 
-    variable_list_optimizer = par_est.tools.generate_exp_data_list_NLE(model, var_list_fixed)
+    var_list_fixed["x"].value = 0.5
+    variable_list_optimizer = par_est.tools.generate_exp_data_list_NLE(
+        model, var_list_fixed
+    )
     variable_list_optimizer.set_variable_list_unfixed(["a2"])
     variable_list_optimizer.set_bounds(emerg_val=50)
 
@@ -77,22 +79,20 @@ def test_pe():
     answer_f = 0
     answer_param = [5.19625]
 
-    logging.warning(
-            f"Model.NLE: {model}, Result: {res['f']}, Expecting: {answer_f}"
-        )
+    logging.warning(f"Model.NLE: {model}, Result: {res['f']}, Expecting: {answer_f}")
     assert np.isclose(res["f"], ca.DM(answer_f), rtol=0, atol=1.0e-9)
 
     logging.warning(
-            f"Model.NLE: {model}, Result: {res['x']}, Expecting: {answer_param}"
-        )
+        f"Model.NLE: {model}, Result: {res['x']}, Expecting: {answer_param}"
+    )
     assert np.all(np.isclose(res["x"], ca.DM(answer_param), rtol=0, atol=1.0e-9))
 
 
 def test_oed():
-    """ Test that OptimalExperimentalDesign on ODE and DAE always yields same result.
+    """Test that OptimalExperimentalDesign on ODE and DAE always yields same result.
     Helpfull to see if any drastic changes in calculation were made
     """
-    for cstr_model in [par_est.examples.cstr_ode, par_est.examples.cstr_dae]:
+    for cstr_model in [par_est.examples.cstr_ode, par_est.examples.cstr_ode_constant, par_est.examples.cstr_dae, par_est.examples.cstr_dae_constant]:
         var_list, model = cstr_model()
         time_grid = np.linspace(10, 10000, 4)
         time_grid = np.insert(time_grid, 0, 0)
@@ -115,7 +115,7 @@ def test_oed():
 
 
 def test_optimizer():
-    """ Tests if optimizer can deal with variable list of fixed and unfixed parameters.
+    """Tests if optimizer can deal with variable list of fixed and unfixed parameters.
     Not well designed, and may yield false positives, but let it be.
     """
     variable_list, m = par_est.examples.cstr_ode()

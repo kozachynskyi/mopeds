@@ -32,6 +32,12 @@ class Variable(object):
             yield from subclass.get_subclasses()
             yield subclass
 
+    def plot(self):
+        if isinstance(self.value, ExperimentData):
+            self.value.plot(self.name)
+        else:
+            print("Variable doesn't have ExperimentData")
+
 
 class VariableState(Variable):
     def __init__(self, name, starting_value=None, opc_ua_id=None):
@@ -44,6 +50,8 @@ class VariableState(Variable):
 class VariableAlgebraic(Variable):
     def __init__(self, name, guess=None, opc_ua_id=None):
         super().__init__(name)
+        # if name == "e0_c_tot":
+        #     breakpoint()
         self.guess = guess
         self.opc_ua_id = opc_ua_id
         self.value = ExperimentData()
@@ -63,6 +71,13 @@ class VariableControl(Variable):
         self.value = value
         self.lower_bound = lb
         self.upper_bound = ub
+        self.opc_ua_id = opc_ua_id
+
+class VariableConstant(Variable):
+    def __init__(self, name, value=None, opc_ua_id=None):
+        super().__init__(name)
+        self.casadi_var = value
+        self.value = value
         self.opc_ua_id = opc_ua_id
 
 
@@ -215,6 +230,14 @@ class ExperimentData(object):
     def __init__(self):
         self.time = None
         self.value = None
+
+    def plot(self, label="Undefined"):
+        if self.value is None or self.time is None:
+            print("Cannot plot, ExperimentData is empty")
+        else:
+            plt.plot(self.time, self.value, label=label)
+            plt.legend()
+            plt.show()
 
 
 class SameVariableNameError(Exception):

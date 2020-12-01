@@ -5,7 +5,6 @@ import par_est.examples
 import casadi as ca
 
 
-
 def test_pendulum_dae():
     varlist, model = par_est.examples.pendulum_dae_1()
 
@@ -40,7 +39,7 @@ def test_vle_nle():
 
 
 def test_cstr():
-    for cstr_model in [par_est.examples.cstr_ode, par_est.examples.cstr_dae]:
+    for cstr_model in [par_est.examples.cstr_ode, par_est.examples.cstr_dae, par_est.examples.cstr_dae_constant, par_est.examples.cstr_ode_constant]:
         variable_list, m = cstr_model()
         # Create time-grid. Zero should be first
         time_grid = np.linspace(10, 10000, 4)

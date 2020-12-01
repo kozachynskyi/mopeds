@@ -337,10 +337,15 @@ class OptimalExperimentalDesign(Optimizer):
             evaluate = ca.Function(
                 "eval_fim", [self.varlist_decision.get_casadi_var()], [result_jacobian],
             )
+            evaluate_sim = ca.Function(
+                "eval_fim", [self.varlist_decision.get_casadi_var()], [result_simulation["xf"]],
+            )
             if values is None:
                 result_jacobian = evaluate(self.guess)
+                result_sim = evaluate_sim(self.guess)
             else:
                 result_jacobian = evaluate(values)
+                result_sim = evaluate_sim(values)
 
         # Simulation returns jacobian that has to be split, to get jac at each time point.
         # list_jacobian_at_timepoint contains a list of that jacobians.
@@ -502,7 +507,7 @@ class OptimalExperimentalDesign(Optimizer):
                     else:
                         var.fixed = True
 
-            self.__init__(self.model, new_varlist, self.time_grid)
+            self.__init__(self.model, new_varlist, self.time_grid, self.integrator_name, self.integrator_settings)
 
         return unfix_parameters
 

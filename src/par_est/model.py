@@ -4,6 +4,7 @@ from par_est import (
     VariableState,
     VariableParameter,
     VariableControl,
+    VariableConstant,
     Variable,
     VariableList,
 )
@@ -14,6 +15,7 @@ class Model(object):
         self.varlist_state = VariableList()
         self.varlist_algebraic = VariableList()
         self.varlist_independent = VariableList()
+        self._varlist_constant = VariableList()
         self.varlist_all = VariableList()
         self.equations_differential = None
         self.equations_algebraic = None
@@ -29,6 +31,8 @@ class Model(object):
                     var, VariableControl
                 ):
                     self.varlist_independent.add_variable(type(var)(var.name))
+                elif isinstance(var, VariableConstant):
+                    self._varlist_constant.add_variable(VariableConstant(var.name, var.value))
                 else:
                     raise VariableTypeError(var.name)
             else:
@@ -37,6 +41,7 @@ class Model(object):
         self.varlist_all.update(self.varlist_state)
         self.varlist_all.update(self.varlist_algebraic)
         self.varlist_all.update(self.varlist_independent)
+        self.varlist_all.update(self._varlist_constant)
 
     def add_equations_differential(self, equations):
         if self.equations_differential is None:
