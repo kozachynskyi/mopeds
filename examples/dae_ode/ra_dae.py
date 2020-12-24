@@ -363,11 +363,6 @@ def initialize_problem():
     variable_list.add_variable(par_est.VariableConstant("e0_c_i7", 0.063578))
     variable_list.add_variable(par_est.VariableConstant("e0_d_i7", -4.3159e-6))
     variable_list.add_variable(par_est.VariableConstant("e0_e_i7", -8.3167e-5))
-    # variable_list.add_variable(par_est.VariableAlgebraic("c_l", 2))
-    variable_list.add_variable(par_est.VariableAlgebraic("HU_l", 2))
-    variable_list.add_variable(par_est.VariableAlgebraic("HU_p", 2))
-    variable_list.add_variable(par_est.VariableControl("F_in", 1))
-    variable_list.add_variable(par_est.VariableControl("ratio", 0.12))
 
     m = par_est.Model(variable_list)
 
