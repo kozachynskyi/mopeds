@@ -1,14 +1,20 @@
-from matplotlib import pyplot as plt
 import copy
+import matplotlib.pyplot as plt
+import matplotlib.colors as colors
 import matplotlib.cm as cm
 import numpy as np
 import par_est
 
 
-def plot_array(array):
+def plot_array(array, xticks=None, yticks=None):
     """ Plots given array in an observable way. """
+    div_norm = colors.TwoSlopeNorm(vcenter=0)
     plt.close()
-    plt.imshow(array, cmap=cm.Greens_r)
+    plt.imshow(array, cmap=cm.coolwarm, norm=div_norm)
+    if xticks is not None:
+        plt.xticks(range(0,array.shape[1]), xticks)
+    if yticks is not None:
+        plt.yticks(range(0,array.shape[0]), yticks)
     plt.show()
 
 
