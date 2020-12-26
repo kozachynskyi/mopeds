@@ -22,7 +22,6 @@ if __name__ == "__main__":
     variable_list_optimizer = copy.deepcopy(variable_list)
     for key, var in var_list_exp.items():
         variable_list_optimizer[key] = var
-        variable_list_optimizer[key].starting_value = var.value.value[0]
 
     # variable_list_optimizer["e0_E_r1"].fixed = True
     # variable_list_optimizer["e0_E_r2"].fixed = True

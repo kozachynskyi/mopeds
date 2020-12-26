@@ -20,7 +20,6 @@ class Variable(object):
         self.casadi_var = ca.MX.sym(self.name)
         self.fixed = False
         self.opc_ua_id = None
-        self.starting_value = None
         self.value = None
         self.guess = None
         self.lower_bound = None
@@ -42,16 +41,15 @@ class Variable(object):
 class VariableState(Variable):
     def __init__(self, name, starting_value=None, opc_ua_id=None):
         super().__init__(name)
-        self.starting_value = starting_value
         self.value = ExperimentData()
+        self.value.value = [starting_value]
+        self.value.time = [0]
         self.opc_ua_id = opc_ua_id
 
 
 class VariableAlgebraic(Variable):
     def __init__(self, name, guess=None, opc_ua_id=None):
         super().__init__(name)
-        # if name == "e0_c_tot":
-        #     breakpoint()
         self.guess = guess
         self.opc_ua_id = opc_ua_id
         self.value = ExperimentData()
@@ -123,7 +121,6 @@ class VariableList(OrderedDict):
                         if not time_opcua:
                             time_opcua.append(0.0)
                             time_zero = result.SourceTimestamp
-                            var.starting_value = result.Value.Value
                         else:
                             time_from_ref = (
                                 result.SourceTimestamp - time_zero
@@ -158,7 +155,7 @@ class VariableList(OrderedDict):
                 var.guess = var.value.value
                 self[key] = var
             elif NLE_Flag == False:
-                var.starting_value = var.value.value
+                var.value.value[0] = var.value.value[0]
                 self[key] = var
 
     def set_bounds(self, val=0.25, emerg_val=None):
@@ -204,9 +201,11 @@ class VariableList(OrderedDict):
         plot_varlist = VariableList()
         for var in self.values():
             if var.value.value is None:
-                raise PlottingError("variables")
+                raise PlottingError("Variable vector is None.", var.value)
             elif var.value.time is None:
-                raise PlottingError("time grid")
+                raise PlottingError("Time vector in None.", var.value)
+            elif not len(var.value.value) == len(var.value.time):
+                raise PlottingError("Time vector and value vector have different length.", var.value)
 
             if isinstance(var, VariableState):
                 plot_varlist.add_variable(var)
@@ -247,11 +246,9 @@ class SameVariableNameError(Exception):
 
 
 class PlottingError(Exception):
-    def __init__(self, error_switch):
-        if error_switch == "variables":
-            message = "There are no variables to plot!"
-        elif error_switch == "time grid":
-            message = "There is no time grid to plot against!"
-        else:
-            message = "Plotting not possible"
+    def __init__(self, message, exp_data=None):
+        if isinstance(exp_data, ExperimentData):
+            time = exp_data.value
+            val = exp_data.time
+            message = message + f'\nTime length {len(time)}: {time},\nValue lengh {len(val)}: {val}.'
         super().__init__(message)

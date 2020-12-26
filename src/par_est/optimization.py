@@ -197,7 +197,6 @@ class ParameterEstimation(Optimizer):
                 # Generates time_grid based on available exp data
                 if isinstance(var, VariableState):
                     time_grid = np.append(time_grid, var.value.time)
-                    var.starting_value = var.value.value[0]
                 elif isinstance(var, VariableControl):
                     var.fixed = True
 

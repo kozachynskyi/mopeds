@@ -156,7 +156,7 @@ class Simulator(object):
         for var in self.__input_variable_list.values():
             if isinstance(var, Variable):
                 if isinstance(var, VariableState):
-                    self._initial_state.append(var.starting_value)
+                    self._initial_state.append(var.value.value[0])
                 elif isinstance(var, VariableAlgebraic):
                     self._initial_algebraic.append(var.guess)
                 elif isinstance(var, VariableConstant):
@@ -301,10 +301,17 @@ class Simulator(object):
                 if convert_to_numpy:
                     new_var.value.time = self.time_grid
                     new_var.value.value = res_array[count + shift_by, :].toarray()
+                    if isinstance(var, VariableAlgebraic):
+                        value_time_zero = var.guess
+                    elif isinstance(var, VariableState):
+                        value_time_zero = self.__input_variable_list[var.name].value.value[0],
+                    else:
+                        raise(NotImplementedError)
+
                     new_var.value.value = np.insert(
                         new_var.value.value,
                         0,
-                        self.__input_variable_list[var.name].starting_value,
+                        value_time_zero,
                     )
                 else:
                     new_var.value.time = self.time_grid[1:]

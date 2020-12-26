@@ -133,7 +133,6 @@ def test_optimizer():
     # Replace empty state variables with results from simulation
     for key, var in var_list_exp.items():
         variable_list[key] = var
-        variable_list[key].starting_value = var.value.value[0]
 
     for i in range(5):
         if i == 1:
