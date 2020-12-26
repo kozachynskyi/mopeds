@@ -189,17 +189,16 @@ class ParameterEstimation(Optimizer):
                 self.varlist_control.add_variable(var)
 
         self.array_data = None
+        self.array_data_mask = None
 
         for varlist_input in self.list_input_varlist:
+            # Create a time_grid, that "stops" at every experimental data, for every state variable
             time_grid = np.ndarray((1, 0))
-
             for var in varlist_input.values():
-                # Generates time_grid based on available exp data
                 if isinstance(var, VariableState):
                     time_grid = np.append(time_grid, var.value.time)
                 elif isinstance(var, VariableControl):
                     var.fixed = True
-
             time_grid = np.unique(time_grid)
 
             self.list_simulators.append(
@@ -212,36 +211,49 @@ class ParameterEstimation(Optimizer):
                 )
             )
 
+            # Generate an array (simulation_data) with Experimental data with the same dimensions as simulation results. Array (new_data_var) has data for each variable.
+            simulation_data = None
+            simulation_data_mask = None
             for var in varlist_input.values():
                 if isinstance(var, VariableState):
                     time_grid_var = np.array(var.value.time)
-                    data_mask_var = np.isin(time_grid, time_grid_var)[1:]
+                    # if simulated point has data - set element to True
+                    data_mask_var = 1.0 * np.isin(time_grid, time_grid_var)[1:]
                     data_var = np.array(var.value.value)[1:]
+                    # array that would be filled with 0 or Experimental data
+                    new_data_var = data_mask_var.copy()
 
-                    sparsity_pattern = csc_matrix(data_mask_var.astype(int))
-                    sparsity_pattern.data = data_var
-
-                    if self.array_data is None:
-                        self.array_data = sparsity_pattern
+                    # data_var is being redimensioned to the output of simulation
+                    counter = 0
+                    for index, trigger in enumerate(data_mask_var):
+                        if trigger == 1:
+                            new_data_var[index] = data_var[counter]
+                            counter = counter + 1
+                    if simulation_data is None:
+                        simulation_data = new_data_var
+                        simulation_data_mask = data_mask_var
                     else:
-                        self.array_data = vstack([self.array_data, sparsity_pattern])
-
-            self.array_data_sparcity = ca.DM(self.array_data).sparsity()
+                        simulation_data = np.vstack([simulation_data, new_data_var])
+                        simulation_data_mask = np.vstack([simulation_data_mask, data_mask_var])
+            if self.array_data is None:
+                self.array_data = simulation_data.flatten("F")
+                self.array_data_mask = simulation_data_mask.flatten("F")
+            else:
+                self.array_data = np.append(self.array_data, simulation_data.flatten("F"))
+                self.array_data_mask = np.append(self.array_data_mask, simulation_data_mask.flatten("F"))
 
     def _objective(self):
         array_simulation = None
 
         for simulator in self.list_simulators:
             res_simulation = simulator.simulate()
-
             if array_simulation is None:
-                array_simulation = res_simulation["xf"]
+                array_simulation = res_simulation["xf"][:]
             else:
-                array_simulation = ca.vertcat(array_simulation, res_simulation["xf"])
+                array_simulation = ca.vertcat(array_simulation, res_simulation["xf"][:])
 
-        error = ca.sumsqr(
-            array_simulation.get(False, self.array_data_sparcity) - self.array_data
-        )
+        # multiply by self.array_data_mask needed to ignore elements were error experimental data is zero
+        error = ca.sumsqr((array_simulation - self.array_data) * self.array_data_mask)
 
         return error
 

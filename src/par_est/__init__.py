@@ -20,6 +20,7 @@ from .variables import (
     VariableList,
     ExperimentData,
 )
+from .variables import BadVariableError
 from .model import Model
 from .simulation import Simulator, SimulatorNLE
 from .optimization import (

@@ -37,6 +37,9 @@ class Variable(object):
         else:
             print("Variable doesn't have ExperimentData")
 
+    def __repr__(self):
+        return f"{self.name}\n{type(self)}\n{self.value}"
+
 
 class VariableState(Variable):
     def __init__(self, name, starting_value=None, opc_ua_id=None):
@@ -200,32 +203,29 @@ class VariableList(OrderedDict):
         # Choose only state variables
         plot_varlist = VariableList()
         for var in self.values():
-            if var.value.value is None:
-                raise PlottingError("Variable vector is None.", var.value)
-            elif var.value.time is None:
-                raise PlottingError("Time vector in None.", var.value)
-            elif not len(var.value.value) == len(var.value.time):
-                raise PlottingError("Time vector and value vector have different length.", var.value)
-
             if isinstance(var, VariableState):
                 plot_varlist.add_variable(var)
             elif isinstance(var, VariableAlgebraic):
                 if algebraic is True:
                     plot_varlist.add_variable(var)
 
-        if as_one_plot is True:
-            for var in plot_varlist.values():
-                plt.plot(var.value.time, var.value.value, label=var.name)
-            plt.legend()
-        else:
-            figure, axes_array = plt.subplots(len(plot_varlist))
-            for var, ax in zip(plot_varlist.values(), axes_array):
-                ax.plot(var.value.time, var.value.value, label=var.name)
-                ax.legend()
+        try:
+            if as_one_plot is True:
+                for var in plot_varlist.values():
+                    plt.plot(var.value.time, var.value.value, label=var.name)
+                plt.legend()
+            else:
+                figure, axes_array = plt.subplots(len(plot_varlist))
+                for var, ax in zip(plot_varlist.values(), axes_array):
+                    ax.plot(var.value.time, var.value.value, label=var.name)
+                    ax.legend()
+        except Exception as e:
+            raise PlottingError(var, "Failed while ploting variable:") from e
         plt.show()
 
 
 class ExperimentData(object):
+    """ self.time and self.value are either None or List """
     def __init__(self):
         self.time = None
         self.value = None
@@ -238,6 +238,18 @@ class ExperimentData(object):
             plt.legend()
             plt.show()
 
+    def __repr__(self):
+        try:
+            time_length = len(self.time)
+        except Exception:
+            time_length = "len() didn't work"
+        try:
+            value_length = len(self.value)
+        except Exception:
+            value_length = "len() didn't work"
+
+        return f'Time length {time_length}:\n{self.time}\nValue lengh {value_length}:\n{self.value}.'
+
 
 class SameVariableNameError(Exception):
     def __init__(self, name):
@@ -245,10 +257,13 @@ class SameVariableNameError(Exception):
         super().__init__(message)
 
 
-class PlottingError(Exception):
-    def __init__(self, message, exp_data=None):
-        if isinstance(exp_data, ExperimentData):
-            time = exp_data.value
-            val = exp_data.time
-            message = message + f'\nTime length {len(time)}: {time},\nValue lengh {len(val)}: {val}.'
+class BadVariableError(Exception):
+    def __init__(self, variable, message=None):
+        if message is None:
+            message = "Failed while using this variable:"
+        message = message + f'\n{variable}'
         super().__init__(message)
+
+
+class PlottingError(BadVariableError):
+    pass

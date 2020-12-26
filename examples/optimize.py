@@ -43,6 +43,13 @@ if __name__ == "__main__":
     # variable_list_optimizer["e0_T_j"].fixed = True
     variable_list_optimizer["e0_F"].fixed = True
 
+    # If data is not available for all simulated points, PE works
+    variable_list_optimizer["e0_T"].value.value = np.delete(variable_list_optimizer["e0_T"].value.value,2)
+    variable_list_optimizer["e0_T"].value.time = np.delete(variable_list_optimizer["e0_T"].value.time,2)
+
+    variable_list_optimizer["e0_c_i1"].value.value = [variable_list_optimizer["e0_c_i1"].value.value[0]]
+    variable_list_optimizer["e0_c_i1"].value.time = [variable_list_optimizer["e0_c_i1"].value.time[0]]
+
     pe = par_est.ParameterEstimation(
         m, [variable_list_optimizer, variable_list_optimizer]
     )

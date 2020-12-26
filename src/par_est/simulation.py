@@ -10,7 +10,8 @@ from par_est import (
     Variable,
     VariableState,
     VariableAlgebraic,
-    VariableConstant
+    VariableConstant,
+    BadVariableError
 )
 
 
@@ -156,7 +157,10 @@ class Simulator(object):
         for var in self.__input_variable_list.values():
             if isinstance(var, Variable):
                 if isinstance(var, VariableState):
-                    self._initial_state.append(var.value.value[0])
+                    try:
+                        self._initial_state.append(var.value.value[0])
+                    except Exception as e:
+                        raise(BadVariableError(var)) from e
                 elif isinstance(var, VariableAlgebraic):
                     self._initial_algebraic.append(var.guess)
                 elif isinstance(var, VariableConstant):
