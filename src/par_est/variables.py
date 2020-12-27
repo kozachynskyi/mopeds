@@ -1,6 +1,5 @@
 from collections import OrderedDict
 from datetime import datetime, timedelta
-import copy
 
 import casadi as ca
 import numpy as np
@@ -74,6 +73,7 @@ class VariableControl(Variable):
         self.upper_bound = ub
         self.opc_ua_id = opc_ua_id
 
+
 class VariableConstant(Variable):
     def __init__(self, name, value=None, opc_ua_id=None):
         super().__init__(name)
@@ -85,6 +85,23 @@ class VariableConstant(Variable):
 class VariableList(OrderedDict):
     def __init__(self):
         super().__init__()
+
+    def __repr__(self):
+        if bool(self):
+            types = [type(item) for item in list(self.values())]
+            counter_types = {x: types.count(x) for x in types}
+            list_names = {var_type: [] for var_type in counter_types.keys()}
+            message = f"Var list has {sum(counter_types.values())} variables:\n"
+            for var in self.values():
+                list_names[type(var)].extend([var.name])
+            for var_type in counter_types.keys():
+                message = (
+                    message
+                    + f"{var_type} of length {counter_types[var_type]}:\n{list_names[var_type]}\n"
+                )
+        else:
+            message = f"Empty {type(self)}"
+        return message
 
     def add_variable(self, variable: Variable):
         if variable.name in self:
@@ -144,7 +161,7 @@ class VariableList(OrderedDict):
         self._list_fixation(unfix_list, False)
 
     def _list_fixation(self, fixation_list, val):
-        if fixation_list == None:
+        if fixation_list is None:
             for var in self.values():
                 var.fixed = val
         else:
@@ -154,16 +171,16 @@ class VariableList(OrderedDict):
 
     def set_starting_values(self, values_simulation, NLE_Flag=False):
         for key, var in values_simulation.items():
-            if NLE_Flag == True:
+            if NLE_Flag is True:
                 var.guess = var.value.value
                 self[key] = var
-            elif NLE_Flag == False:
+            elif NLE_Flag is False:
                 var.value.value[0] = var.value.value[0]
                 self[key] = var
 
     def set_bounds(self, val=0.25, emerg_val=None):
         for var in self.values():
-            if isinstance(var, VariableParameter) and var.fixed == False:
+            if isinstance(var, VariableParameter) and var.fixed is False:
                 if var.value > 0:
                     var.lower_bound = var.value - var.value * val
                     var.upper_bound = var.value + var.value * val
@@ -175,7 +192,7 @@ class VariableList(OrderedDict):
                         # Setting bounds for val == 0 without emerg_val is not implemented
                         raise (NotImplementedError)
                     else:
-                        var.lower_bound = - emerg_val
+                        var.lower_bound = -emerg_val
                         var.upper_bound = emerg_val
                 else:
                     # Setting bounds for arrays is not implemented
@@ -226,6 +243,7 @@ class VariableList(OrderedDict):
 
 class ExperimentData(object):
     """ self.time and self.value are either None or List """
+
     def __init__(self):
         self.time = None
         self.value = None
@@ -248,7 +266,7 @@ class ExperimentData(object):
         except Exception:
             value_length = "len() didn't work"
 
-        return f'Time length {time_length}:\n{self.time}\nValue lengh {value_length}:\n{self.value}.'
+        return f"Time length {time_length}:\n{self.time}\nValue lengh {value_length}:\n{self.value}."
 
 
 class SameVariableNameError(Exception):
@@ -261,7 +279,7 @@ class BadVariableError(Exception):
     def __init__(self, variable, message=None):
         if message is None:
             message = "Failed while using this variable:"
-        message = message + f'\n{variable}'
+        message = message + f"\n{variable}"
         super().__init__(message)
 
 
