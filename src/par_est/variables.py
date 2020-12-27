@@ -103,6 +103,13 @@ class VariableList(OrderedDict):
             message = f"Empty {type(self)}"
         return message
 
+    def index(self, var_index=None):
+        if var_index is None:
+            for element_index, var in enumerate(self.values()):
+                print(f"{element_index} : {var.name}")
+        else:
+            print(f"{list(self.values())[var_index]}")
+
     def add_variable(self, variable: Variable):
         if variable.name in self:
             raise SameVariableNameError(variable.name)
