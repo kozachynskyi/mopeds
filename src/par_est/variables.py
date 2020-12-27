@@ -46,7 +46,7 @@ class VariableState(Variable):
         super().__init__(name)
         self.value = ExperimentData()
         self.value.value = [starting_value]
-        self.value.time = [0]
+        self.value.time = [0.0]
         self.opc_ua_id = opc_ua_id
 
 
