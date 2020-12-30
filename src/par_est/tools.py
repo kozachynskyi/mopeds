@@ -4,6 +4,23 @@ import matplotlib.colors as colors
 import matplotlib.cm as cm
 import numpy as np
 import par_est
+import pickle
+import copyreg
+import casadi as ca
+
+
+def reduce_MX(mx_object):
+    return (str, (repr(mx_object),))
+
+
+class MXPickler(pickle.Pickler):
+    """ This class allows to pickle casadi objects by replacing
+    them with their __repr__ values. Source:
+    https://docs.python.org/3/library/pickle.html#dispatch-tables
+    """
+    dispatch_table = copyreg.dispatch_table.copy()
+    dispatch_table[ca.MX] = reduce_MX
+    dispatch_table[ca.Function] = reduce_MX
 
 
 def plot_array(array, xticks=None, yticks=None):
