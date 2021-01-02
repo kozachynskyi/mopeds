@@ -77,7 +77,7 @@ class Optimizer(object):
         self.upper_bound = np.array(upper_bound)
 
     def _setup_scaling(self, scale=False):
-        """ Scaling should be done before setting a solver and solver settings.
+        """Scaling should be done before setting a solver and solver settings.
         Sets scaling variables in optimizer and simulator.
         TODO: Whole loop can be replaced by simple np.where, isn't it?
         """
@@ -127,7 +127,9 @@ class Optimizer(object):
                 ub_scaled[index] = lb
 
         res_solver = self.solver(
-            x0=self.guess / self.scaling, lbx=lb_scaled, ubx=ub_scaled,
+            x0=self.guess / self.scaling,
+            lbx=lb_scaled,
+            ubx=ub_scaled,
         )
 
         res_solver["x"] = res_solver["x"] * self.scaling
@@ -168,6 +170,14 @@ class ParameterEstimation(Optimizer):
         integrator_settings=None,
     ):
         super().__init__(model, variable_list, integrator_name, integrator_settings)
+
+        # This attribute is used while calculating Objective, and is either 1 or self.experiments_weights
+        self.experiments_scale = 1
+        self.experiments_weights = []
+        self.array_data = None
+        self.array_data_mask = None
+        self.inverted_variances = []
+
         self._setup_simulator()
         self.logger.debug(
             "Created Optimizer object: \n Data Shape {} \n Desicion Variables {}".format(
@@ -188,8 +198,8 @@ class ParameterEstimation(Optimizer):
             elif isinstance(var, VariableControl):
                 self.varlist_control.add_variable(var)
 
-        self.array_data = None
-        self.array_data_mask = None
+        list_timegrid_length = []
+        size_simulation_output = []
 
         for varlist_input in self.list_input_varlist:
             # Create a time_grid, that "stops" at every experimental data, for every state variable
@@ -200,6 +210,7 @@ class ParameterEstimation(Optimizer):
                 elif isinstance(var, VariableControl):
                     var.fixed = True
             time_grid = np.unique(time_grid)
+            list_timegrid_length.append(float(len(time_grid)))
 
             self.list_simulators.append(
                 Simulator(
@@ -234,13 +245,48 @@ class ParameterEstimation(Optimizer):
                         simulation_data_mask = data_mask_var
                     else:
                         simulation_data = np.vstack([simulation_data, new_data_var])
-                        simulation_data_mask = np.vstack([simulation_data_mask, data_mask_var])
+                        simulation_data_mask = np.vstack(
+                            [simulation_data_mask, data_mask_var]
+                        )
             if self.array_data is None:
                 self.array_data = simulation_data.flatten("F")
                 self.array_data_mask = simulation_data_mask.flatten("F")
             else:
-                self.array_data = np.append(self.array_data, simulation_data.flatten("F"))
-                self.array_data_mask = np.append(self.array_data_mask, simulation_data_mask.flatten("F"))
+                self.array_data = np.append(
+                    self.array_data, simulation_data.flatten("F")
+                )
+                self.array_data_mask = np.append(
+                    self.array_data_mask, simulation_data_mask.flatten("F")
+                )
+
+            """ Generate arrays with inverted variances and experiments weightning.
+            Varainces are used for generation of weighted least squares optimization
+            problem. Experiments weightning is used in order to give same weight to
+            separate experiments: if one experiment has twice as many experimental points,
+            their error is multiplied by 0.5.
+            """
+            inverted_variances_varlist = []
+            for var in varlist_input.values():
+                if isinstance(var, VariableState):
+                    inverted_variances_varlist.append(
+                        1.0 / (np.full(len(time_grid) - 1, var.variance))
+                    )
+            inverted_variances_varlist = np.column_stack(
+                inverted_variances_varlist
+            ).flatten()
+            self.inverted_variances.append(inverted_variances_varlist)
+            size_simulation_output.append(len(inverted_variances_varlist))
+
+        max_time_grid = max(list_timegrid_length)
+        for time_grid_length, size_simulation in zip(
+            list_timegrid_length, size_simulation_output
+        ):
+            self.experiments_weights.append(
+                np.full(size_simulation, max_time_grid / time_grid_length)
+            )
+
+        self.inverted_variances = np.concatenate(self.inverted_variances)
+        self.experiments_weights = np.concatenate(self.experiments_weights)
 
     def _objective(self):
         array_simulation = None
@@ -253,14 +299,21 @@ class ParameterEstimation(Optimizer):
                 array_simulation = ca.vertcat(array_simulation, res_simulation["xf"][:])
 
         # multiply by self.array_data_mask needed to ignore elements were error experimental data is zero
-        error = ca.sumsqr((array_simulation - self.array_data) * self.array_data_mask)
+        error = (array_simulation - self.array_data) * self.array_data_mask
+        objective = ca.sum1(
+            self.experiments_scale * self.inverted_variances * (error ** 2)
+        )
 
-        return error
+        return objective
 
-    def optimize(self, scale=True):
-        """ Solves optimization problem. Scaling decreases amount of iterations,
+    def optimize(self, scale=True, *, scale_experiments=False):
+        """Solves optimization problem. Scaling decreases amount of iterations,
         and should be used as a first option.
         """
+        if scale_experiments:
+            self.experiments_scale = self.experiments_weights
+        else:
+            self.experiments_scale = 1
         self.solver_name = "ipopt"
         if self.solver_settings is None:
             self.solver_settings = {
@@ -289,7 +342,7 @@ class OptimalExperimentalDesign(Optimizer):
         self._setup_initialization()
 
     def _setup_simulator(self):
-        """ Initializes simulator class. Parameter variables are fixed, and an index of an unfixed
+        """Initializes simulator class. Parameter variables are fixed, and an index of an unfixed
         parameter is saved in self.select_independent list.
         This list is used during the calculation of the objective, to ignore jacobian of fixed parameters.
         self.index_all_states is used additionaly to self.select_independent list to get required jacobian.
@@ -321,7 +374,7 @@ class OptimalExperimentalDesign(Optimizer):
         )
 
     def _objective(self, analyze=False, values=None):
-        """ Calculates an A OED criteria, beacuse casadi cannot do other.
+        """Calculates an A OED criteria, beacuse casadi cannot do other.
         "analyze" Flag and values are used for debugging.
 
         Args:
@@ -346,10 +399,14 @@ class OptimalExperimentalDesign(Optimizer):
 
             self._setup_scaling(False)
             evaluate = ca.Function(
-                "eval_fim", [self.varlist_decision.get_casadi_var()], [result_jacobian],
+                "eval_fim",
+                [self.varlist_decision.get_casadi_var()],
+                [result_jacobian],
             )
             evaluate_sim = ca.Function(
-                "eval_fim", [self.varlist_decision.get_casadi_var()], [result_simulation["xf"]],
+                "eval_fim",
+                [self.varlist_decision.get_casadi_var()],
+                [result_simulation["xf"]],
             )
             if values is None:
                 result_jacobian = evaluate(self.guess)
@@ -411,7 +468,7 @@ class OptimalExperimentalDesign(Optimizer):
         return error
 
     def optimize(self, scale=True):
-        """ Run optimization.
+        """Run optimization.
 
         Args:
             scale: scaling should be used as default, allows for faster convergence
@@ -433,7 +490,13 @@ class OptimalExperimentalDesign(Optimizer):
 
     def identifiability_analysis(self, reset_self=False):
         """ Taken from Erik/Diana Subset0. Many questions arrise about how it works. """
-        _, _, jacobian, _, _, = self._objective(True)
+        (
+            _,
+            _,
+            jacobian,
+            _,
+            _,
+        ) = self._objective(True)
         cond_threshold = 1000
         colin_threshold = 15
 
@@ -518,7 +581,13 @@ class OptimalExperimentalDesign(Optimizer):
                     else:
                         var.fixed = True
 
-            self.__init__(self.model, new_varlist, self.time_grid, self.integrator_name, self.integrator_settings)
+            self.__init__(
+                self.model,
+                new_varlist,
+                self.time_grid,
+                self.integrator_name,
+                self.integrator_settings,
+            )
 
         return unfix_parameters
 

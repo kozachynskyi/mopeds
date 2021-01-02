@@ -2,6 +2,34 @@ import casadi as ca
 import par_est
 
 
+def empy_dae():
+    variable_list = par_est.VariableList()
+
+    # fmt: off
+    variable_list.add_variable(par_est.VariableState("X1", 0))
+
+    variable_list.add_variable(par_est.VariableState("X2", 0))
+
+    variable_list.add_variable(par_est.VariableAlgebraic("Z1", 0.0))
+
+    variable_list.add_variable(par_est.VariableControl("C", 0.0, -1, 1))
+    variable_list.add_variable(par_est.VariableParameter("P", 0.0, -1, 1))
+    # fmt: on
+
+    m = par_est.Model(variable_list)
+
+    # fmt: off
+    dydx1 = m.varlist_all["C"].casadi_var * 0
+    dydx2 = m.varlist_all["P"].casadi_var * 0
+    alg1 = m.varlist_all["X1"].casadi_var + m.varlist_all["X2"].casadi_var + m.varlist_all["Z1"].casadi_var
+
+    m.add_equations_differential([dydx1, dydx2, ])
+    m.add_equations_algebraic([alg1, ])
+    # fmt: on
+
+    return variable_list, m
+
+
 def pendulum_dae_1():
     variable_list = par_est.VariableList()
 

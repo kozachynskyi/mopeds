@@ -8,6 +8,46 @@ import par_est
 import par_est.tools
 
 
+def test_pe_objective():
+    variable_list1, model = par_est.examples.empy_dae()
+    variable_list1["X1"].value.value = [0, 1]
+    variable_list1["X2"].value.value = [0]
+    variable_list1["X2"].variance = 10
+    variable_list1["X1"].value.time = [0, 1]
+    variable_list1["X2"].value.time = [0]
+    variable_list2 = copy.deepcopy(variable_list1)
+    variable_list2["X1"].value.value = [0, 3]
+    variable_list2["X1"].variance = 20
+    variable_list2["X2"].value.value = [0, 4]
+    variable_list2["X2"].variance = 40
+    variable_list2["X1"].value.time = [0, 1]
+    variable_list2["X2"].value.time = [0, 2]
+    pe = par_est.ParameterEstimation(model, [variable_list1, variable_list2])
+    pe.solver_settings = {
+        "ipopt": {
+            "max_iter": 0,
+        },
+    }
+    weight = np.array([1.5, 1.5, 1.0, 1.0, 1.0, 1.0])
+    var = np.array([1.   , 0.1  , 0.05 , 0.025, 0.05 , 0.025])
+    data = np.array([1., 0., 3., 0., 0., 4.])
+    mask = np.array([1., 0., 1., 0., 0., 1.])
+
+    assert_numpy = np.testing.assert_array_equal
+    assert_numpy(data, pe.array_data)
+    assert_numpy(var, pe.inverted_variances)
+    assert_numpy(weight, pe.experiments_weights)
+    assert_numpy(mask, pe.array_data_mask)
+
+    obj = np.sum(var * (data * mask)**2)
+    obj_weight = np.sum(weight * var * (data * mask)**2)
+    for switch in [True, False]:
+        res = pe.optimize(switch)
+        res_weight = pe.optimize(switch, scale_experiments=True)
+        assert(res["f"] == obj)
+        assert(res_weight["f"] == obj_weight)
+
+
 def test_pe():
     """Test that ParameterEstimation on ODE and DAE always yields same result.
     Test that ParameterEstimationNLE on NLE always yields same result.
@@ -15,7 +55,12 @@ def test_pe():
     """
 
     """ ODE and DAE """
-    for cstr_model in [par_est.examples.cstr_ode, par_est.examples.cstr_ode_constant, par_est.examples.cstr_dae, par_est.examples.cstr_dae_constant]:
+    for cstr_model in [
+        par_est.examples.cstr_ode,
+        par_est.examples.cstr_ode_constant,
+        par_est.examples.cstr_dae,
+        par_est.examples.cstr_dae_constant,
+    ]:
         var_list, model = cstr_model()
         time_grid = np.linspace(10, 10000, 3)
         time_grid = np.insert(time_grid, 0, 0)
@@ -92,7 +137,12 @@ def test_oed():
     """Test that OptimalExperimentalDesign on ODE and DAE always yields same result.
     Helpfull to see if any drastic changes in calculation were made
     """
-    for cstr_model in [par_est.examples.cstr_ode, par_est.examples.cstr_ode_constant, par_est.examples.cstr_dae, par_est.examples.cstr_dae_constant]:
+    for cstr_model in [
+        par_est.examples.cstr_ode,
+        par_est.examples.cstr_ode_constant,
+        par_est.examples.cstr_dae,
+        par_est.examples.cstr_dae_constant,
+    ]:
         var_list, model = cstr_model()
         time_grid = np.linspace(10, 10000, 4)
         time_grid = np.insert(time_grid, 0, 0)
@@ -202,4 +252,5 @@ def test_optimizer():
 if __name__ == "__main__":
     # test_optimizer()
     # test_oed()
-    test_pe()
+    # test_pe()
+    test_pe_objective()

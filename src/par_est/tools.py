@@ -14,10 +14,11 @@ def reduce_MX(mx_object):
 
 
 class MXPickler(pickle.Pickler):
-    """ This class allows to pickle casadi objects by replacing
+    """This class allows to pickle casadi objects by replacing
     them with their __repr__ values. Source:
     https://docs.python.org/3/library/pickle.html#dispatch-tables
     """
+
     dispatch_table = copyreg.dispatch_table.copy()
     dispatch_table[ca.MX] = reduce_MX
     dispatch_table[ca.Function] = reduce_MX
@@ -29,9 +30,9 @@ def plot_array(array, xticks=None, yticks=None):
     plt.close()
     plt.imshow(array, cmap=cm.coolwarm, norm=div_norm)
     if xticks is not None:
-        plt.xticks(range(0,array.shape[1]), xticks)
+        plt.xticks(range(0, array.shape[1]), xticks)
     if yticks is not None:
-        plt.yticks(range(0,array.shape[0]), yticks)
+        plt.yticks(range(0, array.shape[0]), yticks)
     plt.show()
 
 
@@ -50,7 +51,7 @@ def plot_arrays(arrays):
 
 
 def generate_hammersley(D, N):
-    """ generate returns a set N points for a D-dimensional Hammersley sequence
+    """generate returns a set N points for a D-dimensional Hammersley sequence
     the interval (0,1). Taken from Erik / not tested
     """
 
@@ -93,13 +94,14 @@ def generate_hammersley(D, N):
 
 
 def make_startpoints(bound0, N):
-    """ bound0 the boundaries for all sampling points, where the number of tuples gives the number of dimensions D
+    """bound0 the boundaries for all sampling points, where the number of tuples gives the number of dimensions D
     N is the number of sampling points
     bound0 = np.array([[0, 10],[0, 100]])
     output = B[num_of_samples, num_of_variables], example B[0] would return an array of variables guesses for all variables
     Taken from Erik, not tested"""
 
-    D = len(bound0[:,])
+    # fmt:off
+    D = len( bound0[ :, ])
 
     S = generate_hammersley(D, N)
 
@@ -107,20 +109,23 @@ def make_startpoints(bound0, N):
 
     for i in range(len(bound0[:,])):
         B[:, i] = S[:, i] * (bound0[i, 1] - bound0[i, 0]) + bound0[i, 0]
+    # fmt:on
 
     return B
 
-def generate_exp_data_list_NLE(model, var_list_fixed):
-        # Create simulation Object
-        sim_fixed = par_est.simulation.SimulatorNLE(model, var_list_fixed)
-        # Run simulation and connect results with actual state variables
-        val_fix = sim_fixed.generate_exp_data()
-        # Copy variable_list
-        variable_list_optimizer = copy.deepcopy(var_list_fixed)
-        # Set startings values
-        variable_list_optimizer.set_starting_values(val_fix, True)
 
-        return variable_list_optimizer
+def generate_exp_data_list_NLE(model, var_list_fixed):
+    # Create simulation Object
+    sim_fixed = par_est.simulation.SimulatorNLE(model, var_list_fixed)
+    # Run simulation and connect results with actual state variables
+    val_fix = sim_fixed.generate_exp_data()
+    # Copy variable_list
+    variable_list_optimizer = copy.deepcopy(var_list_fixed)
+    # Set startings values
+    variable_list_optimizer.set_starting_values(val_fix, True)
+
+    return variable_list_optimizer
+
 
 class prime_class:
     """ Taken from Erik, not tested"""
@@ -141,3 +146,19 @@ class prime_class:
 
     def List(self, nMax):
         return [n for n in np.arange(2, nMax) if self.isPrime(n)]
+
+
+def generate_exp_data(variable_list, model, time_grid):
+    var_list_fixed = copy.deepcopy(variable_list)
+    for var in var_list_fixed.values():
+        var.fixed = True
+    var_list_exp = par_est.Simulator(
+        model, time_grid, var_list_fixed
+    ).generate_exp_data()
+
+    # Replace empty state variables with results from simulation
+    variable_list_with_data = copy.deepcopy(variable_list)
+    for key, var in var_list_exp.items():
+        variable_list_with_data[key] = var
+
+    return variable_list_with_data

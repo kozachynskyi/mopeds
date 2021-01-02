@@ -23,6 +23,7 @@ class Variable(object):
         self.guess = None
         self.lower_bound = None
         self.upper_bound = None
+        self.variance = 1
 
     @classmethod
     def get_subclasses(cls):
@@ -61,6 +62,7 @@ class VariableParameter(Variable):
     def __init__(self, name, value=None, lb=None, ub=None):
         super().__init__(name)
         self.value = value
+        self.guess = value
         self.lower_bound = lb
         self.upper_bound = ub
 
@@ -69,6 +71,7 @@ class VariableControl(Variable):
     def __init__(self, name, value=None, lb=None, ub=None, opc_ua_id=None):
         super().__init__(name)
         self.value = value
+        self.guess = value
         self.lower_bound = lb
         self.upper_bound = ub
         self.opc_ua_id = opc_ua_id
