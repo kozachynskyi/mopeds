@@ -174,8 +174,8 @@ class ParameterEstimation(Optimizer):
         # This attribute is used while calculating Objective, and is either 1 or self.experiments_weights
         self.experiments_scale = 1
         self.experiments_weights = []
-        self.array_data = None
-        self.array_data_mask = None
+        self.array_data = []
+        self.array_data_mask = []
         self.inverted_variances = []
 
         self._setup_simulator()
@@ -222,48 +222,44 @@ class ParameterEstimation(Optimizer):
                 )
             )
 
-            # Generate an array (simulation_data) with Experimental data with the same dimensions as simulation results. Array (new_data_var) has data for each variable.
-            simulation_data = None
-            simulation_data_mask = None
+            # Generate an array (experiment_data_varlist) with Experimental data with the same dimensions as simulation results.
+            experiment_data_varlist = []
+            experiment_data_mask_varlist = []
             for var in varlist_input.values():
                 if isinstance(var, VariableState):
                     time_grid_var = np.array(var.value.time)
                     # if simulated point has data - set element to True
-                    data_mask_var = 1.0 * np.isin(time_grid, time_grid_var)[1:]
-                    data_var = np.array(var.value.value)[1:]
-                    # array that would be filled with 0 or Experimental data
-                    new_data_var = data_mask_var.copy()
+                    experiment_data_mask_var = (
+                        1.0 * np.isin(time_grid, time_grid_var)[1:]
+                    )
+                    experiment_data_var_real = np.array(var.value.value)[1:]
+                    # array that would be filled with Experimental data where data_mask is 1
+                    experiment_data_var_extended = experiment_data_mask_var.copy()
 
                     # data_var is being redimensioned to the output of simulation
                     counter = 0
-                    for index, trigger in enumerate(data_mask_var):
+                    for timegrid_index, trigger in enumerate(experiment_data_mask_var):
                         if trigger == 1:
-                            new_data_var[index] = data_var[counter]
+                            experiment_data_var_extended[
+                                timegrid_index
+                            ] = experiment_data_var_real[counter]
                             counter = counter + 1
-                    if simulation_data is None:
-                        simulation_data = new_data_var
-                        simulation_data_mask = data_mask_var
-                    else:
-                        simulation_data = np.vstack([simulation_data, new_data_var])
-                        simulation_data_mask = np.vstack(
-                            [simulation_data_mask, data_mask_var]
-                        )
-            if self.array_data is None:
-                self.array_data = simulation_data.flatten("F")
-                self.array_data_mask = simulation_data_mask.flatten("F")
-            else:
-                self.array_data = np.append(
-                    self.array_data, simulation_data.flatten("F")
-                )
-                self.array_data_mask = np.append(
-                    self.array_data_mask, simulation_data_mask.flatten("F")
-                )
+                    experiment_data_varlist.append(experiment_data_var_extended)
+                    experiment_data_mask_varlist.append(experiment_data_mask_var)
+
+            # Stack data from separate variables and flatten columnwise
+            experiment_data_varlist = np.column_stack(experiment_data_varlist).flatten()
+            experiment_data_mask_varlist = np.column_stack(
+                experiment_data_mask_varlist
+            ).flatten()
+            self.array_data.append(experiment_data_varlist)
+            self.array_data_mask.append(experiment_data_mask_varlist)
 
             """ Generate arrays with inverted variances and experiments weightning.
             Varainces are used for generation of weighted least squares optimization
             problem. Experiments weightning is used in order to give same weight to
-            separate experiments: if one experiment has twice as many experimental points,
-            their error is multiplied by 0.5.
+            separate experiments: if one experiment has twice as many experimental
+            points, their error is multiplied by 0.5.
             """
             inverted_variances_varlist = []
             for var in varlist_input.values():
@@ -285,6 +281,8 @@ class ParameterEstimation(Optimizer):
                 np.full(size_simulation, max_time_grid / time_grid_length)
             )
 
+        self.array_data = np.concatenate(self.array_data)
+        self.array_data_mask = np.concatenate(self.array_data_mask)
         self.inverted_variances = np.concatenate(self.inverted_variances)
         self.experiments_weights = np.concatenate(self.experiments_weights)
 
