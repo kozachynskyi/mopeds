@@ -168,8 +168,15 @@ class ParameterEstimation(Optimizer):
         variable_list: VariableList,
         integrator_name="idas",
         integrator_settings=None,
+        *,
+        reinitialize_algebraic=False,
     ):
-        super().__init__(model, variable_list, integrator_name, integrator_settings)
+        super().__init__(
+            model,
+            variable_list,
+            integrator_name,
+            integrator_settings,
+        )
 
         # This attribute is used while calculating Objective, and is either 1 or self.experiments_weights
         self.experiments_scale = 1
@@ -185,6 +192,10 @@ class ParameterEstimation(Optimizer):
             )
         )
         self._setup_initialization()
+
+        if reinitialize_algebraic:
+            for sim in self.list_simulators:
+                sim.calculate_algebraic_initials(apply_intials=True)
 
     def _setup_simulator(self):
         # It's not checked if all supplied varlist have same states etc.

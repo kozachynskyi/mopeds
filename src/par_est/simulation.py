@@ -11,7 +11,7 @@ from par_est import (
     VariableState,
     VariableAlgebraic,
     VariableConstant,
-    BadVariableError
+    BadVariableError,
 )
 
 
@@ -153,6 +153,8 @@ class Simulator(object):
         self._variables = []
         self._initial_state = []
         self._initial_algebraic = []
+        self._initial_algebraic_original = []
+        self._variables_with_guess = []
 
         for var in self.__input_variable_list.values():
             if isinstance(var, Variable):
@@ -160,7 +162,7 @@ class Simulator(object):
                     try:
                         self._initial_state.append(var.value.value[0])
                     except Exception as e:
-                        raise(BadVariableError(var)) from e
+                        raise (BadVariableError(var)) from e
                 elif isinstance(var, VariableAlgebraic):
                     self._initial_algebraic.append(var.guess)
                 elif isinstance(var, VariableConstant):
@@ -168,17 +170,60 @@ class Simulator(object):
                 else:
                     if var.fixed:
                         self._variables.append(var.value)
+                        self._variables_with_guess.append(var.value)
                     else:
                         self._variables.append(var.casadi_var)
+                        self._variables_with_guess.append(var.guess)
 
+        self._initial_algebraic_original = copy.deepcopy(self._initial_algebraic)
         self._variables = ca.vcat(self._variables)
         self._reset_scaling()
 
     def _reset_scaling(self):
         self.scaling = ca.DM.ones(self._variables.size())
 
+    def calculate_algebraic_initials(self, *, apply_intials=False):
+        function = ca.Function(
+            "eq_sys",
+            [self.ode_system["x"], self.ode_system["z"], self.ode_system["p"]],
+            [self.ode_system["ode"], self.ode_system["alg"]],
+            ["x", "z", "p"],
+            ["ode", "alg"],
+        )
+
+        algebraic_eqsys_rootfinder = ca.Function(
+            "alg_eq_sys",
+            [
+                self.ode_system["z"],
+                ca.vertcat(self.ode_system["x"], self.ode_system["p"]),
+            ],
+            [self.ode_system["alg"]],
+            ["x", "p"],
+            ["alg"],
+        )
+
+        rf = ca.rootfinder("inits", "newton", algebraic_eqsys_rootfinder)
+        res = rf(
+            self._initial_algebraic_original,
+            ca.vertcat(self._initial_state, self._variables_with_guess),
+        )
+
+        residual_original = function(
+            x=self._initial_state, z=self._initial_algebraic_original, p=self._variables_with_guess
+        )
+        residual_calculated = function(x=self._initial_state, z=res, p=self._variables_with_guess)
+
+        if apply_intials:
+            residual_sum_original = ca.sum1(residual_original["alg"])
+            residual_sum_calculated = ca.sum1(residual_calculated["alg"])
+            self.logger.debug(
+                f"Fixed algebraic intials. Residual before {residual_sum_original}, after {residual_sum_calculated}."
+            )
+            self._initial_algebraic = res
+
     def analyze_WIP(self, state_value=None):
         import par_est.tools as tools
+
         """ This function was working for previous version of the module."""
         function = ca.Function(
             "eq_sys",
@@ -199,7 +244,11 @@ class Simulator(object):
         check_initials = function(
             x=self._initial_state, z=self._initial_algebraic, p=self._variables
         )
-        jacobian = function.factory("jac_alg", function.name_in(), ["jac:alg:z", "jac:alg:x", "jac:ode:x", "jac:ode:z"])
+        jacobian = function.factory(
+            "jac_alg",
+            function.name_in(),
+            ["jac:alg:z", "jac:alg:x", "jac:ode:x", "jac:ode:z"],
+        )
         check_jacobian = jacobian(
             x=self._initial_state, z=self._initial_algebraic, p=self._variables
         )
@@ -313,9 +362,11 @@ class Simulator(object):
                     if isinstance(var, VariableAlgebraic):
                         value_time_zero = var.guess
                     elif isinstance(var, VariableState):
-                        value_time_zero = self.__input_variable_list[var.name].value.value[0],
+                        value_time_zero = (
+                            self.__input_variable_list[var.name].value.value[0],
+                        )
                     else:
-                        raise(NotImplementedError)
+                        raise (NotImplementedError)
 
                     new_var.value.value = np.insert(
                         new_var.value.value,
