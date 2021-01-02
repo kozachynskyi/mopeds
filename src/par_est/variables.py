@@ -98,9 +98,15 @@ class VariableList(OrderedDict):
             for var in self.values():
                 list_names[type(var)].extend([var.name])
             for var_type in counter_types.keys():
+                if "VariableConstant" in str(var_type) or "VariableAlgebraic" in str(
+                    var_type
+                ):
+                    print_list_names = str()
+                else:
+                    print_list_names = f":\n{list_names[var_type]}"
                 message = (
                     message
-                    + f"{var_type} of length {counter_types[var_type]}:\n{list_names[var_type]}\n"
+                    + f"{var_type} of length {counter_types[var_type]}{print_list_names}\n"
                 )
         else:
             message = f"Empty {type(self)}"

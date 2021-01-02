@@ -35,7 +35,7 @@ class Simulator(object):
         self.scaling = None
         self.integrator_settings = None
         self.integrator_name = None
-        self.time_grid = time_grid
+        self.time_grid = np.array(time_grid)
 
         if self.model.equations_algebraic is None:
             self.model.DAE = False
@@ -178,6 +178,7 @@ class Simulator(object):
         self.scaling = ca.DM.ones(self._variables.size())
 
     def analyze_WIP(self, state_value=None):
+        import par_est.tools as tools
         """ This function was working for previous version of the module."""
         function = ca.Function(
             "eq_sys",
@@ -198,7 +199,7 @@ class Simulator(object):
         check_initials = function(
             x=self._initial_state, z=self._initial_algebraic, p=self._variables
         )
-        jacobian = function.factory("jac_alg", function.name_in(), ["jac:alg:z"])
+        jacobian = function.factory("jac_alg", function.name_in(), ["jac:alg:z", "jac:alg:x", "jac:ode:x", "jac:ode:z"])
         check_jacobian = jacobian(
             x=self._initial_state, z=self._initial_algebraic, p=self._variables
         )
@@ -209,6 +210,10 @@ class Simulator(object):
 
         # should fail by DAE index > 1
         ca.inv(check_jacobian["jac_alg_z"])
+        # tools.plot_array(check_jacobian["jac_alg_z"], self.model.varlist_algebraic)
+        # tools.plot_array(check_jacobian["jac_ode_z"], self.model.varlist_algebraic)
+        # tools.plot_array(check_jacobian["jac_alg_x"], self.model.varlist_state)
+        # tools.plot_array(check_jacobian["jac_ode_x"], self.model.varlist_state)
 
         algebraic_eqsys_rootfinder = ca.Function(
             "alg_eq_sys",
