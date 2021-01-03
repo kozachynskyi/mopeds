@@ -83,6 +83,7 @@ class VariableConstant(Variable):
         self.casadi_var = value
         self.value = value
         self.opc_ua_id = opc_ua_id
+        self.fixed = True
 
 
 class VariableList(OrderedDict):
