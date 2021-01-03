@@ -11,7 +11,7 @@ casadi https://github.com/casadi/casadi/wiki/InstallationInstructions
 
 Optionally: Create a new environment with conda / venv. Easier to manage dependencies.
 
-- pip install git+https://gitlab.tubit.tu-berlin.de/vovakozach/par_est_casadi
+- pip install git+https://git.tu-berlin.de/vovakozach/pe_oed_casadi
 
 ### Development
 
