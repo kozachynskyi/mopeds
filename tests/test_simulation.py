@@ -3,6 +3,19 @@ import numpy as np
 import logging
 import par_est.examples
 import casadi as ca
+import copy
+
+def test_dae_initials_calculation():
+    varlist, model = par_est.examples.empy_dae()
+    varlist["X1"].value.value = [1]
+    varlist["C"].fixed = True
+    varlist["P"].fixed = True
+    time_grid = [1,2]
+
+    sim = par_est.Simulator(model, time_grid, varlist)
+    assert sim._initial_algebraic[0] == 0
+    sim.calculate_algebraic_initials(apply_intials=True)
+    assert sim._initial_algebraic[0] == -1
 
 
 def test_pendulum_dae():
@@ -83,6 +96,8 @@ def test_cstr():
 
 
 if __name__ == "__main__":
-    test_pendulum_dae()
-    test_cstr()
-    test_vle_nle()
+    pass
+    # test_pendulum_dae()
+    # test_cstr()
+    # test_vle_nle()
+    # test_dae_initials_calculation()
