@@ -446,7 +446,9 @@ class OptimalExperimentalDesign(Optimizer):
             jacobian_selected = jacobian_selected * parameter_scaling
 
             cov_at_timepoint = (
-                jacobian_selected.T @ np.diag(self.inverted_variances) @ jacobian_selected
+                jacobian_selected.T
+                @ np.diag(self.inverted_variances)
+                @ jacobian_selected
             )
 
             if analyze:
@@ -501,17 +503,17 @@ class OptimalExperimentalDesign(Optimizer):
     def identifiability_analysis(self):
         """ Taken from Erik/Diana Subset0. Many questions arrise about how it works. """
         (
-            _,
-            _,
+            error,
+            covariance_full,
             jacobian,
-            _,
-            _,
+            covariance_all,
+            objective_all,
         ) = self._objective(True)
         cond_threshold = 1000
         colin_threshold = 15
 
         states, parameters = jacobian.shape
-
+        jacobian_original = jacobian
         if states < parameters:
             jacobian = np.pad(
                 jacobian,
