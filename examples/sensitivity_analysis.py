@@ -60,7 +60,7 @@ if __name__ == "__main__":
 
     oed = par_est.OptimalExperimentalDesign(m, [variable_list_optimizer], time_grid)
 
-    unfix_parameters = oed.identifiability_analysis(True)
+    unfix_parameters = oed.identifiability_analysis()
     print(unfix_parameters)
 
     oed.optimize()

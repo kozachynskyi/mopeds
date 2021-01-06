@@ -27,7 +27,12 @@ def test_pe_intials_algebraic():
     }
     assert pe.list_simulators[0]._initial_algebraic[0] == 0
     assert pe.list_simulators[1]._initial_algebraic[0] == 0
-    pe._reinitialize_simulators_algebraic()
+    pe = par_est.ParameterEstimation(model, [variable_list1, variable_list2], reinitialize_algebraic=True)
+    pe.solver_settings = {
+        "ipopt": {
+            "max_iter": 0,
+        },
+    }
     assert pe.list_simulators[0]._initial_algebraic[0] == -1
     assert pe.list_simulators[1]._initial_algebraic[0] == -2
 

@@ -142,22 +142,24 @@ class Optimizer(object):
 
         result = []
 
+        initial_settings = copy.deepcopy(self.solver_settings)
+        self.solver_settings = {
+            "verbose": False,
+            "print_time": False,
+            "ipopt": {
+                "hessian_approximation": "limited-memory",
+                "max_iter": max_iterations,
+                "print_level": 0,
+            },
+        }
         for index, guess in enumerate(list_startpoint):
             self.guess = guess
-            self.solver_settings = {
-                "verbose": False,
-                "print_time": False,
-                "ipopt": {
-                    "hessian_approximation": "limited-memory",
-                    "max_iter": max_iterations,
-                    "print_level": 0,
-                },
-            }
             print(f"Optimization number {index} started")
             res = self.optimize(scale)
             print(f"Objective: {res['f']}")
             result.append(res)
 
+        self.solver_settings = initial_settings
         return result
 
 
@@ -192,6 +194,12 @@ class ParameterEstimation(Optimizer):
             )
         )
         self._setup_initialization()
+
+        self.solver_name = "ipopt"
+        self.solver_settings = {
+            "verbose": False,
+            "ipopt": {"hessian_approximation": "limited-memory", "max_iter": 300},
+        }
 
         if reinitialize_algebraic:
             for sim in self.list_simulators:
@@ -323,12 +331,6 @@ class ParameterEstimation(Optimizer):
             self.experiments_scale = self.experiments_weights
         else:
             self.experiments_scale = 1
-        self.solver_name = "ipopt"
-        if self.solver_settings is None:
-            self.solver_settings = {
-                "verbose": False,
-                "ipopt": {"hessian_approximation": "limited-memory", "max_iter": 300},
-            }
 
         return self._optimize(scale)
 
@@ -350,6 +352,17 @@ class OptimalExperimentalDesign(Optimizer):
 
         self._setup_simulator()
         self._setup_initialization()
+
+        self.solver_name = "ipopt"
+        self.solver_settings = {
+            "verbose": False,
+            # "monitor": ["nlp_grad_f", "nlp_f"],
+            "ipopt": {
+                "hessian_approximation": "limited-memory",
+                "max_iter": 100,
+                # "print_level": 6,
+            },
+        }
 
     def _setup_simulator(self):
         """Initializes simulator class. Parameter variables are fixed, and an index of an unfixed
@@ -486,17 +499,6 @@ class OptimalExperimentalDesign(Optimizer):
             scale: scaling should be used as default, allows for faster convergence
         """
         # Scaling decreases amount of iterations, but ipopt fails gradient check at big amount of timestamps
-        self.solver_name = "ipopt"
-        if self.solver_settings is None:
-            self.solver_settings = {
-                "verbose": False,
-                # "monitor": ["nlp_grad_f", "nlp_f"],
-                "ipopt": {
-                    "hessian_approximation": "limited-memory",
-                    "max_iter": 100,
-                    # "print_level": 6,
-                },
-            }
 
         return self._optimize(scale)
 

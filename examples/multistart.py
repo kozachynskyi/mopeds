@@ -26,14 +26,14 @@ if __name__ == "__main__":
     # variable_list_optimizer["e0_E_r1"].fixed = True
     # variable_list_optimizer["e0_E_r2"].fixed = True
     # variable_list_optimizer["e0_E_r3"].fixed = True
-    # variable_list_optimizer["e0_k_pre_r1"].fixed = True
-    # variable_list_optimizer["e0_k_pre_r2"].fixed = True
-    # variable_list_optimizer["e0_k_pre_r3"].fixed = True
-    # variable_list_optimizer["e0_U"].fixed = True
-    # variable_list_optimizer["e0_c_p"].fixed = True
-    # variable_list_optimizer["e0_greek_Deltah_r1"].fixed = True
-    # variable_list_optimizer["e0_greek_Deltah_r2"].fixed = True
-    # variable_list_optimizer["e0_greek_Deltah_r3"].fixed = True
+    variable_list_optimizer["e0_k_pre_r1"].fixed = True
+    variable_list_optimizer["e0_k_pre_r2"].fixed = True
+    variable_list_optimizer["e0_k_pre_r3"].fixed = True
+    variable_list_optimizer["e0_U"].fixed = True
+    variable_list_optimizer["e0_c_p"].fixed = True
+    variable_list_optimizer["e0_greek_Deltah_r1"].fixed = True
+    variable_list_optimizer["e0_greek_Deltah_r2"].fixed = True
+    variable_list_optimizer["e0_greek_Deltah_r3"].fixed = True
 
     # variable_list_optimizer["e0_c_in_i1"].fixed = True
     # variable_list_optimizer["e0_c_in_i2"].fixed = True
@@ -50,5 +50,5 @@ if __name__ == "__main__":
     res1 = pe.optimize_multistart(3, True, 10)
 
     oed = par_est.OptimalExperimentalDesign(m, [variable_list_optimizer], time_grid)
-    print(oed.identifiability_analysis(True))
+    print(oed.identifiability_analysis())
     res2 = oed.optimize_multistart(3, False, 2)
