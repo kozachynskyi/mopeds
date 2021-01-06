@@ -17,8 +17,8 @@ if __name__ == "__main__":
     time_grid1 = np.linspace(0, 1000, 4)
     time_grid2 = np.linspace(0, 1000, 8)
 
-    data1 = par_est.tools.generate_exp_data(variable_list, m, time_grid1)
-    data2 = par_est.tools.generate_exp_data(variable_list, m, time_grid2)
+    data1 = par_est.tools.generate_varlist_with_data(variable_list, m, time_grid1)
+    data2 = par_est.tools.generate_varlist_with_data(variable_list, m, time_grid2)
 
     # If data is not available for all simulated points, PE works
     data2["e0_T"].value.value = np.delete(data2["e0_T"].value.value, 2)

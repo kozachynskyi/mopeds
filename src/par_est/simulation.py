@@ -341,10 +341,10 @@ class Simulator(object):
         variables = VariableList()
         result_simulation = self.simulate()
         if not algebraic:
-            result_varlist = [self.model.varlist_state]
+            result_varlist = [copy.deepcopy(self.model.varlist_state)]
             res_array = result_simulation["xf"]
         else:
-            result_varlist = [self.model.varlist_state, self.model.varlist_algebraic]
+            result_varlist = [copy.deepcopy(self.model.varlist_state), copy.deepcopy(self.model.varlist_algebraic)]
             res_array = ca.vertcat(result_simulation["xf"], result_simulation["zf"])
 
         convert_to_numpy = False
@@ -354,6 +354,7 @@ class Simulator(object):
         shift_by = 0
         for variable_list in result_varlist:
             for count, var in enumerate(variable_list.values()):
+                var.casadi_var = None
                 new_var = copy.deepcopy(var)
                 new_var.value = ExperimentData()
                 if convert_to_numpy:

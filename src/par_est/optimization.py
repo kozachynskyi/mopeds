@@ -346,6 +346,7 @@ class OptimalExperimentalDesign(Optimizer):
         self.time_grid = time_grid
         self.parameter_values = []
         self.select_independent = []
+        self.inverted_variances = []
 
         self._setup_simulator()
         self._setup_initialization()
@@ -369,7 +370,10 @@ class OptimalExperimentalDesign(Optimizer):
                     # index has + 1 to account for tau variable, that is a parameter of a simulation.
                     index = list(self.model.varlist_independent).index(var.name) + 1
                     self.select_independent.append(index)
+            elif isinstance(var, VariableState):
+                self.inverted_variances.append(1 / var.variance)
 
+        self.inverted_variances = np.array(self.inverted_variances)
         self.index_all_states = list(range(len(self.model.varlist_state)))
 
         self.list_simulators.append(
@@ -429,9 +433,6 @@ class OptimalExperimentalDesign(Optimizer):
         split_vector = np.linspace(0, num_time, num_time + 1, dtype=int) * num_param
         list_jacobian_at_timepoint = ca.horzsplit(result_jacobian, split_vector)
 
-        # For now the measurement covariance is fixed, but it should be taken as input.
-        covariance_measurement = np.eye(num_state)
-
         # Jacobian is also scaled based on parameter values.
         parameter_scaling = ca.repmat(ca.DM(self.parameter_values).T, num_state, 1)
 
@@ -445,7 +446,7 @@ class OptimalExperimentalDesign(Optimizer):
             jacobian_selected = jacobian_selected * parameter_scaling
 
             cov_at_timepoint = (
-                jacobian_selected.T @ covariance_measurement @ jacobian_selected
+                jacobian_selected.T @ np.diag(self.inverted_variances) @ jacobian_selected
             )
 
             if analyze:
@@ -497,7 +498,7 @@ class OptimalExperimentalDesign(Optimizer):
 
         return self._optimize(scale)
 
-    def identifiability_analysis(self, reset_self=False):
+    def identifiability_analysis(self):
         """ Taken from Erik/Diana Subset0. Many questions arrise about how it works. """
         (
             _,
@@ -579,24 +580,6 @@ class OptimalExperimentalDesign(Optimizer):
                 IdentifOrd[index]
             ].name
             unfix_parameters.append(parameter_name)
-
-        if reset_self:
-            new_varlist = copy.deepcopy(self.list_input_varlist)
-
-            for var in new_varlist[0].values():
-                if isinstance(var, VariableParameter):
-                    if var.name in unfix_parameters:
-                        var.fixed = False
-                    else:
-                        var.fixed = True
-
-            self.__init__(
-                self.model,
-                new_varlist,
-                self.time_grid,
-                self.integrator_name,
-                self.integrator_settings,
-            )
 
         return unfix_parameters
 

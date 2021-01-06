@@ -148,17 +148,17 @@ class prime_class:
         return [n for n in np.arange(2, nMax) if self.isPrime(n)]
 
 
-def generate_exp_data(variable_list, model, time_grid):
+def generate_varlist_with_data(variable_list, model, time_grid):
+    # Simulated ODE/DAE and replaces StateVariable values with simulated data
     var_list_fixed = copy.deepcopy(variable_list)
     for var in var_list_fixed.values():
         var.fixed = True
-    var_list_exp = par_est.Simulator(
-        model, time_grid, var_list_fixed
-    ).generate_exp_data()
+    sim = par_est.Simulator(model, time_grid, var_list_fixed)
+    var_list_exp = sim.generate_exp_data()
 
     # Replace empty state variables with results from simulation
     variable_list_with_data = copy.deepcopy(variable_list)
     for key, var in var_list_exp.items():
-        variable_list_with_data[key] = var
+        variable_list_with_data[key].value = var.value
 
     return variable_list_with_data

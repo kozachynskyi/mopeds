@@ -23,7 +23,7 @@ class Variable(object):
         self.guess = None
         self.lower_bound = None
         self.upper_bound = None
-        self.variance = 1
+        self.variance = 1.0
 
     @classmethod
     def get_subclasses(cls):
