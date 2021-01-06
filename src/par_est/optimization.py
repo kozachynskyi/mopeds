@@ -583,7 +583,7 @@ class OptimalExperimentalDesign(Optimizer):
             ].name
             unfix_parameters.append(parameter_name)
 
-        return unfix_parameters
+        return unfix_parameters, error, covariance_full, jacobian_original
 
 
 class ParameterEstimationNLE(Optimizer):
