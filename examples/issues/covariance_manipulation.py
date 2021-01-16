@@ -16,7 +16,7 @@ time_grid = np.linspace(0, 1000, num_time + 1)
 for var in varlist.values():
     var.fixed = True
 sim = par_est.Simulator(model, time_grid, varlist)
-res = sim.simulate(True)
+res = sim.simulate_jac()
 
 num_param = 19
 num_state = 5

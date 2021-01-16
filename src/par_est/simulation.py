@@ -127,27 +127,19 @@ class Simulator(object):
             self.integrator_settings,
         )
 
-        steps_integrator = len(self.time_grid) - 1
-        self.integrator_full = self.integrator_tau.mapaccum(
-            "integrator_full", steps_integrator
-        )
-
-        if self.model.DAE:
-            self.integrator_tau_jacobian = self.integrator_tau.factory(
+        if self.model.DAE is True:
+            self.integrator_tau_jac = self.integrator_tau.factory(
                 "integrator_tau_jacobian",
-                self.integrator_full.name_in(),
-                ["xf", "zf", "jac:xf:p"],
-            )
-        else:
-            self.integrator_tau_jacobian = self.integrator_tau.factory(
-                "integrator_tau_jacobian",
-                self.integrator_full.name_in(),
+                self.integrator_tau.name_in(),
                 ["xf", "qf", "zf", "rxf", "rqf", "rzf", "jac:xf:p"],
             )
+        else:
+            self.integrator_tau_jac = self.integrator_tau.factory(
+                "integrator_tau_jacobian",
+                self.integrator_tau.name_in(),
+                ["xf", "qf", "rxf", "rqf", "jac:xf:p"],
+            )
 
-        self.integrator_full_jacobian = self.integrator_tau_jacobian.mapaccum(
-            "jacobian", steps_integrator
-        )
 
         # Arrays needed to initialize integrator.
         self._variables = []
@@ -178,6 +170,12 @@ class Simulator(object):
         self._initial_algebraic_original = copy.deepcopy(self._initial_algebraic)
         self._variables = ca.vcat(self._variables)
         self._reset_scaling()
+        if self.model.DAE is True:
+            self.simulate = self._simulate_dae
+            self.simulate_jac = self._simulate_jac_dae
+        else:
+            self.simulate = self._simulate_ode
+            self.simulate_jac = self._simulate_jac_ode
 
     def _reset_scaling(self):
         self.scaling = ca.DM.ones(self._variables.size())
@@ -290,51 +288,127 @@ class Simulator(object):
         return [res, old_initial]
         # return check_initials, check_jacobian
 
-    def simulate(self, derivatives=False):
+    def _simulate_jac_dae(self):
         """Return dictionary with results "xf" - state,
         "zf" - algebraic, "jac_xf_p" - derivatives.
         """
-        map_num = len(self.time_grid) - 1
-        initial_independent = ca.vertcat(
-            ca.horzcat(*(self.time_grid[1:] - self.time_grid[:-1])),
-            ca.repmat(self._variables * self.scaling, 1, map_num),
-        )
+        prev_time_step = 0
+        res_states = []
+        res_algebraic = []
+        res_jacobian = []
+        x_init = self._initial_state
+        alg_init = self._initial_algebraic
 
-        self.logger.debug(
-            "Simulating: \n Initial States x0 \n {} \n Independent Variables p \n {} \n".format(
-                self._initial_state, initial_independent
+        for time_step in self.time_grid[1:]:
+            res_integration = self.integrator_tau_jac(
+                x0=x_init,
+                z0=alg_init,
+                p=ca.vertcat(
+                    time_step - prev_time_step, self._variables * self.scaling
+                ),
             )
-        )
-        if self.model.DAE:
-            self.logger.debug(
-                "Initial Algebraic z0 \n {} \n".format(self._initial_algebraic)
+
+            prev_time_step = time_step
+            x_init = res_integration["xf"]
+            alg_init = res_integration["zf"]
+
+            res_states.append(res_integration["xf"])
+            res_algebraic.append(res_integration["zf"])
+            res_jacobian.append(res_integration["jac_xf_p"])
+
+        res_states = ca.hcat(res_states)
+        res_algebraic = ca.hcat(res_algebraic)
+        res_jacobian = ca.hcat(res_jacobian)
+
+        res = {"xf": res_states, "zf": res_algebraic, "jac_xf_p": res_jacobian}
+        return res
+
+    def _simulate_jac_ode(self):
+        """Return dictionary with results "xf" - state,
+        "zf" - algebraic, "jac_xf_p" - derivatives.
+        """
+        prev_time_step = 0
+        res_states = []
+        res_jacobian = []
+        x_init = self._initial_state
+
+        for time_step in self.time_grid[1:]:
+            res_integration = self.integrator_tau_jac(
+                x0=x_init,
+                p=ca.vertcat(
+                    time_step - prev_time_step, self._variables * self.scaling
+                ),
             )
 
-        if not derivatives:
-            if self.model.DAE:
-                result_integration = self.integrator_full(
-                    x0=self._initial_state,
-                    z0=self._initial_algebraic,
-                    p=initial_independent,
-                )
-            else:
-                result_integration = self.integrator_full(
-                    x0=self._initial_state, p=initial_independent
-                )
-        else:
-            if self.model.DAE:
-                result_integration = self.integrator_full_jacobian(
-                    x0=self._initial_state,
-                    z0=self._initial_algebraic,
-                    p=initial_independent,
-                )
-            else:
-                result_integration = self.integrator_full_jacobian(
-                    x0=self._initial_state,
-                    p=initial_independent,
-                )
+            prev_time_step = time_step
+            x_init = res_integration["xf"]
 
-        return result_integration
+            res_states.append(res_integration["xf"])
+            res_jacobian.append(res_integration["jac_xf_p"])
+
+        res_states = ca.hcat(res_states)
+        res_jacobian = ca.hcat(res_jacobian)
+
+        res = {"xf": res_states, "jac_xf_p": res_jacobian}
+        return res
+
+    def _simulate_dae(self):
+        """Return dictionary with results "xf" - state,
+        "zf" - algebraic
+        """
+        prev_time_step = 0
+        res_states = []
+        res_algebraic = []
+        x_init = self._initial_state
+        alg_init = self._initial_algebraic
+
+        for time_step in self.time_grid[1:]:
+            res_integration = self.integrator_tau(
+                x0=x_init,
+                z0=alg_init,
+                p=ca.vertcat(
+                    time_step - prev_time_step, self._variables * self.scaling
+                ),
+            )
+
+            prev_time_step = time_step
+            x_init = res_integration["xf"]
+            alg_init = res_integration["zf"]
+
+            res_states.append(res_integration["xf"])
+            res_algebraic.append(res_integration["zf"])
+
+        res_states = ca.hcat(res_states)
+        res_algebraic = ca.hcat(res_algebraic)
+
+        res = {"xf": res_states, "zf": res_algebraic}
+        return res
+
+    def _simulate_ode(self):
+        """Return dictionary with results "xf" - state,
+        "zf" - algebraic
+        """
+        prev_time_step = 0
+        res_states = []
+        x_init = self._initial_state
+
+        for time_step in self.time_grid[1:]:
+            res_integration = self.integrator_tau(
+                x0=x_init,
+                p=ca.vertcat(
+                    time_step - prev_time_step, self._variables * self.scaling
+                ),
+            )
+
+            prev_time_step = time_step
+            x_init = res_integration["xf"]
+
+            res_states.append(res_integration["xf"])
+
+        res_states = ca.hcat(res_states)
+
+        res = {"xf": res_states}
+        return res
 
     def generate_exp_data(self, algebraic=False):
         """ Runs simulation and returns results in VariableList class."""

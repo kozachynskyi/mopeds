@@ -1,8 +1,8 @@
 #!/bin/bash
 
-for d in $(find ../examples -name "*.py") ; do
+for d in $(find ./examples -name "*.py") ; do
     ignore=0
-    for file in "../examples/dae_ode/hyfo_dae.py"
+    for file in "./examples/dae_ode/hyfo_dae.py"
         do
             if [ "$file" == "$d" ]; then
                 ignore=1

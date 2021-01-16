@@ -28,7 +28,7 @@ var_list["e0_E_r1"].fixed = False
 pe = par_est.ParameterEstimation(m, [var_list])
 
 pe._setup_scaling(False)
-sim_unscaled = pe.list_simulators[0].simulate(True)
+sim_unscaled = pe.list_simulators[0].simulate_jac()
 ev_unscaled = ca.Function(
     "unscaled",
     [pe.varlist_decision.get_casadi_var()],
@@ -38,7 +38,7 @@ ev_unscaled = ca.Function(
 result_unscaled = ev_unscaled(90000)
 
 pe._setup_scaling(True)
-sim_scaled = pe.list_simulators[0].simulate(True)
+sim_scaled = pe.list_simulators[0].simulate_jac()
 ev_scaled = ca.Function(
     "scaled",
     [pe.varlist_decision.get_casadi_var()],
