@@ -118,7 +118,7 @@ class VariableList(OrderedDict):
             for element_index, var in enumerate(self.values()):
                 print(f"{element_index} : {var.name}")
         else:
-            print(f"{list(self.values())[var_index]}")
+            return list(self.values())[var_index]
 
     def add_variable(self, variable: Variable):
         if variable.name in self:
@@ -283,7 +283,7 @@ class ExperimentData(object):
         except Exception:
             value_length = "len() didn't work"
 
-        return f"Time length {time_length}:\n{self.time}\nValue lengh {value_length}:\n{self.value}."
+        return f"Time length {time_length}:\n{self.time}\nValue lengh {value_length}:\n{self.value}"
 
 
 class SameVariableNameError(Exception):
