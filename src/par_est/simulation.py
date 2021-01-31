@@ -493,6 +493,8 @@ class SimulatorNLE:
             if isinstance(var, Variable):
                 if isinstance(var, VariableAlgebraic):
                     self._guess.append(var.guess)
+                elif isinstance(var, VariableConstant):
+                    pass
                 else:
                     if var.fixed:
                         self._variables.append(var.value)
