@@ -52,9 +52,9 @@ assert (results_scaled[0] - result_unscaled[0]).is_zero()
 
 difference_jacobian = results_scaled[1] - result_unscaled[1]
 # Jacobian at all timepoints > 1 is the same
-assert(difference_jacobian[:, 19:38].is_zero())
-assert(difference_jacobian[:, 38:57].is_zero())
-assert(difference_jacobian[:, 57:76].is_zero())
+assert difference_jacobian[:, 19:38].is_zero()
+assert difference_jacobian[:, 38:57].is_zero()
+assert difference_jacobian[:, 57:76].is_zero()
 
 # Jacobian at first time point is off by small values.
 print(difference_jacobian[:, 0:19])

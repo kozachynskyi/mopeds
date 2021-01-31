@@ -140,7 +140,6 @@ class Simulator(object):
                 ["xf", "qf", "rxf", "rqf", "jac:xf:p"],
             )
 
-
         # Arrays needed to initialize integrator.
         self._variables = []
         self._initial_state = []
@@ -207,9 +206,13 @@ class Simulator(object):
         )
 
         residual_original = function(
-            x=self._initial_state, z=self._initial_algebraic_original, p=self._variables_with_guess
+            x=self._initial_state,
+            z=self._initial_algebraic_original,
+            p=self._variables_with_guess,
         )
-        residual_calculated = function(x=self._initial_state, z=res, p=self._variables_with_guess)
+        residual_calculated = function(
+            x=self._initial_state, z=res, p=self._variables_with_guess
+        )
 
         if apply_intials:
             residual_sum_original = ca.sum1(residual_original["alg"])
@@ -418,7 +421,10 @@ class Simulator(object):
             result_varlist = [copy.deepcopy(self.model.varlist_state)]
             res_array = result_simulation["xf"]
         else:
-            result_varlist = [copy.deepcopy(self.model.varlist_state), copy.deepcopy(self.model.varlist_algebraic)]
+            result_varlist = [
+                copy.deepcopy(self.model.varlist_state),
+                copy.deepcopy(self.model.varlist_algebraic),
+            ]
             res_array = ca.vertcat(result_simulation["xf"], result_simulation["zf"])
 
         convert_to_numpy = False

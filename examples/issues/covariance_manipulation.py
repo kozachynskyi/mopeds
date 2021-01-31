@@ -41,9 +41,7 @@ for count_time_step in range(num_time):
     index_till = num_param * count_time_step + (num_param)
 
     jac_at_timepoint = res_jacobian[:, index_from:index_till][:, 1:]
-    cov_at_timepoint = (
-        jac_at_timepoint.T @ covariance_measurement @ jac_at_timepoint
-    )
+    cov_at_timepoint = jac_at_timepoint.T @ covariance_measurement @ jac_at_timepoint
 
     assert (
         list_jacobian_at_timepoint[count_time_step][:, 1:] - jac_at_timepoint

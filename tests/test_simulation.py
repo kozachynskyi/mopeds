@@ -5,12 +5,13 @@ import par_est.examples
 import casadi as ca
 import copy
 
+
 def test_dae_initials_calculation():
     varlist, model = par_est.examples.empy_dae()
     varlist["X1"].value.value = [1]
     varlist["C"].fixed = True
     varlist["P"].fixed = True
-    time_grid = [1,2]
+    time_grid = [1, 2]
 
     sim = par_est.Simulator(model, time_grid, varlist)
     assert sim._initial_algebraic[0] == 0
@@ -36,23 +37,29 @@ def test_pendulum_dae():
         ca.vertcat(res_tau["xf"], res_tau["zf"]), ca.vertcat(res["xf"], res["zf"])
     ).any()
 
+
 def test_vle_nle():
     variable_list, model = par_est.examples.vle_nle_problem()
 
     variable_list.set_variable_list_fixed()
-    variable_list['x'].value = 0.5 
+    variable_list["x"].value = 0.5
     sim = par_est.simulation.SimulatorNLE(model, variable_list)
     res = sim.simulate_sym()
     true_answer_T = 359.451
 
     logging.warning(
-            f"Model.NLE: {model}, Result: {res['r']}, Expecting: {true_answer_T}"
-        )
+        f"Model.NLE: {model}, Result: {res['r']}, Expecting: {true_answer_T}"
+    )
     assert np.isclose(res["r"], ca.DM(true_answer_T), rtol=0, atol=1.0e-3)
 
 
 def test_cstr():
-    for cstr_model in [par_est.examples.cstr_ode, par_est.examples.cstr_dae, par_est.examples.cstr_dae_constant, par_est.examples.cstr_ode_constant]:
+    for cstr_model in [
+        par_est.examples.cstr_ode,
+        par_est.examples.cstr_dae,
+        par_est.examples.cstr_dae_constant,
+        par_est.examples.cstr_ode_constant,
+    ]:
         variable_list, m = cstr_model()
         # Create time-grid. Zero should be first
         time_grid = np.linspace(10, 10000, 4)

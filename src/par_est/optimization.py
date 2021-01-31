@@ -589,7 +589,9 @@ class OptimalExperimentalDesign(Optimizer):
 
 
 class ParameterEstimationNLE(Optimizer):
-    def __init__(self, model: Model, variable_list: VariableList, simulator_settings=None):
+    def __init__(
+        self, model: Model, variable_list: VariableList, simulator_settings=None
+    ):
         integrator_name = (None,)
         integrator_settings = (None,)
         super().__init__(model, variable_list, integrator_name, integrator_settings)
@@ -627,7 +629,9 @@ class ParameterEstimationNLE(Optimizer):
                 elif isinstance(var, VariableControl):
                     var.fixed = True
 
-            self.list_simulators.append(SimulatorNLE(self.model, varlist_input, self.simulator_settings))
+            self.list_simulators.append(
+                SimulatorNLE(self.model, varlist_input, self.simulator_settings)
+            )
 
             for var in varlist_input.values():
                 if isinstance(var, VariableAlgebraic):

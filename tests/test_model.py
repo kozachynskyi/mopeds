@@ -35,7 +35,12 @@ def test_model():
     with pytest.raises(VariableTypeError):
         model = par_est.Model(var_list)
 
-    for model in [par_est.examples.cstr_ode, par_est.examples.cstr_dae, par_est.examples.cstr_dae_constant, par_est.examples.cstr_ode_constant]:
+    for model in [
+        par_est.examples.cstr_ode,
+        par_est.examples.cstr_dae,
+        par_est.examples.cstr_dae_constant,
+        par_est.examples.cstr_ode_constant,
+    ]:
         var_list, model = model()
         ode_system = {
             "x": model.varlist_state.get_casadi_var(),

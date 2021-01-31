@@ -32,7 +32,9 @@ class Model(object):
                 ):
                     self.varlist_independent.add_variable(type(var)(var.name))
                 elif isinstance(var, VariableConstant):
-                    self._varlist_constant.add_variable(VariableConstant(var.name, var.value))
+                    self._varlist_constant.add_variable(
+                        VariableConstant(var.name, var.value)
+                    )
                 else:
                     raise VariableTypeError(var.name)
             else:

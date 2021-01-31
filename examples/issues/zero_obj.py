@@ -1160,7 +1160,15 @@ def initialize_problem():
     )
 
     m.add_equations_differential(
-        [dydx1, dydx2, dydx3, dydx4, dydx5, dydx6, dydx7,]
+        [
+            dydx1,
+            dydx2,
+            dydx3,
+            dydx4,
+            dydx5,
+            dydx6,
+            dydx7,
+        ]
     )
     m.add_equations_algebraic(
         [
@@ -1259,7 +1267,9 @@ if __name__ == "__main__":
         variable_list["e0_T"].fixed = False
         # variable_list["e0_p"].fixed = False
 
-        oed = par_est.OptimalExperimentalDesign(m, [variable_list], time_grid, "collocation")
+        oed = par_est.OptimalExperimentalDesign(
+            m, [variable_list], time_grid, "collocation"
+        )
         oed.solver_settings = {
             "verbose": False,
             # "monitor": ["nlp_grad_f", "nlp_f"],

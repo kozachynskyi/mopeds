@@ -3,7 +3,7 @@ import re
 import logging
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG, format='%(message)s')
+logging.basicConfig(level=logging.DEBUG, format="%(message)s")
 
 if len(sys.argv) == 2:
     path_to_file = sys.argv[1]
@@ -88,18 +88,17 @@ for line in Lines:
         new_line = f"    dydx{counter} = "
         diff_equations += f"dydx{counter} ,"
 
-
         line = re.sub("Y\(\d*\) =", "", line)
         while "power" in line:
-            line = re.sub(r"(power)(\()(\(.*?\)),","\g<3> ** (",line)
+            line = re.sub(r"(power)(\()(\(.*?\)),", "\g<3> ** (", line)
         line = re.sub(r"e0_\w*", r"m.varlist_all['\g<0>'].casadi_var", line)
         line = re.sub("exp", "ca.exp", line)
         line = re.sub("log", "ca.log", line)
         line = re.sub("\^", "\*\*", line)
         line = re.sub(";", "", line)
-            # field = field.replace("exp", "ca.exp")
-            # field = field.replace("^", "**")
-            # field = field.replace(";", "")
+        # field = field.replace("exp", "ca.exp")
+        # field = field.replace("^", "**")
+        # field = field.replace(";", "")
 
         new_line += line
 

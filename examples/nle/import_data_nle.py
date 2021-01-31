@@ -7,6 +7,7 @@ from par_est.optimization import ParameterEstimationNLE
 
 import nle_model
 
+
 def import_model_and_exp_data():
     # This allows for a more robust script execution
     DATA_PATH = os.path.join(os.path.dirname(__file__), "reactor_experimental_data.csv")

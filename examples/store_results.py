@@ -7,7 +7,7 @@ import par_est.examples
 
 
 if __name__ == "__main__":
-    """ This example shows how one can store Data in pickle files and
+    """This example shows how one can store Data in pickle files and
     check them later. Proposed method makes all objects that depend on
     casadi Types unusable, because casadi Types cannot be pickled.
 
@@ -29,10 +29,17 @@ if __name__ == "__main__":
     res = sim_fixed.generate_exp_data(algebraic=True)
     variable = variable_list["e0_T"]
 
+    objects_to_pickle_names = [
+        "variable",
+        "variable_list",
+        "sim_fixed",
+        "res_simple",
+        "res",
+    ]
 
-    objects_to_pickle_names = ["variable", "variable_list", "sim_fixed", "res_simple", "res"]
-
-    objects_to_store_dict = dict(zip(objects_to_pickle_names, [eval(x) for x in objects_to_pickle_names]))
+    objects_to_store_dict = dict(
+        zip(objects_to_pickle_names, [eval(x) for x in objects_to_pickle_names])
+    )
 
     # Create pickle file were data is stored and "dump" dict
     file_write = open("tmp.pkl", "wb")
@@ -48,4 +55,6 @@ if __name__ == "__main__":
 
     # Notice that all Casadi Objects were transformed to Strings and are not usable anymore
     print(f"Variable.casadi_var type before pickling {type(variable.casadi_var)}")
-    print(f"Variable.casadi_var type after pickling {type(loaded_dict['variable'].casadi_var)}")
+    print(
+        f"Variable.casadi_var type after pickling {type(loaded_dict['variable'].casadi_var)}"
+    )

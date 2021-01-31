@@ -15,8 +15,8 @@ if __name__ == "__main__":
     variable_list, model = vle_nle_problem()
 
     param_list = [
-       # "a1",
-       # "b1",
+        # "a1",
+        # "b1",
         "c1",
         "a2",
         # "b2",
@@ -36,9 +36,8 @@ if __name__ == "__main__":
     # Define changing mole fraction x
     x = [0.00, 0.10, 0.25, 0.50, 0.75, 0.90, 1.00]
 
-
     for val in x:
-        var_list_fixed['x'].value = val # adjust the value for x
+        var_list_fixed["x"].value = val  # adjust the value for x
 
         # Generate data using the fixed values for the parameter. The output
         # is used as starting values for parameter estimation
@@ -53,11 +52,8 @@ if __name__ == "__main__":
         # Append variable_list_optimizer to optimizer_list
         optimizer_list.append(variable_list_optimizer)
 
-
     # Define ParameterEstimationNLE
-    pe = par_est.optimization.ParameterEstimationNLE(
-        model, optimizer_list
-    )
+    pe = par_est.optimization.ParameterEstimationNLE(model, optimizer_list)
 
     # Solve parameter estimation problem
     res = pe.optimize(False)
