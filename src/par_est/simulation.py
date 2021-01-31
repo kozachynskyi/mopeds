@@ -459,9 +459,25 @@ class Simulator(object):
 
 
 class SimulatorNLE:
-    def __init__(self, model: Model, variable_list: VariableList):
+    def __init__(self, model: Model, variable_list: VariableList, solver_settings=None):
         self.model = model
         self.__input_variable_list = copy.deepcopy(variable_list)
+        self.scaling = None
+        if solver_settings is None:
+            self.solver_settings = {
+                "nlpsol": "ipopt",
+                "verbose": False,
+                "print_in": False,
+                "print_out": False,
+                "nlpsol_options": {
+                    "ipopt.hessian_approximation": "limited-memory",
+                    "ipopt.max_iter": 300,
+                    "ipopt.print_level": 0,
+                    "print_time": False,
+                },
+            }
+        else:
+            self.solver_settings = solver_settings
 
         self._variables = []
         self._guess = []
@@ -523,23 +539,8 @@ class SimulatorNLE:
         self.scaling = ca.DM.ones(self._variables.size())
 
     def simulate_sym(self):
-        opts = {}
-        opts_ipopt = {}
-        # opts["strategy"] = "linesearch"
-        opts["nlpsol"] = "ipopt"
-        opts_ipopt["print_time"] = False
-        opts_ipopt["ipopt.print_level"] = 0
-        opts["nlpsol_options"] = opts_ipopt
-        # opts["strategy"] = "linesearch"
-        # opts["abstol"] = 1e-14
-        # opts["constraints"] = [2, -2]
-        # opts["verbose"] = True
-        # opts["print_in"] = True
-        # opts["print_out"] = True
-        # opts["print_stats"] = True
-
-        sim = ca.rootfinder("s", "nlpsol", self.function, opts)
-        arg = {"x0": ca.DM(self._guess), "p": self._variables}
+        sim = ca.rootfinder("s", "nlpsol", self.function, self.solver_settings)
+        arg = {"x0": ca.DM(self._guess), "p": self._variables * self.scaling}
 
         # res = sim(x0=self._guess, p=self._variables)
         res = sim.call(arg)

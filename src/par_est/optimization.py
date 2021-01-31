@@ -589,10 +589,11 @@ class OptimalExperimentalDesign(Optimizer):
 
 
 class ParameterEstimationNLE(Optimizer):
-    def __init__(self, model: Model, variable_list: VariableList):
+    def __init__(self, model: Model, variable_list: VariableList, simulator_settings=None):
         integrator_name = (None,)
         integrator_settings = (None,)
         super().__init__(model, variable_list, integrator_name, integrator_settings)
+        self.simulator_settings = simulator_settings
         self._setup_simulator()
         self.logger.debug(
             "Created Optimizer object: \n Data Shape {} \n Desicion Variables {}".format(
@@ -626,7 +627,7 @@ class ParameterEstimationNLE(Optimizer):
                 elif isinstance(var, VariableControl):
                     var.fixed = True
 
-            self.list_simulators.append(SimulatorNLE(self.model, varlist_input))
+            self.list_simulators.append(SimulatorNLE(self.model, varlist_input, self.simulator_settings))
 
             for var in varlist_input.values():
                 if isinstance(var, VariableAlgebraic):
@@ -663,10 +664,7 @@ class ParameterEstimationNLE(Optimizer):
 
         return error
 
-    def optimize(self, scale=False):
-        if scale is True:
-            raise NotImplementedError("Scaling is not implemented")
-        # Scaling decreases amount of iterations, but ipopt fails gradient check at big amount of timestamps
+    def optimize(self, scale=True):
         self.solver_name = "ipopt"
         if self.solver_settings is None:
             self.solver_settings = {
