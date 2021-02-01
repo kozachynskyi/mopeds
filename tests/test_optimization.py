@@ -82,7 +82,6 @@ def test_pe_objective():
 
 def test_pe():
     """Test that ParameterEstimation on ODE and DAE always yields same result.
-    Test that ParameterEstimationNLE on NLE always yields same result.
     Helpfull to see if any drastic changes in calculation were made
     """
 
@@ -135,34 +134,6 @@ def test_pe():
             f"Model.DAE: {model.DAE}, Result: {res['f']}, Expecting: {answer}"
         )
         assert np.isclose(res["f"], ca.DM(answer), rtol=0, atol=1.0e-9)
-
-    """ NLE """
-    variable_list, model = par_est.examples.vle_nle_problem()
-
-    var_list_fixed = copy.deepcopy(variable_list)
-    var_list_fixed.set_variable_list_fixed()
-
-    var_list_fixed["x"].value = 0.5
-    variable_list_optimizer = par_est.tools.generate_exp_data_list_NLE(
-        model, var_list_fixed
-    )
-    variable_list_optimizer.set_variable_list_unfixed(["a2"])
-    variable_list_optimizer.set_bounds(emerg_val=50)
-
-    pe = par_est.optimization.ParameterEstimationNLE(
-        model, [variable_list_optimizer, variable_list_optimizer]
-    )
-    res = pe.optimize(False)
-    answer_f = 0
-    answer_param = [5.19625]
-
-    logging.warning(f"Model.NLE: {model}, Result: {res['f']}, Expecting: {answer_f}")
-    assert np.isclose(res["f"], ca.DM(answer_f), rtol=0, atol=1.0e-9)
-
-    logging.warning(
-        f"Model.NLE: {model}, Result: {res['x']}, Expecting: {answer_param}"
-    )
-    assert np.all(np.isclose(res["x"], ca.DM(answer_param), rtol=0, atol=1.0e-9))
 
 
 def test_oed():

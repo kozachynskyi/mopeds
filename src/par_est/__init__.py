@@ -23,9 +23,9 @@ from .variables import (
 from .variables import BadVariableError
 from .tools import MXPickler
 from .model import Model
-from .simulation import Simulator, SimulatorNLE
+from .simulation import Simulator
 from .optimization import (
+    Optimizer,
     ParameterEstimation,
     OptimalExperimentalDesign,
-    ParameterEstimationNLE,
 )

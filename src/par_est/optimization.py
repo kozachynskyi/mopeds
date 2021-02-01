@@ -3,7 +3,6 @@ import logging
 import casadi as ca
 import numpy as np
 from typing import List
-from scipy.sparse import csc_matrix, vstack, hstack
 from scipy import linalg
 
 from par_est import tools
@@ -12,9 +11,7 @@ from par_est import (
     Model,
     VariableParameter,
     Simulator,
-    SimulatorNLE,
     VariableState,
-    VariableAlgebraic,
     VariableList,
 )
 
@@ -586,94 +583,3 @@ class OptimalExperimentalDesign(Optimizer):
             unfix_parameters.append(parameter_name)
 
         return unfix_parameters, error, covariance_full, jacobian_original
-
-
-class ParameterEstimationNLE(Optimizer):
-    def __init__(
-        self, model: Model, variable_list: VariableList, simulator_settings=None
-    ):
-        integrator_name = (None,)
-        integrator_settings = (None,)
-        super().__init__(model, variable_list, integrator_name, integrator_settings)
-        self.simulator_settings = simulator_settings
-        self._setup_simulator()
-        self.logger.debug(
-            "Created Optimizer object: \n Data Shape {} \n Desicion Variables {}".format(
-                self.array_data.shape, self.varlist_decision.get_variable_name()
-            )
-        )
-        self._setup_initialization()
-
-    def _setup_simulator(self):
-        # It's not checked if all supplied varlist have same states etc.
-        for var in self.list_input_varlist[0].values():
-            if isinstance(var, VariableAlgebraic):
-                self.varlist_algebraic.add_variable(var)
-            elif isinstance(var, VariableParameter):
-                self.varlist_parameter.add_variable(var)
-                if var.fixed is False:
-                    self.varlist_decision.add_variable(var)
-            elif isinstance(var, VariableControl):
-                self.varlist_control.add_variable(var)
-
-        self.array_data = None
-
-        for varlist_input in self.list_input_varlist:
-            data_var = []
-            data_mask_var = []
-
-            for var in varlist_input.values():
-                # Generates time_grid based on available exp data
-                if isinstance(var, VariableAlgebraic):
-                    var.guess = var.guess
-                elif isinstance(var, VariableControl):
-                    var.fixed = True
-
-            self.list_simulators.append(
-                SimulatorNLE(self.model, varlist_input, self.simulator_settings)
-            )
-
-            for var in varlist_input.values():
-                if isinstance(var, VariableAlgebraic):
-                    if var.value.value is None:
-                        data_mask_var.append(0)
-                    else:
-                        data_var.append(var.value.value)
-                        data_mask_var.append(1)
-
-            sparsity_pattern = csc_matrix(data_mask_var)
-            sparsity_pattern.data = np.array(data_var)
-
-            if self.array_data is None:
-                self.array_data = sparsity_pattern
-            else:
-                self.array_data = hstack([self.array_data, sparsity_pattern])
-
-        self.array_data_sparcity = ca.DM(self.array_data).sparsity()
-
-    def _objective(self):
-        array_simulation = None
-
-        for simulator in self.list_simulators:
-            res_simulation = simulator.simulate_sym()
-
-            if array_simulation is None:
-                array_simulation = res_simulation["r"]
-            else:
-                array_simulation = ca.vertcat(array_simulation, res_simulation["r"])
-
-        error = ca.sumsqr(
-            array_simulation.T.get(False, self.array_data_sparcity) - self.array_data
-        )
-
-        return error
-
-    def optimize(self, scale=True):
-        self.solver_name = "ipopt"
-        if self.solver_settings is None:
-            self.solver_settings = {
-                "verbose": False,
-                "ipopt": {"max_iter": 300},
-            }
-
-        return self._optimize(scale)

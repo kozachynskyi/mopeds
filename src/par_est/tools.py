@@ -114,19 +114,6 @@ def make_startpoints(bound0, N):
     return B
 
 
-def generate_exp_data_list_NLE(model, var_list_fixed):
-    # Create simulation Object
-    sim_fixed = par_est.simulation.SimulatorNLE(model, var_list_fixed)
-    # Run simulation and connect results with actual state variables
-    val_fix = sim_fixed.generate_exp_data()
-    # Copy variable_list
-    variable_list_optimizer = copy.deepcopy(var_list_fixed)
-    # Set startings values
-    variable_list_optimizer.set_starting_values(val_fix, True)
-
-    return variable_list_optimizer
-
-
 class prime_class:
     """ Taken from Erik, not tested"""
 
