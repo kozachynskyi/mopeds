@@ -21,8 +21,8 @@ class Optimizer(object):
         self,
         model: Model,
         variable_lists: [VariableList],
-        integrator_name,
-        integrator_settings,
+        simulator_name,
+        simulator_settings,
     ):
         if not isinstance(variable_lists, list):
             raise (Exception("Variable list should be nested of type list"))
@@ -35,8 +35,8 @@ class Optimizer(object):
         self.varlist_control = VariableList()
         self.varlist_state = VariableList()
         self.varlist_algebraic = VariableList()
-        self.integrator_name = integrator_name
-        self.integrator_settings = integrator_settings
+        self.simulator_name = simulator_name
+        self.simulator_settings = simulator_settings
         self.list_simulators = []  # type: List[Simulator]
 
         self.guess = None
@@ -165,16 +165,16 @@ class ParameterEstimation(Optimizer):
         self,
         model: Model,
         variable_list: VariableList,
-        integrator_name="idas",
-        integrator_settings=None,
+        simulator_name="idas",
+        simulator_settings=None,
         *,
         reinitialize_algebraic=False,
     ):
         super().__init__(
             model,
             variable_list,
-            integrator_name,
-            integrator_settings,
+            simulator_name,
+            simulator_settings,
         )
 
         # This attribute is used while calculating Objective, and is either 1 or self.experiments_weights
@@ -233,8 +233,8 @@ class ParameterEstimation(Optimizer):
                     self.model,
                     time_grid,
                     varlist_input,
-                    self.integrator_name,
-                    self.integrator_settings,
+                    self.simulator_name,
+                    self.simulator_settings,
                 )
             )
 
@@ -338,10 +338,10 @@ class OptimalExperimentalDesign(Optimizer):
         model: Model,
         variable_list: [VariableList],
         time_grid,
-        integrator_name="idas",
-        integrator_settings=None,
+        simulator_name="idas",
+        simulator_settings=None,
     ):
-        super().__init__(model, variable_list, integrator_name, integrator_settings)
+        super().__init__(model, variable_list, simulator_name, simulator_settings)
         self.time_grid = time_grid
         self.parameter_values = []
         self.select_independent = []
@@ -391,8 +391,8 @@ class OptimalExperimentalDesign(Optimizer):
                 self.model,
                 self.time_grid,
                 self.list_input_varlist[0],
-                self.integrator_name,
-                self.integrator_settings,
+                self.simulator_name,
+                self.simulator_settings,
             )
         )
 
