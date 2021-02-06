@@ -10,8 +10,17 @@ casadi https://github.com/casadi/casadi/wiki/InstallationInstructions
 ## Installation
 
 Optionally: Create a new environment with conda / venv. Easier to manage dependencies.
+THIS PACKAGE IS UNDER DEVELOPMENT! In order to keep up with the pace you have 2 options:
 
-- pip install git+https://git.tu-berlin.de/vovakozach/pe_oed_casadi
+- install via pip. Afterwards you need to update it constantly
+    - INSTALL: pip install git+https://git.tu-berlin.de/vovakozach/pe_oed_casadi
+    - UPDATE: pip install -U git+https://git.tu-berlin.de/vovakozach/pe_oed_casadi
+- install as developer package and update by pulling changes
+    - INSTALL:
+        - Clone this repo on your computer git clone https://git.tu-berlin.de/vovakozach/pe_oed_casadi
+        - Install package from the cloned folder via pip install -e .
+    - UPDATE:
+        - Pull lastest changes on master branch git pull
 
 ### Development
 
