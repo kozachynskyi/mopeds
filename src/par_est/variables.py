@@ -51,10 +51,16 @@ class VariableState(Variable):
 
 
 class VariableAlgebraic(Variable):
-    def __init__(self, name, guess=None, opc_ua_id=None):
+    def __init__(self, name, guess=None, lb=None, ub=None, opc_ua_id=None):
         super().__init__(name)
         self.guess = guess
         self.opc_ua_id = opc_ua_id
+        if lb == -1e9:
+            lb = -ca.inf
+        if ub == 1e9:
+            ub = ca.inf
+        self.lower_bound = lb
+        self.upper_bound = ub
         self.value = ExperimentData()
 
 
