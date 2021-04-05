@@ -33,6 +33,7 @@ def plot_array(array, xticks=None, yticks=None):
         plt.xticks(range(0, array.shape[1]), xticks)
     if yticks is not None:
         plt.yticks(range(0, array.shape[0]), yticks)
+    # plt.colorbar()
     plt.show()
 
 

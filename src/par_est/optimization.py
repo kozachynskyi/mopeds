@@ -340,6 +340,8 @@ class OptimalExperimentalDesign(Optimizer):
         time_grid,
         simulator_name="idas",
         simulator_settings=None,
+        *,
+        reinitialize_algebraic=False,
     ):
         super().__init__(model, variable_list, simulator_name, simulator_settings)
         self.time_grid = time_grid
@@ -360,6 +362,9 @@ class OptimalExperimentalDesign(Optimizer):
                 # "print_level": 6,
             },
         }
+        if reinitialize_algebraic:
+            for sim in self.list_simulators:
+                sim.calculate_algebraic_initials(apply_intials=True)
 
     def _setup_simulator(self):
         """Initializes simulator class. Parameter variables are fixed, and an index of an unfixed
@@ -417,8 +422,7 @@ class OptimalExperimentalDesign(Optimizer):
         # Used only for debugging
         if analyze is True:
             jacobian_full = None
-            covariance_all = []
-            objective_all = []
+            covariance_all = None
 
             self._setup_scaling(False)
             evaluate = ca.Function(
@@ -461,14 +465,13 @@ class OptimalExperimentalDesign(Optimizer):
                 @ jacobian_selected
             )
 
+            objective_now = ca.trace(ca.inv(cov_at_timepoint))
+            objective_all.append(objective_now)
             if analyze:
-                covariance_all.append(cov_at_timepoint)
-                objective_all.append(ca.trace(ca.inv(cov_at_timepoint)))
-
-            if covariance_full is None:
-                covariance_full = cov_at_timepoint
-            else:
-                covariance_full = covariance_full + cov_at_timepoint
+                if covariance_all is None:
+                    covariance_all = cov_at_timepoint
+                else:
+                    covariance_all = ca.horzcat(covariance_all, cov_at_timepoint)
 
         if analyze:
             for jacobian in list_jacobian_at_timepoint:
@@ -482,7 +485,7 @@ class OptimalExperimentalDesign(Optimizer):
                 else:
                     jacobian_full = ca.vertcat(jacobian_full, jacobian_selected)
 
-        error = ca.trace(ca.inv(covariance_full))
+        error = ca.sum1(ca.vcat(objective_all))
 
         if analyze:
             return error, covariance_full, jacobian_full, covariance_all, objective_all
