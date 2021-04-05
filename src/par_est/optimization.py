@@ -418,12 +418,12 @@ class OptimalExperimentalDesign(Optimizer):
 
         result_simulation = self.list_simulators[0].simulate_jac()
         result_jacobian = result_simulation["jac_xf_p"]
-        objective_all = []
 
         # Used only for debugging
         if analyze is True:
             jacobian_full = None
-            covariance_all = None
+            covariance_all = []
+            objective_all = []
 
             self._setup_scaling(False)
             evaluate = ca.Function(
@@ -466,19 +466,14 @@ class OptimalExperimentalDesign(Optimizer):
                 @ jacobian_selected
             )
 
-            objective_now = ca.trace(ca.inv(cov_at_timepoint))
-            objective_all.append(objective_now)
             if analyze:
-                if covariance_all is None:
-                    covariance_all = cov_at_timepoint
-                else:
-                    covariance_all = ca.horzcat(covariance_all, cov_at_timepoint)
+                covariance_all.append(cov_at_timepoint)
+                objective_all.append(ca.trace(ca.inv(cov_at_timepoint)))
 
-                if covariance_full is None:
-                    covariance_full = cov_at_timepoint
-                else:
-                    covariance_full = covariance_full + cov_at_timepoint
-
+            if covariance_full is None:
+                covariance_full = cov_at_timepoint
+            else:
+                covariance_full = covariance_full + cov_at_timepoint
 
         if analyze:
             for jacobian in list_jacobian_at_timepoint:
@@ -492,11 +487,10 @@ class OptimalExperimentalDesign(Optimizer):
                 else:
                     jacobian_full = ca.vertcat(jacobian_full, jacobian_selected)
 
-        error = ca.sum1(ca.vcat(objective_all))
-        error_old = ca.trace(ca.inv(covariance_full))
+        error = ca.trace(ca.inv(covariance_full))
 
         if analyze:
-            return error, covariance_full, jacobian_full, covariance_all, objective_all, error_old
+            return error, covariance_full, jacobian_full, covariance_all, objective_all
 
         return error
 
