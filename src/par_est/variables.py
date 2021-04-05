@@ -252,8 +252,9 @@ class VariableList(OrderedDict):
         try:
             if as_one_plot is True:
                 for var in plot_varlist.values():
+                    plt.figure()
+                    plt.title(var.name)
                     plt.plot(var.value.time, var.value.value, label=var.name)
-                plt.legend()
             else:
                 figure, axes_array = plt.subplots(len(plot_varlist))
                 for var, ax in zip(plot_varlist.values(), axes_array):

@@ -418,6 +418,7 @@ class OptimalExperimentalDesign(Optimizer):
 
         result_simulation = self.list_simulators[0].simulate_jac()
         result_jacobian = result_simulation["jac_xf_p"]
+        objective_all = []
 
         # Used only for debugging
         if analyze is True:
@@ -473,6 +474,12 @@ class OptimalExperimentalDesign(Optimizer):
                 else:
                     covariance_all = ca.horzcat(covariance_all, cov_at_timepoint)
 
+                if covariance_full is None:
+                    covariance_full = cov_at_timepoint
+                else:
+                    covariance_full = covariance_full + cov_at_timepoint
+
+
         if analyze:
             for jacobian in list_jacobian_at_timepoint:
                 jacobian_selected = jacobian.get(
@@ -486,9 +493,10 @@ class OptimalExperimentalDesign(Optimizer):
                     jacobian_full = ca.vertcat(jacobian_full, jacobian_selected)
 
         error = ca.sum1(ca.vcat(objective_all))
+        error_old = ca.trace(ca.inv(covariance_full))
 
         if analyze:
-            return error, covariance_full, jacobian_full, covariance_all, objective_all
+            return error, covariance_full, jacobian_full, covariance_all, objective_all, error_old
 
         return error
 
