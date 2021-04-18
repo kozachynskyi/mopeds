@@ -17,7 +17,8 @@ class Variable(object):
     def __init__(self, name):
         self.name = name
         self.casadi_var = ca.MX.sym(self.name)
-        self.fixed = False
+        # fixed is property in order to deal with VariableControlPiecewiseConstant properly
+        self._fixed = False
         self.opc_ua_id = None
         self.value = None
         self.guess = None
@@ -39,6 +40,29 @@ class Variable(object):
 
     def __repr__(self):
         return f"{self.name}\n{type(self)}\n{self.value}"
+
+    def get_value_based_on_fixed(self):
+        if self.fixed:
+            return self.value
+        else:
+            return self.casadi_var
+
+    @property
+    def fixed(self):
+        # VariableControlPiecewiseConstant is fixed only if all variables inside are fixed
+        if isinstance(self, VariableControlPiecewiseConstant):
+            fixed_list = []
+            for variable in self.variable_list.values():
+                fixed_list.append(variable.fixed)
+            self._fixed = all(fixed_list)
+        return self._fixed
+
+    @fixed.setter
+    def fixed(self, state):
+        if isinstance(self, VariableControlPiecewiseConstant):
+            for var in self.variable_list.values():
+                var.fixed = state
+        self._fixed = state
 
 
 class VariableState(Variable):
@@ -81,6 +105,52 @@ class VariableControl(Variable):
         self.lower_bound = lb
         self.upper_bound = ub
         self.opc_ua_id = opc_ua_id
+
+
+class VariableControlPiecewiseConstant(VariableControl):
+    """ self.time - [time_stamps] list with time points of all variables in self.variables_list. """
+    def __init__(self, name, value=None, lb=None, ub=None, opc_ua_id=None):
+        super().__init__(name)
+        self.variable_list = VariableList()
+        var_t0 = VariableControl(name + "_t0", value, lb, ub, opc_ua_id)
+        var_t0.fixed = False
+        var_t0.time = 0.0
+        self.variable_list.add_variable(var_t0)
+
+    @property
+    def time(self):
+        time_list = []
+        for variable in self.variable_list.values():
+            time_list.append(variable.time)
+        return time_list
+
+    def to_dictionary(self):
+        time_var_dict = dict(zip(self.time, list(self.variable_list.values())))
+        return time_var_dict
+
+    def var_at_time(self, time_stamp):
+        for var in self.variable_list.values():
+            if var.time <= time_stamp:
+                var_at_previous_time_stamp = var
+                next
+            else:
+                break
+        return var_at_previous_time_stamp
+
+    def expand_horizon(self, times, values):
+        if not len(times) == len(values):
+            raise ValueError("Length of times and values vector should be same. You supplied:\ntimes\n{times}\nvalues\n{values}")
+        if not len(self.time) == 1:
+            raise NotImplementedError("Cannot be used to expand already expanded variable")
+        for index, (time, value) in enumerate(zip(times, values), 1):
+            var = VariableControl(f"{self.name}_t{index}", value, self.variable_list.index(0).lower_bound, self.variable_list.index(0).upper_bound, self.opc_ua_id)
+            var.fixed = value is not None
+            var.time = time
+            self.variable_list.add_variable(var)
+
+    def set_horizon(self, times, values):
+        """ Used when control at time 0 should also be rewritten """
+        raise NotImplementedError
 
 
 class VariableConstant(Variable):

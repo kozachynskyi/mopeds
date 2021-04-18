@@ -16,6 +16,7 @@ from .variables import (
     VariableAlgebraic,
     VariableState,
     VariableConstant,
+    VariableControlPiecewiseConstant,
     VariableControl,
     VariableList,
     ExperimentData,

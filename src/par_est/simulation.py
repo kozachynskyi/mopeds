@@ -10,6 +10,9 @@ from par_est import (
     Variable,
     VariableState,
     VariableAlgebraic,
+    VariableControl,
+    VariableControlPiecewiseConstant,
+    VariableParameter,
     VariableConstant,
     BadVariableError,
 )
@@ -19,7 +22,7 @@ class Simulator(object):
     def __init__(
         self,
         model: Model,
-        time_grid,
+        input_time_grid,
         variable_list: VariableList,
         integrator_name="idas",
         integrator_settings=None,
@@ -27,7 +30,7 @@ class Simulator(object):
 
         self.logger = logging.getLogger(__name__)
         self.logger.debug(
-            "Creating Simulator object: \n timegrid \n {0} \n".format(time_grid)
+            "Creating Simulator object: \n timegrid \n {0} \n".format(input_time_grid)
         )
         self.__input_variable_list = copy.deepcopy(variable_list)
         self.model = model
@@ -35,7 +38,10 @@ class Simulator(object):
         self.scaling = None
         self.integrator_settings = None
         self.integrator_name = None
-        self.time_grid = np.array(time_grid)
+        self.setup_time_grid(input_time_grid)
+        self.logger.debug(
+            "Timegrid modified: \n self.timegrid \n {0} \n".format(self.time_grid)
+        )
 
         if self.model.equations_algebraic is None:
             self.model.DAE = False
@@ -141,6 +147,7 @@ class Simulator(object):
             )
 
         # Arrays needed to initialize integrator.
+        num_time_steps = len(self.time_grid) - 1
         self._variables = []
         self._initial_state = []
         self._initial_algebraic = []
@@ -158,17 +165,54 @@ class Simulator(object):
                     self._initial_algebraic.append(var.guess)
                 elif isinstance(var, VariableConstant):
                     pass
-                else:
+                elif isinstance(var, VariableParameter):
+                    independent_variable = []
+                    independent_variable.extend([var.get_value_based_on_fixed()] * num_time_steps)
                     if var.fixed:
-                        self._variables.append(var.value)
                         self._variables_with_guess.append(var.value)
                     else:
-                        self._variables.append(var.casadi_var)
                         self._variables_with_guess.append(var.guess)
+                    self._variables.append(independent_variable)
+                elif isinstance(var, VariableControl):
+                    independent_variable = []
+                    if isinstance(var, VariableControlPiecewiseConstant):
+                        var_t0 = var.var_at_time(0)
+                        if var_t0.fixed:
+                            self._variables_with_guess.append(var_t0.value)
+                        else:
+                            self._variables_with_guess.append(var_t0.guess)
 
+                        last_unfixed_variable = None
+                        for time_stamp in self.time_grid:
+                            var_at_timestamp = var.var_at_time(time_stamp)
+                            # This if statement is required for OED in order to use casadi_var from previous step, if it was already used. Without it, control variable will be fixed to some value for given timestep
+                            if var_at_timestamp.fixed:
+                                if last_unfixed_variable is None:
+                                    independent_variable.append(var_at_timestamp.get_value_based_on_fixed())
+                                else:
+                                    independent_variable.append(last_unfixed_variable.get_value_based_on_fixed())
+                            else:
+                                last_unfixed_variable = var_at_timestamp
+                                independent_variable.append(last_unfixed_variable.get_value_based_on_fixed())
+
+                    else:
+                        if var.fixed:
+                            self._variables_with_guess.append(var.value)
+                        else:
+                            self._variables_with_guess.append(var.guess)
+                        independent_variable.extend([var.get_value_based_on_fixed()] * num_time_steps)
+                    self._variables.append(independent_variable)
+
+
+        self._variables = list(map(list, zip(*self._variables)))
         self._initial_algebraic_original = copy.deepcopy(self._initial_algebraic)
-        self._variables = ca.vcat(self._variables)
+
+        # Transforms nested python list in ca.MX array
+        for index, column in enumerate(self._variables):
+            casadi_mx = ca.vcat(column)
+            self._variables[index] = casadi_mx
         self._reset_scaling()
+
         if self.model.DAE is True:
             self.simulate = self._simulate_dae
             self.simulate_jac = self._simulate_jac_dae
@@ -177,7 +221,7 @@ class Simulator(object):
             self.simulate_jac = self._simulate_jac_ode
 
     def _reset_scaling(self):
-        self.scaling = ca.DM.ones(self._variables.size())
+        self.scaling = ca.DM.ones(self._variables[0].size())
 
     def calculate_algebraic_initials(self, *, apply_intials=False):
         function = ca.Function(
@@ -302,12 +346,12 @@ class Simulator(object):
         x_init = self._initial_state
         alg_init = self._initial_algebraic
 
-        for time_step in self.time_grid[1:]:
+        for time_step, independent_variables in zip(self.time_grid[1:], self._variables):
             res_integration = self.integrator_tau_jac(
                 x0=x_init,
                 z0=alg_init,
                 p=ca.vertcat(
-                    time_step - prev_time_step, self._variables * self.scaling
+                    time_step - prev_time_step, independent_variables * self.scaling
                 ),
             )
 
@@ -335,11 +379,11 @@ class Simulator(object):
         res_jacobian = []
         x_init = self._initial_state
 
-        for time_step in self.time_grid[1:]:
+        for time_step, independent_variables in zip(self.time_grid[1:], self._variables):
             res_integration = self.integrator_tau_jac(
                 x0=x_init,
                 p=ca.vertcat(
-                    time_step - prev_time_step, self._variables * self.scaling
+                    time_step - prev_time_step, independent_variables * self.scaling
                 ),
             )
 
@@ -365,12 +409,12 @@ class Simulator(object):
         x_init = self._initial_state
         alg_init = self._initial_algebraic
 
-        for time_step in self.time_grid[1:]:
+        for time_step, independent_variables in zip(self.time_grid[1:], self._variables):
             res_integration = self.integrator_tau(
                 x0=x_init,
                 z0=alg_init,
                 p=ca.vertcat(
-                    time_step - prev_time_step, self._variables * self.scaling
+                    time_step - prev_time_step, independent_variables * self.scaling
                 ),
             )
 
@@ -395,11 +439,11 @@ class Simulator(object):
         res_states = []
         x_init = self._initial_state
 
-        for time_step in self.time_grid[1:]:
+        for time_step, independent_variables in zip(self.time_grid[1:], self._variables):
             res_integration = self.integrator_tau(
                 x0=x_init,
                 p=ca.vertcat(
-                    time_step - prev_time_step, self._variables * self.scaling
+                    time_step - prev_time_step, independent_variables * self.scaling
                 ),
             )
 
@@ -417,7 +461,7 @@ class Simulator(object):
         """ Runs simulation and returns results in VariableList class."""
         variables = VariableList()
         result_simulation = self.simulate()
-        if not algebraic:
+        if not algebraic or not self.model.DAE:
             result_varlist = [copy.deepcopy(self.model.varlist_state)]
             res_array = result_simulation["xf"]
         else:
@@ -462,3 +506,11 @@ class Simulator(object):
             shift_by = count + 1
 
         return variables
+
+    def setup_time_grid(self, time_grid):
+        """ Time_grid provided by used may not take into account piecewise controls.
+        Thus it might be needed to expand a time grid. """
+        for var in self.__input_variable_list.values():
+            if isinstance(var, VariableControlPiecewiseConstant):
+                time_grid = np.append(time_grid, var.time)
+        self.time_grid = np.unique(time_grid)

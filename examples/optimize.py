@@ -5,17 +5,24 @@ import par_est.examples
 
 if __name__ == "__main__":
 
-    variable_list, m = par_est.examples.cstr_ode()
+    piecewiseswitch = False
+    variable_list, m = par_est.examples.cstr_ode(piecewiseswitch)
     for var in variable_list.values():
         var.fixed = True
 
     variable_list["e0_U"].fixed = False
-    variable_list["e0_T_j"].fixed = False
+    variable_list["e0_T_in"].fixed = False
     variable_list["e0_T"].variance = 0.1
 
     # Create time-grid. Zero should be first
     time_grid1 = np.linspace(0, 1000, 4)
     time_grid2 = np.linspace(0, 1000, 8)
+
+    if piecewiseswitch:
+        variable_list["e0_T_in"].expand_horizon([10, 723], [363, 453])
+        variable_list["e0_T_in"].variable_list.index(0).fixed = False
+        variable_list["e0_T_in"].variable_list.index(1).fixed = True
+        variable_list["e0_T_in"].variable_list.index(2).fixed = False
 
     data1 = par_est.tools.generate_varlist_with_data(variable_list, m, time_grid1)
     data2 = par_est.tools.generate_varlist_with_data(variable_list, m, time_grid2)
@@ -29,8 +36,7 @@ if __name__ == "__main__":
 
     pe = par_est.ParameterEstimation(m, [data1, data2])
     pe.optimize(scale_experiments=True)
-    # pe.optimize(False)
+    pe.optimize(False)
 
     oed = par_est.OptimalExperimentalDesign(m, [data1], time_grid1)
     # oed.optimize()
-    # oed.optimize(False)

@@ -1261,6 +1261,6 @@ if __name__ == "__main__":
     oed = par_est.OptimalExperimentalDesign(
         m, [variable_list], time_grid, "collocation"
     )
-    oed.optimize(True)
+    oed.optimize(False)
 
     # np.savetxt("exp.txt", res.toarray().T, delimiter="	")
