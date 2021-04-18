@@ -54,6 +54,10 @@ def test_cstr(piecewise):
         time_grid = np.linspace(10, 10000, 4)
         time_grid = np.insert(time_grid, 0, 0)
 
+        for var in variable_list.values():
+            if isinstance(var, (par_est.VariableControl, par_est.VariableParameter, par_est.VariableControlPiecewiseConstant)):
+                var.fixed = False
+
         for i in range(5):
             for j in range(2):
                 if i == 1:

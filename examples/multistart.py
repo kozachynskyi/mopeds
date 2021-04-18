@@ -23,25 +23,15 @@ if __name__ == "__main__":
     for key, var in var_list_exp.items():
         variable_list_optimizer[key] = var
 
-    # variable_list_optimizer["e0_E_r1"].fixed = True
-    # variable_list_optimizer["e0_E_r2"].fixed = True
-    # variable_list_optimizer["e0_E_r3"].fixed = True
-    variable_list_optimizer["e0_k_pre_r1"].fixed = True
-    variable_list_optimizer["e0_k_pre_r2"].fixed = True
-    variable_list_optimizer["e0_k_pre_r3"].fixed = True
-    variable_list_optimizer["e0_U"].fixed = True
-    variable_list_optimizer["e0_c_p"].fixed = True
-    variable_list_optimizer["e0_greek_Deltah_r1"].fixed = True
-    variable_list_optimizer["e0_greek_Deltah_r2"].fixed = True
-    variable_list_optimizer["e0_greek_Deltah_r3"].fixed = True
+    variable_list_optimizer["e0_E_r1"].fixed = False
+    variable_list_optimizer["e0_E_r2"].fixed = False
+    variable_list_optimizer["e0_E_r3"].fixed = False
 
-    # variable_list_optimizer["e0_c_in_i1"].fixed = True
-    # variable_list_optimizer["e0_c_in_i2"].fixed = True
-    # variable_list_optimizer["e0_c_in_i3"].fixed = True
-    # variable_list_optimizer["e0_c_in_i4"].fixed = True
-    variable_list_optimizer["e0_T_in"].fixed = True
-    variable_list_optimizer["e0_T_j"].fixed = True
-    # variable_list_optimizer["e0_F"].fixed = True
+    variable_list_optimizer["e0_c_in_i1"].fixed = False
+    variable_list_optimizer["e0_c_in_i2"].fixed = False
+    variable_list_optimizer["e0_c_in_i3"].fixed = False
+    variable_list_optimizer["e0_c_in_i4"].fixed = False
+    variable_list_optimizer["e0_F"].fixed = False
 
     pe = par_est.ParameterEstimation(
         m, [variable_list_optimizer, variable_list_optimizer]

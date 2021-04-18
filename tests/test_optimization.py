@@ -44,6 +44,11 @@ def test_pe_intials_algebraic(piecewise):
 @pytest.mark.parametrize("piecewise", [True, False])
 def test_pe_objective(piecewise):
     variable_list1, model = par_est.examples.empy_dae(piecewise)
+
+    for var in variable_list1.values():
+        if isinstance(var, (par_est.VariableControl, par_est.VariableParameter, par_est.VariableControlPiecewiseConstant)):
+            var.fixed = False
+
     variable_list1["X1"].value.value = [0, 1]
     variable_list1["X2"].value.value = [0]
     variable_list1["X2"].variance = 10
@@ -246,6 +251,10 @@ def test_optimizer(piecewise):
     Not well designed, and may yield false positives, but let it be.
     """
     variable_list, m = par_est.examples.cstr_ode(piecewise)
+
+    for var in variable_list.values():
+        if isinstance(var, (par_est.VariableControl, par_est.VariableParameter, par_est.VariableControlPiecewiseConstant)):
+            var.fixed = False
 
     # Create time-grid. Zero should be first
     time_grid = np.linspace(10, 1000, 4)

@@ -59,7 +59,7 @@ def test_variables():
     assert len(var_1.time) == 1
     assert var_1.time == [0]
     assert var_1.var_at_time(0).value == 20
-    assert var_1.var_at_time(0).fixed is False
+    assert var_1.var_at_time(0).fixed is True
     var_1.expand_horizon([11], [4])
     assert len(var_1.time) == 2
     assert var_1.time == [0, 11]
@@ -76,19 +76,20 @@ def test_variables():
     var_2.expand_horizon([11, 11.3], [4, 5])
     assert len(var_2.time) == 3
     assert var_2.time == [0, 11, 11.3]
-    assert var_2.fixed is False
+    assert var_2.fixed is True
     assert var_2.var_at_time(10).value == 20
     assert var_2.var_at_time(11).value == 4
     assert var_2.var_at_time(11.299999).value == 4
     assert var_2.var_at_time(11.300001).value == 5
     assert var_2.var_at_time(12).value == 5
 
-    assert var_3.var_at_time(0).fixed is False
+    assert var_3.var_at_time(0).fixed is True
     var_3.expand_horizon([11, 11.3], [4, None])
     assert len(var_3.time) == 3
-    assert var_3.fixed is False
-    assert isinstance(var_3.var_at_time(10).get_value_based_on_fixed(), ca.MX)
+    assert var_3.fixed is True
+    assert var_3.var_at_time(10).get_value_based_on_fixed() is None
     assert var_3.var_at_time(11).get_value_based_on_fixed() == 4
+    var_3.var_at_time(12).fixed = False
     assert isinstance(var_3.var_at_time(12).get_value_based_on_fixed(), ca.MX)
 
     var_3.fixed = True

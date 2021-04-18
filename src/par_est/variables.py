@@ -18,7 +18,7 @@ class Variable(object):
         self.name = name
         self.casadi_var = ca.MX.sym(self.name)
         # fixed is property in order to deal with VariableControlPiecewiseConstant properly
-        self._fixed = False
+        self._fixed = True
         self.opc_ua_id = None
         self.value = None
         self.guess = None
@@ -113,7 +113,7 @@ class VariableControlPiecewiseConstant(VariableControl):
         super().__init__(name)
         self.variable_list = VariableList()
         var_t0 = VariableControl(name + "_t0", value, lb, ub, opc_ua_id)
-        var_t0.fixed = False
+        var_t0.fixed = True
         var_t0.time = 0.0
         self.variable_list.add_variable(var_t0)
 
@@ -144,7 +144,7 @@ class VariableControlPiecewiseConstant(VariableControl):
             raise NotImplementedError("Cannot be used to expand already expanded variable")
         for index, (time, value) in enumerate(zip(times, values), 1):
             var = VariableControl(f"{self.name}_t{index}", value, self.variable_list.index(0).lower_bound, self.variable_list.index(0).upper_bound, self.opc_ua_id)
-            var.fixed = value is not None
+            var.fixed = True
             var.time = time
             self.variable_list.add_variable(var)
 
