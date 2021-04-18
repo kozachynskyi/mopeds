@@ -4,10 +4,12 @@ import numpy as np
 import pickle
 import copy
 import pathlib
+import pytest
 
 
-def test_pickling_objects(tmp_path):
-    variable_list, model = par_est.examples.cstr_dae()
+@pytest.mark.parametrize("piecewise", [True, False])
+def test_pickling_objects(tmp_path, piecewise):
+    variable_list, model = par_est.examples.cstr_dae(piecewise)
     variable = variable_list["e0_T"]
     time_grid = np.linspace(10, 10000, 4)
     time_grid = np.insert(time_grid, 0, 0)

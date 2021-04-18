@@ -8,6 +8,7 @@ from scipy import linalg
 from par_est import tools
 from par_est import (
     VariableControl,
+    VariableControlPiecewiseConstant,
     Model,
     VariableParameter,
     Simulator,
@@ -72,6 +73,7 @@ class Optimizer(object):
         self.guess = np.array(guess)
         self.lower_bound = np.array(lower_bound)
         self.upper_bound = np.array(upper_bound)
+        self.logger.debug(f"Initialized:\nguess {self.guess}\nlower_bound {self.lower_bound}\nupper_bound {self.upper_bound}")
 
     def _setup_scaling(self, scale=False):
         """Scaling should be done before setting a solver and solver settings.
@@ -83,8 +85,8 @@ class Optimizer(object):
             for simulator in self.list_simulators:
                 simulator._reset_scaling()
                 # for var in self.simulation._variables fails to iterate
-                for count in range(simulator._variables.size()[0]):
-                    var = simulator._variables[count]
+                for count in range(simulator._variables[0].size()[0]):
+                    var = simulator._variables[0][count]
                     if var.is_symbolic():
                         if var.name() in self.varlist_decision:
                             current_guess = self.varlist_decision[var.name()].guess
@@ -225,6 +227,10 @@ class ParameterEstimation(Optimizer):
                     time_grid = np.append(time_grid, var.value.time)
                 elif isinstance(var, VariableControl):
                     var.fixed = True
+                    if isinstance(var, VariableControlPiecewiseConstant):
+                        var.fixed = True
+                        time_grid = np.append(time_grid, var.time)
+
             time_grid = np.unique(time_grid)
             list_timegrid_length.append(float(len(time_grid)))
 
@@ -344,13 +350,15 @@ class OptimalExperimentalDesign(Optimizer):
         reinitialize_algebraic=False,
     ):
         super().__init__(model, variable_list, simulator_name, simulator_settings)
-        self.time_grid = time_grid
+        self.time_grid_original = time_grid
         self.parameter_values = []
         self.select_independent = []
         self.inverted_variances = []
 
         self._setup_simulator()
         self._setup_initialization()
+        # Is not the same as self.original_time_grid if VariableControlPiecewiseConstant adds additional time_stamps
+        self.time_grid_modified = self.list_simulators[0].time_grid
 
         self.solver_name = "ipopt"
         self.solver_settings = {
@@ -375,8 +383,13 @@ class OptimalExperimentalDesign(Optimizer):
 
         for var in self.list_input_varlist[0].values():
             if isinstance(var, VariableControl):
-                if var.fixed is False:
-                    self.varlist_decision.add_variable(var)
+                if not var.fixed:
+                    if isinstance(var, VariableControlPiecewiseConstant):
+                        for var_control in var.variable_list.values():
+                            if not var_control.fixed:
+                                self.varlist_decision.add_variable(var_control)
+                    else:
+                        self.varlist_decision.add_variable(var)
             elif isinstance(var, VariableParameter):
                 if var.fixed is False:
                     self.varlist_parameter.add_variable(var)
@@ -394,7 +407,7 @@ class OptimalExperimentalDesign(Optimizer):
         self.list_simulators.append(
             Simulator(
                 self.model,
-                self.time_grid,
+                self.time_grid_original,
                 self.list_input_varlist[0],
                 self.simulator_name,
                 self.simulator_settings,
@@ -411,7 +424,7 @@ class OptimalExperimentalDesign(Optimizer):
         """
         covariance_full = None
         # -1 ignores time point zero in self.time_grid
-        num_time = len(self.time_grid) - 1
+        num_time = len(self.time_grid_modified) - 1
         # +1 account for tau variable in Simulator class
         num_param = len(self.model.varlist_independent) + 1
         num_state = len(self.model.varlist_state)
@@ -494,12 +507,16 @@ class OptimalExperimentalDesign(Optimizer):
 
         return error
 
-    def optimize(self, scale=True):
+    def optimize(self, scale=False):
         """Run optimization.
 
         Args:
             scale: scaling should be used as default, allows for faster convergence
         """
+
+        # Scaling works unpredictably. It was shown during creation of VariableControlPiecewiseConstant
+        if scale:
+            raise NotImplementedError
         # Scaling decreases amount of iterations, but ipopt fails gradient check at big amount of timestamps
 
         return self._optimize(scale)

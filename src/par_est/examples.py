@@ -2,7 +2,7 @@ import casadi as ca
 import par_est
 
 
-def empy_dae():
+def empy_dae(piecewise_control=False):
     variable_list = par_est.VariableList()
 
     # fmt: off
@@ -12,7 +12,10 @@ def empy_dae():
 
     variable_list.add_variable(par_est.VariableAlgebraic("Z1", 0.0))
 
-    variable_list.add_variable(par_est.VariableControl("C", 0.0, -1, 1))
+    if piecewise_control:
+        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("C", 0.0, -1, 1))
+    else:
+        variable_list.add_variable(par_est.VariableControl("C", 0.0, -1, 1))
     variable_list.add_variable(par_est.VariableParameter("P", 0.0, -1, 1))
     # fmt: on
 
@@ -30,7 +33,7 @@ def empy_dae():
     return variable_list, m
 
 
-def pendulum_dae_1():
+def pendulum_dae_1(piecewise_control=False):
     variable_list = par_est.VariableList()
 
     # fmt: off
@@ -41,7 +44,10 @@ def pendulum_dae_1():
     variable_list.add_variable(par_est.VariableAlgebraic("v", 1.0 / 4))
     variable_list.add_variable(par_est.VariableAlgebraic("lambda", 1147.0 / 720))
 
-    variable_list.add_variable(par_est.VariableControl("L", 5.0))
+    if piecewise_control:
+        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("L", 5.0))
+    else:
+        variable_list.add_variable(par_est.VariableControl("L", 5.0))
     variable_list.add_variable(par_est.VariableParameter("g", 10.0))
     # fmt: on
 
@@ -62,7 +68,7 @@ def pendulum_dae_1():
     return variable_list, m
 
 
-def cstr_ode():
+def cstr_ode(piecewise_control=False):
     e0_greek_nu_i1_r1 = -1.0
     e0_greek_nu_i1_r2 = 1.0
     e0_greek_nu_i2_r2 = -1.0
@@ -95,16 +101,29 @@ def cstr_ode():
     variable_list.add_variable(par_est.VariableParameter("e0_greek_Deltah_r2", -5.5e-3, -6.0e-3, -5.0e-3))
     variable_list.add_variable(par_est.VariableParameter("e0_greek_Deltah_r3", 4.5e-3, 4.0e-3, 5.0e-3))
 
-    variable_list.add_variable(par_est.VariableControl("e0_c_in_i1", 5.0, 4.0, 6.0))
+    if piecewise_control:
+        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("e0_c_in_i1", 5.0, 4.0, 6.0))
+    else:
+        variable_list.add_variable(par_est.VariableControl("e0_c_in_i1", 5.0, 4.0, 6.0))
     variable_list.add_variable(par_est.VariableControl("e0_c_in_i2", 10.0, 9.0, 11.0))
     variable_list.add_variable(par_est.VariableControl("e0_c_in_i3", 0.0, 0.0, 1.0))
     variable_list.add_variable(par_est.VariableControl("e0_c_in_i4", 0.0, 0.0, 1.0))
-    variable_list.add_variable(par_est.VariableControl("e0_T_in", 373.0, 353.0, 393.0))
+    if piecewise_control:
+        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("e0_T_in", 373.0, 353.0, 393.0))
+    else:
+        variable_list.add_variable(par_est.VariableControl("e0_T_in", 373.0, 353.0, 393.0))
     variable_list.add_variable(par_est.VariableControl("e0_T_j", 373.0, 353.0, 393.0))
     variable_list.add_variable(par_est.VariableControl("e0_F", 6.5e-4, 6.0e-4, 7.0e-4))
     # fmt: on
 
     for var in variable_list.values():
+        if isinstance(var, (par_est.VariableParameter, par_est.VariableControl)):
+            var.guess = var.lower_bound
+
+    if piecewise_control:
+        var = variable_list["e0_T_in"].variable_list.index(0)
+        var.guess = var.lower_bound
+        var = variable_list["e0_c_in_i1"].variable_list.index(0)
         var.guess = var.lower_bound
 
     m = par_est.Model(variable_list)
@@ -122,7 +141,7 @@ def cstr_ode():
     return variable_list, m
 
 
-def cstr_dae():
+def cstr_dae(piecewise_control=False):
     e0_greek_nu_i1_r1 = -1.0
     e0_greek_nu_i1_r2 = 1.0
     e0_greek_nu_i2_r2 = -1.0
@@ -156,11 +175,17 @@ def cstr_dae():
     variable_list.add_variable(par_est.VariableParameter("e0_greek_Deltah_r2", -5.5e-3, -6.0e-3, -5.0e-3))
     variable_list.add_variable(par_est.VariableParameter("e0_greek_Deltah_r3", 4.5e-3, 4.0e-3, 5.0e-3))
 
-    variable_list.add_variable(par_est.VariableControl("e0_c_in_i1", 5.0, 4.0, 6.0))
+    if piecewise_control:
+        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("e0_c_in_i1", 5.0, 4.0, 6.0))
+    else:
+        variable_list.add_variable(par_est.VariableControl("e0_c_in_i1", 5.0, 4.0, 6.0))
     variable_list.add_variable(par_est.VariableControl("e0_c_in_i2", 10.0, 9.0, 11.0))
     variable_list.add_variable(par_est.VariableControl("e0_c_in_i3", 0.0, 0.0, 1.0))
     variable_list.add_variable(par_est.VariableControl("e0_c_in_i4", 0.0, 0.0, 1.0))
-    variable_list.add_variable(par_est.VariableControl("e0_T_in", 373.0, 353.0, 393.0))
+    if piecewise_control:
+        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("e0_T_in", 373.0, 353.0, 393.0))
+    else:
+        variable_list.add_variable(par_est.VariableControl("e0_T_in", 373.0, 353.0, 393.0))
     variable_list.add_variable(par_est.VariableControl("e0_T_j", 373.0, 353.0, 393.0))
     variable_list.add_variable(par_est.VariableControl("e0_F", 6.5e-4, 6.0e-4, 7.0e-4))
     # fmt: on
@@ -168,6 +193,12 @@ def cstr_dae():
     for var in variable_list.values():
         if isinstance(var, (par_est.VariableParameter, par_est.VariableControl)):
             var.guess = var.lower_bound
+
+    if piecewise_control:
+        var = variable_list["e0_T_in"].variable_list.index(0)
+        var.guess = var.lower_bound
+        var = variable_list["e0_c_in_i1"].variable_list.index(0)
+        var.guess = var.lower_bound
 
     m = par_est.Model(variable_list)
 
@@ -187,7 +218,7 @@ def cstr_dae():
     return variable_list, m
 
 
-def cstr_ode_constant():
+def cstr_ode_constant(piecewise_control=False):
 
     variable_list = par_est.VariableList()
 
@@ -210,11 +241,17 @@ def cstr_ode_constant():
     variable_list.add_variable(par_est.VariableParameter("e0_greek_Deltah_r2", -5.5e-3, -6.0e-3, -5.0e-3))
     variable_list.add_variable(par_est.VariableParameter("e0_greek_Deltah_r3", 4.5e-3, 4.0e-3, 5.0e-3))
 
-    variable_list.add_variable(par_est.VariableControl("e0_c_in_i1", 5.0, 4.0, 6.0))
+    if piecewise_control:
+        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("e0_c_in_i1", 5.0, 4.0, 6.0))
+    else:
+        variable_list.add_variable(par_est.VariableControl("e0_c_in_i1", 5.0, 4.0, 6.0))
     variable_list.add_variable(par_est.VariableControl("e0_c_in_i2", 10.0, 9.0, 11.0))
     variable_list.add_variable(par_est.VariableControl("e0_c_in_i3", 0.0, 0.0, 1.0))
     variable_list.add_variable(par_est.VariableControl("e0_c_in_i4", 0.0, 0.0, 1.0))
-    variable_list.add_variable(par_est.VariableControl("e0_T_in", 373.0, 353.0, 393.0))
+    if piecewise_control:
+        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("e0_T_in", 373.0, 353.0, 393.0))
+    else:
+        variable_list.add_variable(par_est.VariableControl("e0_T_in", 373.0, 353.0, 393.0))
     variable_list.add_variable(par_est.VariableControl("e0_T_j", 373.0, 353.0, 393.0))
     variable_list.add_variable(par_est.VariableControl("e0_F", 6.5e-4, 6.0e-4, 7.0e-4))
 
@@ -233,6 +270,12 @@ def cstr_ode_constant():
     for var in variable_list.values():
         var.guess = var.lower_bound
 
+    if piecewise_control:
+        var = variable_list["e0_T_in"].variable_list.index(0)
+        var.guess = var.lower_bound
+        var = variable_list["e0_c_in_i1"].variable_list.index(0)
+        var.guess = var.lower_bound
+
     m = par_est.Model(variable_list)
 
     # fmt: off
@@ -248,7 +291,7 @@ def cstr_ode_constant():
     return variable_list, m
 
 
-def cstr_dae_constant():
+def cstr_dae_constant(piecewise_control=False):
     variable_list = par_est.VariableList()
 
     # fmt: off
@@ -271,11 +314,17 @@ def cstr_dae_constant():
     variable_list.add_variable(par_est.VariableParameter("e0_greek_Deltah_r2", -5.5e-3, -6.0e-3, -5.0e-3))
     variable_list.add_variable(par_est.VariableParameter("e0_greek_Deltah_r3", 4.5e-3, 4.0e-3, 5.0e-3))
 
-    variable_list.add_variable(par_est.VariableControl("e0_c_in_i1", 5.0, 4.0, 6.0))
+    if piecewise_control:
+        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("e0_c_in_i1", 5.0, 4.0, 6.0))
+    else:
+        variable_list.add_variable(par_est.VariableControl("e0_c_in_i1", 5.0, 4.0, 6.0))
     variable_list.add_variable(par_est.VariableControl("e0_c_in_i2", 10.0, 9.0, 11.0))
     variable_list.add_variable(par_est.VariableControl("e0_c_in_i3", 0.0, 0.0, 1.0))
     variable_list.add_variable(par_est.VariableControl("e0_c_in_i4", 0.0, 0.0, 1.0))
-    variable_list.add_variable(par_est.VariableControl("e0_T_in", 373.0, 353.0, 393.0))
+    if piecewise_control:
+        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("e0_T_in", 373.0, 353.0, 393.0))
+    else:
+        variable_list.add_variable(par_est.VariableControl("e0_T_in", 373.0, 353.0, 393.0))
     variable_list.add_variable(par_est.VariableControl("e0_T_j", 373.0, 353.0, 393.0))
     variable_list.add_variable(par_est.VariableControl("e0_F", 6.5e-4, 6.0e-4, 7.0e-4))
 
@@ -294,6 +343,12 @@ def cstr_dae_constant():
     for var in variable_list.values():
         if not var.name == "e0_c_tot":
             var.guess = var.lower_bound
+
+    if piecewise_control:
+        var = variable_list["e0_T_in"].variable_list.index(0)
+        var.guess = var.lower_bound
+        var = variable_list["e0_c_in_i1"].variable_list.index(0)
+        var.guess = var.lower_bound
 
     m = par_est.Model(variable_list)
 

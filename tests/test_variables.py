@@ -3,6 +3,7 @@ from par_est.examples import cstr_ode
 from par_est.variables import SameVariableNameError, PlottingError
 
 import copy
+import casadi as ca
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
@@ -49,6 +50,55 @@ def test_variables():
     with pytest.raises(PlottingError):
         variable_list["Var1"].value.time = [0, 1, 2]
         variable_list.plot_states()
+
+    var_1 = par_est.VariableControlPiecewiseConstant("Var1", 20)
+    var_2 = par_est.VariableControlPiecewiseConstant("Var1", 20)
+    var_3 = par_est.VariableControlPiecewiseConstant("Var1", None)
+
+    var_1 = par_est.VariableControlPiecewiseConstant("Var1", 20)
+    assert len(var_1.time) == 1
+    assert var_1.time == [0]
+    assert var_1.var_at_time(0).value == 20
+    assert var_1.var_at_time(0).fixed is False
+    var_1.expand_horizon([11], [4])
+    assert len(var_1.time) == 2
+    assert var_1.time == [0, 11]
+    assert var_1.var_at_time(10).value == 20
+    assert var_1.var_at_time(11).value == 4
+    assert var_1.var_at_time(12).value == 4
+    with pytest.raises(NotImplementedError):
+        var_1.expand_horizon([11], [4])
+    with pytest.raises(NotImplementedError):
+        var_1.set_horizon([11],[4])
+    with pytest.raises(ValueError):
+        var_1.expand_horizon([11, 12],[4])
+
+    var_2.expand_horizon([11, 11.3], [4, 5])
+    assert len(var_2.time) == 3
+    assert var_2.time == [0, 11, 11.3]
+    assert var_2.fixed is False
+    assert var_2.var_at_time(10).value == 20
+    assert var_2.var_at_time(11).value == 4
+    assert var_2.var_at_time(11.299999).value == 4
+    assert var_2.var_at_time(11.300001).value == 5
+    assert var_2.var_at_time(12).value == 5
+
+    assert var_3.var_at_time(0).fixed is False
+    var_3.expand_horizon([11, 11.3], [4, None])
+    assert len(var_3.time) == 3
+    assert var_3.fixed is False
+    assert isinstance(var_3.var_at_time(10).get_value_based_on_fixed(), ca.MX)
+    assert var_3.var_at_time(11).get_value_based_on_fixed() == 4
+    assert isinstance(var_3.var_at_time(12).get_value_based_on_fixed(), ca.MX)
+
+    var_3.fixed = True
+    for var in var_3.variable_list.values():
+        assert var.fixed is True
+
+    var_3.fixed = False
+    for var in var_3.to_dictionary().values():
+        assert var.fixed is False
+    assert list(var_3.to_dictionary().keys()) == [0, 11, 11.3]
 
 
 if __name__ == "__main__":

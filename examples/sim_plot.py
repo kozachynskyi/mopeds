@@ -6,7 +6,12 @@ import par_est.examples
 
 if __name__ == "__main__":
 
-    variable_list, m = par_est.examples.cstr_dae()
+    piecewiseswitch = True
+    variable_list, m = par_est.examples.cstr_dae(piecewiseswitch)
+    if piecewiseswitch:
+        T_in = variable_list["e0_T_in"]
+        T_in.expand_horizon([4000, 7500], [283, 400])
+
     # Create time-grid. Zero should be first
     time_grid = np.linspace(10, 10000, 40)
     time_grid = np.insert(time_grid, 0, 0)
