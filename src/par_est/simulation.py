@@ -36,8 +36,8 @@ class Simulator(object):
         self.model = model
         self.tau = ca.MX.sym("tau")
         self.scaling = None
-        self.integrator_settings = None
-        self.integrator_name = None
+        self.__integrator_settings = None
+        self.__integrator_name = None
         self.setup_time_grid(input_time_grid)
         self.logger.debug(
             "Timegrid modified: \n self.timegrid \n {0} \n".format(self.time_grid)
@@ -67,17 +67,17 @@ class Simulator(object):
             self.ode_system_tau["z"] = self.model.varlist_algebraic.get_casadi_var()
 
         if integrator_name == "idas":
-            self.integrator_name = "idas"
+            self.__integrator_name = "idas"
         elif integrator_name == "cvodes":
-            self.integrator_name = "cvodes"
+            self.__integrator_name = "cvodes"
         else:
-            self.integrator_name = "collocation"
+            self.__integrator_name = "collocation"
 
         if integrator_settings is not None:
-            self.integrator_settings = integrator_settings
+            self.__integrator_settings = integrator_settings
         else:
-            if self.integrator_name == "idas":
-                self.integrator_settings = {
+            if self.__integrator_name == "idas":
+                self.__integrator_settings = {
                     "tf": 1,
                     "expand": True,
                     # "calc_ic": False,
@@ -89,8 +89,8 @@ class Simulator(object):
                     # "verbose": True,
                     # "print_stats": True,
                 }
-            elif self.integrator_name == "cvodes":
-                self.integrator_settings = {
+            elif self.__integrator_name == "cvodes":
+                self.__integrator_settings = {
                     "tf": 1,
                     "expand": True,
                     # "linear_multistep_method": "adams",# was used for CVODES
@@ -106,7 +106,7 @@ class Simulator(object):
                     # "print_stats": True,
                 }
             else:
-                self.integrator_settings = {
+                self.__integrator_settings = {
                     "number_of_finite_elements": 3,
                     "simplify": True,
                     "expand": True,
@@ -128,9 +128,9 @@ class Simulator(object):
 
         self.integrator_tau = ca.integrator(
             "integrator_tau",
-            self.integrator_name,
+            self.__integrator_name,
             self.ode_system_tau,
-            self.integrator_settings,
+            self.__integrator_settings,
         )
 
         if self.model.DAE is True:
