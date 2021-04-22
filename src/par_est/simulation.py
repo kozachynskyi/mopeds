@@ -287,7 +287,7 @@ class Simulator(object):
         )
 
         check_initials = function(
-            x=self._initial_state, z=self._initial_algebraic, p=self._variables
+            x=self._initial_state, z=self._initial_algebraic, p=self._variables[0]
         )
         jacobian = function.factory(
             "jac_alg",
@@ -295,11 +295,11 @@ class Simulator(object):
             ["jac:alg:z", "jac:alg:x", "jac:ode:x", "jac:ode:z"],
         )
         check_jacobian = jacobian(
-            x=self._initial_state, z=self._initial_algebraic, p=self._variables
+            x=self._initial_state, z=self._initial_algebraic, p=self._variables[0]
         )
 
         check_alg = algebraic_eqsys(
-            x=self._initial_state, z=self._initial_algebraic, p=self._variables
+            x=self._initial_state, z=self._initial_algebraic, p=self._variables[0]
         )
 
         # should fail by DAE index > 1
@@ -322,14 +322,14 @@ class Simulator(object):
 
         rf = ca.rootfinder("inits", "newton", algebraic_eqsys_rootfinder)
         if state_value is not None:
-            res = rf(self._initial_algebraic, ca.vertcat(state_value, self._variables))
+            res = rf(self._initial_algebraic, ca.vertcat(state_value, self._variables[0]))
         else:
             res = rf(
                 self._initial_algebraic,
-                ca.vertcat(self._initial_state, self._variables),
+                ca.vertcat(self._initial_state, self._variables[0]),
             )
 
-        check_alg = function(x=self._initial_state, z=res, p=self._variables)
+        check_alg = function(x=self._initial_state, z=res, p=self._variables[0])
         old_initial = self._initial_algebraic
         # self._initial_algebraic = res
         return [res, old_initial]
