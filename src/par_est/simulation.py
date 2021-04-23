@@ -223,6 +223,44 @@ class Simulator(object):
     def _reset_scaling(self):
         self.scaling = ca.DM.ones(self._variables[0].size())
 
+    def calculate_steady_state(self):
+        if self.model.DAE:
+            steady_state_rootfinder = ca.Function(
+                "steadystate_eq_sys",
+                [
+                    ca.vertcat(self.ode_system["x"], self.ode_system["z"]),
+                    self.ode_system["p"],
+                ],
+                [ca.vertcat(self.ode_system["ode"], self.ode_system["alg"])],
+                ["x", "p"],
+                ["ode_alg"],
+            )
+        else:
+            steady_state_rootfinder = ca.Function(
+                "steadystate_eq_sys",
+                [
+                    self.ode_system["x"],
+                    self.ode_system["p"],
+                ],
+                [self.ode_system["ode"]],
+                ["x", "p"],
+                ["ode"],
+            )
+
+        rf_steadystate = ca.rootfinder("stea_state", "newton", steady_state_rootfinder)
+
+        if self.model.DAE:
+            res_steadystate = rf_steadystate(
+                ca.vertcat(self._initial_state, self._initial_algebraic_original),
+                self._variables_with_guess,
+            )
+        else:
+            res_steadystate = rf_steadystate(
+                self._initial_state,
+                self._variables_with_guess,
+            )
+        return res_steadystate
+
     def calculate_algebraic_initials(self, *, apply_intials=False):
         function = ca.Function(
             "eq_sys",

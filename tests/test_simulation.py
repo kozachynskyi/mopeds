@@ -126,6 +126,30 @@ def test_piecewise():
         if m.DAE:
             assert np.isclose(res["zf"], res_piecewise["zf"]).all()
 
+@pytest.mark.parametrize("piecewise", [True, False])
+def test_steadystate(piecewise):
+    for cstr_model in [
+        par_est.examples.cstr_ode,
+        par_est.examples.cstr_dae,
+        par_est.examples.cstr_dae_constant,
+        par_est.examples.cstr_ode_constant,
+    ]:
+        variable_list, m = cstr_model(piecewise)
+        # Create time-grid. Zero should be first
+        time_grid = np.linspace(10, 100000, 4)
+        time_grid = np.insert(time_grid, 0, 0)
+
+        sim = par_est.Simulator(m, time_grid, variable_list)
+
+        sim_res = sim.simulate()
+
+        steady_state = sim.calculate_steady_state()
+
+        assert np.isclose(sim_res["xf"][:,-1], steady_state[0:5]).all()
+
+        if m.DAE:
+            assert np.isclose(sim_res["zf"][:,-1], steady_state[5]).all()
+
 
 if __name__ == "__main__":
     pass
