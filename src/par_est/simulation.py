@@ -247,6 +247,19 @@ class Simulator(object):
                 ["ode"],
             )
 
+        # rf_settings = {
+        #     # "calc_ic": False,
+        #     # 'abstol': 1,
+        #     # "reltol": 1,
+        #     # "monitor": "jacF",
+        #     # "print_in": True,
+        #     # "nlpsol": "ipopt",
+        #     # "print_out": True,
+        #     # "verbose": True,
+        #     # "print_stats": True,
+        #     }
+        # rf_settings["nlpsol"] = "ipopt"
+        # rf_steadystate = ca.rootfinder("stea_state", "nlpsol", steady_state_rootfinder, rf_settings)
         rf_steadystate = ca.rootfinder("stea_state", "newton", steady_state_rootfinder)
 
         if self.model.DAE:
@@ -261,7 +274,7 @@ class Simulator(object):
             )
         return res_steadystate
 
-    def calculate_algebraic_initials(self, *, apply_intials=False):
+    def calculate_algebraic_initials(self, *, apply_intials=False, analyze=False):
         function = ca.Function(
             "eq_sys",
             [self.ode_system["x"], self.ode_system["z"], self.ode_system["p"]],
@@ -296,12 +309,22 @@ class Simulator(object):
             x=self._initial_state, z=res, p=self._variables_with_guess
         )
 
-        if apply_intials:
+        if analyze:
+            abs_diff = self._initial_algebraic_original - res
+            rel_diff = ca.fabs(abs_diff) / ca.fabs(self._initial_algebraic_original)
+
+            print("Prints Algebraic Variables, that we changed more than 50%")
+            for i in range(abs_diff.shape[0]):
+                if rel_diff[i] > 0.50:
+                    print(self.ode_system["z"][i])
+                    print(f"Value After {res[i]}")
+                    print(f"Value Before {self._initial_algebraic_original[i]}")
+
             residual_sum_original = ca.sum1(residual_original["alg"])
             residual_sum_calculated = ca.sum1(residual_calculated["alg"])
-            self.logger.debug(
-                f"Fixed algebraic intials. Residual before {residual_sum_original}, after {residual_sum_calculated}."
-            )
+            print(f"Residual before {residual_sum_original}, after {residual_sum_calculated}.")
+        if apply_intials:
+            self.logger.debug("Fixed algebraic intials")
             self._initial_algebraic = res
 
     def analyze_WIP(self, state_value=None):
