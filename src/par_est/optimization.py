@@ -48,7 +48,7 @@ class Optimizer(object):
         self.solver = None
         self.solver_settings = None
 
-    def _setup_simulator(self):
+    def _setup_simulator(self, *, use_idas_constraints):
         # Creates simulator
         raise (NotImplementedError)
 
@@ -171,6 +171,7 @@ class ParameterEstimation(Optimizer):
         simulator_settings=None,
         *,
         reinitialize_algebraic=False,
+        use_idas_constraints=False,
     ):
         super().__init__(
             model,
@@ -186,7 +187,7 @@ class ParameterEstimation(Optimizer):
         self.array_data_mask = []
         self.inverted_variances = []
 
-        self._setup_simulator()
+        self._setup_simulator(use_idas_constraints=use_idas_constraints)
         self.logger.debug(
             "Created Optimizer object: \n Data Shape {} \n Desicion Variables {}".format(
                 self.array_data.shape, self.varlist_decision.get_variable_name()
@@ -204,7 +205,7 @@ class ParameterEstimation(Optimizer):
             for sim in self.list_simulators:
                 sim.calculate_algebraic_initials(apply_intials=True)
 
-    def _setup_simulator(self):
+    def _setup_simulator(self, *, use_idas_constraints):
         # It's not checked if all supplied varlist have same states etc.
         for var in self.list_input_varlist[0].values():
             if isinstance(var, VariableState):
@@ -241,6 +242,7 @@ class ParameterEstimation(Optimizer):
                     varlist_input,
                     self.simulator_name,
                     self.simulator_settings,
+                    use_idas_constraints=use_idas_constraints,
                 )
             )
 
@@ -374,7 +376,7 @@ class OptimalExperimentalDesign(Optimizer):
             for sim in self.list_simulators:
                 sim.calculate_algebraic_initials(apply_intials=True)
 
-    def _setup_simulator(self):
+    def _setup_simulator(self, *, use_idas_constraints=False):
         """Initializes simulator class. Parameter variables are fixed, and an index of an unfixed
         parameter is saved in self.select_independent list.
         This list is used during the calculation of the objective, to ignore jacobian of fixed parameters.

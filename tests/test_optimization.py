@@ -88,8 +88,9 @@ def test_pe_objective(piecewise):
         assert res_weight["f"] == obj_weight
 
 
-@pytest.mark.parametrize("piecewise", [True, False])
-def test_pe(piecewise):
+# @pytest.mark.parametrize("piecewise, constraints_idas", [[True, False],[True, False]])
+@pytest.mark.parametrize("piecewise, constraints_idas", [(True, True), (True, False), (False, True), (False, False)])
+def test_pe(piecewise, constraints_idas):
     """Test that ParameterEstimation on ODE and DAE always yields same result.
     Helpfull to see if any drastic changes in calculation were made
     """
@@ -126,8 +127,10 @@ def test_pe(piecewise):
 
         var_list["e0_T"].value.value = var_list["e0_T"].value.value[0:2]
         var_list["e0_T"].value.time = var_list["e0_T"].value.time[0:2]
+        var_list["e0_c_i1"].lower_bound = 0
+        var_list["e0_c_i1"].upper_bound = None
 
-        pe = par_est.ParameterEstimation(model, [var_list])
+        pe = par_est.ParameterEstimation(model, [var_list], use_idas_constraints=constraints_idas)
 
         if model.DAE:
             answer_scaled = 1.26485e-13
