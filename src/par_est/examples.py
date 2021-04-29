@@ -83,11 +83,11 @@ def cstr_ode(piecewise_control=False):
     variable_list = par_est.VariableList()
 
     # fmt: off
-    variable_list.add_variable(par_est.VariableState("e0_T", 273.0, 10))
-    variable_list.add_variable(par_est.VariableState("e0_c_i1", 3.0, 20))
-    variable_list.add_variable(par_est.VariableState("e0_c_i2", 10.0, 30))
-    variable_list.add_variable(par_est.VariableState("e0_c_i3", 0.0, 40))
-    variable_list.add_variable(par_est.VariableState("e0_c_i4", 0.0, 50))
+    variable_list.add_variable(par_est.VariableState("e0_T", 273.0))
+    variable_list.add_variable(par_est.VariableState("e0_c_i1", 3.0))
+    variable_list.add_variable(par_est.VariableState("e0_c_i2", 10.0))
+    variable_list.add_variable(par_est.VariableState("e0_c_i3", 0.0))
+    variable_list.add_variable(par_est.VariableState("e0_c_i4", 0.0))
 
     variable_list.add_variable(par_est.VariableParameter("e0_E_r1", 9.6e4, 9.0e4, 10.0e4))
     variable_list.add_variable(par_est.VariableParameter("e0_E_r2", 7.2e4, 6.8e4, 7.6e4))
@@ -156,12 +156,12 @@ def cstr_dae(piecewise_control=False):
     variable_list = par_est.VariableList()
 
     # fmt: off
-    variable_list.add_variable(par_est.VariableState("e0_T", 273.0, 10))
-    variable_list.add_variable(par_est.VariableState("e0_c_i1", 3.0, 20))
-    variable_list.add_variable(par_est.VariableState("e0_c_i2", 10.0, 30))
-    variable_list.add_variable(par_est.VariableState("e0_c_i3", 0.0, 40))
-    variable_list.add_variable(par_est.VariableState("e0_c_i4", 0.0, 50))
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_c_tot", 13.0, 60))
+    variable_list.add_variable(par_est.VariableState("e0_T", 273.0))
+    variable_list.add_variable(par_est.VariableState("e0_c_i1", 3.0))
+    variable_list.add_variable(par_est.VariableState("e0_c_i2", 10.0))
+    variable_list.add_variable(par_est.VariableState("e0_c_i3", 0.0))
+    variable_list.add_variable(par_est.VariableState("e0_c_i4", 0.0))
+    variable_list.add_variable(par_est.VariableAlgebraic("e0_c_tot", 13.0))
 
     variable_list.add_variable(par_est.VariableParameter("e0_E_r1", 9.6e4, 9.0e4, 10.0e4))
     variable_list.add_variable(par_est.VariableParameter("e0_E_r2", 7.2e4, 6.8e4, 7.6e4))
@@ -223,11 +223,11 @@ def cstr_ode_constant(piecewise_control=False):
     variable_list = par_est.VariableList()
 
     # fmt: off
-    variable_list.add_variable(par_est.VariableState("e0_T", 273.0, 10))
-    variable_list.add_variable(par_est.VariableState("e0_c_i1", 3.0, 20))
-    variable_list.add_variable(par_est.VariableState("e0_c_i2", 10.0, 30))
-    variable_list.add_variable(par_est.VariableState("e0_c_i3", 0.0, 40))
-    variable_list.add_variable(par_est.VariableState("e0_c_i4", 0.0, 50))
+    variable_list.add_variable(par_est.VariableState("e0_T", 273.0))
+    variable_list.add_variable(par_est.VariableState("e0_c_i1", 3.0))
+    variable_list.add_variable(par_est.VariableState("e0_c_i2", 10.0))
+    variable_list.add_variable(par_est.VariableState("e0_c_i3", 0.0))
+    variable_list.add_variable(par_est.VariableState("e0_c_i4", 0.0))
 
     variable_list.add_variable(par_est.VariableParameter("e0_E_r1", 9.6e4, 9.0e4, 10.0e4))
     variable_list.add_variable(par_est.VariableParameter("e0_E_r2", 7.2e4, 6.8e4, 7.6e4))
@@ -295,12 +295,12 @@ def cstr_dae_constant(piecewise_control=False):
     variable_list = par_est.VariableList()
 
     # fmt: off
-    variable_list.add_variable(par_est.VariableState("e0_T", 273.0, 10))
-    variable_list.add_variable(par_est.VariableState("e0_c_i1", 3.0, 20))
-    variable_list.add_variable(par_est.VariableState("e0_c_i2", 10.0, 30))
-    variable_list.add_variable(par_est.VariableState("e0_c_i3", 0.0, 40))
-    variable_list.add_variable(par_est.VariableState("e0_c_i4", 0.0, 50))
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_c_tot", 13.0, 60))
+    variable_list.add_variable(par_est.VariableState("e0_T", 273.0))
+    variable_list.add_variable(par_est.VariableState("e0_c_i1", 3.0))
+    variable_list.add_variable(par_est.VariableState("e0_c_i2", 10.0))
+    variable_list.add_variable(par_est.VariableState("e0_c_i3", 0.0))
+    variable_list.add_variable(par_est.VariableState("e0_c_i4", 0.0))
+    variable_list.add_variable(par_est.VariableAlgebraic("e0_c_tot", 13.0))
 
     variable_list.add_variable(par_est.VariableParameter("e0_E_r1", 9.6e4, 9.0e4, 10.0e4))
     variable_list.add_variable(par_est.VariableParameter("e0_E_r2", 7.2e4, 6.8e4, 7.6e4))

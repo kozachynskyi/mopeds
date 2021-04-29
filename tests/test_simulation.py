@@ -154,8 +154,24 @@ def test_steadystate(piecewise):
 def test_constraints_idas():
     variable_list, m = par_est.examples.cstr_dae()
     time_grid = np.linspace(0, 100000, 4)
+
+    # VariableAlgebraic
     variable_list["e0_c_tot"].lower_bound = None
     variable_list["e0_c_tot"].upper_bound = 0
+
+    sim = par_est.Simulator(m, time_grid, variable_list)
+    sim_res = sim.simulate()
+
+    sim = par_est.Simulator(m, time_grid, variable_list, use_idas_constraints=True)
+    with pytest.raises(RuntimeError):
+        sim_res = sim.simulate()
+
+    # VariableState
+    variable_list, m = par_est.examples.cstr_ode()
+    time_grid = np.linspace(0, 100000, 4)
+
+    variable_list["e0_c_i1"].lower_bound = None
+    variable_list["e0_c_i1"].upper_bound = 0
 
     sim = par_est.Simulator(m, time_grid, variable_list)
     sim_res = sim.simulate()

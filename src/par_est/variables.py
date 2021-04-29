@@ -14,7 +14,7 @@ except Exception:
 
 
 class Variable(object):
-    def __init__(self, name):
+    def __init__(self, name, lb=None, ub=None):
         self.name = name
         self.casadi_var = ca.MX.sym(self.name)
         # fixed is property in order to deal with VariableControlPiecewiseConstant properly
@@ -22,8 +22,8 @@ class Variable(object):
         self.opc_ua_id = None
         self.value = None
         self.guess = None
-        self.lower_bound = None
-        self.upper_bound = None
+        self.lower_bound = lb
+        self.upper_bound = ub
         self.variance = 1.0
 
     @classmethod
@@ -68,30 +68,46 @@ class Variable(object):
     def constraint_idas(self):
         """ Constrain the solution y=[x,z].  0 (default): no constraint on yi,
         1: yi >= 0.0, -1: yi <= 0.0, 2: yi > 0.0, -2: yi < 0.0."}}, """
-        big_value = 1e1000
-        bounds = [self.lower_bound, self.upper_bound]
-        if self.lower_bound is None:
-            bounds[0] = -big_value
-        if self.upper_bound is None:
-            bounds[1] = big_value
 
-        if bounds[0] == 0:
+        if self.lower_bound == 0:
             constraint = 1
-        elif bounds[0] > 0:
+        elif self.lower_bound > 0:
             constraint = 2
-        elif bounds[1] == 0:
+        elif self.upper_bound == 0:
             constraint = -1
-        elif bounds[1] < 0:
+        elif self.upper_bound < 0:
             constraint = -2
         else:
             constraint = 0
 
         return constraint
 
+    @property
+    def lower_bound(self):
+        return self._lower_bound
+
+    @property
+    def upper_bound(self):
+        return self._upper_bound
+
+    @lower_bound.setter
+    def lower_bound(self, lower_bound):
+        if lower_bound is None or lower_bound == -1e9:
+            self._lower_bound = -ca.inf
+        else:
+            self._lower_bound = lower_bound
+
+    @upper_bound.setter
+    def upper_bound(self, upper_bound):
+        if upper_bound is None or upper_bound == 1e9:
+            self._upper_bound = ca.inf
+        else:
+            self._upper_bound = upper_bound
+
 
 class VariableState(Variable):
-    def __init__(self, name, starting_value=None, opc_ua_id=None):
-        super().__init__(name)
+    def __init__(self, name, starting_value=None, lb=None, ub=None, opc_ua_id=None):
+        super().__init__(name, lb, ub)
         self.value = ExperimentData()
         self.value.value = [starting_value]
         self.value.time = [0.0]
@@ -100,34 +116,24 @@ class VariableState(Variable):
 
 class VariableAlgebraic(Variable):
     def __init__(self, name, guess=None, lb=None, ub=None, opc_ua_id=None):
-        super().__init__(name)
+        super().__init__(name, lb, ub)
         self.guess = guess
         self.opc_ua_id = opc_ua_id
-        if lb == -1e9:
-            lb = -ca.inf
-        if ub == 1e9:
-            ub = ca.inf
-        self.lower_bound = lb
-        self.upper_bound = ub
         self.value = ExperimentData()
 
 
 class VariableParameter(Variable):
     def __init__(self, name, value=None, lb=None, ub=None):
-        super().__init__(name)
+        super().__init__(name, lb, ub)
         self.value = value
         self.guess = value
-        self.lower_bound = lb
-        self.upper_bound = ub
 
 
 class VariableControl(Variable):
     def __init__(self, name, value=None, lb=None, ub=None, opc_ua_id=None):
-        super().__init__(name)
+        super().__init__(name, lb, ub)
         self.value = value
         self.guess = value
-        self.lower_bound = lb
-        self.upper_bound = ub
         self.opc_ua_id = opc_ua_id
 
 

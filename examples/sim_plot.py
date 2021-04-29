@@ -22,7 +22,7 @@ if __name__ == "__main__":
         var.fixed = True
 
     # Create simulation Object
-    sim_fixed = par_est.Simulator(m, time_grid, var_list_fixed)
+    sim_fixed = par_est.Simulator(m, time_grid, var_list_fixed, use_idas_constraints=True)
     # Run simulation and get simple results as array of numbers, but information about state variables and timestamp is lost
     res_simple = sim_fixed.simulate()
     # Run simulation and connect results with actual state variables, which can be plotted based on available data
