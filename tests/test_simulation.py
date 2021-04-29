@@ -151,6 +151,20 @@ def test_steadystate(piecewise):
             assert np.isclose(sim_res["zf"][:,-1], steady_state[5]).all()
 
 
+def test_constraints_idas():
+    variable_list, m = par_est.examples.cstr_dae()
+    time_grid = np.linspace(0, 100000, 4)
+    variable_list["e0_c_tot"].lower_bound = None
+    variable_list["e0_c_tot"].upper_bound = 0
+
+    sim = par_est.Simulator(m, time_grid, variable_list)
+    sim_res = sim.simulate()
+
+    sim = par_est.Simulator(m, time_grid, variable_list, use_idas_constraints=True)
+    with pytest.raises(RuntimeError):
+        sim_res = sim.simulate()
+
+
 if __name__ == "__main__":
     pass
     # test_pendulum_dae()

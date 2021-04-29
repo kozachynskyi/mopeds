@@ -26,6 +26,8 @@ class Simulator(object):
         variable_list: VariableList,
         integrator_name="idas",
         integrator_settings=None,
+        *,
+        use_idas_constraints=False,
     ):
 
         self.logger = logging.getLogger(__name__)
@@ -126,26 +128,6 @@ class Simulator(object):
             {"grid": self.time_grid, "output_t0": False, "print_stats": True},
         )
 
-        self.integrator_tau = ca.integrator(
-            "integrator_tau",
-            self.__integrator_name,
-            self.ode_system_tau,
-            self.__integrator_settings,
-        )
-
-        if self.model.DAE is True:
-            self.integrator_tau_jac = self.integrator_tau.factory(
-                "integrator_tau_jacobian",
-                self.integrator_tau.name_in(),
-                ["xf", "qf", "zf", "rxf", "rqf", "rzf", "jac:xf:p"],
-            )
-        else:
-            self.integrator_tau_jac = self.integrator_tau.factory(
-                "integrator_tau_jacobian",
-                self.integrator_tau.name_in(),
-                ["xf", "qf", "rxf", "rqf", "jac:xf:p"],
-            )
-
         # Arrays needed to initialize integrator.
         num_time_steps = len(self.time_grid) - 1
         self._variables = []
@@ -154,6 +136,8 @@ class Simulator(object):
         self._initial_algebraic_original = []
         self._variables_with_guess = []
 
+        self._constraints_idas = []
+
         for var in self.__input_variable_list.values():
             if isinstance(var, Variable):
                 if isinstance(var, VariableState):
@@ -161,8 +145,10 @@ class Simulator(object):
                         self._initial_state.append(var.value.value[0])
                     except Exception as e:
                         raise (BadVariableError(var)) from e
+                    self._constraints_idas.append(var.constraint_idas)
                 elif isinstance(var, VariableAlgebraic):
                     self._initial_algebraic.append(var.guess)
+                    self._constraints_idas.append(var.constraint_idas)
                 elif isinstance(var, VariableConstant):
                     pass
                 elif isinstance(var, VariableParameter):
@@ -203,9 +189,37 @@ class Simulator(object):
                         independent_variable.extend([var.get_value_based_on_fixed()] * num_time_steps)
                     self._variables.append(independent_variable)
 
-
         self._variables = list(map(list, zip(*self._variables)))
         self._initial_algebraic_original = copy.deepcopy(self._initial_algebraic)
+
+        if use_idas_constraints:
+            if not self.__integrator_name == "idas":
+                self.logger.warning("use_idas_constraints argument is applicable only for idas solver")
+            else:
+                if all(constraint == 0 for constraint in self._constraints_idas):
+                    self.logger.warning("All idas constraints are 0, so no option is set")
+                else:
+                    self.__integrator_settings["constraints"] = self._constraints_idas
+
+        self.integrator_tau = ca.integrator(
+            "integrator_tau",
+            self.__integrator_name,
+            self.ode_system_tau,
+            self.__integrator_settings,
+        )
+
+        if self.model.DAE is True:
+            self.integrator_tau_jac = self.integrator_tau.factory(
+                "integrator_tau_jacobian",
+                self.integrator_tau.name_in(),
+                ["xf", "qf", "zf", "rxf", "rqf", "rzf", "jac:xf:p"],
+            )
+        else:
+            self.integrator_tau_jac = self.integrator_tau.factory(
+                "integrator_tau_jacobian",
+                self.integrator_tau.name_in(),
+                ["xf", "qf", "rxf", "rqf", "jac:xf:p"],
+            )
 
         # Transforms nested python list in ca.MX array
         for index, column in enumerate(self._variables):

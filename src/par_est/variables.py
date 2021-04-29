@@ -64,6 +64,30 @@ class Variable(object):
                 var.fixed = state
         self._fixed = state
 
+    @property
+    def constraint_idas(self):
+        """ Constrain the solution y=[x,z].  0 (default): no constraint on yi,
+        1: yi >= 0.0, -1: yi <= 0.0, 2: yi > 0.0, -2: yi < 0.0."}}, """
+        big_value = 1e1000
+        bounds = [self.lower_bound, self.upper_bound]
+        if self.lower_bound is None:
+            bounds[0] = -big_value
+        if self.upper_bound is None:
+            bounds[1] = big_value
+
+        if bounds[0] == 0:
+            constraint = 1
+        elif bounds[0] > 0:
+            constraint = 2
+        elif bounds[1] == 0:
+            constraint = -1
+        elif bounds[1] < 0:
+            constraint = -2
+        else:
+            constraint = 0
+
+        return constraint
+
 
 class VariableState(Variable):
     def __init__(self, name, starting_value=None, opc_ua_id=None):

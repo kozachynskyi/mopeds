@@ -101,6 +101,20 @@ def test_variables():
         assert var.fixed is False
     assert list(var_3.to_dictionary().keys()) == [0, 11, 11.3]
 
+    # Test constraints_idas prperty
+    var = par_est.VariableAlgebraic("var")
+    assert var.constraint_idas == 0
+    var = par_est.VariableAlgebraic("var", None, -1, None)
+    assert var.constraint_idas == 0
+    var = par_est.VariableAlgebraic("var", None, 0, None)
+    assert var.constraint_idas == 1
+    var = par_est.VariableAlgebraic("var", None, None, 1)
+    assert var.constraint_idas == 0
+    var = par_est.VariableAlgebraic("var", None, None, -1)
+    assert var.constraint_idas == -2
+    var = par_est.VariableAlgebraic("var", None, None, 0)
+    assert var.constraint_idas == -1
+
 
 if __name__ == "__main__":
     test_variables()
