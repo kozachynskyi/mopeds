@@ -136,8 +136,6 @@ class Simulator(object):
         self._initial_algebraic_original = []
         self._variables_with_guess = []
 
-        self._constraints_idas = []
-
         for var in self.__input_variable_list.values():
             if isinstance(var, Variable):
                 if isinstance(var, VariableState):
@@ -145,10 +143,8 @@ class Simulator(object):
                         self._initial_state.append(var.value.value[0])
                     except Exception as e:
                         raise (BadVariableError(var)) from e
-                    self._constraints_idas.append(var.constraint_idas)
                 elif isinstance(var, VariableAlgebraic):
                     self._initial_algebraic.append(var.guess)
-                    self._constraints_idas.append(var.constraint_idas)
                 elif isinstance(var, VariableConstant):
                     pass
                 elif isinstance(var, VariableParameter):
@@ -191,6 +187,13 @@ class Simulator(object):
 
         self._variables = list(map(list, zip(*self._variables)))
         self._initial_algebraic_original = copy.deepcopy(self._initial_algebraic)
+
+        self._constraints_idas = []
+        variable_names = list(self.model.varlist_state.keys())
+        if self.model.DAE:
+            variable_names.extend(list(self.model.varlist_algebraic.keys()))
+        for var_name in variable_names:
+            self._constraints_idas.append(self.__input_variable_list[var_name].constraint_idas)
 
         if use_idas_constraints:
             if not self.__integrator_name == "idas":
