@@ -1,0 +1,44 @@
+[tool.poetry]
+name = "par_est"
+version = "0.2.2"
+description = "Simulate and Optimize ODE/DAE"
+authors = ["Volodymyr Kozachynskyi <vovakozach@gmail.com>"]
+repository = "https://git.tu-berlin.de/vovakozach/pe_oed_casadi"
+
+[tool.poetry.dependencies]
+python = "3.7.*"
+casadi = "*"
+numpy = "*"
+matplotlib = "*"
+scipy = "*"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2"
+pytest-cov = "^2.8"
+tox = "^3.0"
+
+[build-system]
+# setuptools are used only for pip install -e . compitability
+requires = ["setuptools", "poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.coverage.run]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:"
+    ]
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+known_first_party = "par_est"
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "--cov par_est --cov-report term-missing --verbose"
+testpaths = "tests"

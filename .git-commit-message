@@ -1,0 +1,26 @@
+
+#<type>[optional scope]: <description>
+
+#[optional body]
+
+#[optional footer(s)]
+
+# --- COMMIT END ---
+# Tag can be 
+#    feat     (new feature)
+#    fix      (bug fix)
+#    refactor (refactoring code)
+#    style    (formatting, missing semi colons, etc; no code change)
+#    doc      (changes to documentation)
+#    test     (adding or refactoring tests; no production code change)
+#    version  (version bump/new release; no production code change)
+#    WIP      (Work In Progress; for intermediate commits to keep patches reasonably sized)
+#
+# Note: Multiple tags can be combined, e.g. [fix][jsr292] Fix issue X with methodhandles
+# --------------------
+# Remember to:
+#   * Capitalize the subject line
+#   * Do not end the subject line with a period
+#   * Separate subject from body with a blank line
+#   * Use the body to explain what and why vs. how
+# --------------------

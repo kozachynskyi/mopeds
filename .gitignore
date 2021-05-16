@@ -54,3 +54,6 @@ MANIFEST
 # Per-project virtualenvs
 .venv*/
 /.spyproject
+
+# Pyenv file
+/.python-version

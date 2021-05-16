@@ -1,32 +1,23 @@
 # par_est
 
-A project to play around with Parameter Estimation (PE) and Optimal Experimental Design (OED) for ODE and DAE system of equations.
-
-## Requirements
-
-python_requires = >=3.7,<3.8
-casadi https://github.com/casadi/casadi/wiki/InstallationInstructions
+A library wrapped around casadi to solve Simulation / Optimization problems based on ODE and DAE models. Currently Parameter Estimation (PE) and Optimal Experimental Design (OED) are supported out of the box.
 
 ## Installation
 
-Optionally: Create a new environment with conda / venv. Easier to manage dependencies.
-THIS PACKAGE IS UNDER DEVELOPMENT! In order to keep up with the pace you have 2 options:
-
-- install via pip. Afterwards you need to update it constantly
+- python3.7 is required (based on casadi requirements)
+- install via pip or poetry
     - INSTALL: pip install git+https://git.tu-berlin.de/vovakozach/pe_oed_casadi
     - UPDATE: pip install -U git+https://git.tu-berlin.de/vovakozach/pe_oed_casadi
-- install as developer package and update by pulling changes
-    - INSTALL:
-        - Clone this repo on your computer git clone https://git.tu-berlin.de/vovakozach/pe_oed_casadi
-        - Install package from the cloned folder via pip install -e .
-    - UPDATE:
-        - Pull lastest changes on master branch git pull
 
-### Development
+## Development
 
-- Clone this repository
-- From the main folder run: `pip install -e .`
-- Run tests via `pytest`, finall tests should be run with `tox -r` command
+- Clone this repo on your computer git clone https://git.tu-berlin.de/vovakozach/pe_oed_casadi
+- Run `poetry install` (ensure that correct python version is installed ex. pyenv)
+- Run tests via `pytest`, final tests should be run with `tox -r` command
+
+### Old way
+
+- You still can use `pip install -e .` in order to install package in development mode, but it's not recommended and will be deprecated
 
 ## TODO
 
@@ -88,6 +79,12 @@ parameter estimation determines time_grid for itself, based on available state_v
 OED uses time grid provided to it. It uses unfixed contoll variables as desicion variables and unfixed parameters to calculate sensitivities
 _sensitivity_matrix is used to calculated Jy/dp
 get_fim() is used to calculate FIM for a given set of variables
+
+## Contributing
+
+- Use poetry to work with package and contribute to it https://python-poetry.org/
+- Use conventional commits to create commit messages https://www.conventionalcommits.org
+    - git config --local commit.template .git-commit-message
 
 ## Note
 
