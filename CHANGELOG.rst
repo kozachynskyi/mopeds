@@ -2,6 +2,18 @@
 Changelog
 =========
 
+
+Version 0.3.0
+=============
+
+- Switched to poetry development
+- From now on, commiting with meaningfull messages to use commitizen to autogenerate Changelog
+
+Version 0.2.2
+=============
+
+- A lot happenned till here, but I cannot recall
+
 Version 0.1.1
 ===========
 
