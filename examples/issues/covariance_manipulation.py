@@ -1,7 +1,8 @@
+import casadi as ca
+import numpy as np
+
 import par_est
 import par_est.examples
-import numpy as np
-import casadi as ca
 
 """ Jacobian returned by simulation has a size (NumState X NumOfParam * NumOfTimepoints). Once can get a covariance matrix of the parameters in different ways, and this example shows that something that works on paper (simple linear algebra) doesn't work with casadi.
 
@@ -64,7 +65,9 @@ for count_time_step in range(num_time):
         covariance_full_sum = covariance_full_sum + cov_at_timepoint
 
 covariance_reshape = (
-    jacobian_reshape.T @ covariance_measurement_reshape @ jacobian_reshape
+    jacobian_reshape.T  # type: ignore
+    @ covariance_measurement_reshape
+    @ jacobian_reshape
 )
 
 covariance_difference_fail = covariance_full_sum - covariance_reshape

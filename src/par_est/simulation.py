@@ -1,25 +1,26 @@
 import copy
-import casadi as ca
-import numpy as np
 import logging
 
+import casadi as ca
+import numpy as np
+
 from par_est import (
-    VariableList,
-    Model,
+    BadVariableError,
     ExperimentData,
+    Model,
     Variable,
-    VariableState,
     VariableAlgebraic,
+    VariableConstant,
     VariableControl,
     VariableControlPiecewiseConstant,
+    VariableList,
     VariableParameter,
-    VariableConstant,
-    BadVariableError,
+    VariableState,
 )
 
 
 class Simulator(object):
-    def __init__(
+    def __init__(  # noqa: C901
         self,
         model: Model,
         input_time_grid,
@@ -149,7 +150,9 @@ class Simulator(object):
                     pass
                 elif isinstance(var, VariableParameter):
                     independent_variable = []
-                    independent_variable.extend([var.get_value_based_on_fixed()] * num_time_steps)
+                    independent_variable.extend(
+                        [var.get_value_based_on_fixed()] * num_time_steps
+                    )
                     if var.fixed:
                         self._variables_with_guess.append(var.value)
                     else:
@@ -170,19 +173,27 @@ class Simulator(object):
                             # This if statement is required for OED in order to use casadi_var from previous step, if it was already used. Without it, control variable will be fixed to some value for given timestep
                             if var_at_timestamp.fixed:
                                 if last_unfixed_variable is None:
-                                    independent_variable.append(var_at_timestamp.get_value_based_on_fixed())
+                                    independent_variable.append(
+                                        var_at_timestamp.get_value_based_on_fixed()
+                                    )
                                 else:
-                                    independent_variable.append(last_unfixed_variable.get_value_based_on_fixed())
+                                    independent_variable.append(
+                                        last_unfixed_variable.get_value_based_on_fixed()
+                                    )
                             else:
                                 last_unfixed_variable = var_at_timestamp
-                                independent_variable.append(last_unfixed_variable.get_value_based_on_fixed())
+                                independent_variable.append(
+                                    last_unfixed_variable.get_value_based_on_fixed()
+                                )
 
                     else:
                         if var.fixed:
                             self._variables_with_guess.append(var.value)
                         else:
                             self._variables_with_guess.append(var.guess)
-                        independent_variable.extend([var.get_value_based_on_fixed()] * num_time_steps)
+                        independent_variable.extend(
+                            [var.get_value_based_on_fixed()] * num_time_steps
+                        )
                     self._variables.append(independent_variable)
 
         self._variables = list(map(list, zip(*self._variables)))
@@ -193,14 +204,20 @@ class Simulator(object):
         if self.model.DAE:
             variable_names.extend(list(self.model.varlist_algebraic.keys()))
         for var_name in variable_names:
-            self._constraints_idas.append(self.__input_variable_list[var_name].constraint_idas)
+            self._constraints_idas.append(
+                self.__input_variable_list[var_name].constraint_idas
+            )
 
         if use_idas_constraints:
             if not self.__integrator_name == "idas":
-                self.logger.warning("use_idas_constraints argument is applicable only for idas solver")
+                self.logger.warning(
+                    "use_idas_constraints argument is applicable only for idas solver"
+                )
             else:
                 if all(constraint == 0 for constraint in self._constraints_idas):
-                    self.logger.warning("All idas constraints are 0, so no option is set")
+                    self.logger.warning(
+                        "All idas constraints are 0, so no option is set"
+                    )
                 else:
                     self.__integrator_settings["constraints"] = self._constraints_idas
 
@@ -339,13 +356,15 @@ class Simulator(object):
 
             residual_sum_original = ca.sum1(residual_original["alg"])
             residual_sum_calculated = ca.sum1(residual_calculated["alg"])
-            print(f"Residual before {residual_sum_original}, after {residual_sum_calculated}.")
+            print(
+                f"Residual before {residual_sum_original}, after {residual_sum_calculated}."
+            )
         if apply_intials:
             self.logger.debug("Fixed algebraic intials")
             self._initial_algebraic = res
 
     def analyze_WIP(self, state_value=None):
-        import par_est.tools as tools
+        import par_est.tools as tools  # noqa: F401
 
         """ This function was working for previous version of the module."""
         function = ca.Function(
@@ -364,7 +383,7 @@ class Simulator(object):
             ["alg"],
         )
 
-        check_initials = function(
+        check_initials = function(  # noqa: F841
             x=self._initial_state, z=self._initial_algebraic, p=self._variables[0]
         )
         jacobian = function.factory(
@@ -400,14 +419,18 @@ class Simulator(object):
 
         rf = ca.rootfinder("inits", "newton", algebraic_eqsys_rootfinder)
         if state_value is not None:
-            res = rf(self._initial_algebraic, ca.vertcat(state_value, self._variables[0]))
+            res = rf(
+                self._initial_algebraic, ca.vertcat(state_value, self._variables[0])
+            )
         else:
             res = rf(
                 self._initial_algebraic,
                 ca.vertcat(self._initial_state, self._variables[0]),
             )
 
-        check_alg = function(x=self._initial_state, z=res, p=self._variables[0])
+            check_alg = function(  # noqa: 841
+                x=self._initial_state, z=res, p=self._variables[0]
+            )
         old_initial = self._initial_algebraic
         # self._initial_algebraic = res
         return [res, old_initial]
@@ -424,7 +447,9 @@ class Simulator(object):
         x_init = self._initial_state
         alg_init = self._initial_algebraic
 
-        for time_step, independent_variables in zip(self.time_grid[1:], self._variables):
+        for time_step, independent_variables in zip(
+            self.time_grid[1:], self._variables
+        ):
             res_integration = self.integrator_tau_jac(
                 x0=x_init,
                 z0=alg_init,
@@ -457,7 +482,9 @@ class Simulator(object):
         res_jacobian = []
         x_init = self._initial_state
 
-        for time_step, independent_variables in zip(self.time_grid[1:], self._variables):
+        for time_step, independent_variables in zip(
+            self.time_grid[1:], self._variables
+        ):
             res_integration = self.integrator_tau_jac(
                 x0=x_init,
                 p=ca.vertcat(
@@ -487,7 +514,9 @@ class Simulator(object):
         x_init = self._initial_state
         alg_init = self._initial_algebraic
 
-        for time_step, independent_variables in zip(self.time_grid[1:], self._variables):
+        for time_step, independent_variables in zip(
+            self.time_grid[1:], self._variables
+        ):
             res_integration = self.integrator_tau(
                 x0=x_init,
                 z0=alg_init,
@@ -517,7 +546,9 @@ class Simulator(object):
         res_states = []
         x_init = self._initial_state
 
-        for time_step, independent_variables in zip(self.time_grid[1:], self._variables):
+        for time_step, independent_variables in zip(
+            self.time_grid[1:], self._variables
+        ):
             res_integration = self.integrator_tau(
                 x0=x_init,
                 p=ca.vertcat(
@@ -586,8 +617,8 @@ class Simulator(object):
         return variables
 
     def setup_time_grid(self, time_grid):
-        """ Time_grid provided by used may not take into account piecewise controls.
-        Thus it might be needed to expand a time grid. """
+        """Time_grid provided by used may not take into account piecewise controls.
+        Thus it might be needed to expand a time grid."""
         for var in self.__input_variable_list.values():
             if isinstance(var, VariableControlPiecewiseConstant):
                 time_grid = np.append(time_grid, var.time)

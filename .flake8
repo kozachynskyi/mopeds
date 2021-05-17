@@ -19,3 +19,4 @@ exclude =
     .tox
     dist
     .eggs
+    src/par_est/__init__.py

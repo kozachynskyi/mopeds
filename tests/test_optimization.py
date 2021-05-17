@@ -46,7 +46,14 @@ def test_pe_objective(piecewise):
     variable_list1, model = par_est.examples.empy_dae(piecewise)
 
     for var in variable_list1.values():
-        if isinstance(var, (par_est.VariableControl, par_est.VariableParameter, par_est.VariableControlPiecewiseConstant)):
+        if isinstance(
+            var,
+            (
+                par_est.VariableControl,
+                par_est.VariableParameter,
+                par_est.VariableControlPiecewiseConstant,
+            ),
+        ):
             var.fixed = False
 
     variable_list1["X1"].value.value = [0, 1]
@@ -89,7 +96,10 @@ def test_pe_objective(piecewise):
 
 
 # @pytest.mark.parametrize("piecewise, constraints_idas", [[True, False],[True, False]])
-@pytest.mark.parametrize("piecewise, constraints_idas", [(True, True), (True, False), (False, True), (False, False)])
+@pytest.mark.parametrize(
+    "piecewise, constraints_idas",
+    [(True, True), (True, False), (False, True), (False, False)],
+)
 def test_pe(piecewise, constraints_idas):
     """Test that ParameterEstimation on ODE and DAE always yields same result.
     Helpfull to see if any drastic changes in calculation were made
@@ -130,7 +140,9 @@ def test_pe(piecewise, constraints_idas):
         var_list["e0_c_i1"].lower_bound = 0
         var_list["e0_c_i1"].upper_bound = None
 
-        pe = par_est.ParameterEstimation(model, [var_list], use_idas_constraints=constraints_idas)
+        pe = par_est.ParameterEstimation(
+            model, [var_list], use_idas_constraints=constraints_idas
+        )
 
         if model.DAE:
             answer_scaled = 1.26485e-13
@@ -215,9 +227,23 @@ def test_oed_piecewise():
         c_in_i1.fixed = True
 
         if model.DAE:
-            res_values = [31.16299587, 7.9313022, 10.47423272, 7.91570605, 10.69082675, 9.69286661]
+            res_values = [
+                31.16299587,
+                7.9313022,
+                10.47423272,
+                7.91570605,
+                10.69082675,
+                9.69286661,
+            ]
         else:
-            res_values = [31.162953, 7.93128491, 10.47422549, 7.91568793, 10.69076264, 9.69266026]
+            res_values = [
+                31.162953,
+                7.93128491,
+                10.47422549,
+                7.91568793,
+                10.69076264,
+                9.69266026,
+            ]
 
         list_orders = [
             [False, True, True],
@@ -249,14 +275,21 @@ def test_oed_piecewise():
 
 
 @pytest.mark.parametrize("piecewise", [True, False])
-def test_optimizer(piecewise):
+def test_optimizer(piecewise):  # noqa: C901
     """Tests if optimizer can deal with variable list of fixed and unfixed parameters.
     Not well designed, and may yield false positives, but let it be.
     """
     variable_list, m = par_est.examples.cstr_ode(piecewise)
 
     for var in variable_list.values():
-        if isinstance(var, (par_est.VariableControl, par_est.VariableParameter, par_est.VariableControlPiecewiseConstant)):
+        if isinstance(
+            var,
+            (
+                par_est.VariableControl,
+                par_est.VariableParameter,
+                par_est.VariableControlPiecewiseConstant,
+            ),
+        ):
             var.fixed = False
 
     # Create time-grid. Zero should be first

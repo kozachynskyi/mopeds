@@ -6,12 +6,9 @@ Further read:
     - Bound_push to zero
 """
 import copy
-from datetime import datetime, timedelta
 
 import casadi as ca
-import matplotlib.cm as cm
 import numpy as np
-from matplotlib import pyplot as plt
 
 import par_est
 
@@ -1243,7 +1240,7 @@ if __name__ == "__main__":
     for var in variable_list.values():
         var.fixed = True
         if isinstance(var, par_est.VariableControl) or isinstance(
-            var, par_est.ParameterEstimation
+            var, par_est.VariableParameter
         ):
             var.lower_bound = var.value - var.value * 0.05
             var.upper_bound = var.value + var.value * 0.05

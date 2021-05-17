@@ -2,7 +2,7 @@ import copy
 import logging
 import casadi as ca
 import numpy as np
-from typing import List
+from typing import List, Union, Dict
 from scipy import linalg
 
 from par_est import tools
@@ -21,7 +21,7 @@ class Optimizer(object):
     def __init__(
         self,
         model: Model,
-        variable_lists: [VariableList],
+        variable_lists: List[VariableList],
         simulator_name,
         simulator_settings,
     ):
@@ -46,7 +46,7 @@ class Optimizer(object):
         self.scaling = 1
 
         self.solver = None
-        self.solver_settings = None
+        self.solver_settings: Union[None, Dict] = None
 
     def _setup_simulator(self, *, use_idas_constraints):
         # Creates simulator
@@ -73,7 +73,9 @@ class Optimizer(object):
         self.guess = np.array(guess)
         self.lower_bound = np.array(lower_bound)
         self.upper_bound = np.array(upper_bound)
-        self.logger.debug(f"Initialized:\nguess {self.guess}\nlower_bound {self.lower_bound}\nupper_bound {self.upper_bound}")
+        self.logger.debug(
+            f"Initialized:\nguess {self.guess}\nlower_bound {self.lower_bound}\nupper_bound {self.upper_bound}"
+        )
 
     def _setup_scaling(self, scale=False):
         """Scaling should be done before setting a solver and solver settings.
@@ -166,7 +168,7 @@ class ParameterEstimation(Optimizer):
     def __init__(
         self,
         model: Model,
-        variable_list: VariableList,
+        variable_list: List[VariableList],
         simulator_name="idas",
         simulator_settings=None,
         *,
@@ -182,15 +184,15 @@ class ParameterEstimation(Optimizer):
 
         # This attribute is used while calculating Objective, and is either 1 or self.experiments_weights
         self.experiments_scale = 1
-        self.experiments_weights = []
-        self.array_data = []
-        self.array_data_mask = []
-        self.inverted_variances = []
+        self.experiments_weights: List[np.ndarray] = []
+        self.array_data: List[np.ndarray] = []
+        self.array_data_mask: List[np.ndarray] = []
+        self.inverted_variances: List[np.ndarray] = []
 
         self._setup_simulator(use_idas_constraints=use_idas_constraints)
         self.logger.debug(
             "Created Optimizer object: \n Data Shape {} \n Desicion Variables {}".format(
-                self.array_data.shape, self.varlist_decision.get_variable_name()
+                self.array_data.shape, self.varlist_decision.get_variable_name()  # type: ignore
             )
         )
         self._setup_initialization()
@@ -344,7 +346,7 @@ class OptimalExperimentalDesign(Optimizer):
     def __init__(
         self,
         model: Model,
-        variable_list: [VariableList],
+        variable_list: List[VariableList],
         time_grid,
         simulator_name="idas",
         simulator_settings=None,
@@ -353,9 +355,9 @@ class OptimalExperimentalDesign(Optimizer):
     ):
         super().__init__(model, variable_list, simulator_name, simulator_settings)
         self.time_grid_original = time_grid
-        self.parameter_values = []
-        self.select_independent = []
-        self.inverted_variances = []
+        self.parameter_values: List[float] = []
+        self.select_independent: List[int] = []
+        self.inverted_variances: List[float] = []
 
         self._setup_simulator()
         self._setup_initialization()
@@ -456,7 +458,7 @@ class OptimalExperimentalDesign(Optimizer):
                 result_sim = evaluate_sim(self.guess)
             else:
                 result_jacobian = evaluate(values)
-                result_sim = evaluate_sim(values)
+                result_sim = evaluate_sim(values)  # noqa: F841
 
         # Simulation returns jacobian that has to be split, to get jac at each time point.
         # list_jacobian_at_timepoint contains a list of that jacobians.

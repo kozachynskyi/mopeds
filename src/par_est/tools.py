@@ -1,12 +1,14 @@
 import copy
-import matplotlib.pyplot as plt
-import matplotlib.colors as colors
-import matplotlib.cm as cm
-import numpy as np
-import par_est
-import pickle
 import copyreg
+import pickle
+
 import casadi as ca
+import matplotlib.cm as cm
+import matplotlib.colors as colors
+import matplotlib.pyplot as plt
+import numpy as np
+
+import par_est
 
 
 def reduce_MX(mx_object):
@@ -19,7 +21,7 @@ class MXPickler(pickle.Pickler):
     https://docs.python.org/3/library/pickle.html#dispatch-tables
     """
 
-    dispatch_table = copyreg.dispatch_table.copy()
+    dispatch_table = copyreg.dispatch_table.copy()  # type: ignore
     dispatch_table[ca.MX] = reduce_MX
     dispatch_table[ca.Function] = reduce_MX
 
@@ -101,16 +103,24 @@ def make_startpoints(bound0, N):
     output = B[num_of_samples, num_of_variables], example B[0] would return an array of variables guesses for all variables
     Taken from Erik, not tested"""
 
-    # fmt:off
-    D = len( bound0[ :, ])
+    D = len(
+        bound0[
+            :,
+        ]
+    )
 
     S = generate_hammersley(D, N)
 
     B = np.zeros(S.shape)
 
-    for i in range(len(bound0[:,])):
+    for i in range(
+        len(
+            bound0[
+                :,
+            ]
+        )
+    ):
         B[:, i] = S[:, i] * (bound0[i, 1] - bound0[i, 0]) + bound0[i, 0]
-    # fmt:on
 
     return B
 

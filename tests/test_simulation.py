@@ -1,9 +1,7 @@
 import par_est
 import numpy as np
-import logging
 import par_est.examples
 import casadi as ca
-import copy
 import pytest
 
 
@@ -55,7 +53,14 @@ def test_cstr(piecewise):
         time_grid = np.insert(time_grid, 0, 0)
 
         for var in variable_list.values():
-            if isinstance(var, (par_est.VariableControl, par_est.VariableParameter, par_est.VariableControlPiecewiseConstant)):
+            if isinstance(
+                var,
+                (
+                    par_est.VariableControl,
+                    par_est.VariableParameter,
+                    par_est.VariableControlPiecewiseConstant,
+                ),
+            ):
                 var.fixed = False
 
         for i in range(5):
@@ -126,6 +131,7 @@ def test_piecewise():
         if m.DAE:
             assert np.isclose(res["zf"], res_piecewise["zf"]).all()
 
+
 @pytest.mark.parametrize("piecewise", [True, False])
 def test_steadystate(piecewise):
     for cstr_model in [
@@ -145,10 +151,10 @@ def test_steadystate(piecewise):
 
         steady_state = sim.calculate_steady_state()
 
-        assert np.isclose(sim_res["xf"][:,-1], steady_state[0:5]).all()
+        assert np.isclose(sim_res["xf"][:, -1], steady_state[0:5]).all()
 
         if m.DAE:
-            assert np.isclose(sim_res["zf"][:,-1], steady_state[5]).all()
+            assert np.isclose(sim_res["zf"][:, -1], steady_state[5]).all()
 
 
 def test_constraints_idas():
@@ -160,11 +166,11 @@ def test_constraints_idas():
     variable_list["e0_c_tot"].upper_bound = 0
 
     sim = par_est.Simulator(m, time_grid, variable_list)
-    sim_res = sim.simulate()
+    sim.simulate()
 
     sim = par_est.Simulator(m, time_grid, variable_list, use_idas_constraints=True)
     with pytest.raises(RuntimeError):
-        sim_res = sim.simulate()
+        sim.simulate()
 
     # VariableState
     variable_list, m = par_est.examples.cstr_ode()
@@ -174,11 +180,11 @@ def test_constraints_idas():
     variable_list["e0_c_i1"].upper_bound = 0
 
     sim = par_est.Simulator(m, time_grid, variable_list)
-    sim_res = sim.simulate()
+    sim.simulate()
 
     sim = par_est.Simulator(m, time_grid, variable_list, use_idas_constraints=True)
     with pytest.raises(RuntimeError):
-        sim_res = sim.simulate()
+        sim.simulate()
 
 
 if __name__ == "__main__":

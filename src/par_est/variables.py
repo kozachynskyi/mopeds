@@ -1,5 +1,6 @@
 from collections import OrderedDict
 from datetime import datetime, timedelta
+from typing import List
 
 import casadi as ca
 import numpy as np
@@ -66,8 +67,8 @@ class Variable(object):
 
     @property
     def constraint_idas(self):
-        """ Constrain the solution y=[x,z].  0 (default): no constraint on yi,
-        1: yi >= 0.0, -1: yi <= 0.0, 2: yi > 0.0, -2: yi < 0.0."}}, """
+        """Constrain the solution y=[x,z].  0 (default): no constraint on yi,
+        1: yi >= 0.0, -1: yi <= 0.0, 2: yi > 0.0, -2: yi < 0.0."}},"""
 
         if self.lower_bound == 0:
             constraint = 1
@@ -86,16 +87,16 @@ class Variable(object):
     def lower_bound(self):
         return self._lower_bound
 
-    @property
-    def upper_bound(self):
-        return self._upper_bound
-
     @lower_bound.setter
     def lower_bound(self, lower_bound):
         if lower_bound is None or lower_bound == -1e9:
             self._lower_bound = -ca.inf
         else:
             self._lower_bound = lower_bound
+
+    @property
+    def upper_bound(self):
+        return self._upper_bound
 
     @upper_bound.setter
     def upper_bound(self, upper_bound):
@@ -139,6 +140,7 @@ class VariableControl(Variable):
 
 class VariableControlPiecewiseConstant(VariableControl):
     """ self.time - [time_stamps] list with time points of all variables in self.variables_list. """
+
     def __init__(self, name, value=None, lb=None, ub=None, opc_ua_id=None):
         super().__init__(name)
         self.variable_list = VariableList()
@@ -169,11 +171,21 @@ class VariableControlPiecewiseConstant(VariableControl):
 
     def expand_horizon(self, times, values):
         if not len(times) == len(values):
-            raise ValueError("Length of times and values vector should be same. You supplied:\ntimes\n{times}\nvalues\n{values}")
+            raise ValueError(
+                "Length of times and values vector should be same. You supplied:\ntimes\n{times}\nvalues\n{values}"
+            )
         if not len(self.time) == 1:
-            raise NotImplementedError("Cannot be used to expand already expanded variable")
+            raise NotImplementedError(
+                "Cannot be used to expand already expanded variable"
+            )
         for index, (time, value) in enumerate(zip(times, values), 1):
-            var = VariableControl(f"{self.name}_t{index}", value, self.variable_list.index(0).lower_bound, self.variable_list.index(0).upper_bound, self.opc_ua_id)
+            var = VariableControl(
+                f"{self.name}_t{index}",
+                value,
+                self.variable_list.index(0).lower_bound,
+                self.variable_list.index(0).upper_bound,
+                self.opc_ua_id,
+            )
             var.fixed = True
             var.time = time
             self.variable_list.add_variable(var)
@@ -251,7 +263,7 @@ class VariableList(OrderedDict):
             ns_working = client.get_working_ns_idx()
             for var in self.values():
                 values_opcua = []
-                time_opcua = []
+                time_opcua: List[float] = []
                 if isinstance(var, VariableState):
                     sensor = client.get_node(NumericNodeId(var.opc_ua_id, ns_working))
                     process_value = client.get_child_simple(sensor, ["d:ProcessValue"])

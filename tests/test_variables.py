@@ -1,11 +1,7 @@
 import par_est
-from par_est.examples import cstr_ode
 from par_est.variables import SameVariableNameError, PlottingError
 
-import copy
 import casadi as ca
-import matplotlib.pyplot as plt
-import numpy as np
 import pytest
 
 
@@ -69,9 +65,9 @@ def test_variables():
     with pytest.raises(NotImplementedError):
         var_1.expand_horizon([11], [4])
     with pytest.raises(NotImplementedError):
-        var_1.set_horizon([11],[4])
+        var_1.set_horizon([11], [4])
     with pytest.raises(ValueError):
-        var_1.expand_horizon([11, 12],[4])
+        var_1.expand_horizon([11, 12], [4])
 
     var_2.expand_horizon([11, 11.3], [4, 5])
     assert len(var_2.time) == 3
