@@ -16,6 +16,7 @@ scipy = "*"
 pytest = "^6.2"
 pytest-cov = "^2.8"
 tox = "^3.0"
+mypy = "^0.812"
 
 [build-system]
 # setuptools are used only for pip install -e . compitability
