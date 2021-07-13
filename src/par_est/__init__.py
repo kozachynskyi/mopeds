@@ -18,3 +18,4 @@ from .optimization import (
     ParameterEstimation,
     OptimalExperimentalDesign,
 )
+from .mpc import ModelPredictiveControl
