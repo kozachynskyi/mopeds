@@ -6,7 +6,7 @@ import par_est.examples
 if __name__ == "__main__":
 
     piecewiseswitch = False
-    variable_list, m = par_est.examples.cstr_ode(piecewiseswitch)
+    variable_list, m = par_est.examples.cstr_dae(piecewiseswitch)
     for var in variable_list.values():
         var.fixed = True
 
@@ -24,8 +24,8 @@ if __name__ == "__main__":
         variable_list["e0_T_in"].variable_list.index(1).fixed = True
         variable_list["e0_T_in"].variable_list.index(2).fixed = False
 
-    data1 = par_est.tools.generate_varlist_with_data(variable_list, m, time_grid1)
-    data2 = par_est.tools.generate_varlist_with_data(variable_list, m, time_grid2)
+    data1 = par_est.tools.generate_varlist_with_data(variable_list, m, time_grid1, True)
+    data2 = par_est.tools.generate_varlist_with_data(variable_list, m, time_grid2, True)
 
     # If data is not available for all simulated points, PE works
     data2["e0_T"].value.value = np.delete(data2["e0_T"].value.value, 2)
@@ -34,9 +34,14 @@ if __name__ == "__main__":
     data2["e0_c_i1"].value.value = [data2["e0_c_i1"].value.value[0]]
     data2["e0_c_i1"].value.time = [data2["e0_c_i1"].value.time[0]]
 
-    pe = par_est.ParameterEstimation(m, [data1, data2])
-    pe.optimize(scale_experiments=True)
-    pe.optimize(False)
+    # Preturbate alg variable from "ideal solution" to see its affect on PE
+    data2["e0_c_tot"].value.value = [val * 1.05 for val in data2["e0_c_tot"].value.value]
+
+    pe_state = par_est.ParameterEstimation(m, [data1, data2])
+    print(pe_state.optimize(True))
+
+    pe_alg = par_est.ParameterEstimation(m, [data1, data2], use_algebraic_vars=True)
+    print(pe_alg.optimize(True))
 
     oed = par_est.OptimalExperimentalDesign(m, [data1], time_grid1)
     # oed.optimize()

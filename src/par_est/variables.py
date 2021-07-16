@@ -121,6 +121,8 @@ class VariableAlgebraic(Variable):
         self.guess = guess
         self.opc_ua_id = opc_ua_id
         self.value = ExperimentData()
+        self.value.time = [0.0]
+        self.value.value = [None]
 
 
 class VariableParameter(Variable):

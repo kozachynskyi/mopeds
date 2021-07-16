@@ -14,6 +14,7 @@ from par_est import (
     Simulator,
     VariableState,
     VariableList,
+    VariableAlgebraic,
 )
 
 
@@ -174,6 +175,7 @@ class ParameterEstimation(Optimizer):
         *,
         reinitialize_algebraic=False,
         use_idas_constraints=False,
+        use_algebraic_vars=False,
     ):
         super().__init__(
             model,
@@ -182,6 +184,11 @@ class ParameterEstimation(Optimizer):
             simulator_settings,
         )
 
+        if use_algebraic_vars:
+            self._objective = self._objective_alg
+        else:
+            self._objective = self._objective_state
+
         # This attribute is used while calculating Objective, and is either 1 or self.experiments_weights
         self.experiments_scale = 1
         self.experiments_weights: List[np.ndarray] = []
@@ -189,7 +196,7 @@ class ParameterEstimation(Optimizer):
         self.array_data_mask: List[np.ndarray] = []
         self.inverted_variances: List[np.ndarray] = []
 
-        self._setup_simulator(use_idas_constraints=use_idas_constraints)
+        self._setup_simulator(use_idas_constraints=use_idas_constraints, use_algebraic_vars=use_algebraic_vars)
         self.logger.debug(
             "Created Optimizer object: \n Data Shape {} \n Desicion Variables {}".format(
                 self.array_data.shape, self.varlist_decision.get_variable_name()  # type: ignore
@@ -207,7 +214,7 @@ class ParameterEstimation(Optimizer):
             for sim in self.list_simulators:
                 sim.calculate_algebraic_initials(apply_intials=True)
 
-    def _setup_simulator(self, *, use_idas_constraints):
+    def _setup_simulator(self, *, use_idas_constraints, use_algebraic_vars):
         # It's not checked if all supplied varlist have same states etc.
         for var in self.list_input_varlist[0].values():
             if isinstance(var, VariableState):
@@ -226,7 +233,7 @@ class ParameterEstimation(Optimizer):
             # Create a time_grid, that "stops" at every experimental data, for every state variable
             time_grid = np.ndarray((1, 0))
             for var in varlist_input.values():
-                if isinstance(var, VariableState):
+                if isinstance(var, VariableState) or (isinstance(var, VariableAlgebraic) and use_algebraic_vars):
                     time_grid = np.append(time_grid, var.value.time)
                 elif isinstance(var, VariableControl):
                     var.fixed = True
@@ -252,7 +259,7 @@ class ParameterEstimation(Optimizer):
             experiment_data_varlist = []
             experiment_data_mask_varlist = []
             for var in varlist_input.values():
-                if isinstance(var, VariableState):
+                if isinstance(var, VariableState) or (isinstance(var, VariableAlgebraic) and use_algebraic_vars):
                     time_grid_var = np.array(var.value.time)
                     # if simulated point has data - set element to True
                     experiment_data_mask_var = (
@@ -289,7 +296,7 @@ class ParameterEstimation(Optimizer):
             """
             inverted_variances_varlist = []
             for var in varlist_input.values():
-                if isinstance(var, VariableState):
+                if isinstance(var, VariableState) or (isinstance(var, VariableAlgebraic) and use_algebraic_vars):
                     inverted_variances_varlist.append(
                         1.0 / (np.full(len(time_grid) - 1, var.variance))
                     )
@@ -312,7 +319,7 @@ class ParameterEstimation(Optimizer):
         self.inverted_variances = np.concatenate(self.inverted_variances)
         self.experiments_weights = np.concatenate(self.experiments_weights)
 
-    def _objective(self):
+    def _objective_state(self):
         array_simulation = None
 
         for simulator in self.list_simulators:
@@ -321,6 +328,27 @@ class ParameterEstimation(Optimizer):
                 array_simulation = res_simulation["xf"][:]
             else:
                 array_simulation = ca.vertcat(array_simulation, res_simulation["xf"][:])
+
+        # multiply by self.array_data_mask needed to ignore elements were error experimental data is zero
+        error = (array_simulation - self.array_data) * self.array_data_mask
+        objective = ca.sum1(
+            self.experiments_scale * self.inverted_variances * (error ** 2)
+        )
+
+        return objective
+
+    def _objective_alg(self):
+        array_simulation = None
+
+        for simulator in self.list_simulators:
+            res_simulation = simulator.simulate()
+
+            if array_simulation is None:
+                res_all = ca.vertcat(res_simulation["xf"], res_simulation["zf"])
+                array_simulation = res_all[:]
+            else:
+                res_all = ca.vertcat(res_simulation["xf"], res_simulation["zf"])
+                array_simulation = ca.vertcat(array_simulation, res_all[:])
 
         # multiply by self.array_data_mask needed to ignore elements were error experimental data is zero
         error = (array_simulation - self.array_data) * self.array_data_mask
