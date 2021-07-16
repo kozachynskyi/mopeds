@@ -9,7 +9,7 @@ if __name__ == "__main__":
 
     # Model setup
     piecewiseswitch = True
-    variable_list, m = par_est.examples.cstr_ode(piecewiseswitch)
+    variable_list, m = par_est.examples.cstr_dae(piecewiseswitch)
     for var in variable_list.values():
         var.fixed = True
 
@@ -24,7 +24,7 @@ if __name__ == "__main__":
         variable_list["e0_T_in"].expand_horizon([241.0, 482.0, 723.0], [363, 373, 383])
 
     # Here data is generated
-    data1 = par_est.tools.generate_varlist_with_data(variable_list, m, time_grid1)
+    data1 = par_est.tools.generate_varlist_with_data(variable_list, m, time_grid1, True)
 
     # Here data is provided from some arrays. Othery variables are not supplied
     data2 = copy.deepcopy(variable_list)
@@ -38,6 +38,10 @@ if __name__ == "__main__":
         "e0_T_in", 373.0, 353.0, 393.0
     )
     data1["e0_T_in"].fixed = False
+
+    # Preturbate alg variable from "ideal solution" to see its affect on PE
+    data1["e0_c_tot"].value.value = [val * 1.05 for val in data1["e0_c_tot"].value.value]
+
     data2["e0_T_in"] = par_est.VariableControlPiecewiseConstant(
         "e0_T_in", 373.0, 353.0, 393.0
     )
@@ -47,14 +51,21 @@ if __name__ == "__main__":
     # Than divided in 4 equal horizonts and for each of this
     # Horizons a new decision variable is created
     # Tested only for one VariableControlPiecewiseConstant
-    mpc = par_est.ModelPredictiveControl(m, [data1], number_of_time_horizonts=4)
+    mpc = par_est.ModelPredictiveControl(m, [data1], number_of_time_horizonts=4, use_algebraic_vars=False)
     print(f"Optimizer calculates control variables at time:\n {mpc.time_grid_controls}")
 
     # Because optimizer is formulated as Single Shooting, ipopt is not efficient. So it may get stuck and may require many iterations.
     mpc.solver_settings["ipopt"]["max_iter"] = 50
 
-    res = mpc.optimize()
-    print(res)
+    print(mpc.optimize())
+
+    mpc = par_est.ModelPredictiveControl(m, [data1], number_of_time_horizonts=4, use_algebraic_vars=True)
+    print(f"Optimizer calculates control variables at time:\n {mpc.time_grid_controls}")
+
+    # Because optimizer is formulated as Single Shooting, ipopt is not efficient. So it may get stuck and may require many iterations.
+    mpc.solver_settings["ipopt"]["max_iter"] = 50
+
+    print(mpc.optimize())
 
     mpc = par_est.ModelPredictiveControl(m, [data2], number_of_time_horizonts=4)
     print(f"Optimizer calculates control variables at time:\n {mpc.time_grid_controls}")
