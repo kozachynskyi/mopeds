@@ -258,27 +258,33 @@ class ParameterEstimation(Optimizer):
             # Generate an array (experiment_data_varlist) with Experimental data with the same dimensions as simulation results.
             experiment_data_varlist = []
             experiment_data_mask_varlist = []
-            for var in varlist_input.values():
-                if isinstance(var, VariableState) or (isinstance(var, VariableAlgebraic) and use_algebraic_vars):
-                    time_grid_var = np.array(var.value.time)
-                    # if simulated point has data - set element to True
-                    experiment_data_mask_var = (
-                        1.0 * np.isin(time_grid, time_grid_var)[1:]
-                    )
-                    experiment_data_var_real = np.array(var.value.value)[1:]
-                    # array that would be filled with Experimental data where data_mask is 1
-                    experiment_data_var_extended = experiment_data_mask_var.copy()
 
-                    # data_var is being redimensioned to the output of simulation
-                    counter = 0
-                    for timegrid_index, trigger in enumerate(experiment_data_mask_var):
-                        if trigger == 1:
-                            experiment_data_var_extended[
-                                timegrid_index
-                            ] = experiment_data_var_real[counter]
-                            counter = counter + 1
-                    experiment_data_varlist.append(experiment_data_var_extended)
-                    experiment_data_mask_varlist.append(experiment_data_mask_var)
+            if use_algebraic_vars:
+                variable_name_list = list([*self.model.varlist_state.keys(), *self.model.varlist_algebraic.keys()])
+            else:
+                variable_name_list = list(self.model.varlist_state.keys())
+
+            for var_name in variable_name_list:
+                var = varlist_input[var_name]
+                time_grid_var = np.array(var.value.time)
+                # if simulated point has data - set element to True
+                experiment_data_mask_var = (
+                    1.0 * np.isin(time_grid, time_grid_var)[1:]
+                )
+                experiment_data_var_real = np.array(var.value.value)[1:]
+                # array that would be filled with Experimental data where data_mask is 1
+                experiment_data_var_extended = experiment_data_mask_var.copy()
+
+                # data_var is being redimensioned to the output of simulation
+                counter = 0
+                for timegrid_index, trigger in enumerate(experiment_data_mask_var):
+                    if trigger == 1:
+                        experiment_data_var_extended[
+                            timegrid_index
+                        ] = experiment_data_var_real[counter]
+                        counter = counter + 1
+                experiment_data_varlist.append(experiment_data_var_extended)
+                experiment_data_mask_varlist.append(experiment_data_mask_var)
 
             # Stack data from separate variables and flatten columnwise
             experiment_data_varlist = np.column_stack(experiment_data_varlist).flatten()
