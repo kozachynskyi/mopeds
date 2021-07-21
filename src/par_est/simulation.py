@@ -29,6 +29,7 @@ class Simulator(object):
         integrator_settings=None,
         *,
         use_idas_constraints=False,
+        simulate_jac=False,
     ):
 
         self.logger = logging.getLogger(__name__)
@@ -228,18 +229,20 @@ class Simulator(object):
             self.__integrator_settings,
         )
 
-        if self.model.DAE is True:
-            self.integrator_tau_jac = self.integrator_tau.factory(
-                "integrator_tau_jacobian",
-                self.integrator_tau.name_in(),
-                ["xf", "qf", "zf", "rxf", "rqf", "rzf", "jac:xf:p"],
-            )
-        else:
-            self.integrator_tau_jac = self.integrator_tau.factory(
-                "integrator_tau_jacobian",
-                self.integrator_tau.name_in(),
-                ["xf", "qf", "rxf", "rqf", "jac:xf:p"],
-            )
+        # .factory method is very expensive so should be requested externally
+        if simulate_jac:
+            if self.model.DAE is True:
+                self.integrator_tau_jac = self.integrator_tau.factory(
+                    "integrator_tau_jacobian",
+                    self.integrator_tau.name_in(),
+                    ["xf", "qf", "zf", "rxf", "rqf", "rzf", "jac:xf:p"],
+                )
+            else:
+                self.integrator_tau_jac = self.integrator_tau.factory(
+                    "integrator_tau_jacobian",
+                    self.integrator_tau.name_in(),
+                    ["xf", "qf", "rxf", "rqf", "jac:xf:p"],
+                )
 
         # Transforms nested python list in ca.MX array
         for index, column in enumerate(self._variables):
