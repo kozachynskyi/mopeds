@@ -311,7 +311,7 @@ class Simulator(object):
             )
         return res_steadystate
 
-    def calculate_algebraic_initials(self, *, apply_intials=False, analyze=False):
+    def calculate_algebraic_initials(self, *, apply_intials=False, analyze=False, experimental=False):
         function = ca.Function(
             "eq_sys",
             [self.ode_system["x"], self.ode_system["z"], self.ode_system["p"]],
@@ -332,10 +332,38 @@ class Simulator(object):
         )
 
         rf = ca.rootfinder("inits", "newton", algebraic_eqsys_rootfinder)
-        res = rf(
-            self._initial_algebraic_original,
-            ca.vertcat(self._initial_state, self._variables_with_guess),
-        )
+
+        if experimental:
+            settings = {
+                "tf": 1,
+                "expand": True,
+                "output_t0": True,
+            }
+            integrator = ca.integrator(
+                "integrator_tau",
+                "idas",
+                self.ode_system_tau,
+                settings,
+            )
+
+            x_init = self._initial_state
+            alg_init = self._initial_algebraic
+
+            res_integration = integrator(
+                x0=x_init,
+                z0=alg_init,
+                p=ca.vertcat(
+                    1, self._variables_with_guess * self.scaling
+                ),
+            )
+
+            res = res_integration["zf"][:,0]
+
+        else:
+            res = rf(
+                self._initial_algebraic_original,
+                ca.vertcat(self._initial_state, self._variables_with_guess),
+            )
 
         residual_original = function(
             x=self._initial_state,
