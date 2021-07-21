@@ -171,11 +171,11 @@ class ModelPredictiveControl(Optimizer):
         points, their error is multiplied by 0.5.
         """
         inverted_variances_varlist = []
-        for var in varlist_input.values():
-            if isinstance(var, VariableState) or (isinstance(var, VariableAlgebraic) and use_algebraic_vars):
-                inverted_variances_varlist.append(
-                    1.0 / (np.full(len(time_grid) - 1, var.variance))
-                )
+        for var_name in variable_name_list:
+            var = varlist_input[var_name]
+            inverted_variances_varlist.append(
+                1.0 / (np.full(len(time_grid) - 1, var.variance))
+            )
         inverted_variances_varlist = np.column_stack(
             inverted_variances_varlist
         ).flatten()
