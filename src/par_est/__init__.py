@@ -10,6 +10,7 @@ from .variables import (
     ExperimentData,
 )
 from .variables import BadVariableError
+from .variables import ORIGIN_TS
 from .tools import MXPickler
 from .model import Model
 from .simulation import Simulator
@@ -19,3 +20,5 @@ from .optimization import (
     OptimalExperimentalDesign,
 )
 from .mpc import ModelPredictiveControl
+
+import par_est.examples
