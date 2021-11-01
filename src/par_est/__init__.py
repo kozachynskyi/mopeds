@@ -7,7 +7,6 @@ from .variables import (
     VariableControlPiecewiseConstant,
     VariableControl,
     VariableList,
-    ExperimentData,
 )
 from .variables import BadVariableError
 from .variables import ORIGIN_TS

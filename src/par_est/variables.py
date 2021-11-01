@@ -1,9 +1,10 @@
 from collections import OrderedDict
 from datetime import datetime, timedelta
-from typing import List
+from typing import List, Union
 
 import casadi as ca
 import numpy as np
+import pandas as pd
 from matplotlib import pyplot as plt
 
 try:
@@ -13,15 +14,20 @@ try:
 except Exception:
     pass
 
+ORIGIN_TS: pd.Timestamp = pd.Timestamp(year=1970, month=1, day=1)
+""" Indicats a default zero timestamp for data, if date is irrelevant.
+Chosen DateTime is the same, that is used by pd.to_datetime() by default.
+"""
+
 
 class Variable(object):
     def __init__(self, name, lb=None, ub=None):
-        self.name = name
-        self.casadi_var = ca.MX.sym(self.name)
+        self.name: str = name
+        self.casadi_var: ca.MX.sym = ca.MX.sym(self.name)
         # fixed is property in order to deal with VariableControlPiecewiseConstant properly
-        self._fixed = True
-        self.opc_ua_id = None
-        self.value = None
+        self._fixed: Union[bool, List[bool]] = True
+        self.opc_ua_id: Union[None, int] = None
+        self.dataframe = None
         self.guess = None
         self.lower_bound = lb
         self.upper_bound = ub
@@ -34,19 +40,88 @@ class Variable(object):
             yield subclass
 
     def plot(self):
-        if isinstance(self.value, ExperimentData):
-            self.value.plot(self.name)
+        if isinstance(self.value, pd.DataFrame):
+            self.value.plot()
+            plt.show()
         else:
-            print("Variable doesn't have ExperimentData")
+            print("Variable value is not pd.DataFrame and cannot be plotted")
 
     def __repr__(self):
         return f"{self.name}\n{type(self)}\n{self.value}"
 
-    def get_value_based_on_fixed(self):
+    def get_value_or_casadi(self) -> Union[float, ca.MX]:
+        """ Return either value at time=0 or casadi_variable.
+        Used in Simulator for readability and less if statements.
+        """
         if self.fixed:
-            return self.value
+            return self.value[0]
         else:
             return self.casadi_var
+
+    def get_value_or_guess(self) -> float:
+        """ Return guess or value at time zero. Used further for
+        readability"""
+        if self.fixed:
+            return self.value[0]
+        else:
+            return self.guess
+
+    @property
+    def value(self) -> List:
+        """ Returns a list with values of variables"""
+        return self.dataframe[self.name].tolist()
+
+    @property
+    def time_absolute(self) -> pd.Series:
+        """ Returns a list which contains time_stamps with date and time"""
+        return self.dataframe.index
+
+    @property
+    def time_relative(self) -> List:
+        """ Returns a list which contains timestamps in seconds.
+        First time is considered to be zero second"""
+        return (self.dataframe.index - self.dataframe.index[0]).total_seconds().tolist()
+
+    def is_value_consistent(self) -> None:
+        """Returns True if self.value is consistent or raise Error.
+
+        Checks if index of self.value is increasing and unique,
+        ensuring that first element in index is always time=0.
+        Checks if any element in Data is Nan.
+
+        Raises:
+            BadVariableError: with descriptive text.
+        """
+        if isinstance(self.dataframe, pd.DataFrame):
+            if not self.dataframe.index._is_strictly_monotonic_increasing:
+                raise BadVariableError(self, "Value index is not unique or not sorted")
+            if self.name not in self.dataframe.columns:
+                raise BadVariableError(self, "Column name in Variable.value dosn't equal Variable.name")
+            if not isinstance(self, (VariableAlgebraic, VariableControlPiecewiseConstant)):
+                if self.dataframe[self.name].hasnans:
+                    raise BadVariableError(self, "Variable value has Nan")
+        else:
+            raise BadVariableError(self, "Value of Variable is of wrong type")
+
+    @property
+    def origin_ts(self) -> Union[None, pd.Timestamp]:
+        """Propoerty that return the first Timestamp in self.value.
+
+        Can be used to compare if Variables have same origin in .value.
+        Does check self.value for consistensy.
+        Returns:
+            Union[None, pd.Timestamp]:
+            None is self.value is None or Timestamp that corresponds to time=0
+        """
+        self.is_value_consistent()
+
+        if self.value is None:
+            return None
+        else:
+            if isinstance(self, VariableControlPiecewiseConstant):
+                return self.time_absolute[0]
+            else:
+                return self.dataframe.index[0]
 
     @property
     def fixed(self):
@@ -105,13 +180,46 @@ class Variable(object):
         else:
             self._upper_bound = upper_bound
 
+    def _dataframe_from_value(self, value: Union[None, float]):
+        df = pd.DataFrame(
+            [value],
+            index=[ORIGIN_TS],
+            columns=[self.name],
+            dtype="float64",
+        )
+        return df
+
+    def _dataframe_from_value_and_time_absolute(self, value: Union[None, float], time: pd.Timestamp):
+        df = pd.DataFrame(
+            [value],
+            index=[time],
+            columns=[self.name],
+            dtype="float64",
+        )
+        return df
+
+    def set_dataframe_from_value_and_time(self, value: List[float], time: List[float]):
+        if not len(value) == len(time):
+            raise ValueError(f"Value and time must have same length. Supplied Value:\n{value}\nTime:\n{time}")
+        if not time[0] == 0:
+            raise ValueError("Time vector should start with 0, you supplied:\n{time}")
+
+        time_series = pd.to_datetime(time, unit="s")
+        dataframe = pd.DataFrame(value,index=time_series,columns=[self.name], dtype="float64")
+        self.dataframe = dataframe
+
 
 class VariableState(Variable):
-    def __init__(self, name, starting_value=None, lb=None, ub=None, opc_ua_id=None):
+    def __init__(
+        self,
+        name,
+        starting_value: Union[float, None] = None,
+        lb=None,
+        ub=None,
+        opc_ua_id=None,
+    ):
         super().__init__(name, lb, ub)
-        self.value = ExperimentData()
-        self.value.value = [starting_value]
-        self.value.time = [0.0]
+        self.dataframe = self._dataframe_from_value(starting_value)
         self.opc_ua_id = opc_ua_id
 
 
@@ -120,22 +228,20 @@ class VariableAlgebraic(Variable):
         super().__init__(name, lb, ub)
         self.guess = guess
         self.opc_ua_id = opc_ua_id
-        self.value = ExperimentData()
-        self.value.time = [0.0]
-        self.value.value = [None]
+        self.dataframe = self._dataframe_from_value(None)
 
 
 class VariableParameter(Variable):
     def __init__(self, name, value=None, lb=None, ub=None):
         super().__init__(name, lb, ub)
-        self.value = value
         self.guess = value
+        self.dataframe = self._dataframe_from_value(value)
 
 
 class VariableControl(Variable):
     def __init__(self, name, value=None, lb=None, ub=None, opc_ua_id=None):
         super().__init__(name, lb, ub)
-        self.value = value
+        self.dataframe = self._dataframe_from_value(value)
         self.guess = value
         self.opc_ua_id = opc_ua_id
 
@@ -148,35 +254,39 @@ class VariableControlPiecewiseConstant(VariableControl):
         self.variable_list = VariableList()
         var_t0 = VariableControl(name + "_t0", value, lb, ub, opc_ua_id)
         var_t0.fixed = True
-        var_t0.time = 0.0
         self.variable_list.add_variable(var_t0)
 
     @property
-    def time(self):
+    def time_absolute(self) -> pd.Series:
         time_list = []
         for variable in self.variable_list.values():
-            time_list.append(variable.time)
-        return time_list
+            time_list.append(variable.time_absolute[0])
+        time_series = pd.Series(time_list)
+        return time_series
+
+    @property
+    def time_relative(self) -> Union[float]:
+        time_series = self.time_absolute
+        return (time_series - time_series.iloc[0]).dt.total_seconds().tolist()
 
     def to_dictionary(self):
-        time_var_dict = dict(zip(self.time, list(self.variable_list.values())))
+        time_var_dict = dict(zip(self.time_relative, list(self.variable_list.values())))
         return time_var_dict
 
-    def var_at_time(self, time_stamp):
-        for var in self.variable_list.values():
-            if var.time <= time_stamp:
-                var_at_previous_time_stamp = var
-                next
-            else:
-                break
-        return var_at_previous_time_stamp
+    def get_variable_at_time_absolute(self, time_stamp_absolute) -> VariableControl:
+        index = pd.Index(self.time_absolute).get_loc(time_stamp_absolute, method="ffill")
+        return list(self.variable_list.values())[index]
+
+    def get_variable_at_time_relative(self, time_stamp_relative) -> VariableControl:
+        index = pd.Index(self.time_relative).get_loc(time_stamp_relative, method="ffill")
+        return list(self.variable_list.values())[index]
 
     def expand_horizon(self, times, values):
         if not len(times) == len(values):
             raise ValueError(
                 "Length of times and values vector should be same. You supplied:\ntimes\n{times}\nvalues\n{values}"
             )
-        if not len(self.time) == 1:
+        if not len(self.time_relative) == 1:
             raise NotImplementedError(
                 "Cannot be used to expand already expanded variable"
             )
@@ -189,7 +299,7 @@ class VariableControlPiecewiseConstant(VariableControl):
                 self.opc_ua_id,
             )
             var.fixed = True
-            var.time = time
+            var.dataframe = var._dataframe_from_value_and_time_absolute(value, self.time_absolute[0] + timedelta(seconds=time))
             self.variable_list.add_variable(var)
 
     def set_horizon(self, times, values):
@@ -201,7 +311,7 @@ class VariableConstant(Variable):
     def __init__(self, name, value=None, opc_ua_id=None):
         super().__init__(name)
         self.casadi_var = value
-        self.value = value
+        self.dataframe = self._dataframe_from_value(value)
         self.opc_ua_id = opc_ua_id
         self.fixed = True
 
@@ -233,12 +343,19 @@ class VariableList(OrderedDict):
             message = f"Empty {type(self)}"
         return message
 
-    def index(self, var_index=None):
-        if var_index is None:
-            for element_index, var in enumerate(self.values()):
-                print(f"{element_index} : {var.name}")
-        else:
-            return list(self.values())[var_index]
+    def index(self, var_index: int) -> Variable:
+        """ Return variable at given index (if VariableList was a List).
+
+        Primary way to index Variables in VariableList is name of the variable.
+        This method is used for debugging, and should not be used by inexperienced users.
+        Args:
+            var_index (int): var_index
+
+        Returns:
+            Variable: Variable that correspons to given index.
+        """
+        var: Variable = list(self.values())[var_index]
+        return var
 
     def add_variable(self, variable: Variable):
         if variable.name in self:
@@ -377,34 +494,6 @@ class VariableList(OrderedDict):
         except Exception as e:
             raise PlottingError(var, "Failed while ploting variable:") from e
         plt.show()
-
-
-class ExperimentData(object):
-    """ self.time and self.value are either None or List """
-
-    def __init__(self):
-        self.time = None
-        self.value = None
-
-    def plot(self, label="Undefined"):
-        if self.value is None or self.time is None:
-            print("Cannot plot, ExperimentData is empty")
-        else:
-            plt.plot(self.time, self.value, label=label)
-            plt.legend()
-            plt.show()
-
-    def __repr__(self):
-        try:
-            time_length = len(self.time)
-        except Exception:
-            time_length = "len() didn't work"
-        try:
-            value_length = len(self.value)
-        except Exception:
-            value_length = "len() didn't work"
-
-        return f"Time length {time_length}:\n{self.time}\nValue lengh {value_length}:\n{self.value}"
 
 
 class SameVariableNameError(Exception):

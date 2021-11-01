@@ -6,7 +6,6 @@ import numpy as np
 
 from par_est import (
     BadVariableError,
-    ExperimentData,
     Model,
     Variable,
     VariableAlgebraic,
@@ -620,7 +619,7 @@ class Simulator(object):
             for count, var in enumerate(variable_list.values()):
                 var.casadi_var = None
                 new_var = copy.deepcopy(var)
-                new_var.value = ExperimentData()
+                # new_var.value = ExperimentData()
                 if convert_to_numpy:
                     new_var.value.time = self.time_grid
                     new_var.value.value = res_array[count + shift_by, :].toarray()
