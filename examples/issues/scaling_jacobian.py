@@ -31,7 +31,7 @@ pe._setup_scaling(False)
 sim_unscaled = pe.list_simulators[0].simulate_jac()
 ev_unscaled = ca.Function(
     "unscaled",
-    [pe.varlist_decision.get_casadi_var()],
+    [pe.varlist_decision.get_casadi_variables()],
     [sim_unscaled["xf"], sim_unscaled["jac_xf_p"]],
 )
 
@@ -41,7 +41,7 @@ pe._setup_scaling(True)
 sim_scaled = pe.list_simulators[0].simulate_jac()
 ev_scaled = ca.Function(
     "scaled",
-    [pe.varlist_decision.get_casadi_var()],
+    [pe.varlist_decision.get_casadi_variables()],
     [sim_scaled["xf"], sim_scaled["jac_xf_p"]],
 )
 results_scaled = ev_scaled(1)

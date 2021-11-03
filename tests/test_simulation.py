@@ -8,7 +8,7 @@ import pytest
 @pytest.mark.parametrize("piecewise", [True, False])
 def test_dae_initials_calculation(piecewise):
     varlist, model = par_est.examples.empy_dae(piecewise)
-    varlist["X1"].value.value = [1]
+    varlist["X1"].dataframe.iloc[0] = 1
     varlist["C"].fixed = True
     varlist["P"].fixed = True
     time_grid = [1, 2]
@@ -31,7 +31,7 @@ def test_pendulum_dae(piecewise):
     res = sim.integrator(
         x0=sim._initial_state,
         z0=sim._initial_algebraic,
-        p=ca.vertcat(sim._variables[0] * sim.scaling),
+        p=ca.vertcat(sim._independent_variables[0] * sim.scaling),
     )
 
     assert np.isclose(
@@ -75,29 +75,37 @@ def test_cstr(piecewise):
                     for var in variable_list.values():
                         var.fixed = True
 
-                sim = par_est.Simulator(m, time_grid, variable_list)
+                sim = par_est.Simulator(m, time_grid, variable_list, simulate_jac=True)
                 if j == 0:
                     res_simple = sim.simulate()
                 else:
                     res_simple = sim.simulate_jac()
 
-                res = sim.generate_exp_data()
+                if i == 4:
+                    res = sim.generate_exp_data()
+                    assert len(res) == 5
+                    if sim.model.DAE:
+                        res = sim.generate_exp_data(algebraic=True)
+                        assert len(res) == 6
+                else:
+                    with pytest.raises(NotImplementedError):
+                        res = sim.generate_exp_data()
+
                 if j == 1:
                     assert res_simple["jac_xf_p"].size() == (5, 76)
                 assert res_simple["xf"].size() == (5, 4)
-                assert len(res) == 5
 
                 if i == 0:
-                    assert sim._variables[0][6].is_symbolic()
+                    assert sim._independent_variables[0][6].is_symbolic()
                 elif i == 1:
-                    assert not sim._variables[0][6].is_symbolic()
-                    assert sim._variables[0][15].is_symbolic()
+                    assert not sim._independent_variables[0][6].is_symbolic()
+                    assert sim._independent_variables[0][15].is_symbolic()
                 elif i == 2:
-                    assert not sim._variables[0][15].is_symbolic()
+                    assert not sim._independent_variables[0][15].is_symbolic()
                 elif i == 3:
-                    assert sim._variables[0][10].is_symbolic()
+                    assert sim._independent_variables[0][10].is_symbolic()
                 elif i == 4:
-                    assert not sim._variables[0][15].is_symbolic()
+                    assert not sim._independent_variables[0][15].is_symbolic()
 
 
 def test_piecewise():
@@ -113,7 +121,7 @@ def test_piecewise():
         variable_list, m = cstr_model(False)
         for var in variable_list.values():
             var.fixed = True
-        sim = par_est.Simulator(m, time_grid, variable_list)
+        sim = par_est.Simulator(m, time_grid, variable_list, simulate_jac=True)
 
         res = sim.simulate_jac()
 
@@ -122,7 +130,7 @@ def test_piecewise():
         T_in.expand_horizon([2000, 4000], [373, 373])
         for var in variable_list.values():
             var.fixed = True
-        sim = par_est.Simulator(m, time_grid_piecewise, variable_list)
+        sim = par_est.Simulator(m, time_grid_piecewise, variable_list, simulate_jac=True)
 
         res_piecewise = sim.simulate_jac()
 
@@ -189,7 +197,8 @@ def test_constraints_idas():
 
 if __name__ == "__main__":
     pass
-    # test_pendulum_dae()
+    # test_pendulum_dae(True)
     # test_cstr()
     # test_dae_initials_calculation()
     # test_piecewise()
+    # test_constraints_idas()

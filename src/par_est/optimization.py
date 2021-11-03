@@ -115,7 +115,7 @@ class Optimizer(object):
         self.solver = ca.nlpsol(
             "solver",
             self.solver_name,
-            {"x": self.varlist_decision.get_casadi_var(), "f": self._objective()},
+            {"x": self.varlist_decision.get_casadi_variables(), "f": self._objective()},
             self.solver_settings,
         )
 
@@ -484,12 +484,12 @@ class OptimalExperimentalDesign(Optimizer):
             self._setup_scaling(False)
             evaluate = ca.Function(
                 "eval_fim",
-                [self.varlist_decision.get_casadi_var()],
+                [self.varlist_decision.get_casadi_variables()],
                 [result_jacobian],
             )
             evaluate_sim = ca.Function(
                 "eval_fim",
-                [self.varlist_decision.get_casadi_var()],
+                [self.varlist_decision.get_casadi_variables()],
                 [result_simulation["xf"]],
             )
             if values is None:

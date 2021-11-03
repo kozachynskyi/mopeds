@@ -11,9 +11,14 @@ from par_est import (
 
 
 class Model(object):
+    """ Model class is used to get lists of variables used in this model,
+    create equations and determine if model is DAE or ODE.
+    """
+
     def __init__(self, variable_list):
         self.varlist_state = VariableList()
         self.varlist_algebraic = VariableList()
+        # Includes Parameters and Controls
         self.varlist_independent = VariableList()
         self._varlist_constant = VariableList()
         self.varlist_all = VariableList()

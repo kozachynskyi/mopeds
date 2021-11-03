@@ -43,8 +43,8 @@ def test_model():
     ]:
         var_list, model = model()
         ode_system = {
-            "x": model.varlist_state.get_casadi_var(),
-            "p": ca.vertcat(model.varlist_independent.get_casadi_var()),
+            "x": model.varlist_state.get_casadi_variables(),
+            "p": ca.vertcat(model.varlist_independent.get_casadi_variables()),
             "ode": model.equations_differential,
         }
 
@@ -57,7 +57,7 @@ def test_model():
         )
 
         if model.DAE:
-            ode_system["z"] = model.varlist_algebraic.get_casadi_var()
+            ode_system["z"] = model.varlist_algebraic.get_casadi_variables()
             ode_system["alg"] = model.equations_algebraic
 
             function = ca.Function(

@@ -141,7 +141,7 @@ class Variable(object):
         self._fixed = state
 
     @property
-    def constraint_idas(self):
+    def get_constraint_idas(self):
         """Constrain the solution y=[x,z].  0 (default): no constraint on yi,
         1: yi >= 0.0, -1: yi <= 0.0, 2: yi > 0.0, -2: yi < 0.0."}},"""
 
@@ -198,13 +198,13 @@ class Variable(object):
         )
         return df
 
-    def set_dataframe_from_value_and_time(self, value: List[float], time: List[float]):
-        if not len(value) == len(time):
-            raise ValueError(f"Value and time must have same length. Supplied Value:\n{value}\nTime:\n{time}")
-        if not time[0] == 0:
+    def set_dataframe_from_value_and_time(self, value: List[float], time_relative: List[float], origin="unix"):
+        if not len(value) == len(time_relative):
+            raise ValueError(f"Value and time must have same length. Supplied Value:\n{value}\nTime:\n{time_relative}")
+        if not time_relative[0] == 0:
             raise ValueError("Time vector should start with 0, you supplied:\n{time}")
 
-        time_series = pd.to_datetime(time, unit="s")
+        time_series = pd.to_datetime(time_relative, unit="s")
         dataframe = pd.DataFrame(value,index=time_series,columns=[self.name], dtype="float64")
         self.dataframe = dataframe
 
@@ -281,6 +281,39 @@ class VariableControlPiecewiseConstant(VariableControl):
         index = pd.Index(self.time_relative).get_loc(time_stamp_relative, method="ffill")
         return list(self.variable_list.values())[index]
 
+    def get_value_or_casadi(self, time_grid_relative) -> List:
+        """ This method is used to avoid following problem: if current Control is fixed at given time_stamp, simulator
+        should use either - a fixed value, provided with Variable, or a value of a Control Variable from previous timestamp.
+        Input:
+                        t0      t1      t2      t3
+        Value / Var     20      var_t1  var_t2  20
+        Fixed / Unfixed Fixed   Unfixed Unfixed Fixed
+        Result:
+        Simulate with   20      var_t1  var_t2  var_t2
+        """
+        independent_variable = []
+        last_unfixed_variable = None
+
+        for time_stamp in time_grid_relative:
+            var_at_timestamp = self.get_variable_at_time_relative(time_stamp)
+            # This if statement is required for OED in order to use casadi_var from previous step, if it was already used. Without it, control variable will be fixed to some value for given timestep
+            if var_at_timestamp.fixed:
+                if last_unfixed_variable is None:
+                    independent_variable.append(
+                        var_at_timestamp.get_value_or_casadi()
+                    )
+                else:
+                    independent_variable.append(
+                        last_unfixed_variable.get_value_or_casadi()
+                    )
+            else:
+                last_unfixed_variable = var_at_timestamp
+                independent_variable.append(
+                    last_unfixed_variable.get_value_or_casadi()
+                )
+
+        return independent_variable
+
     def expand_horizon(self, times, values):
         if not len(times) == len(values):
             raise ValueError(
@@ -343,6 +376,24 @@ class VariableList(OrderedDict):
             message = f"Empty {type(self)}"
         return message
 
+    def get_common_origin(self, strict=False) -> Union[pd.Timestamp, bool]:
+        """ Returns a common Timestamp of State, Algebraic, and Control variables. If no common origin exists - return ORIGIN_TS, strict is False
+
+        Args:
+            strict: if no common origin is found, return False instead of ORIGIN_TS
+        """
+        list_of_origins = []
+        for variable in self.values():
+            list_of_origins.append(variable.time_absolute[0])
+
+        if len(set(list_of_origins)) < 2:
+            return list_of_origins[0]
+        else:
+            if strict:
+                return False
+            else:
+                return ORIGIN_TS
+
     def index(self, var_index: int) -> Variable:
         """ Return variable at given index (if VariableList was a List).
 
@@ -369,7 +420,9 @@ class VariableList(OrderedDict):
             names.append(var.name)
         return names
 
-    def get_casadi_var(self):
+    def get_casadi_variables(self) -> ca.MX:
+        """ Returns a concatanated vector of all variables in a variable_list.
+        """
         casadi_vars = []
         for var in self.values():
             casadi_vars.append(var.casadi_var)
@@ -485,11 +538,11 @@ class VariableList(OrderedDict):
                 for var in plot_varlist.values():
                     plt.figure()
                     plt.title(var.name)
-                    plt.plot(var.value.time, var.value.value, label=var.name)
+                    plt.plot(var.time_absolute, var.value, label=var.name)
             else:
                 figure, axes_array = plt.subplots(len(plot_varlist))
                 for var, ax in zip(plot_varlist.values(), axes_array):
-                    ax.plot(var.value.time, var.value.value, label=var.name)
+                    ax.plot(var.time_absolute, var.value, label=var.name)
                     ax.legend()
         except Exception as e:
             raise PlottingError(var, "Failed while ploting variable:") from e

@@ -113,17 +113,17 @@ def test_variables():
 
     # Test constraints_idas prperty
     var = par_est.VariableAlgebraic("var")
-    assert var.constraint_idas == 0
+    assert var.get_constraint_idas == 0
     var = par_est.VariableAlgebraic("var", None, -1, None)
-    assert var.constraint_idas == 0
+    assert var.get_constraint_idas == 0
     var = par_est.VariableAlgebraic("var", None, 0, None)
-    assert var.constraint_idas == 1
+    assert var.get_constraint_idas == 1
     var = par_est.VariableAlgebraic("var", None, None, 1)
-    assert var.constraint_idas == 0
+    assert var.get_constraint_idas == 0
     var = par_est.VariableAlgebraic("var", None, None, -1)
-    assert var.constraint_idas == -2
+    assert var.get_constraint_idas == -2
     var = par_est.VariableAlgebraic("var", None, None, 0)
-    assert var.constraint_idas == -1
+    assert var.get_constraint_idas == -1
 
 
 if __name__ == "__main__":
