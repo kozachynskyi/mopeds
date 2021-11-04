@@ -157,6 +157,6 @@ def generate_varlist_with_data(variable_list, model, time_grid, algebraic=False)
     # Replace empty state variables with results from simulation
     variable_list_with_data = copy.deepcopy(variable_list)
     for key, var in var_list_exp.items():
-        variable_list_with_data[key].value = var.value
+        variable_list_with_data[key].dataframe = var.dataframe
 
     return variable_list_with_data

@@ -2,6 +2,7 @@ import copy
 import logging
 import casadi as ca
 import numpy as np
+import pandas as pd
 from typing import List, Union, Dict
 from scipy import linalg
 
@@ -30,16 +31,21 @@ class Optimizer(object):
             raise (Exception("Variable list should be nested of type list"))
         self.logger = logging.getLogger(__name__)
         self.model = model
+
         # Deepcopy is used to avoid manipulating input variable list
         self.list_input_varlist = copy.deepcopy(variable_lists)
+
+        # Each varlist holds respective variables
         self.varlist_decision = VariableList()
         self.varlist_parameter = VariableList()
         self.varlist_control = VariableList()
         self.varlist_state = VariableList()
         self.varlist_algebraic = VariableList()
+
         self.simulator_name = simulator_name
         self.simulator_settings = simulator_settings
-        self.list_simulators = []  # type: List[Simulator]
+
+        self.list_simulators: List[Simulator] = []
 
         self.guess = None
         self.lower_bound = None
@@ -58,7 +64,8 @@ class Optimizer(object):
         raise (NotImplementedError)
 
     def _setup_initialization(self):
-        """ Sets initials and bounds for optimizer, and as default no scaling. """
+        """ Sets initials and bounds for optimizer, and as default no scaling.
+        If guess equals 0, 1 is used instead to avoid division by 0 during initialization"""
         guess = []
         lower_bound = []
         upper_bound = []
@@ -79,17 +86,18 @@ class Optimizer(object):
         )
 
     def _setup_scaling(self, scale=False):
-        """Scaling should be done before setting a solver and solver settings.
+        """Scaling of decision variables should be done before setting a solver and solver settings.
         Sets scaling variables in optimizer and simulator.
+        Scaling is used to correctly spread the weight of decision variables in optimizaiton function.
         TODO: Whole loop can be replaced by simple np.where, isn't it?
         """
         if scale:
-            self.scaling = np.where(self.guess == 0, 1, self.guess)
             for simulator in self.list_simulators:
                 simulator._reset_scaling()
-                # for var in self.simulation._variables fails to iterate
-                for count in range(simulator._variables[0].size()[0]):
-                    var = simulator._variables[0][count]
+
+                # this loop is used because simple "for loop" fails for ca.MX vector
+                for count in range(simulator._independent_variables[0].size()[0]):
+                    var = simulator._independent_variables[0][count]
                     if var.is_symbolic():
                         if var.name() in self.varlist_decision:
                             current_guess = self.varlist_decision[var.name()].guess
@@ -109,7 +117,8 @@ class Optimizer(object):
         raise (NotImplementedError)
 
     def _optimize(self, scale):
-        """ Scaling should be done before setting a solver and solver settings. """
+        """ Runs optimizer, uses scaling if needed. Returned values is scaled back.
+        Scaling should be done before setting a solver and solver settings. """
         self._setup_scaling(scale)
 
         self.solver = ca.nlpsol(
@@ -119,10 +128,10 @@ class Optimizer(object):
             self.solver_settings,
         )
 
-        # Scaling of negative numbers requires a switch bounds
         lb_scaled = self.lower_bound / self.scaling
         ub_scaled = self.upper_bound / self.scaling
 
+        # Scaling of negative numbers requires a switch bounds
         for index, (lb, ub) in enumerate(zip(lb_scaled, ub_scaled)):
             if lb > ub:
                 lb_scaled[index] = ub
@@ -138,13 +147,17 @@ class Optimizer(object):
         return res_solver
 
     def optimize_multistart(self, num_initials, scale=True, max_iterations=20):
+        """ Runs multiple optimizations with gueses spread between upper and lower bound.
+        Helps to find feasible starting point for optimization in a few steps."""
         hammersley_seeds = np.array(list(zip(self.lower_bound, self.upper_bound)))
 
         list_startpoint = tools.make_startpoints(hammersley_seeds, num_initials)
-
         result = []
 
+        # Optimizer settings and guess are overwritten for multistart, and then returned back
+        initial_guess = self.guess
         initial_settings = copy.deepcopy(self.solver_settings)
+
         self.solver_settings = {
             "verbose": False,
             "print_time": False,
@@ -162,6 +175,7 @@ class Optimizer(object):
             result.append(res)
 
         self.solver_settings = initial_settings
+        self.scaling = initial_guess
         return result
 
 
@@ -186,21 +200,35 @@ class ParameterEstimation(Optimizer):
         )
 
         if use_algebraic_vars:
-            self._objective = self._objective_alg
+            self._objective = self._objective_alg  # type: ignore[assignment]
+            raise NotImplementedError()
         else:
-            self._objective = self._objective_state
+            self._objective = self._objective_state  # type: ignore[assignment]
 
         # This attribute is used while calculating Objective, and is either 1 or self.experiments_weights
+        # It's used to make some experiments as valuable as others, even if they have less experimental points
+        # So if you supply 2 experiments one with 10 and another with 20 time_stamps, effect of each experimental
+        # point of second experiments on objective function is decreased by 2
         self.experiments_scale = 1
         self.experiments_weights: List[np.ndarray] = []
-        self.array_data: List[np.ndarray] = []
-        self.array_data_mask: List[np.ndarray] = []
+        """
+        This list holds nested arrays with all experimental data. If data is not available for the time_stamp,
+        it's replaced with 0. It has follwing form:
+        [exp1_var1_time1, exp1_var2_time1, exp1_varN_time1, exp1_var1_time2 ... , exp1_varN_timeN, exp2_var1_time1 ...]
+        """
+        self.experimental_data: List[np.ndarray] = []
+        # This list holds nested arrays with True or False values, specifying whether experimental data should be
+        # used in an optimization function or not. Same form as self.experimental_data
+
+        self.experimental_data_mask: List[np.ndarray] = []
+        # Inverted variances provided weightning matrix for PE problem
         self.inverted_variances: List[np.ndarray] = []
 
         self._setup_simulator(use_idas_constraints=use_idas_constraints, use_algebraic_vars=use_algebraic_vars)
+
         self.logger.debug(
             "Created Optimizer object: \n Data Shape {} \n Desicion Variables {}".format(
-                self.array_data.shape, self.varlist_decision.get_variable_name()  # type: ignore
+                self.experimental_data.shape, self.varlist_decision.get_variable_name()  # type: ignore
             )
         )
         self._setup_initialization()
@@ -231,28 +259,35 @@ class ParameterEstimation(Optimizer):
             elif isinstance(var, VariableControl):
                 self.varlist_control.add_variable(var)
 
+        # Lists used to calculate experiments_weights
         list_timegrid_length = []
         size_simulation_output = []
 
         for varlist_input in self.list_input_varlist:
             # Create a time_grid, that "stops" at every experimental data, for every state variable
-            time_grid = np.ndarray((1, 0))
+            if not varlist_input.get_common_origin(strict=True, variable_type=VariableState):
+                raise(ValueError(f"Not all State Variables in one experiment have same time0, so simulations cannot be initialized:\n{varlist_input}"))
+            data_frame = pd.DataFrame()
+
             for var in varlist_input.values():
                 if isinstance(var, VariableState) or (isinstance(var, VariableAlgebraic) and use_algebraic_vars):
-                    time_grid = np.append(time_grid, var.value.time)
+                    data_frame = data_frame.join(var.dataframe, how="outer")
                 elif isinstance(var, VariableControl):
                     var.fixed = True
                     if isinstance(var, VariableControlPiecewiseConstant):
                         var.fixed = True
-                        time_grid = np.append(time_grid, var.time)
+                        data_frame = data_frame.join(var.dataframe, how="outer")
+                        # Column should be dropped, because it's needed only for unique timestamp
+                        data_frame.drop(columns=var.name, inplace=True)
 
-            time_grid = np.unique(time_grid)
-            list_timegrid_length.append(float(len(time_grid)))
+            time_grid_unique = (data_frame.index - data_frame.index[0]).total_seconds().tolist()
+
+            list_timegrid_length.append(float(len(time_grid_unique)))
 
             self.list_simulators.append(
                 Simulator(
                     self.model,
-                    time_grid,
+                    time_grid_unique,
                     varlist_input,
                     self.simulator_name,
                     self.simulator_settings,
@@ -261,62 +296,30 @@ class ParameterEstimation(Optimizer):
             )
 
             # Generate an array (experiment_data_varlist) with Experimental data with the same dimensions as simulation results.
-            experiment_data_varlist = []
-            experiment_data_mask_varlist = []
+            new_experiment_data_varlist = data_frame.iloc[1:].fillna(0).to_numpy().flatten()
+            self.experimental_data.append(new_experiment_data_varlist)
+            new_experiment_data_mask_varlist = data_frame.iloc[1:].notna().to_numpy().flatten().astype(int)
+            self.experimental_data_mask.append(new_experiment_data_mask_varlist)
 
+            # Generate inverted_variances
             if use_algebraic_vars:
                 variable_name_list = list([*self.model.varlist_state.keys(), *self.model.varlist_algebraic.keys()])
             else:
                 variable_name_list = list(self.model.varlist_state.keys())
-
-            for var_name in variable_name_list:
-                var = varlist_input[var_name]
-                time_grid_var = np.array(var.value.time)
-                # if simulated point has data - set element to True
-                experiment_data_mask_var = (
-                    1.0 * np.isin(time_grid, time_grid_var)[1:]
-                )
-                experiment_data_var_real = np.array(var.value.value)[1:]
-                # array that would be filled with Experimental data where data_mask is 1
-                experiment_data_var_extended = experiment_data_mask_var.copy()
-
-                # data_var is being redimensioned to the output of simulation
-                counter = 0
-                for timegrid_index, trigger in enumerate(experiment_data_mask_var):
-                    if trigger == 1:
-                        experiment_data_var_extended[
-                            timegrid_index
-                        ] = experiment_data_var_real[counter]
-                        counter = counter + 1
-                experiment_data_varlist.append(experiment_data_var_extended)
-                experiment_data_mask_varlist.append(experiment_data_mask_var)
-
-            # Stack data from separate variables and flatten columnwise
-            experiment_data_varlist = np.column_stack(experiment_data_varlist).flatten()
-            experiment_data_mask_varlist = np.column_stack(
-                experiment_data_mask_varlist
-            ).flatten()
-            self.array_data.append(experiment_data_varlist)
-            self.array_data_mask.append(experiment_data_mask_varlist)
-
-            """ Generate arrays with inverted variances and experiments weightning.
-            Varainces are used for generation of weighted least squares optimization
-            problem. Experiments weightning is used in order to give same weight to
-            separate experiments: if one experiment has twice as many experimental
-            points, their error is multiplied by 0.5.
-            """
             inverted_variances_varlist = []
             for var_name in variable_name_list:
                 var = varlist_input[var_name]
                 inverted_variances_varlist.append(
-                    1.0 / (np.full(len(time_grid) - 1, var.variance))
+                    1.0 / (np.full(len(time_grid_unique) - 1, var.variance))
                 )
             inverted_variances_varlist = np.column_stack(
                 inverted_variances_varlist
             ).flatten()
             self.inverted_variances.append(inverted_variances_varlist)
+
             size_simulation_output.append(len(inverted_variances_varlist))
 
+        # Calculate experiments_weights
         max_time_grid = max(list_timegrid_length)
         for time_grid_length, size_simulation in zip(
             list_timegrid_length, size_simulation_output
@@ -325,23 +328,21 @@ class ParameterEstimation(Optimizer):
                 np.full(size_simulation, max_time_grid / time_grid_length)
             )
 
-        self.array_data = np.concatenate(self.array_data)
-        self.array_data_mask = np.concatenate(self.array_data_mask)
+        self.experimental_data = np.concatenate(self.experimental_data)
+        self.experimental_data_mask = np.concatenate(self.experimental_data_mask)
         self.inverted_variances = np.concatenate(self.inverted_variances)
         self.experiments_weights = np.concatenate(self.experiments_weights)
 
     def _objective_state(self):
-        array_simulation = None
+        res_simulation = self.list_simulators[0].simulate()
+        array_simulation = res_simulation["xf"][:]
 
-        for simulator in self.list_simulators:
+        for simulator in self.list_simulators[1:]:
             res_simulation = simulator.simulate()
-            if array_simulation is None:
-                array_simulation = res_simulation["xf"][:]
-            else:
-                array_simulation = ca.vertcat(array_simulation, res_simulation["xf"][:])
+            array_simulation = ca.vertcat(array_simulation, res_simulation["xf"][:])
 
         # multiply by self.array_data_mask needed to ignore elements were error experimental data is zero
-        error = (array_simulation - self.array_data) * self.array_data_mask
+        error = (array_simulation - self.experimental_data) * self.experimental_data_mask
         objective = ca.sum1(
             self.experiments_scale * self.inverted_variances * (error ** 2)
         )
@@ -362,7 +363,7 @@ class ParameterEstimation(Optimizer):
                 array_simulation = ca.vertcat(array_simulation, res_all[:])
 
         # multiply by self.array_data_mask needed to ignore elements were error experimental data is zero
-        error = (array_simulation - self.array_data) * self.array_data_mask
+        error = (array_simulation - self.experimental_data) * self.experimental_data_mask
         objective = ca.sum1(
             self.experiments_scale * self.inverted_variances * (error ** 2)
         )
@@ -371,14 +372,15 @@ class ParameterEstimation(Optimizer):
 
     def optimize(self, scale=True, *, scale_experiments=False):
         """Solves optimization problem. Scaling decreases amount of iterations,
-        and should be used as a first option.
+        and should always almost be used
         """
         if scale_experiments:
             self.experiments_scale = self.experiments_weights
         else:
             self.experiments_scale = 1
 
-        return self._optimize(scale)
+        res = self._optimize(scale)
+        return res
 
 
 class OptimalExperimentalDesign(Optimizer):

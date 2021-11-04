@@ -180,19 +180,10 @@ class Variable(object):
         else:
             self._upper_bound = upper_bound
 
-    def _dataframe_from_value(self, value: Union[None, float]):
+    def _dataframe_from_value(self, value: Union[None, float], origin=ORIGIN_TS):
         df = pd.DataFrame(
             [value],
-            index=[ORIGIN_TS],
-            columns=[self.name],
-            dtype="float64",
-        )
-        return df
-
-    def _dataframe_from_value_and_time_absolute(self, value: Union[None, float], time: pd.Timestamp):
-        df = pd.DataFrame(
-            [value],
-            index=[time],
+            index=[origin],
             columns=[self.name],
             dtype="float64",
         )
@@ -265,7 +256,7 @@ class VariableControlPiecewiseConstant(VariableControl):
         return time_series
 
     @property
-    def time_relative(self) -> Union[float]:
+    def time_relative(self) -> List[float]:
         time_series = self.time_absolute
         return (time_series - time_series.iloc[0]).dt.total_seconds().tolist()
 
@@ -332,7 +323,7 @@ class VariableControlPiecewiseConstant(VariableControl):
                 self.opc_ua_id,
             )
             var.fixed = True
-            var.dataframe = var._dataframe_from_value_and_time_absolute(value, self.time_absolute[0] + timedelta(seconds=time))
+            var.dataframe = var._dataframe_from_value(value, self.time_absolute[0] + timedelta(seconds=time))
             self.variable_list.add_variable(var)
 
     def set_horizon(self, times, values):
@@ -376,7 +367,7 @@ class VariableList(OrderedDict):
             message = f"Empty {type(self)}"
         return message
 
-    def get_common_origin(self, strict=False) -> Union[pd.Timestamp, bool]:
+    def get_common_origin(self, strict=False, variable_type=Variable) -> Union[pd.Timestamp, bool]:
         """ Returns a common Timestamp of State, Algebraic, and Control variables. If no common origin exists - return ORIGIN_TS, strict is False
 
         Args:
@@ -384,7 +375,8 @@ class VariableList(OrderedDict):
         """
         list_of_origins = []
         for variable in self.values():
-            list_of_origins.append(variable.time_absolute[0])
+            if isinstance(variable, variable_type):
+                list_of_origins.append(variable.time_absolute[0])
 
         if len(set(list_of_origins)) < 2:
             return list_of_origins[0]
