@@ -87,7 +87,6 @@ def test_pe_objective(piecewise):
         assert res_weight["f"] == obj_weight
 
 
-# @pytest.mark.parametrize("piecewise, constraints_idas", [[True, False],[True, False]])
 @pytest.mark.parametrize(
     "piecewise, constraints_idas",
     [(True, True), (True, False), (False, True), (False, False)],
@@ -127,8 +126,7 @@ def test_pe(piecewise, constraints_idas):
 
         var_list["e0_E_r1"].fixed = False
 
-        var_list["e0_T"].value.value = var_list["e0_T"].value.value[0:2]
-        var_list["e0_T"].value.time = var_list["e0_T"].value.time[0:2]
+        var_list["e0_T"].dataframe = var_list["e0_T"].dataframe.iloc[:2]
         var_list["e0_c_i1"].lower_bound = 0
         var_list["e0_c_i1"].upper_bound = None
 
@@ -365,9 +363,9 @@ def test_optimizer(piecewise):  # noqa: C901
 
 if __name__ == "__main__":
     pass
-    # test_optimizer()
-    # test_oed()
-    # test_pe()
+    # test_optimizer(True)
+    test_oed(True)
+    # test_pe(True,True)
     # test_pe_objective(True)
     # test_pe_intials_algebraic()
     # test_oed_piecewise()

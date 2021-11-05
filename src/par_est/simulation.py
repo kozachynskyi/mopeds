@@ -184,29 +184,30 @@ class Simulator(object):
     def _setup_variables(self):
         """ Setup all important lists for simulator"""
         num_time_steps = len(self.time_grid_relative) - 1
-        a = self.__input_variable_list
 
-        for variable_name in self.model.varlist_state.keys():
-            var = self.__input_variable_list[variable_name]
+        for variable_name in self.model.varlist_all.keys():
             try:
-                self._initial_state.append(var.value[0])
-            except Exception as e:
-                raise (BadVariableError(var)) from e
+                var = self.__input_variable_list[variable_name]
+            except KeyError:
+                continue
 
-        for variable_name in self.model.varlist_algebraic.keys():
-            var = self.__input_variable_list[variable_name]
-            self._initial_algebraic.append(var.guess)
+            if isinstance(var, VariableState):
+                try:
+                    self._initial_state.append(var.value[0])
+                except Exception as e:
+                    raise (BadVariableError(var)) from e
 
-        for variable_name in self.model.varlist_independent.keys():
-            var = self.__input_variable_list[variable_name]
-            if isinstance(var, VariableParameter):
+            elif isinstance(var, VariableAlgebraic):
+                self._initial_algebraic.append(var.guess)
+
+            elif isinstance(var, VariableParameter):
                 independent_variable = []
                 independent_variable.extend(
                     [var.get_value_or_casadi()] * num_time_steps
                 )
                 self._guess_or_value_of_independent_variables.append(var.get_value_or_guess())
                 self._independent_variables.append(independent_variable)
-            if isinstance(var, VariableControl):
+            elif isinstance(var, VariableControl):
                 if isinstance(var, VariableControlPiecewiseConstant):
                     var_t0 = var.get_variable_at_time_relative(0)
                     self._guess_or_value_of_independent_variables.append(var_t0.get_value_or_guess())

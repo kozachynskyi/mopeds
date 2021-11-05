@@ -21,6 +21,8 @@ class Model(object):
         # Includes Parameters and Controls
         self.varlist_independent = VariableList()
         self._varlist_constant = VariableList()
+
+        # This varlist should be used to consistently iterate over all variables in Simulation and Optimization
         self.varlist_all = VariableList()
         self.equations_differential = None
         self.equations_algebraic = None

@@ -89,9 +89,12 @@ class Optimizer(object):
         """Scaling of decision variables should be done before setting a solver and solver settings.
         Sets scaling variables in optimizer and simulator.
         Scaling is used to correctly spread the weight of decision variables in optimizaiton function.
+        By default, variable guess is used as a scaling value.
         TODO: Whole loop can be replaced by simple np.where, isn't it?
         """
         if scale:
+            self.scaling = np.where(self.guess == 0, 1, self.guess)
+
             for simulator in self.list_simulators:
                 simulator._reset_scaling()
 
@@ -269,9 +272,15 @@ class ParameterEstimation(Optimizer):
                 raise(ValueError(f"Not all State Variables in one experiment have same time0, so simulations cannot be initialized:\n{varlist_input}"))
             data_frame = pd.DataFrame()
 
-            for var in varlist_input.values():
+            for variable_name in self.model.varlist_all.keys():
+                try:
+                    var = varlist_input[variable_name]
+                except KeyError:
+                    continue
+
                 if isinstance(var, VariableState) or (isinstance(var, VariableAlgebraic) and use_algebraic_vars):
                     data_frame = data_frame.join(var.dataframe, how="outer")
+
                 elif isinstance(var, VariableControl):
                     var.fixed = True
                     if isinstance(var, VariableControlPiecewiseConstant):
@@ -334,12 +343,20 @@ class ParameterEstimation(Optimizer):
         self.experiments_weights = np.concatenate(self.experiments_weights)
 
     def _objective_state(self):
-        res_simulation = self.list_simulators[0].simulate()
-        array_simulation = res_simulation["xf"][:]
+        array_simulation = None
 
-        for simulator in self.list_simulators[1:]:
+        for simulator in self.list_simulators:
             res_simulation = simulator.simulate()
-            array_simulation = ca.vertcat(array_simulation, res_simulation["xf"][:])
+            if array_simulation is None:
+                array_simulation = res_simulation["xf"][:]
+            else:
+                array_simulation = ca.vertcat(array_simulation, res_simulation["xf"][:])
+        # res_simulation = self.list_simulators[0].simulate()
+        # array_simulation = res_simulation["xf"][:]
+
+        # for simulator in self.list_simulators[1:]:
+        #     res_simulation = simulator.simulate()
+        #     array_simulation = ca.vertcat(array_simulation, res_simulation["xf"][:])
 
         # multiply by self.array_data_mask needed to ignore elements were error experimental data is zero
         error = (array_simulation - self.experimental_data) * self.experimental_data_mask
@@ -388,22 +405,29 @@ class OptimalExperimentalDesign(Optimizer):
         self,
         model: Model,
         variable_list: List[VariableList],
-        time_grid,
+        time_grid_relative,
         simulator_name="idas",
         simulator_settings=None,
         *,
         reinitialize_algebraic=False,
     ):
         super().__init__(model, variable_list, simulator_name, simulator_settings)
-        self.time_grid_original = time_grid
+
+        # User specified time_grid is used for initilizaiton of Simulators
+        self.time_grid_original = time_grid_relative
+
+        # [par_1, par_2, ... par_N]
         self.parameter_values: List[float] = []
+        # Index of parameters, that are unfixed. It's used to select Jacobian for only this variables
         self.select_independent: List[int] = []
         self.inverted_variances: List[float] = []
 
         self._setup_simulator()
         self._setup_initialization()
-        # Is not the same as self.original_time_grid if VariableControlPiecewiseConstant adds additional time_stamps
-        self.time_grid_modified = self.list_simulators[0].time_grid
+
+        # User specified time grid might not include every time_stamp of VariableControlPiecewiseConstant
+        # So the corrected time_grid of Simulator is used in optimization
+        self.time_grid_modified = self.list_simulators[0].time_grid_relative
 
         self.solver_name = "ipopt"
         self.solver_settings = {
@@ -426,7 +450,12 @@ class OptimalExperimentalDesign(Optimizer):
         self.index_all_states is used additionaly to self.select_independent list to get required jacobian.
         """
 
-        for var in self.list_input_varlist[0].values():
+        for variable_name in self.model.varlist_all.keys():
+            try:
+                var = self.list_input_varlist[0][variable_name]
+            except KeyError:
+                continue
+
             if isinstance(var, VariableControl):
                 if not var.fixed:
                     if isinstance(var, VariableControlPiecewiseConstant):
@@ -443,6 +472,7 @@ class OptimalExperimentalDesign(Optimizer):
                     # index has + 1 to account for tau variable, that is a parameter of a simulation.
                     index = list(self.model.varlist_independent).index(var.name) + 1
                     self.select_independent.append(index)
+
             elif isinstance(var, VariableState):
                 self.inverted_variances.append(1 / var.variance)
 
@@ -456,6 +486,7 @@ class OptimalExperimentalDesign(Optimizer):
                 self.list_input_varlist[0],
                 self.simulator_name,
                 self.simulator_settings,
+                simulate_jac=True
             )
         )
 
