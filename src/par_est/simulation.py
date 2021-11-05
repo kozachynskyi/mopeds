@@ -23,7 +23,7 @@ class Simulator(object):
     def __init__(  # noqa: C901
         self,
         model: Model,
-        input_time_grid,
+        input_time_grid: np.ndarray,
         variable_list: VariableList,
         integrator_name="idas",
         integrator_settings=None,
@@ -659,7 +659,9 @@ class Simulator(object):
             if isinstance(var, VariableControlPiecewiseConstant):
                 time_grid = np.append(time_grid, var.time_relative)
 
-        self.time_grid_relative: np.ndarray = np.unique(time_grid)
+        # Values of provided time_grid are rounded to milisecconds
+        # in order to avoid timestamps that are very close to each other
+        self.time_grid_relative: np.ndarray = np.unique(time_grid.round(decimals=1))
         self.origin_ts = self.__input_variable_list.get_common_origin()
         self.logger.debug(
             "Timegrid modified: \n self.timegrid \n {0} \n".format(self.time_grid_relative)
