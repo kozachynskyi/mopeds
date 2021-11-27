@@ -609,9 +609,12 @@ class Simulator(object):
         res = {"xf": res_states}
         return res
 
-    def generate_exp_data(self, algebraic=False):
+    def generate_exp_data(self, algebraic=False, recalculate_algebraic=True):
         """ Runs simulation and returns results in VariableList class."""
         variables = VariableList()
+
+        if recalculate_algebraic:
+            self.calculate_algebraic_initials(apply_intials=True)
 
         result_simulation = self.simulate()
         if not algebraic or not self.model.DAE:

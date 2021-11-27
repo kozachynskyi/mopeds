@@ -3,6 +3,11 @@ import numpy as np
 import par_est
 import par_est.examples
 
+from matplotlib import pyplot as plt
+plt.ion()
+
+# from pandasgui import show
+
 if __name__ == "__main__":
 
     piecewiseswitch = False
@@ -26,22 +31,26 @@ if __name__ == "__main__":
 
     data1 = par_est.tools.generate_varlist_with_data(variable_list, m, time_grid1, True)
     data2 = par_est.tools.generate_varlist_with_data(variable_list, m, time_grid2, True)
+    # show(data1.dataframe)
 
     # If data is not available for all simulated points, PE works
-    data2["e0_T"].value.value = np.delete(data2["e0_T"].value.value, 2)
-    data2["e0_T"].value.time = np.delete(data2["e0_T"].value.time, 2)
+    e0_T = data2["e0_T"]
+    e0_T.dataframe = e0_T._dataframe_from_value(e0_T.value[0])
 
-    data2["e0_c_i1"].value.value = [data2["e0_c_i1"].value.value[0]]
-    data2["e0_c_i1"].value.time = [data2["e0_c_i1"].value.time[0]]
+    e0_c_i1_df = data2["e0_c_i1"].dataframe
+    e0_c_i1_df.drop(e0_c_i1_df.index[2:], inplace=True)
 
     # Preturbate alg variable from "ideal solution" to see its affect on PE
-    data2["e0_c_tot"].value.value = [val * 1.05 for val in data2["e0_c_tot"].value.value]
+    a = data2["e0_c_tot"].dataframe
+    data2["e0_c_tot"].dataframe = data2["e0_c_tot"].dataframe * 1.05
 
-    pe_state = par_est.ParameterEstimation(m, [data1, data2])
-    print(pe_state.optimize(True))
+    # pe_state = par_est.ParameterEstimation(m, [data1, data2])
+    # pe_state = par_est.ParameterEstimation(m, [data2])
+    # print(pe_state.optimize(True))
 
-    pe_alg = par_est.ParameterEstimation(m, [data1, data2], use_algebraic_vars=True)
-    print(pe_alg.optimize(True))
+    # pe_alg = par_est.ParameterEstimation(m, [data1, data2], use_algebraic_vars=True)
+    # print(pe_alg.optimize(True))
 
     oed = par_est.OptimalExperimentalDesign(m, [data1], time_grid1)
-    # oed.optimize()
+    oed.optimize()
+    breakpoint()

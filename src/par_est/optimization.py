@@ -151,7 +151,9 @@ class Optimizer(object):
 
     def optimize_multistart(self, num_initials, scale=True, max_iterations=20):
         """ Runs multiple optimizations with gueses spread between upper and lower bound.
-        Helps to find feasible starting point for optimization in a few steps."""
+        Helps to find feasible starting point for optimization in a few steps.
+        WIP: recalcution of algebraic variables doesn't work.
+        """
         hammersley_seeds = np.array(list(zip(self.lower_bound, self.upper_bound)))
 
         list_startpoint = tools.make_startpoints(hammersley_seeds, num_initials)
@@ -173,6 +175,9 @@ class Optimizer(object):
         for index, guess in enumerate(list_startpoint):
             self.guess = guess
             print(f"Optimization number {index} started")
+            # for sim in self.list_simulators:
+            #     sim.calculate_algebraic_initials(apply_intials=True)
+
             res = self.optimize(scale)
             print(f"Objective: {res['f']}")
             result.append(res)
@@ -248,7 +253,7 @@ class ParameterEstimation(Optimizer):
 
         if reinitialize_algebraic_experimental:
             for sim in self.list_simulators:
-                sim.calculate_algebraic_initials(apply_intials=True, analyze=True, experimental=True)
+                sim.calculate_algebraic_initials(apply_intials=True, experimental=True)
 
     def _setup_simulator(self, *, use_idas_constraints, use_algebraic_vars):
         # It's not checked if all supplied varlist have same states etc.
@@ -296,7 +301,7 @@ class ParameterEstimation(Optimizer):
             self.list_simulators.append(
                 Simulator(
                     self.model,
-                    time_grid_unique,
+                    np.array(time_grid_unique),
                     varlist_input,
                     self.simulator_name,
                     self.simulator_settings,

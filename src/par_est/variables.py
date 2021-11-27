@@ -27,7 +27,8 @@ class Variable(object):
         # fixed is property in order to deal with VariableControlPiecewiseConstant properly
         self._fixed: Union[bool, List[bool]] = True
         self.opc_ua_id: Union[None, int] = None
-        self.dataframe = None
+        if not isinstance(self, VariableControlPiecewiseConstant):
+            self.dataframe: pd.DataFrame = None
         self.guess = None
         self.lower_bound = lb
         self.upper_bound = ub
@@ -195,9 +196,12 @@ class Variable(object):
         if not time_relative[0] == 0:
             raise ValueError("Time vector should start with 0, you supplied:\n{time}")
 
-        time_series = pd.to_datetime(time_relative, unit="s")
-        dataframe = pd.DataFrame(value,index=time_series,columns=[self.name], dtype="float64")
-        self.dataframe = dataframe
+        time_series = pd.to_datetime(time_relative, unit="s", origin=origin)
+        if isinstance(self, VariableControlPiecewiseConstant):
+            raise NotImplementedError
+        else:
+            dataframe = pd.DataFrame(value,index=time_series,columns=[self.name], dtype="float64")
+            self.dataframe = dataframe
 
 
 class VariableState(Variable):
@@ -232,7 +236,8 @@ class VariableParameter(Variable):
 class VariableControl(Variable):
     def __init__(self, name, value=None, lb=None, ub=None, opc_ua_id=None):
         super().__init__(name, lb, ub)
-        self.dataframe = self._dataframe_from_value(value)
+        if not isinstance(self, VariableControlPiecewiseConstant):
+            self.dataframe = self._dataframe_from_value(value)
         self.guess = value
         self.opc_ua_id = opc_ua_id
 
@@ -246,6 +251,13 @@ class VariableControlPiecewiseConstant(VariableControl):
         var_t0 = VariableControl(name + "_t0", value, lb, ub, opc_ua_id)
         var_t0.fixed = True
         self.variable_list.add_variable(var_t0)
+
+    @property
+    def value(self):
+        values = []
+        for var in self.variable_list.values():
+            values.extend(var.value)
+        return values
 
     @property
     def time_absolute(self) -> pd.Series:
@@ -330,6 +342,19 @@ class VariableControlPiecewiseConstant(VariableControl):
         """ Used when control at time 0 should also be rewritten """
         raise NotImplementedError
 
+    @property
+    # WIP, not tested
+    def dataframe(self):
+        values = []
+        times = []
+        for var in self.variable_list.values():
+            values.append(var.value[0])
+            times.append(var.time_absolute[0])
+
+        dataframe = pd.DataFrame(values,index=times,columns=[self.name], dtype="float64")
+
+        return dataframe
+
 
 class VariableConstant(Variable):
     def __init__(self, name, value=None, opc_ua_id=None):
@@ -385,6 +410,13 @@ class VariableList(OrderedDict):
                 return False
             else:
                 return ORIGIN_TS
+
+    @property
+    def dataframe(self) -> pd.DataFrame:
+        data_frame = pd.DataFrame()
+        for var in self.values():
+            data_frame = data_frame.join(var.dataframe, how="outer")
+        return data_frame
 
     def index(self, var_index: int) -> Variable:
         """ Return variable at given index (if VariableList was a List).
@@ -480,13 +512,14 @@ class VariableList(OrderedDict):
     def set_bounds(self, val=0.25, emerg_val=None):
         for var in self.values():
             if isinstance(var, VariableParameter) and var.fixed is False:
-                if var.value > 0:
-                    var.lower_bound = var.value - var.value * val
-                    var.upper_bound = var.value + var.value * val
-                elif var.value < 0:
-                    var.lower_bound = var.value + var.value * val
-                    var.upper_bound = var.value - var.value * val
-                elif var.value == 0:
+                value = var.value[0]
+                if value > 0:
+                    var.lower_bound = value * (1 - val)
+                    var.upper_bound = value * (1 + val)
+                elif value < 0:
+                    var.lower_bound = value * (1 + val)
+                    var.upper_bound = value * (1 - val)
+                elif value == 0:
                     if emerg_val is None:
                         # Setting bounds for val == 0 without emerg_val is not implemented
                         raise (NotImplementedError)

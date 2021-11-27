@@ -11,6 +11,8 @@ orig = pd.Timestamp(year=1970,month=1,day=1)
 
 # time_grid = np.linspace(10, 10000, 40)
 var_list, model = par_est.examples.cstr_dae()
+a = var_list["e0_T"]
+breakpoint()
 var_res = par_est.tools.generate_varlist_with_data(var_list, model, sec.second)
 
 times = [0,2,3,4,5.5,8, 9, 10, 11, 12]
