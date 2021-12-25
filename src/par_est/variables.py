@@ -41,11 +41,8 @@ class Variable(object):
             yield subclass
 
     def plot(self):
-        if isinstance(self.value, pd.DataFrame):
-            self.value.plot()
-            plt.show()
-        else:
-            print("Variable value is not pd.DataFrame and cannot be plotted")
+        self.dataframe.plot()
+        plt.show()
 
     def __repr__(self):
         return f"{self.name}\n{type(self)}\n{self.value}"
