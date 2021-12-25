@@ -613,7 +613,7 @@ class Simulator(object):
         """ Runs simulation and returns results in VariableList class."""
         variables = VariableList()
 
-        if recalculate_algebraic:
+        if recalculate_algebraic and self.model.DAE:
             self.calculate_algebraic_initials(apply_intials=True)
 
         result_simulation = self.simulate()

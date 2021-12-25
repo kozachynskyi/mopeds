@@ -46,7 +46,7 @@ def test_variables():
     a = variable_list["Var1"]
 
     with pytest.raises(PlottingError):
-        variable_list.plot_states()
+        variable_list.plot()
 
     var_1 = par_est.VariableControlPiecewiseConstant("Var1", 20)
     var_2 = par_est.VariableControlPiecewiseConstant("Var1", 20)

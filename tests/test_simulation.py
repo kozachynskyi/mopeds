@@ -11,7 +11,7 @@ def test_dae_initials_calculation(piecewise):
     varlist["X1"].dataframe.iloc[0] = 1
     varlist["C"].fixed = True
     varlist["P"].fixed = True
-    time_grid = [1, 2]
+    time_grid = np.array([1, 2])
 
     sim = par_est.Simulator(model, time_grid, varlist)
     assert sim._initial_algebraic[0] == 0
@@ -115,8 +115,8 @@ def test_piecewise():
         par_est.examples.cstr_dae_constant,
         par_est.examples.cstr_ode_constant,
     ]:
-        time_grid = [0, 10, 2000, 4000, 10000]
-        time_grid_piecewise = [0, 10, 10000]
+        time_grid = np.array([0, 10, 2000, 4000, 10000])
+        time_grid_piecewise = np.array([0, 10, 10000])
 
         variable_list, m = cstr_model(False)
         for var in variable_list.values():
@@ -198,7 +198,7 @@ def test_constraints_idas():
 if __name__ == "__main__":
     pass
     # test_pendulum_dae(True)
-    # test_cstr()
+    # test_cstr(True)
     # test_dae_initials_calculation()
     # test_piecewise()
     # test_constraints_idas()
