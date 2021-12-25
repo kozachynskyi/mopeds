@@ -649,6 +649,7 @@ class Simulator(object):
                 value = np.insert(value, 0, value_time_zero)
 
                 new_var.set_dataframe_from_value_and_time(value, self.time_grid_relative, self.origin_ts)
+                new_var.ignore_plotting = self.__input_variable_list[var.name].ignore_plotting
 
                 variables.add_variable(new_var)
             shift_by = count + 1

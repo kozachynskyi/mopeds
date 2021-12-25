@@ -33,6 +33,8 @@ class Variable(object):
         self.lower_bound = lb
         self.upper_bound = ub
         self.variance = 1.0
+        # attibute used to decide if variable should be plotted
+        self.ignore_plotting = True
 
     @classmethod
     def get_subclasses(cls):
@@ -211,6 +213,8 @@ class VariableState(Variable):
         opc_ua_id=None,
     ):
         super().__init__(name, lb, ub)
+        # Assuming that State Variables are always to be plotted
+        self.ignore_plotting = False
         self.dataframe = self._dataframe_from_value(starting_value)
         self.opc_ua_id = opc_ua_id
 
@@ -545,15 +549,16 @@ class VariableList(OrderedDict):
         finally:
             client.disconnect()
 
-    def plot_states(self, as_one_plot=False, algebraic=False):
+    def plot(self, as_one_plot=False, algebraic=False):
         # Choose only state variables
         plot_varlist = VariableList()
         for var in self.values():
-            if isinstance(var, VariableState):
-                plot_varlist.add_variable(var)
-            elif isinstance(var, VariableAlgebraic):
-                if algebraic is True:
+            if not var.ignore_plotting:
+                if isinstance(var, VariableState):
                     plot_varlist.add_variable(var)
+                elif isinstance(var, VariableAlgebraic):
+                    if algebraic is True:
+                        plot_varlist.add_variable(var)
 
         try:
             if as_one_plot is True:
