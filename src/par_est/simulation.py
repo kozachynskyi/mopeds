@@ -609,7 +609,7 @@ class Simulator(object):
         res = {"xf": res_states}
         return res
 
-    def generate_exp_data(self, algebraic=False, recalculate_algebraic=True):
+    def generate_exp_data(self, algebraic=False, recalculate_algebraic=True, unfixed_variables=None):
         """ Runs simulation and returns results in VariableList class."""
         variables = VariableList()
 
@@ -628,7 +628,11 @@ class Simulator(object):
             res_array = ca.vertcat(result_simulation["xf"], result_simulation["zf"])
 
         if not isinstance(res_array, ca.DM):
-            raise NotImplementedError("Generation of experimental data is possible only for simulations with fixed independent variables")
+            if unfixed_variables is None:
+                raise ValueError("You need to supply values for unfixed variables")
+            else:
+                function = ca.Function("f", ca.symvar(res_array), [res_array])
+                res_array = function(*unfixed_variables)
 
         shift_by = 0
         for variable_list in result_varlist:
