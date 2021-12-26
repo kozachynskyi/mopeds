@@ -186,6 +186,36 @@ class Optimizer(object):
         self.scaling = initial_guess
         return result
 
+    def check_decision_bounds(self, plot=False):
+        """Method is simulating model on upper and lower bounds of decision variables.
+        Prints if there were porblems simulation some bounds, meaning that optimizer
+        will also have problems, when going near that bounds.
+        Only first simulator of optimizers is used"""
+        bound_pairs = []
+        for lb, ub in zip(self.lower_bound, self.upper_bound):
+            bound_pairs.append([lb, ub])
+
+        list_of_bounds = np.array(np.meshgrid(*bound_pairs)).T.reshape(
+            -1, len(bound_pairs)
+        )
+
+        simulation = self.list_simulators[0]
+        results = []
+
+        for set_of_bounds in list_of_bounds:
+            bound_dictionary = {}
+            for var, bound in zip(list(self.varlist_decision.values()), set_of_bounds):
+                bound_dictionary[var.name] = bound
+            try:
+                result = simulation.generate_exp_data(True, True, set_of_bounds)
+                if plot:
+                    result._get_varlist_to_plot(True).dataframe.plot(
+                        subplots=True, title=str(bound_dictionary)
+                    )
+                results.append(result)
+            except Exception:
+                print(f"Failed for these bounds: {bound_dictionary}")
+
 
 class ParameterEstimation(Optimizer):
     def __init__(
