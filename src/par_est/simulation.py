@@ -41,7 +41,9 @@ class Simulator(object):
         self.model = model
 
         if integrator_name not in self.supported_integrators:
-            raise TypeError(f"Provided integrator name {integrator_name} is not supported. Only theese are: {self.supported_integrators}.")
+            raise TypeError(
+                f"Provided integrator name {integrator_name} is not supported. Only theese are: {self.supported_integrators}."
+            )
         self.__integrator_name = integrator_name
 
         self.scaling = None
@@ -58,7 +60,9 @@ class Simulator(object):
         self.tau = ca.MX.sym("tau")
         self.ode_system_tau = {
             "x": self.model.varlist_state.get_casadi_variables(),
-            "p": ca.vertcat(self.tau, self.model.varlist_independent.get_casadi_variables()),
+            "p": ca.vertcat(
+                self.tau, self.model.varlist_independent.get_casadi_variables()
+            ),
             "ode": self.model.equations_differential * self.tau,
         }
 
@@ -66,7 +70,9 @@ class Simulator(object):
             self.ode_system["alg"] = self.model.equations_algebraic
             self.ode_system_tau["alg"] = self.model.equations_algebraic
             self.ode_system["z"] = self.model.varlist_algebraic.get_casadi_variables()
-            self.ode_system_tau["z"] = self.model.varlist_algebraic.get_casadi_variables()
+            self.ode_system_tau[
+                "z"
+            ] = self.model.varlist_algebraic.get_casadi_variables()
 
         if integrator_settings is not None:
             self.__integrator_settings = integrator_settings
@@ -158,7 +164,7 @@ class Simulator(object):
     def _setup_constraints_idas(self, use_idas_constraints):
         """Holds a list of constraints for state and algebraic variables
         which can be used to constrain the solution of the idas
-        to positive or negative numbers """
+        to positive or negative numbers"""
         self._constraints_idas = []
         variable_names = list(self.model.varlist_state.keys())
         if self.model.DAE:
@@ -182,7 +188,7 @@ class Simulator(object):
                     self.__integrator_settings["constraints"] = self._constraints_idas
 
     def _setup_variables(self):
-        """ Setup all important lists for simulator"""
+        """Setup all important lists for simulator"""
         num_time_steps = len(self.time_grid_relative) - 1
 
         for variable_name in self.model.varlist_all.keys():
@@ -205,17 +211,27 @@ class Simulator(object):
                 independent_variable.extend(
                     [var.get_value_or_casadi()] * num_time_steps
                 )
-                self._guess_or_value_of_independent_variables.append(var.get_value_or_guess())
+                self._guess_or_value_of_independent_variables.append(
+                    var.get_value_or_guess()
+                )
                 self._independent_variables.append(independent_variable)
             elif isinstance(var, VariableControl):
                 if isinstance(var, VariableControlPiecewiseConstant):
                     var_t0 = var.get_variable_at_time_relative(0)
-                    self._guess_or_value_of_independent_variables.append(var_t0.get_value_or_guess())
-                    independent_variable = var.get_value_or_casadi(self.time_grid_relative)
+                    self._guess_or_value_of_independent_variables.append(
+                        var_t0.get_value_or_guess()
+                    )
+                    independent_variable = var.get_value_or_casadi(
+                        self.time_grid_relative
+                    )
                 else:
                     independent_variable = []
-                    self._guess_or_value_of_independent_variables.append(var.get_value_or_guess())
-                    independent_variable.extend([var.get_value_or_casadi()] * num_time_steps)
+                    self._guess_or_value_of_independent_variables.append(
+                        var.get_value_or_guess()
+                    )
+                    independent_variable.extend(
+                        [var.get_value_or_casadi()] * num_time_steps
+                    )
 
                 self._independent_variables.append(independent_variable)
 
@@ -229,7 +245,7 @@ class Simulator(object):
             self._independent_variables[index] = casadi_mx
 
     def _set_default_integrator_settings(self):
-        """ Sane default settings for integrators"""
+        """Sane default settings for integrators"""
         if self.__integrator_name == "idas":
             self.__integrator_settings = {
                 "tf": 1,
@@ -323,7 +339,9 @@ class Simulator(object):
             )
         return res_steadystate
 
-    def calculate_algebraic_initials(self, *, apply_intials=False, analyze=False, experimental=False):
+    def calculate_algebraic_initials(
+        self, *, apply_intials=False, analyze=False, experimental=False
+    ):
         function = ca.Function(
             "eq_sys",
             [self.ode_system["x"], self.ode_system["z"], self.ode_system["p"]],
@@ -369,12 +387,14 @@ class Simulator(object):
                 ),
             )
 
-            res = res_integration["zf"][:,0]
+            res = res_integration["zf"][:, 0]
 
         else:
             res = rf(
                 self._initial_algebraic_original,
-                ca.vertcat(self._initial_state, self._guess_or_value_of_independent_variables),
+                ca.vertcat(
+                    self._initial_state, self._guess_or_value_of_independent_variables
+                ),
             )
 
         residual_original = function(
@@ -383,7 +403,9 @@ class Simulator(object):
             p=self._guess_or_value_of_independent_variables,
         )
         residual_calculated = function(
-            x=self._initial_state, z=res, p=self._guess_or_value_of_independent_variables
+            x=self._initial_state,
+            z=res,
+            p=self._guess_or_value_of_independent_variables,
         )
 
         if analyze:
@@ -427,7 +449,9 @@ class Simulator(object):
         )
 
         check_initials = function(  # noqa: F841
-            x=self._initial_state, z=self._initial_algebraic, p=self._independent_variables[0]
+            x=self._initial_state,
+            z=self._initial_algebraic,
+            p=self._independent_variables[0],
         )
         jacobian = function.factory(
             "jac_alg",
@@ -435,11 +459,15 @@ class Simulator(object):
             ["jac:alg:z", "jac:alg:x", "jac:ode:x", "jac:ode:z"],
         )
         check_jacobian = jacobian(
-            x=self._initial_state, z=self._initial_algebraic, p=self._independent_variables[0]
+            x=self._initial_state,
+            z=self._initial_algebraic,
+            p=self._independent_variables[0],
         )
 
         check_alg = algebraic_eqsys(
-            x=self._initial_state, z=self._initial_algebraic, p=self._independent_variables[0]
+            x=self._initial_state,
+            z=self._initial_algebraic,
+            p=self._independent_variables[0],
         )
 
         # should fail by DAE index > 1
@@ -463,7 +491,8 @@ class Simulator(object):
         rf = ca.rootfinder("inits", "newton", algebraic_eqsys_rootfinder)
         if state_value is not None:
             res = rf(
-                self._initial_algebraic, ca.vertcat(state_value, self._independent_variables[0])
+                self._initial_algebraic,
+                ca.vertcat(state_value, self._independent_variables[0]),
             )
         else:
             res = rf(
@@ -609,8 +638,10 @@ class Simulator(object):
         res = {"xf": res_states}
         return res
 
-    def generate_exp_data(self, algebraic=False, recalculate_algebraic=True, unfixed_variables=None):
-        """ Runs simulation and returns results in VariableList class."""
+    def generate_exp_data(
+        self, algebraic=False, recalculate_algebraic=True, unfixed_variables=None
+    ):
+        """Runs simulation and returns results in VariableList class."""
         variables = VariableList()
 
         if recalculate_algebraic and self.model.DAE:
@@ -643,17 +674,19 @@ class Simulator(object):
                 if isinstance(var, VariableAlgebraic):
                     value_time_zero = var.guess
                 elif isinstance(var, VariableState):
-                    value_time_zero = (
-                        self.__input_variable_list[var.name].value[0],
-                    )
+                    value_time_zero = (self.__input_variable_list[var.name].value[0],)
                 else:
                     raise (NotImplementedError)
 
                 value = res_array[count + shift_by, :]
                 value = np.insert(value, 0, value_time_zero)
 
-                new_var.set_dataframe_from_value_and_time(value, self.time_grid_relative, self.origin_ts)
-                new_var.ignore_plotting = self.__input_variable_list[var.name].ignore_plotting
+                new_var.set_dataframe_from_value_and_time(
+                    value, self.time_grid_relative, self.origin_ts
+                )
+                new_var.ignore_plotting = self.__input_variable_list[
+                    var.name
+                ].ignore_plotting
 
                 variables.add_variable(new_var)
             shift_by = count + 1
@@ -672,5 +705,7 @@ class Simulator(object):
         self.time_grid_relative: np.ndarray = np.unique(time_grid.round(decimals=1))
         self.origin_ts = self.__input_variable_list.get_common_origin()
         self.logger.debug(
-            "Timegrid modified: \n self.timegrid \n {0} \n".format(self.time_grid_relative)
+            "Timegrid modified: \n self.timegrid \n {0} \n".format(
+                self.time_grid_relative
+            )
         )

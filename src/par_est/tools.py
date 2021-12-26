@@ -27,7 +27,7 @@ class MXPickler(pickle.Pickler):
 
 
 def plot_array(array, xticks=None, yticks=None):
-    """ Plots given array in an observable way. """
+    """Plots given array in an observable way."""
     div_norm = colors.TwoSlopeNorm(vcenter=0)
     plt.close()
     plt.imshow(array, cmap=cm.coolwarm, norm=div_norm)
@@ -40,7 +40,7 @@ def plot_array(array, xticks=None, yticks=None):
 
 
 def plot_arrays(arrays):
-    """ Same as plot_array but plots every array in a subplot. """
+    """Same as plot_array but plots every array in a subplot."""
     plt.close()
     num_plots = len(arrays)
     fig = plt.figure()
@@ -126,7 +126,7 @@ def make_startpoints(bound0, N):
 
 
 class prime_class:
-    """ Taken from Erik, not tested"""
+    """Taken from Erik, not tested"""
 
     def isEven(self, n):
         return n % 2 == 0

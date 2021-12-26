@@ -64,7 +64,7 @@ class Optimizer(object):
         raise (NotImplementedError)
 
     def _setup_initialization(self):
-        """ Sets initials and bounds for optimizer, and as default no scaling.
+        """Sets initials and bounds for optimizer, and as default no scaling.
         If guess equals 0, 1 is used instead to avoid division by 0 during initialization"""
         guess = []
         lower_bound = []
@@ -116,12 +116,12 @@ class Optimizer(object):
                 simulator._reset_scaling()
 
     def _objective(self):
-        """ Returns a way to calculate and objective. Dependent on optimization type. """
+        """Returns a way to calculate and objective. Dependent on optimization type."""
         raise (NotImplementedError)
 
     def _optimize(self, scale):
-        """ Runs optimizer, uses scaling if needed. Returned values is scaled back.
-        Scaling should be done before setting a solver and solver settings. """
+        """Runs optimizer, uses scaling if needed. Returned values is scaled back.
+        Scaling should be done before setting a solver and solver settings."""
         self._setup_scaling(scale)
 
         self.solver = ca.nlpsol(
@@ -150,7 +150,7 @@ class Optimizer(object):
         return res_solver
 
     def optimize_multistart(self, num_initials, scale=True, max_iterations=20):
-        """ Runs multiple optimizations with gueses spread between upper and lower bound.
+        """Runs multiple optimizations with gueses spread between upper and lower bound.
         Helps to find feasible starting point for optimization in a few steps.
         WIP: recalcution of algebraic variables doesn't work.
         """
@@ -262,7 +262,10 @@ class ParameterEstimation(Optimizer):
         # Inverted variances provided weightning matrix for PE problem
         self.inverted_variances: List[np.ndarray] = []
 
-        self._setup_simulator(use_idas_constraints=use_idas_constraints, use_algebraic_vars=use_algebraic_vars)
+        self._setup_simulator(
+            use_idas_constraints=use_idas_constraints,
+            use_algebraic_vars=use_algebraic_vars,
+        )
 
         self.logger.debug(
             "Created Optimizer object: \n Data Shape {} \n Desicion Variables {}".format(
@@ -303,8 +306,14 @@ class ParameterEstimation(Optimizer):
 
         for varlist_input in self.list_input_varlist:
             # Create a time_grid, that "stops" at every experimental data, for every state variable
-            if not varlist_input.get_common_origin(strict=True, variable_type=VariableState):
-                raise(ValueError(f"Not all State Variables in one experiment have same time0, so simulations cannot be initialized:\n{varlist_input}"))
+            if not varlist_input.get_common_origin(
+                strict=True, variable_type=VariableState
+            ):
+                raise (
+                    ValueError(
+                        f"Not all State Variables in one experiment have same time0, so simulations cannot be initialized:\n{varlist_input}"
+                    )
+                )
             data_frame = pd.DataFrame()
 
             for variable_name in self.model.varlist_all.keys():
@@ -313,7 +322,9 @@ class ParameterEstimation(Optimizer):
                 except KeyError:
                     continue
 
-                if isinstance(var, VariableState) or (isinstance(var, VariableAlgebraic) and use_algebraic_vars):
+                if isinstance(var, VariableState) or (
+                    isinstance(var, VariableAlgebraic) and use_algebraic_vars
+                ):
                     data_frame = data_frame.join(var.dataframe, how="outer")
 
                 elif isinstance(var, VariableControl):
@@ -324,7 +335,9 @@ class ParameterEstimation(Optimizer):
                         # Column should be dropped, because it's needed only for unique timestamp
                         data_frame.drop(columns=var.name, inplace=True)
 
-            time_grid_unique = (data_frame.index - data_frame.index[0]).total_seconds().tolist()
+            time_grid_unique = (
+                (data_frame.index - data_frame.index[0]).total_seconds().tolist()
+            )
 
             list_timegrid_length.append(float(len(time_grid_unique)))
 
@@ -340,14 +353,23 @@ class ParameterEstimation(Optimizer):
             )
 
             # Generate an array (experiment_data_varlist) with Experimental data with the same dimensions as simulation results.
-            new_experiment_data_varlist = data_frame.iloc[1:].fillna(0).to_numpy().flatten()
+            new_experiment_data_varlist = (
+                data_frame.iloc[1:].fillna(0).to_numpy().flatten()
+            )
             self.experimental_data.append(new_experiment_data_varlist)
-            new_experiment_data_mask_varlist = data_frame.iloc[1:].notna().to_numpy().flatten().astype(int)
+            new_experiment_data_mask_varlist = (
+                data_frame.iloc[1:].notna().to_numpy().flatten().astype(int)
+            )
             self.experimental_data_mask.append(new_experiment_data_mask_varlist)
 
             # Generate inverted_variances
             if use_algebraic_vars:
-                variable_name_list = list([*self.model.varlist_state.keys(), *self.model.varlist_algebraic.keys()])
+                variable_name_list = list(
+                    [
+                        *self.model.varlist_state.keys(),
+                        *self.model.varlist_algebraic.keys(),
+                    ]
+                )
             else:
                 variable_name_list = list(self.model.varlist_state.keys())
             inverted_variances_varlist = []
@@ -394,7 +416,9 @@ class ParameterEstimation(Optimizer):
         #     array_simulation = ca.vertcat(array_simulation, res_simulation["xf"][:])
 
         # multiply by self.array_data_mask needed to ignore elements were error experimental data is zero
-        error = (array_simulation - self.experimental_data) * self.experimental_data_mask
+        error = (
+            array_simulation - self.experimental_data
+        ) * self.experimental_data_mask
         objective = ca.sum1(
             self.experiments_scale * self.inverted_variances * (error ** 2)
         )
@@ -415,7 +439,9 @@ class ParameterEstimation(Optimizer):
                 array_simulation = ca.vertcat(array_simulation, res_all[:])
 
         # multiply by self.array_data_mask needed to ignore elements were error experimental data is zero
-        error = (array_simulation - self.experimental_data) * self.experimental_data_mask
+        error = (
+            array_simulation - self.experimental_data
+        ) * self.experimental_data_mask
         objective = ca.sum1(
             self.experiments_scale * self.inverted_variances * (error ** 2)
         )
@@ -521,7 +547,7 @@ class OptimalExperimentalDesign(Optimizer):
                 self.list_input_varlist[0],
                 self.simulator_name,
                 self.simulator_settings,
-                simulate_jac=True
+                simulate_jac=True,
             )
         )
 
@@ -633,7 +659,7 @@ class OptimalExperimentalDesign(Optimizer):
         return self._optimize(scale)
 
     def identifiability_analysis(self):
-        """ Taken from Erik/Diana Subset0. Many questions arrise about how it works. """
+        """Taken from Erik/Diana Subset0. Many questions arrise about how it works."""
         (
             error,
             covariance_full,

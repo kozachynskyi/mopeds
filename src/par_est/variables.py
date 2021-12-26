@@ -50,7 +50,7 @@ class Variable(object):
         return f"{self.name}\n{type(self)}\n{self.value}"
 
     def get_value_or_casadi(self) -> Union[float, ca.MX]:
-        """ Return either value at time=0 or casadi_variable.
+        """Return either value at time=0 or casadi_variable.
         Used in Simulator for readability and less if statements.
         """
         if self.fixed:
@@ -59,7 +59,7 @@ class Variable(object):
             return self.casadi_var
 
     def get_value_or_guess(self) -> float:
-        """ Return guess or value at time zero. Used further for
+        """Return guess or value at time zero. Used further for
         readability"""
         if self.fixed:
             return self.value[0]
@@ -68,17 +68,17 @@ class Variable(object):
 
     @property
     def value(self) -> List:
-        """ Returns a list with values of variables"""
+        """Returns a list with values of variables"""
         return self.dataframe[self.name].tolist()
 
     @property
     def time_absolute(self) -> pd.Series:
-        """ Returns a list which contains time_stamps with date and time"""
+        """Returns a list which contains time_stamps with date and time"""
         return self.dataframe.index
 
     @property
     def time_relative(self) -> List:
-        """ Returns a list which contains timestamps in seconds.
+        """Returns a list which contains timestamps in seconds.
         First time is considered to be zero second"""
         return (self.dataframe.index - self.dataframe.index[0]).total_seconds().tolist()
 
@@ -96,8 +96,12 @@ class Variable(object):
             if not self.dataframe.index._is_strictly_monotonic_increasing:
                 raise BadVariableError(self, "Value index is not unique or not sorted")
             if self.name not in self.dataframe.columns:
-                raise BadVariableError(self, "Column name in Variable.value dosn't equal Variable.name")
-            if not isinstance(self, (VariableAlgebraic, VariableControlPiecewiseConstant)):
+                raise BadVariableError(
+                    self, "Column name in Variable.value dosn't equal Variable.name"
+                )
+            if not isinstance(
+                self, (VariableAlgebraic, VariableControlPiecewiseConstant)
+            ):
                 if self.dataframe[self.name].hasnans:
                     raise BadVariableError(self, "Variable value has Nan")
         else:
@@ -189,9 +193,13 @@ class Variable(object):
         )
         return df
 
-    def set_dataframe_from_value_and_time(self, value: List[float], time_relative: List[float], origin="unix"):
+    def set_dataframe_from_value_and_time(
+        self, value: List[float], time_relative: List[float], origin="unix"
+    ):
         if not len(value) == len(time_relative):
-            raise ValueError(f"Value and time must have same length. Supplied Value:\n{value}\nTime:\n{time_relative}")
+            raise ValueError(
+                f"Value and time must have same length. Supplied Value:\n{value}\nTime:\n{time_relative}"
+            )
         if not time_relative[0] == 0:
             raise ValueError("Time vector should start with 0, you supplied:\n{time}")
 
@@ -199,7 +207,9 @@ class Variable(object):
         if isinstance(self, VariableControlPiecewiseConstant):
             raise NotImplementedError
         else:
-            dataframe = pd.DataFrame(value,index=time_series,columns=[self.name], dtype="float64")
+            dataframe = pd.DataFrame(
+                value, index=time_series, columns=[self.name], dtype="float64"
+            )
             self.dataframe = dataframe
 
 
@@ -244,7 +254,7 @@ class VariableControl(Variable):
 
 
 class VariableControlPiecewiseConstant(VariableControl):
-    """ self.time - [time_stamps] list with time points of all variables in self.variables_list. """
+    """self.time - [time_stamps] list with time points of all variables in self.variables_list."""
 
     def __init__(self, name, value=None, lb=None, ub=None, opc_ua_id=None):
         super().__init__(name)
@@ -278,15 +288,19 @@ class VariableControlPiecewiseConstant(VariableControl):
         return time_var_dict
 
     def get_variable_at_time_absolute(self, time_stamp_absolute) -> VariableControl:
-        index = pd.Index(self.time_absolute).get_loc(time_stamp_absolute, method="ffill")
+        index = pd.Index(self.time_absolute).get_loc(
+            time_stamp_absolute, method="ffill"
+        )
         return list(self.variable_list.values())[index]
 
     def get_variable_at_time_relative(self, time_stamp_relative) -> VariableControl:
-        index = pd.Index(self.time_relative).get_loc(time_stamp_relative, method="ffill")
+        index = pd.Index(self.time_relative).get_loc(
+            time_stamp_relative, method="ffill"
+        )
         return list(self.variable_list.values())[index]
 
     def get_value_or_casadi(self, time_grid_relative) -> List:
-        """ This method is used to avoid following problem: if current Control is fixed at given time_stamp, simulator
+        """This method is used to avoid following problem: if current Control is fixed at given time_stamp, simulator
         should use either - a fixed value, provided with Variable, or a value of a Control Variable from previous timestamp.
         Input:
                         t0      t1      t2      t3
@@ -303,18 +317,14 @@ class VariableControlPiecewiseConstant(VariableControl):
             # This if statement is required for OED in order to use casadi_var from previous step, if it was already used. Without it, control variable will be fixed to some value for given timestep
             if var_at_timestamp.fixed:
                 if last_unfixed_variable is None:
-                    independent_variable.append(
-                        var_at_timestamp.get_value_or_casadi()
-                    )
+                    independent_variable.append(var_at_timestamp.get_value_or_casadi())
                 else:
                     independent_variable.append(
                         last_unfixed_variable.get_value_or_casadi()
                     )
             else:
                 last_unfixed_variable = var_at_timestamp
-                independent_variable.append(
-                    last_unfixed_variable.get_value_or_casadi()
-                )
+                independent_variable.append(last_unfixed_variable.get_value_or_casadi())
 
         return independent_variable
 
@@ -336,11 +346,13 @@ class VariableControlPiecewiseConstant(VariableControl):
                 self.opc_ua_id,
             )
             var.fixed = True
-            var.dataframe = var._dataframe_from_value(value, self.time_absolute[0] + timedelta(seconds=time))
+            var.dataframe = var._dataframe_from_value(
+                value, self.time_absolute[0] + timedelta(seconds=time)
+            )
             self.variable_list.add_variable(var)
 
     def set_horizon(self, times, values):
-        """ Used when control at time 0 should also be rewritten """
+        """Used when control at time 0 should also be rewritten"""
         raise NotImplementedError
 
     @property
@@ -352,7 +364,9 @@ class VariableControlPiecewiseConstant(VariableControl):
             values.append(var.value[0])
             times.append(var.time_absolute[0])
 
-        dataframe = pd.DataFrame(values,index=times,columns=[self.name], dtype="float64")
+        dataframe = pd.DataFrame(
+            values, index=times, columns=[self.name], dtype="float64"
+        )
 
         return dataframe
 
@@ -393,8 +407,10 @@ class VariableList(OrderedDict):
             message = f"Empty {type(self)}"
         return message
 
-    def get_common_origin(self, strict=False, variable_type=Variable) -> Union[pd.Timestamp, bool]:
-        """ Returns a common Timestamp of State, Algebraic, and Control variables. If no common origin exists - return ORIGIN_TS, strict is False
+    def get_common_origin(
+        self, strict=False, variable_type=Variable
+    ) -> Union[pd.Timestamp, bool]:
+        """Returns a common Timestamp of State, Algebraic, and Control variables. If no common origin exists - return ORIGIN_TS, strict is False
 
         Args:
             strict: if no common origin is found, return False instead of ORIGIN_TS
@@ -420,7 +436,7 @@ class VariableList(OrderedDict):
         return data_frame
 
     def index(self, var_index: int) -> Variable:
-        """ Return variable at given index (if VariableList was a List).
+        """Return variable at given index (if VariableList was a List).
 
         Primary way to index Variables in VariableList is name of the variable.
         This method is used for debugging, and should not be used by inexperienced users.
@@ -446,8 +462,7 @@ class VariableList(OrderedDict):
         return names
 
     def get_casadi_variables(self) -> ca.MX:
-        """ Returns a concatanated vector of all variables in a variable_list.
-        """
+        """Returns a concatanated vector of all variables in a variable_list."""
         casadi_vars = []
         for var in self.values():
             casadi_vars.append(var.casadi_var)
@@ -568,7 +583,7 @@ class VariableList(OrderedDict):
         plt.show()
 
     def _get_varlist_to_plot(self, algebraic=False):
-        """ Return varlist that has only "plottable" variables """
+        """Return varlist that has only "plottable" variables"""
         plot_varlist = VariableList()
         for var in self.values():
             if not var.ignore_plotting:

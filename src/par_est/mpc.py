@@ -46,7 +46,10 @@ class ModelPredictiveControl(Optimizer):
         self.array_data_mask: Optional[np.ndarray] = None
         self.inverted_variances: Optional[np.ndarray] = None
 
-        self._setup_simulator(use_idas_constraints=use_idas_constraints, use_algebraic_vars=use_algebraic_vars)
+        self._setup_simulator(
+            use_idas_constraints=use_idas_constraints,
+            use_algebraic_vars=use_algebraic_vars,
+        )
         self._setup_initialization()
         self.logger.debug(
             "Created Optimizer object: \n Data Shape {} \n Desicion Variables {}".format(
@@ -70,7 +73,9 @@ class ModelPredictiveControl(Optimizer):
         # Create a time_grid, that "stops" at every experimental data, for every state variable
         time_grid = np.ndarray((1, 0))
         for var in varlist_input.values():
-            if isinstance(var, VariableState) or (isinstance(var, VariableAlgebraic) and use_algebraic_vars):
+            if isinstance(var, VariableState) or (
+                isinstance(var, VariableAlgebraic) and use_algebraic_vars
+            ):
                 time_grid = np.append(time_grid, var.value.time)
             elif isinstance(var, VariableParameter):
                 var.fixed = True
@@ -132,7 +137,9 @@ class ModelPredictiveControl(Optimizer):
         experiment_data_mask_varlist = []
 
         if use_algebraic_vars:
-            variable_name_list = list([*self.model.varlist_state.keys(), *self.model.varlist_algebraic.keys()])
+            variable_name_list = list(
+                [*self.model.varlist_state.keys(), *self.model.varlist_algebraic.keys()]
+            )
         else:
             variable_name_list = list(self.model.varlist_state.keys())
 

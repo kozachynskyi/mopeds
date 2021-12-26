@@ -11,7 +11,7 @@ from par_est import (
 
 
 class Model(object):
-    """ Model class is used to get lists of variables used in this model,
+    """Model class is used to get lists of variables used in this model,
     create equations and determine if model is DAE or ODE.
     """
 
