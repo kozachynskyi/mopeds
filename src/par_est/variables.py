@@ -550,15 +550,7 @@ class VariableList(OrderedDict):
             client.disconnect()
 
     def plot(self, as_one_plot=False, algebraic=False):
-        # Choose only state variables
-        plot_varlist = VariableList()
-        for var in self.values():
-            if not var.ignore_plotting:
-                if isinstance(var, VariableState):
-                    plot_varlist.add_variable(var)
-                elif isinstance(var, VariableAlgebraic):
-                    if algebraic is True:
-                        plot_varlist.add_variable(var)
+        plot_varlist = self._get_varlist_to_plot(algebraic)
 
         try:
             if as_one_plot is True:
@@ -574,6 +566,18 @@ class VariableList(OrderedDict):
         except Exception as e:
             raise PlottingError(var, "Failed while ploting variable:") from e
         plt.show()
+
+    def _get_varlist_to_plot(self, algebraic=False):
+        """ Return varlist that has only "plottable" variables """
+        plot_varlist = VariableList()
+        for var in self.values():
+            if not var.ignore_plotting:
+                if isinstance(var, VariableState):
+                    plot_varlist.add_variable(var)
+                elif isinstance(var, VariableAlgebraic):
+                    if algebraic is True:
+                        plot_varlist.add_variable(var)
+        return plot_varlist
 
 
 class SameVariableNameError(Exception):
