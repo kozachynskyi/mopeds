@@ -424,6 +424,28 @@ class Simulator(object):
             print(
                 f"Residual before {residual_sum_original}, after {residual_sum_calculated}."
             )
+
+            # import pandas as pd
+            # from pandasgui import show
+
+            # jac_func = function.jacobian()
+            # jac = jac_func(
+            #     x=self._initial_state,
+            #     z=res,
+            #     p=self._guess_or_value_of_independent_variables,
+            # )
+
+            # row_names = str(self.ode_system["ode"]).split()
+            # row_names.extend(str(self.ode_system["alg"]).split())
+
+            # col_names = str(self.ode_system["x"]).split()
+            # col_names.extend(str(self.ode_system["z"]).split())
+            # col_names.extend(str(self.ode_system["p"]).split())
+
+            # jac = jac["jac"]
+            # df = pd.DataFrame(jac.toarray(), index=row_names, columns=col_names)
+            # show(df.astype(str))
+
         if apply_intials:
             self.logger.debug("Fixed algebraic intials")
             self._initial_algebraic = res
