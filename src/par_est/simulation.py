@@ -18,6 +18,9 @@ from par_est import (
 
 
 class Simulator(object):
+    """recalculate_algebraic - set to "True" in order to recalculate initial algebraic values "z0"
+    Use this option, if optimizer runs into IDAS_CALC_IC problems and is not able to find "z0" by itself
+    """
     supported_integrators = ["idas", "cvodes", "collocation"]
 
     def __init__(  # noqa: C901
@@ -30,6 +33,7 @@ class Simulator(object):
         *,
         use_idas_constraints=False,
         simulate_jac=False,
+        recalculate_algebraic=False,
     ):
 
         self.logger = logging.getLogger(__name__)
@@ -165,7 +169,10 @@ class Simulator(object):
 
         # This code is moved here, so this if statement shouldn't be called every simulation
         if self.model.DAE is True:
-            self.simulate = self._simulate_dae
+            if recalculate_algebraic:
+                self.simulate = self._simulate_dae_calculate_algebraic
+            else:
+                self.simulate = self._simulate_dae
             self.simulate_jac = self._simulate_jac_dae
         else:
             self.simulate = self._simulate_ode
