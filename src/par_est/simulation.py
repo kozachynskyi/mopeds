@@ -74,6 +74,19 @@ class Simulator(object):
                 "z"
             ] = self.model.varlist_algebraic.get_casadi_variables()
 
+        if self.model.DAE:
+            self.function_algebraic_equations = ca.Function(
+                "alg_eq_sys",
+                [
+                    self.ode_system["z"],
+                    ca.vertcat(self.ode_system["x"], self.ode_system["p"]),
+                ],
+                [self.ode_system["alg"]],
+                ["x", "p"],
+                ["alg"],
+            )
+            self.rootfinder = ca.rootfinder("DAE_zf_init", "newton", self.function_algebraic_equations)
+
         if integrator_settings is not None:
             self.__integrator_settings = integrator_settings
         else:
@@ -596,6 +609,46 @@ class Simulator(object):
         res_jacobian = ca.hcat(res_jacobian)
 
         res = {"xf": res_states, "jac_xf_p": res_jacobian}
+        return res
+
+    def _simulate_dae_calculate_algebraic(self):
+        """Return dictionary with results "xf" - state,
+        "zf" - algebraic
+        """
+        prev_time_step = 0
+        res_states = []
+        res_algebraic = []
+        x_init = self._initial_state
+
+        alg_init = self.rootfinder(
+            self._initial_algebraic_original,
+            ca.vertcat(
+                self._initial_state, self._independent_variables[0],
+            ),
+        )
+
+        for time_step, independent_variables in zip(
+            self.time_grid_relative[1:], self._independent_variables
+        ):
+            res_integration = self.integrator_tau(
+                x0=x_init,
+                z0=alg_init,
+                p=ca.vertcat(
+                    time_step - prev_time_step, independent_variables * self.scaling
+                ),
+            )
+
+            prev_time_step = time_step
+            x_init = res_integration["xf"]
+            alg_init = res_integration["zf"]
+
+            res_states.append(res_integration["xf"])
+            res_algebraic.append(res_integration["zf"])
+
+        res_states = ca.hcat(res_states)
+        res_algebraic = ca.hcat(res_algebraic)
+
+        res = {"xf": res_states, "zf": res_algebraic}
         return res
 
     def _simulate_dae(self):
