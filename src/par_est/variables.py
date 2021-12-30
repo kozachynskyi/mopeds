@@ -567,6 +567,9 @@ class VariableList(OrderedDict):
     def plot(self, as_one_plot=False, algebraic=False):
         plot_varlist = self._get_varlist_to_plot(algebraic)
 
+        if len(plot_varlist) == 1:
+            as_one_plot = True
+
         try:
             if as_one_plot is True:
                 for var in plot_varlist.values():
