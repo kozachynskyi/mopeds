@@ -227,6 +227,7 @@ class ParameterEstimation(Optimizer):
         *,
         use_idas_constraints=False,
         use_algebraic_vars=False,
+        recalculate_algebraic=False,
     ):
         super().__init__(
             model,
@@ -263,6 +264,7 @@ class ParameterEstimation(Optimizer):
         self._setup_simulator(
             use_idas_constraints=use_idas_constraints,
             use_algebraic_vars=use_algebraic_vars,
+            recalculate_algebraic=recalculate_algebraic,
         )
 
         self.logger.debug(
@@ -281,7 +283,7 @@ class ParameterEstimation(Optimizer):
         for sim in self.list_simulators:
             sim.calculate_algebraic_initials(apply_intials=True)
 
-    def _setup_simulator(self, *, use_idas_constraints, use_algebraic_vars):
+    def _setup_simulator(self, *, use_idas_constraints, use_algebraic_vars, recalculate_algebraic):
         # It's not checked if all supplied varlist have same states etc.
         for var in self.list_input_varlist[0].values():
             if isinstance(var, VariableState):
@@ -342,6 +344,7 @@ class ParameterEstimation(Optimizer):
                     self.simulator_name,
                     self.simulator_settings,
                     use_idas_constraints=use_idas_constraints,
+                    recalculate_algebraic=recalculate_algebraic,
                 )
             )
 
