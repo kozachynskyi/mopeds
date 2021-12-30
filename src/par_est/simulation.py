@@ -591,7 +591,7 @@ class Simulator(object):
         alg_init = self.rootfinder(
             self._initial_algebraic_original,
             ca.vertcat(
-                self._initial_state, self._independent_variables[0],
+                x_init, self._independent_variables[0] * self.scaling,
             ),
         )
 
