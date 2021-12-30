@@ -225,7 +225,6 @@ class ParameterEstimation(Optimizer):
         simulator_name="idas",
         simulator_settings=None,
         *,
-        reinitialize_algebraic=False,
         use_idas_constraints=False,
         use_algebraic_vars=False,
     ):
@@ -279,9 +278,8 @@ class ParameterEstimation(Optimizer):
             "ipopt": {"hessian_approximation": "limited-memory", "max_iter": 300},
         }
 
-        if reinitialize_algebraic:
-            for sim in self.list_simulators:
-                sim.calculate_algebraic_initials(apply_intials=True)
+        for sim in self.list_simulators:
+            sim.calculate_algebraic_initials(apply_intials=True)
 
     def _setup_simulator(self, *, use_idas_constraints, use_algebraic_vars):
         # It's not checked if all supplied varlist have same states etc.
