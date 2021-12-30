@@ -45,9 +45,6 @@ def test_variables():
     variable_list["Var1"].set_dataframe_from_value_and_time([0,1], [0,2])
     a = variable_list["Var1"]
 
-    with pytest.raises(PlottingError):
-        variable_list.plot()
-
     var_1 = par_est.VariableControlPiecewiseConstant("Var1", 20)
     var_2 = par_est.VariableControlPiecewiseConstant("Var1", 20)
 
