@@ -88,7 +88,7 @@ def test_cstr(piecewise):
                         res = sim.generate_exp_data(algebraic=True)
                         assert len(res) == 6
                 else:
-                    with pytest.raises(NotImplementedError):
+                    with pytest.raises(ValueError):
                         res = sim.generate_exp_data()
 
                 if j == 1:
