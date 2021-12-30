@@ -362,86 +362,74 @@ class Simulator(object):
     def calculate_algebraic_initials(
         self, *, apply_intials=False, analyze=False
     ):
-        function = ca.Function(
-            "eq_sys",
-            [self.ode_system["x"], self.ode_system["z"], self.ode_system["p"]],
-            [self.ode_system["ode"], self.ode_system["alg"]],
-            ["x", "z", "p"],
-            ["ode", "alg"],
-        )
-
-        algebraic_eqsys_rootfinder = ca.Function(
-            "alg_eq_sys",
-            [
-                self.ode_system["z"],
-                ca.vertcat(self.ode_system["x"], self.ode_system["p"]),
-            ],
-            [self.ode_system["alg"]],
-            ["x", "p"],
-            ["alg"],
-        )
-
-        rf = ca.rootfinder("inits", "newton", algebraic_eqsys_rootfinder)
-
-        res = rf(
-            self._initial_algebraic_original,
-            ca.vertcat(
-                self._initial_state, self._guess_or_value_of_independent_variables
-            ),
-        )
-
-        residual_original = function(
-            x=self._initial_state,
-            z=self._initial_algebraic_original,
-            p=self._guess_or_value_of_independent_variables,
-        )
-        residual_calculated = function(
-            x=self._initial_state,
-            z=res,
-            p=self._guess_or_value_of_independent_variables,
-        )
-
-        if analyze:
-            abs_diff = self._initial_algebraic_original - res
-            rel_diff = ca.fabs(abs_diff) / ca.fabs(self._initial_algebraic_original)
-
-            print("Prints Algebraic Variables, that we changed more than 50%")
-            for i in range(abs_diff.shape[0]):
-                if rel_diff[i] > 0.50:
-                    print(self.ode_system["z"][i])
-                    print(f"Value After {res[i]}")
-                    print(f"Value Before {self._initial_algebraic_original[i]}")
-
-            residual_sum_original = ca.sum1(residual_original["alg"])
-            residual_sum_calculated = ca.sum1(residual_calculated["alg"])
-            print(
-                f"Residual before {residual_sum_original}, after {residual_sum_calculated}."
+        if self.model.DAE:
+            function = ca.Function(
+                "eq_sys",
+                [self.ode_system["x"], self.ode_system["z"], self.ode_system["p"]],
+                [self.ode_system["ode"], self.ode_system["alg"]],
+                ["x", "z", "p"],
+                ["ode", "alg"],
             )
 
-            # import pandas as pd
-            # from pandasgui import show
+            res = self.rootfinder(
+                self._initial_algebraic_original,
+                ca.vertcat(
+                    self._initial_state, self._guess_or_value_of_independent_variables
+                ),
+            )
 
-            # jac_func = function.jacobian()
-            # jac = jac_func(
-            #     x=self._initial_state,
-            #     z=res,
-            #     p=self._guess_or_value_of_independent_variables,
-            # )
+            residual_original = function(
+                x=self._initial_state,
+                z=self._initial_algebraic_original,
+                p=self._guess_or_value_of_independent_variables,
+            )
+            residual_calculated = function(
+                x=self._initial_state,
+                z=res,
+                p=self._guess_or_value_of_independent_variables,
+            )
 
-            # row_names = str(self.ode_system["ode"]).split()
-            # row_names.extend(str(self.ode_system["alg"]).split())
+            if analyze:
+                abs_diff = self._initial_algebraic_original - res
+                rel_diff = ca.fabs(abs_diff) / ca.fabs(self._initial_algebraic_original)
 
-            # col_names = str(self.ode_system["x"]).split()
-            # col_names.extend(str(self.ode_system["z"]).split())
-            # col_names.extend(str(self.ode_system["p"]).split())
+                print("Prints Algebraic Variables, that we changed more than 50%")
+                for i in range(abs_diff.shape[0]):
+                    if rel_diff[i] > 0.50:
+                        print(self.ode_system["z"][i])
+                        print(f"Value After {res[i]}")
+                        print(f"Value Before {self._initial_algebraic_original[i]}")
 
-            # jac = jac["jac"]
-            # df = pd.DataFrame(jac.toarray(), index=row_names, columns=col_names)
-            # show(df.astype(str))
+                residual_sum_original = ca.sum1(residual_original["alg"])
+                residual_sum_calculated = ca.sum1(residual_calculated["alg"])
+                print(
+                    f"Residual before {residual_sum_original}, after {residual_sum_calculated}."
+                )
 
-        if apply_intials:
-            self.logger.debug("Fixed algebraic intials")
-            self._initial_algebraic = res
+                # import pandas as pd
+                # from pandasgui import show
+
+                # jac_func = function.jacobian()
+                # jac = jac_func(
+                #     x=self._initial_state,
+                #     z=res,
+                #     p=self._guess_or_value_of_independent_variables,
+                # )
+
+                # row_names = str(self.ode_system["ode"]).split()
+                # row_names.extend(str(self.ode_system["alg"]).split())
+
+                # col_names = str(self.ode_system["x"]).split()
+                # col_names.extend(str(self.ode_system["z"]).split())
+                # col_names.extend(str(self.ode_system["p"]).split())
+
+                # jac = jac["jac"]
+                # df = pd.DataFrame(jac.toarray(), index=row_names, columns=col_names)
+                # show(df.astype(str))
+
+            if apply_intials:
+                self.logger.debug("Fixed algebraic intials")
+                self._initial_algebraic = res
 
     def analyze_WIP(self, state_value=None):
         import par_est.tools as tools  # noqa: F401
