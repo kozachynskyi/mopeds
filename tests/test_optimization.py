@@ -17,16 +17,8 @@ def test_pe_intials_algebraic(piecewise):
     variable_list2 = copy.deepcopy(variable_list1)
     variable_list2["X1"].set_dataframe_from_value_and_time([1, 0],[0,1])
     variable_list2["X2"].set_dataframe_from_value_and_time([1, 0],[0,1])
-    pe = par_est.ParameterEstimation(model, [variable_list1, variable_list2])
-    pe.solver_settings = {
-        "ipopt": {
-            "max_iter": 0,
-        },
-    }
-    assert pe.list_simulators[0]._initial_algebraic[0] == 0
-    assert pe.list_simulators[1]._initial_algebraic[0] == 0
     pe = par_est.ParameterEstimation(
-        model, [variable_list1, variable_list2], reinitialize_algebraic=True
+        model, [variable_list1, variable_list2]
     )
     pe.solver_settings = {
         "ipopt": {
