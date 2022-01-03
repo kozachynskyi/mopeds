@@ -1,23 +1,24 @@
 import copy
 import logging
+from typing import Dict, List, Union
+
 import casadi as ca
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from typing import List, Union, Dict
-from scipy import linalg
-import matplotlib.pyplot as plt
 from matplotlib import cm
+from scipy import linalg
 
-from par_est import tools
 from par_est import (
+    Model,
+    Simulator,
+    VariableAlgebraic,
     VariableControl,
     VariableControlPiecewiseConstant,
-    Model,
-    VariableParameter,
-    Simulator,
-    VariableState,
     VariableList,
-    VariableAlgebraic,
+    VariableParameter,
+    VariableState,
+    tools,
 )
 
 
@@ -155,7 +156,7 @@ class Optimizer(object):
         """Calculate objective function for different values of parameters and plot, if needed.
         Currently support only 3 unfixed decision variables."""
         decision_variables = self.varlist_decision.get_casadi_variables()
-        if decision_variables.shape == (3,1):
+        if decision_variables.shape == (3, 1):
             self._setup_scaling(False)
             objective_function = ca.Function(
                 "objective",
@@ -182,12 +183,12 @@ class Optimizer(object):
                         xx.append(x)
                         yy.append(y)
                         zz.append(z)
-                        objective.append(float(objective_function([x,y,z]).toarray()))
+                        objective.append(float(objective_function([x, y, z]).toarray()))
 
             if plot:
                 color = np.array(objective)
                 fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
-                colormap = plt.get_cmap('tab20b')
+                colormap = plt.get_cmap("tab20b")
 
                 ax.set_xlabel(f"x {decision_variables[0]}")
                 ax.set_ylabel(f"y {decision_variables[1]}")
@@ -199,7 +200,6 @@ class Optimizer(object):
                 plt.show()
         else:
             raise NotImplementedError
-
 
     def optimize_multistart(self, num_initials, scale=True, max_iterations=20):
         """Runs multiple optimizations with gueses spread between upper and lower bound.
@@ -335,7 +335,9 @@ class ParameterEstimation(Optimizer):
         for sim in self.list_simulators:
             sim.calculate_algebraic_initials(apply_intials=True)
 
-    def _setup_simulator(self, *, use_idas_constraints, use_algebraic_vars, recalculate_algebraic):
+    def _setup_simulator(
+        self, *, use_idas_constraints, use_algebraic_vars, recalculate_algebraic
+    ):
         # It's not checked if all supplied varlist have same states etc.
         for var in self.list_input_varlist[0].values():
             if isinstance(var, VariableState):
