@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 from typing import List, Union, Dict
 from scipy import linalg
+import matplotlib.pyplot as plt
+from matplotlib import cm
 
 from par_est import tools
 from par_est import (
@@ -148,6 +150,56 @@ class Optimizer(object):
 
         res_solver["x"] = res_solver["x"] * self.scaling
         return res_solver
+
+    def map_objective(self, plot=True):
+        """Calculate objective function for different values of parameters and plot, if needed.
+        Currently support only 3 unfixed decision variables."""
+        decision_variables = self.varlist_decision.get_casadi_variables()
+        if decision_variables.shape == (3,1):
+            self._setup_scaling(False)
+            objective_function = ca.Function(
+                "objective",
+                [decision_variables],
+                [self._objective()],
+                ["x"],
+                ["f"],
+            )
+
+            # Generate steps for each variable between lb and ub
+            axis_steps = []
+            for lb, ub in zip(self.lower_bound, self.upper_bound):
+                axis_steps.append(np.linspace(lb, ub, 6))
+
+            # Create every possible combination of cordinates
+            # Code the value of objective function as a color information
+            xx = []
+            yy = []
+            zz = []
+            objective = []
+            for x in axis_steps[0]:
+                for y in axis_steps[1]:
+                    for z in axis_steps[2]:
+                        xx.append(x)
+                        yy.append(y)
+                        zz.append(z)
+                        objective.append(float(objective_function([x,y,z]).toarray()))
+
+            if plot:
+                color = np.array(objective)
+                fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+                colormap = plt.get_cmap('tab20b')
+
+                ax.set_xlabel(f"x {decision_variables[0]}")
+                ax.set_ylabel(f"y {decision_variables[1]}")
+                ax.set_zlabel(f"z {decision_variables[2]}")
+
+                marker_size = (color.max() - color) * 3 + 5
+                surf = ax.scatter(xx, yy, zz, c=color, s=marker_size, cmap=colormap)
+                fig.colorbar(surf)
+                plt.show()
+        else:
+            raise NotImplementedError
+
 
     def optimize_multistart(self, num_initials, scale=True, max_iterations=20):
         """Runs multiple optimizations with gueses spread between upper and lower bound.
