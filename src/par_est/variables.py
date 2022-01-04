@@ -42,9 +42,10 @@ class Variable(object):
             yield from subclass.get_subclasses()
             yield subclass
 
-    def plot(self):
-        self.dataframe.plot()
+    def plot(self, ax=None):
+        axis = self.dataframe.plot(ax=ax)
         plt.show()
+        return axis
 
     def __repr__(self):
         return f"{self.name}\n{type(self)}\n{self.value}"
@@ -564,26 +565,32 @@ class VariableList(OrderedDict):
         finally:
             client.disconnect()
 
-    def plot(self, as_one_plot=False, algebraic=False):
+    def plot(self, as_one_plot=False, algebraic=False, prefix=None, **kwargs):
+        """Plots variables that are not ignored via var.ignore_plotting
+        If as_one_plot is True, plot every variable on separate plot
+        If algebraic is True, plot als algebraic variables
+
+        prefix is used to append name to a variable name
+        **kwargs are matplotlib options, for example marker='o'"""
         plot_varlist = self._get_varlist_to_plot(algebraic)
 
-        if len(plot_varlist) == 1:
-            as_one_plot = True
+        if "subplots" not in kwargs:
+            kwargs["subplots"] = True
 
-        try:
-            if as_one_plot is True:
-                for var in plot_varlist.values():
-                    plt.figure()
-                    plt.title(var.name)
-                    plt.plot(var.time_absolute, var.value, label=var.name)
-            else:
-                figure, axes_array = plt.subplots(len(plot_varlist))
-                for var, ax in zip(plot_varlist.values(), axes_array):
-                    ax.plot(var.time_absolute, var.value, label=var.name)
-                    ax.legend()
-        except Exception as e:
-            raise PlottingError(var, "Failed while ploting variable:") from e
+        if as_one_plot is True:
+            axes = []
+            for var in plot_varlist.values():
+                axes.append(var.plot())
+            axes = np.array(axes)
+
+        else:
+            dataframe = plot_varlist.dataframe
+            if prefix is not None:
+                dataframe = dataframe.add_prefix(prefix)
+            axes = dataframe.plot(**kwargs)
+
         plt.show()
+        return axes
 
     def _get_varlist_to_plot(self, algebraic=False):
         """Return varlist that has only "plottable" variables"""
