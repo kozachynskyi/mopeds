@@ -21,6 +21,7 @@ class Simulator(object):
     """recalculate_algebraic - set to "True" in order to recalculate initial algebraic values "z0"
     Use this option, if optimizer runs into IDAS_CALC_IC problems and is not able to find "z0" by itself
     """
+
     supported_integrators = ["idas", "cvodes", "collocation"]
 
     def __init__(  # noqa: C901
@@ -89,7 +90,9 @@ class Simulator(object):
                 ["x", "p"],
                 ["alg"],
             )
-            self.rootfinder = ca.rootfinder("DAE_zf_init", "newton", self.function_algebraic_equations)
+            self.rootfinder = ca.rootfinder(
+                "DAE_zf_init", "newton", self.function_algebraic_equations
+            )
 
         if integrator_settings is not None:
             self.__integrator_settings = integrator_settings
@@ -359,9 +362,7 @@ class Simulator(object):
             )
         return res_steadystate
 
-    def calculate_algebraic_initials(
-        self, *, apply_intials=False, analyze=False
-    ):
+    def calculate_algebraic_initials(self, *, apply_intials=False, analyze=False):
         if self.model.DAE:
             function = ca.Function(
                 "eq_sys",
@@ -591,7 +592,8 @@ class Simulator(object):
         alg_init = self.rootfinder(
             self._initial_algebraic_original,
             ca.vertcat(
-                x_init, self._independent_variables[0] * self.scaling,
+                x_init,
+                self._independent_variables[0] * self.scaling,
             ),
         )
 
