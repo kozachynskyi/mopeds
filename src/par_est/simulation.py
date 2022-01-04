@@ -725,15 +725,25 @@ class Simulator(object):
             self.calculate_algebraic_initials(apply_intials=True)
 
         result_simulation = self.simulate()
+        result_initial = self._simulate_t0()
         if not algebraic or not self.model.DAE:
             result_varlist = [copy.deepcopy(self.model.varlist_state)]
-            res_array = result_simulation["xf"]
+            res_array = ca.horzcat(result_initial["xf0"], result_simulation["xf"])
         else:
             result_varlist = [
                 copy.deepcopy(self.model.varlist_state),
                 copy.deepcopy(self.model.varlist_algebraic),
             ]
-            res_array = ca.vertcat(result_simulation["xf"], result_simulation["zf"])
+            res_array = ca.vertcat(
+                ca.horzcat(
+                    result_initial["xf0"],
+                    result_simulation["xf"],
+                ),
+                ca.horzcat(
+                    result_initial["zf0"],
+                    result_simulation["zf"],
+                ),
+            )
 
         if not isinstance(res_array, ca.DM):
             if unfixed_variables is None:
@@ -743,6 +753,7 @@ class Simulator(object):
                 res_array = function(*unfixed_variables)
 
         shift_by = 0
+
         for variable_list in result_varlist:
             for count, var in enumerate(variable_list.values()):
                 var.casadi_var = None
@@ -756,7 +767,8 @@ class Simulator(object):
                     raise (NotImplementedError)
 
                 value = res_array[count + shift_by, :]
-                value = np.insert(value, 0, value_time_zero)
+                # value is of ca.DM type and data is nested in first array
+                value = value.toarray()[0]
 
                 new_var.set_dataframe_from_value_and_time(
                     value, self.time_grid_relative, self.origin_ts
