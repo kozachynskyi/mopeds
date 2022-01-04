@@ -511,7 +511,12 @@ class ParameterEstimation(Optimizer):
         return res
 
     def plot_simulation(
-        self, supplied_parameters, experiment_names=None, savefig=False
+        self,
+        supplied_parameters,
+        experiment_names=None,
+        savefig=False,
+        algebraic=True,
+        plot=True,
     ):  # noqa: E501
         """Plots experimental points against simulated trajectories, first line, initial guess, than supplied values"""
         self._setup_scaling(False)
@@ -530,19 +535,34 @@ class ParameterEstimation(Optimizer):
             self.list_input_varlist, self.list_simulators, experiment_names
         ):
             res_guess = simulator.generate_exp_data(
-                algebraic=True, recalculate_algebraic=True, unfixed_variables=self.guess
+                algebraic=algebraic,
+                recalculate_algebraic=True,
+                unfixed_variables=self.guess,
             )
-            axes = res_guess.plot(prefix="GUESS ", color="blue")
             res_supplied = simulator.generate_exp_data(
-                algebraic=True,
+                algebraic=algebraic,
                 recalculate_algebraic=True,
                 unfixed_variables=supplied_parameters,
             )
-            axes = res_supplied.plot(prefix="FINAL ", ax=axes, color="red")
-            input_varlist.plot(
-                ax=axes, marker="x", color="black", prefix="EXP ", linestyle="None"
-            )
-            axes[0].set_title(exp_name)
+
+            if plot:
+                axes = res_guess.plot(
+                    prefix="GUESS ", color="blue", algebraic=algebraic
+                )
+                axes = res_supplied.plot(
+                    prefix="FINAL ", ax=axes, color="red", algebraic=algebraic
+                )
+                input_varlist.plot(
+                    ax=axes,
+                    marker="x",
+                    color="black",
+                    prefix="EXP ",
+                    linestyle="None",
+                    algebraic=algebraic,
+                )
+                axes[0].set_title(exp_name)
+
+        return res_supplied
 
 
 class OptimalExperimentalDesign(Optimizer):
