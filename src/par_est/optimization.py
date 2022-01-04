@@ -510,6 +510,40 @@ class ParameterEstimation(Optimizer):
         res = self._optimize(scale)
         return res
 
+    def plot_simulation(
+        self, supplied_parameters, experiment_names=None, savefig=False
+    ):  # noqa: E501
+        """Plots experimental points against simulated trajectories, first line, initial guess, than supplied values"""
+        self._setup_scaling(False)
+
+        if experiment_names is None:
+            experiment_names = []
+            for index, simulator in enumerate(self.list_input_varlist):
+                experiment_names.append(f"EXP_{index}")
+
+        if not len(experiment_names) == len(self.list_input_varlist):
+            raise ValueError(
+                "Length of experiment names is not same as ammount of experiments"
+            )
+
+        for input_varlist, simulator, exp_name in zip(
+            self.list_input_varlist, self.list_simulators, experiment_names
+        ):
+            res_guess = simulator.generate_exp_data(
+                algebraic=True, recalculate_algebraic=True, unfixed_variables=self.guess
+            )
+            axes = res_guess.plot(prefix="GUESS ", color="blue")
+            res_supplied = simulator.generate_exp_data(
+                algebraic=True,
+                recalculate_algebraic=True,
+                unfixed_variables=supplied_parameters,
+            )
+            axes = res_supplied.plot(prefix="FINAL ", ax=axes, color="red")
+            input_varlist.plot(
+                ax=axes, marker="x", color="black", prefix="EXP ", linestyle="None"
+            )
+            axes[0].set_title(exp_name)
+
 
 class OptimalExperimentalDesign(Optimizer):
     def __init__(
