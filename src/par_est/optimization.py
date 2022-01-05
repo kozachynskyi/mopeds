@@ -512,7 +512,7 @@ class ParameterEstimation(Optimizer):
 
     def plot_simulation(
         self,
-        supplied_parameters,
+        supplied_parameters=None,
         experiment_names=None,
         savefig=False,
         algebraic=True,
@@ -539,30 +539,43 @@ class ParameterEstimation(Optimizer):
                 recalculate_algebraic=True,
                 unfixed_variables=self.guess,
             )
-            res_supplied = simulator.generate_exp_data(
-                algebraic=algebraic,
-                recalculate_algebraic=True,
-                unfixed_variables=supplied_parameters,
-            )
+
+            if supplied_parameters is not None:
+                res_supplied = simulator.generate_exp_data(
+                    algebraic=algebraic,
+                    recalculate_algebraic=True,
+                    unfixed_variables=supplied_parameters,
+                )
 
             if plot:
-                axes = res_guess.plot(
-                    prefix="GUESS ", color="blue", algebraic=algebraic
-                )
-                axes = res_supplied.plot(
-                    prefix="FINAL ", ax=axes, color="red", algebraic=algebraic
-                )
-                input_varlist.plot(
-                    ax=axes,
-                    marker="x",
-                    color="black",
-                    prefix="EXP ",
-                    linestyle="None",
-                    algebraic=algebraic,
-                )
-                axes[0].set_title(exp_name)
+                if pd.get_option("plotting.backend") == "plotly":
+                    if supplied_parameters is None:
+                        fig = res_guess.dataframe.plot(markers=True)
+                    else:
+                        fig = res_supplied.dataframe.plot(markers=True)
+                    fig.show()
+                else:
+                    axes = res_guess.plot(
+                        prefix="GUESS ", color="blue", algebraic=algebraic
+                    )
+                    if supplied_parameters is not None:
+                        axes = res_supplied.plot(
+                            prefix="FINAL ", ax=axes, color="red", algebraic=algebraic
+                        )
+                    input_varlist.plot(
+                        ax=axes,
+                        marker="x",
+                        color="black",
+                        prefix="EXP ",
+                        linestyle="None",
+                        algebraic=algebraic,
+                    )
+                    axes[0].set_title(exp_name)
 
-        return res_supplied
+        if supplied_parameters is None:
+            return [res_guess]
+        else:
+            return [res_guess, res_supplied]
 
 
 class OptimalExperimentalDesign(Optimizer):
