@@ -194,7 +194,11 @@ class Optimizer(object):
                 ax.set_ylabel(f"y {decision_variables[1]}")
                 ax.set_zlabel(f"z {decision_variables[2]}")
 
-                marker_size = (color.max() - color) * 3 + 5
+                quantile = np.quantile(color,0.1)
+                selected_objective = copy.deepcopy(color)
+                selected_objective[selected_objective > quantile] = color.max()
+                marker_size = (selected_objective.max() - selected_objective) / selected_objective.max() * 20 + 7
+
                 surf = ax.scatter(xx, yy, zz, c=color, s=marker_size, cmap=colormap)
                 fig.colorbar(surf)
                 plt.show()
