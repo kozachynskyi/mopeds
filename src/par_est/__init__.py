@@ -17,6 +17,7 @@ from .optimization import (
     Optimizer,
     ParameterEstimation,
     OptimalExperimentalDesign,
+    ParameterEstimationNLE,
 )
 from .mpc import ModelPredictiveControl
 

@@ -12,6 +12,7 @@ from scipy import linalg
 from par_est import (
     Model,
     Simulator,
+    SimulatorNLE,
     VariableAlgebraic,
     VariableControl,
     VariableControlPiecewiseConstant,
@@ -863,3 +864,86 @@ class OptimalExperimentalDesign(Optimizer):
             unfix_parameters.append(parameter_name)
 
         return unfix_parameters, error, covariance_full, jacobian_original
+
+
+class ParameterEstimationNLE(Optimizer):
+    def __init__(
+        self,
+        model: Model,
+        variable_lists: List[VariableList],
+        simulator_settings=None,
+        simulator_name="rootfinder",
+    ):
+        super().__init__(model, variable_lists, simulator_name, simulator_settings)
+        self._setup_simulator()
+        self.logger.debug(
+            "Created Optimizer object: \n Data Shape {} \n Desicion Variables {}".format(
+                self.array_data.shape, self.varlist_decision.get_variable_name()
+            )
+        )
+        self._setup_initialization()
+
+        self.solver_name = "ipopt"
+        if self.solver_settings is None:
+            self.solver_settings = {
+                "verbose": False,
+                "ipopt": {"max_iter": 300},
+            }
+
+    def _setup_simulator(self):
+        # It's not checked if all supplied varlist have same states etc.
+        for var in self.list_input_varlist[0].values():
+            if isinstance(var, VariableAlgebraic):
+                self.varlist_algebraic.add_variable(var)
+            elif isinstance(var, VariableParameter):
+                self.varlist_parameter.add_variable(var)
+                if var.fixed is False:
+                    self.varlist_decision.add_variable(var)
+            elif isinstance(var, VariableControl):
+                self.varlist_control.add_variable(var)
+
+        self.array_data = []
+        self.array_data_mask = []
+
+        for varlist_input in self.list_input_varlist:
+            for var in varlist_input.values():
+                if isinstance(var, VariableControl):
+                    var.fixed = True
+
+            self.list_simulators.append(
+                SimulatorNLE(
+                    self.model, varlist_input, self.simulator_settings, self.simulator_name
+                )
+            )
+
+            for var in varlist_input.values():
+                if isinstance(var, VariableAlgebraic):
+                    if var.value[0] is None:
+                        self.array_data.append(0)
+                        self.array_data_mask.append(0)
+                    else:
+                        self.array_data.append(var.value[0])
+                        self.array_data_mask.append(1)
+
+        self.array_data = ca.DM(self.array_data)
+        self.array_data_mask = np.array(self.array_data_mask)
+
+    def _objective(self):
+        array_simulation = None
+
+        for simulator in self.list_simulators:
+            res_simulation = simulator.simulate_sym()
+
+            if array_simulation is None:
+                array_simulation = res_simulation["x"]
+            else:
+                array_simulation = ca.vertcat(array_simulation, res_simulation["x"])
+
+        # multiply by self.array_data_mask needed to ignore elements were error experimental data is zero
+        error = (array_simulation - self.array_data) * self.array_data_mask
+        objective = ca.sum1(error ** 2)
+
+        return objective
+
+    def optimize(self, scale=True):
+        return self._optimize(scale)
