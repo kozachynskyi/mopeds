@@ -53,4 +53,3 @@ if __name__ == "__main__":
 
     oed = par_est.OptimalExperimentalDesign(m, [data1], time_grid1)
     oed.optimize()
-    breakpoint()
