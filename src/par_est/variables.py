@@ -517,15 +517,6 @@ class VariableList(OrderedDict):
                 if var.name in fixation_list:
                     var.fixed = val
 
-    def set_starting_values(self, values_simulation, NLE_Flag=False):
-        for key, var in values_simulation.items():
-            if NLE_Flag is True:
-                var.guess = var.value.value
-                self[key] = var
-            elif NLE_Flag is False:
-                var.value.value[0] = var.value.value[0]
-                self[key] = var
-
     def set_bounds(self, val=0.25, emerg_val=None):
         for var in self.values():
             if isinstance(var, VariableParameter) and var.fixed is False:
