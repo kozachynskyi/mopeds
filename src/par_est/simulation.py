@@ -14,6 +14,7 @@ from par_est import (
     VariableList,
     VariableParameter,
     VariableState,
+    VariableConstant,
 )
 
 
@@ -798,3 +799,160 @@ class Simulator(object):
                 self.time_grid_relative
             )
         )
+
+
+class SimulatorNLE:
+
+    supported_solvers = ["ipopt", "rootfinder"]
+
+    def __init__(
+        self,
+        model: Model,
+        variable_list: VariableList,
+        solver_settings=None,
+        solver_name="rootfinder",
+    ):
+        self.model = model
+        if solver_name not in self.supported_solvers:
+            raise TypeError(
+                f"Provided integrator name {solver_name} is not supported. Only theese are: {self.supported_solvers}."
+            )
+
+        self.__solver_name = solver_name
+        self.__input_variable_list = copy.deepcopy(variable_list)
+        self.scaling = None
+
+        if solver_settings is None:
+            self._set_default_solver_settings()
+        else:
+            self.solver_settings = solver_settings
+
+        self._independent_variables = []
+        self._guess = []
+        self._lower_bound = []
+        self._upper_bound = []
+
+        self._setup_variables()
+        self._reset_scaling()
+
+        if self.__solver_name == "rootfinder":
+            self.function = ca.Function(
+                "f",
+                [
+                    self.model.varlist_algebraic.get_casadi_variables(),
+                    self.model.varlist_independent.get_casadi_variables(),
+                ],
+                [self.model.equations_algebraic],
+                ["x0", "p"],
+                ["x"],
+            )
+            self.simulator = ca.rootfinder(
+                "s", "nlpsol", self.function, self.solver_settings
+            )
+            self.call_arg = {
+                "x0": ca.DM(self._guess),
+                "p": self._independent_variables * self.scaling,
+            }
+        elif self.__solver_name == "ipopt":
+            self.simulator = ca.nlpsol(
+                "solver",
+                "ipopt",
+                {
+                    "x": self.model.varlist_algebraic.get_casadi_variables(),
+                    "p": self.model.varlist_independent.get_casadi_variables(),
+                    "g": self.model.equations_algebraic,
+                    "f": (ca.sum1(self.model.equations_algebraic) ** 2),
+                },
+                self.solver_settings,
+            )
+            self.call_arg = {
+                "x0": ca.DM(self._guess),
+                "p": self._independent_variables * self.scaling,
+                "lbg": 0,
+                "ubg": 0,
+                "lbx": self._lower_bound,
+                "ubx": self._upper_bound,
+            }
+
+    def _set_default_solver_settings(self):
+        if self.__solver_name == "rootfinder":
+            self.solver_settings = {
+                "nlpsol": "ipopt",
+                "verbose": False,
+                "print_in": False,
+                "print_out": False,
+                "expand": True,
+                "nlpsol_options": {
+                    "ipopt.hessian_approximation": "limited-memory",
+                    "ipopt.max_iter": 300,
+                    "ipopt.print_level": 0,
+                    "print_time": False,
+                },
+            }
+        elif self.__solver_name == "ipopt":
+            self.solver_settings = {
+                "verbose": False,
+                "print_in": False,
+                "print_out": False,
+                "print_time": False,
+                "expand": True,
+                "ipopt": {
+                    "hessian_approximation": "limited-memory",
+                    "max_iter": 300,
+                    "print_level": 0,
+                },
+            }
+
+    def _setup_variables(self):
+        for variable_name in self.model.varlist_all.keys():
+            try:
+                var = self.__input_variable_list[variable_name]
+            except KeyError:
+                continue
+
+            if isinstance(var, VariableAlgebraic):
+                self._guess.append(var.guess)
+                if var.lower_bound is None:
+                    self._lower_bound.append(-ca.inf)
+                else:
+                    self._lower_bound.append(var.lower_bound)
+                if var.upper_bound is None:
+                    self._upper_bound.append(ca.inf)
+                else:
+                    self._upper_bound.append(var.upper_bound)
+            elif isinstance(var, VariableConstant):
+                pass
+            elif isinstance(var, (VariableControl, VariableParameter)):
+                self._independent_variables.append(var.get_value_or_casadi())
+            else:
+                raise TypeError(f"{type(var)} is not supported")
+
+        self._independent_variables = ca.vcat(self._independent_variables)
+
+    def generate_exp_data(self):
+        self.call_arg["p"] = self._independent_variables * self.scaling
+        res_array = self.simulator.call(self.call_arg)["x"]
+
+        variables = VariableList()
+
+        for count, var in enumerate(self.model.varlist_algebraic.values()):
+            new_var = copy.deepcopy(var)
+            new_var.casadi_var = None
+            new_var.lower_bound = self._lower_bound[count]
+            new_var.upper_bound = self._upper_bound[count]
+            new_var.set_dataframe_from_value_and_time([float(res_array[count])],[0])
+            new_var.ignore_plotting = self.__input_variable_list[
+                var.name
+            ].ignore_plotting
+            variables.add_variable(new_var)
+
+        return variables
+
+    def _reset_scaling(self):
+        self.scaling = ca.DM.ones(self._independent_variables.size())
+
+    def simulate_sym(self):
+        self.call_arg["p"] = self._independent_variables * self.scaling
+
+        res = self.simulator.call(self.call_arg)
+        return res
