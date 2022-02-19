@@ -1,3 +1,22 @@
+## 0.5.0 (2022-02-19)
+
+### Feat
+
+- add NLE examples
+- add NLE example to src
+- add Parameter Estimation NLE
+- add SImulatorNLE to __init__
+- add varlist generator for NLE
+- add Simulator NLE
+
+### Fix
+
+- remove set_starting_value, too coomplicated
+
+### Refactor
+
+- remove breakpoint
+
 ## 0.4.0 (2022-01-05)
 
 ### Feat
