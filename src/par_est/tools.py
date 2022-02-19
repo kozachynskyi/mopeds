@@ -160,3 +160,21 @@ def generate_varlist_with_data(variable_list, model, time_grid, algebraic=False)
         variable_list_with_data[key].dataframe = var.dataframe
 
     return variable_list_with_data
+
+
+def generate_varlist_with_data_NLE(model, variable_list):
+    # Solves NLE and create varlist to use, for example with Parameter Estimation
+    for var in variable_list.values():
+        var.fixed = True
+
+    sim_fixed = par_est.SimulatorNLE(model, variable_list)
+    # Run simulation and connect results with actual state variables
+    varlist_results = sim_fixed.generate_exp_data()
+    # Copy variable_list
+    variable_list_optimizer = copy.deepcopy(variable_list)
+    # Set startings values
+    for variable_name, variable in varlist_results.items():
+        variable.guess = variable.value[0]
+        variable_list_optimizer[variable_name] = variable
+
+    return variable_list_optimizer
