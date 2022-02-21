@@ -7,6 +7,7 @@ A library wrapped around casadi to solve Simulation / Optimization problems base
 - python3.7 is required (based on casadi requirements)
 - install via pip or poetry
     - INSTALL: pip install git+https://git.tu-berlin.de/vovakozach/pe_oed_casadi
+        - ITWM Repo: pip install git+https://gitlab.itwm.fraunhofer.de/bubel/parameter-estimation
     - UPDATE: pip install -U git+https://git.tu-berlin.de/vovakozach/pe_oed_casadi
 
 ## Development
