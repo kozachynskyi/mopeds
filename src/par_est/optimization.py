@@ -945,5 +945,7 @@ class ParameterEstimationNLE(Optimizer):
 
         return objective
 
-    def optimize(self, scale=True):
+    def optimize(self, scale=False):
+        if scale is True:
+            raise NotImplementedError
         return self._optimize(scale)
