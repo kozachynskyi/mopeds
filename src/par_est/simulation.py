@@ -929,11 +929,18 @@ class SimulatorNLE:
 
         self._independent_variables = ca.vcat(self._independent_variables)
 
-    def generate_exp_data(self):
+    def generate_exp_data(self, unfixed_variables=None):
         self.call_arg["p"] = self._independent_variables * self.scaling
         res_array = self.simulator.call(self.call_arg)["x"]
 
         variables = VariableList()
+
+        if not isinstance(res_array, ca.DM):
+            if unfixed_variables is None:
+                raise ValueError("You need to supply values for unfixed variables")
+            else:
+                function = ca.Function("f", ca.symvar(res_array), [res_array])
+                res_array = function(*unfixed_variables)
 
         for count, var in enumerate(self.model.varlist_algebraic.values()):
             new_var = copy.deepcopy(var)
