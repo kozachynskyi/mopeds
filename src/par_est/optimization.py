@@ -918,7 +918,7 @@ class ParameterEstimationNLE(Optimizer):
 
             for var in varlist_input.values():
                 if isinstance(var, VariableAlgebraic):
-                    if var.value[0] is None:
+                    if var.value[0] is None or np.isnan(var.value[0]):
                         self.array_data.append(0)
                         self.array_data_mask.append(0)
                     else:
