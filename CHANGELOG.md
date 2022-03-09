@@ -1,3 +1,15 @@
+## 0.5.1 (2022-03-09)
+
+### Feat
+
+- support for python 3.7 till 3.10
+- NLE support unfixed variables in generate_exp_data
+
+### Fix
+
+- OptimizerNLE raise error when scale is used
+- NLE optimizer ignores nan values in _objective()
+
 ## 0.5.0 (2022-02-19)
 
 ### Feat
