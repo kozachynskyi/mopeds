@@ -14,6 +14,7 @@ matplotlib = "^3.4.2"
 scipy = "^1.6.3"
 pandas = "^1.2.4"
 pandasgui = "^0.2.13"
+importlib-metadata = {version = "^4.11.3", python = "<3.8"}
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2"
