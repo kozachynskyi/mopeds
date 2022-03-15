@@ -1,3 +1,15 @@
+## 0.5.2 (2022-03-15)
+
+### Fix
+
+- add importlib_metadata for python<3.8
+
+### Feat
+
+- remove setup.py
+- add __version__
+- added berty NLE example
+
 ## 0.5.1 (2022-03-09)
 
 ### Feat
