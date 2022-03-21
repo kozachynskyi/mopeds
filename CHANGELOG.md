@@ -1,3 +1,9 @@
+## 0.6.0 (2022-03-21)
+
+### Feat
+
+- update dependency versions, drop Python3.7
+
 ## 0.5.2 (2022-03-15)
 
 ### Fix
