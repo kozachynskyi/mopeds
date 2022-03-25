@@ -9,12 +9,12 @@ from par_est import (
     BadVariableError,
     Model,
     VariableAlgebraic,
+    VariableConstant,
     VariableControl,
     VariableControlPiecewiseConstant,
     VariableList,
     VariableParameter,
     VariableState,
-    VariableConstant,
 )
 
 
@@ -841,6 +841,7 @@ class SimulatorNLE:
         if self.__solver_name == "rootfinder":
             if use_bounds:
                 self.solver_settings["constraints"] = self._rootfinder_bounds
+
             self.function = ca.Function(
                 "f",
                 [
@@ -945,6 +946,7 @@ class SimulatorNLE:
                 rootfinder_bound = -2
 
             self._rootfinder_bounds.append(rootfinder_bound)
+
         self._independent_variables = ca.vcat(self._independent_variables)
 
     def generate_exp_data(self, unfixed_variables=None):
@@ -965,7 +967,7 @@ class SimulatorNLE:
             new_var.casadi_var = None
             new_var.lower_bound = self._lower_bound[count]
             new_var.upper_bound = self._upper_bound[count]
-            new_var.set_dataframe_from_value_and_time([float(res_array[count])],[0])
+            new_var.set_dataframe_from_value_and_time([float(res_array[count])], [0])
             new_var.ignore_plotting = self.__input_variable_list[
                 var.name
             ].ignore_plotting

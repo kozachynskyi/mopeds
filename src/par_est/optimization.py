@@ -195,10 +195,12 @@ class Optimizer(object):
                 ax.set_ylabel(f"y {decision_variables[1]}")
                 ax.set_zlabel(f"z {decision_variables[2]}")
 
-                quantile = np.quantile(color,0.1)
+                quantile = np.quantile(color, 0.1)
                 selected_objective = copy.deepcopy(color)
                 selected_objective[selected_objective > quantile] = color.max()
-                marker_size = (selected_objective.max() - selected_objective) / selected_objective.max() * 20 + 7
+                marker_size = (
+                    selected_objective.max() - selected_objective
+                ) / selected_objective.max() * 20 + 7
 
                 surf = ax.scatter(xx, yy, zz, c=color, s=marker_size, cmap=colormap)
                 fig.colorbar(surf)
@@ -475,7 +477,7 @@ class ParameterEstimation(Optimizer):
             array_simulation - self.experimental_data
         ) * self.experimental_data_mask
         objective = ca.sum1(
-            self.experiments_scale * self.inverted_variances * (error ** 2)
+            self.experiments_scale * self.inverted_variances * (error**2)
         )
 
         return objective
@@ -498,7 +500,7 @@ class ParameterEstimation(Optimizer):
             array_simulation - self.experimental_data
         ) * self.experimental_data_mask
         objective = ca.sum1(
-            self.experiments_scale * self.inverted_variances * (error ** 2)
+            self.experiments_scale * self.inverted_variances * (error**2)
         )
 
         return objective
@@ -841,7 +843,7 @@ class OptimalExperimentalDesign(Optimizer):
         # collinIndex.Colind
         # collinIndex.Sub
 
-        Jsqr = jacobian ** 2
+        Jsqr = jacobian**2
 
         ParNorm = np.empty(jacobian.shape[1])
 
@@ -947,7 +949,7 @@ class ParameterEstimationNLE(Optimizer):
 
         # multiply by self.array_data_mask needed to ignore elements were error experimental data is zero
         error = (array_simulation - self.array_data) * self.array_data_mask
-        objective = ca.sum1(error ** 2)
+        objective = ca.sum1(error**2)
 
         return objective
 
