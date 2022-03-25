@@ -873,9 +873,11 @@ class ParameterEstimationNLE(Optimizer):
         variable_lists: List[VariableList],
         simulator_settings=None,
         simulator_name="rootfinder",
+        *,
+        use_simulator_bounds=True,
     ):
         super().__init__(model, variable_lists, simulator_name, simulator_settings)
-        self._setup_simulator()
+        self._setup_simulator(use_simulator_bounds)
         self.logger.debug(
             "Created Optimizer object: \n Data Shape {} \n Desicion Variables {}".format(
                 self.array_data.shape, self.varlist_decision.get_variable_name()
@@ -890,7 +892,7 @@ class ParameterEstimationNLE(Optimizer):
                 "ipopt": {"max_iter": 300},
             }
 
-    def _setup_simulator(self):
+    def _setup_simulator(self, use_simulator_bounds):
         # It's not checked if all supplied varlist have same states etc.
         for var in self.list_input_varlist[0].values():
             if isinstance(var, VariableAlgebraic):
@@ -912,7 +914,11 @@ class ParameterEstimationNLE(Optimizer):
 
             self.list_simulators.append(
                 SimulatorNLE(
-                    self.model, varlist_input, self.simulator_settings, self.simulator_name
+                    self.model,
+                    varlist_input,
+                    self.simulator_settings,
+                    self.simulator_name,
+                    use_bounds=use_simulator_bounds,
                 )
             )
 

@@ -811,6 +811,8 @@ class SimulatorNLE:
         variable_list: VariableList,
         solver_settings=None,
         solver_name="rootfinder",
+        *,
+        use_bounds=True,
     ):
         self.model = model
         if solver_name not in self.supported_solvers:
@@ -831,11 +833,14 @@ class SimulatorNLE:
         self._guess = []
         self._lower_bound = []
         self._upper_bound = []
+        self._rootfinder_bounds = []
 
         self._setup_variables()
         self._reset_scaling()
 
         if self.__solver_name == "rootfinder":
+            if use_bounds:
+                self.solver_settings["constraints"] = self._rootfinder_bounds
             self.function = ca.Function(
                 "f",
                 [
@@ -870,9 +875,10 @@ class SimulatorNLE:
                 "p": self._independent_variables * self.scaling,
                 "lbg": 0,
                 "ubg": 0,
-                "lbx": self._lower_bound,
-                "ubx": self._upper_bound,
             }
+            if use_bounds:
+                self.call_arg["lbx"] = self._lower_bound
+                self.call_arg["ubx"] = self._upper_bound
 
     def _set_default_solver_settings(self):
         if self.__solver_name == "rootfinder":
@@ -927,6 +933,18 @@ class SimulatorNLE:
             else:
                 raise TypeError(f"{type(var)} is not supported")
 
+        for lower_bound, upper_bound in zip(self._lower_bound, self._upper_bound):
+            rootfinder_bound = 0
+            if lower_bound == 0:
+                rootfinder_bound = 1
+            elif lower_bound > 0:
+                rootfinder_bound = 2
+            elif upper_bound == 0:
+                rootfinder_bound = -1
+            elif upper_bound < 0:
+                rootfinder_bound = -2
+
+            self._rootfinder_bounds.append(rootfinder_bound)
         self._independent_variables = ca.vcat(self._independent_variables)
 
     def generate_exp_data(self, unfixed_variables=None):

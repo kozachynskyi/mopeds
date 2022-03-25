@@ -59,9 +59,11 @@ def test_pe():
             if i == 1:
                 assert sim._lower_bound[0] == -ca.inf
                 assert sim._upper_bound[0] == ca.inf
+                assert sim._rootfinder_bounds[0] == 0
             if i == 2:
                 assert sim._lower_bound[0] == 350
                 assert sim._upper_bound[0] == 380
+                assert sim._rootfinder_bounds[0] == 2
 
 
 if __name__ == "__main__":
