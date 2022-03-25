@@ -103,8 +103,15 @@ class Optimizer(object):
                 simulator._reset_scaling()
 
                 # this loop is used because simple "for loop" fails for ca.MX vector
-                for count in range(simulator._independent_variables[0].size()[0]):
-                    var = simulator._independent_variables[0][count]
+                if isinstance(simulator, SimulatorNLE):
+                    independent_variables = simulator._independent_variables
+                elif isinstance(simulator, Simulator):
+                    independent_variables = simulator._independent_variables[0]
+                else:
+                    raise NotImplementedError
+
+                for count in range(independent_variables.size()[0]):
+                    var = independent_variables[count]
                     if var.is_symbolic():
                         if var.name() in self.varlist_decision:
                             current_guess = self.varlist_decision[var.name()].guess
@@ -954,6 +961,4 @@ class ParameterEstimationNLE(Optimizer):
         return objective
 
     def optimize(self, scale=False):
-        if scale is True:
-            raise NotImplementedError
         return self._optimize(scale)

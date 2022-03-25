@@ -41,19 +41,21 @@ def test_pe():
             [variable_list_optimizer, variable_list_optimizer],
             simulator_name=simulator_name,
         )
-        res = pe.optimize(False)
-        answer_f = 0
-        answer_param = [5.19625]
 
-        logging.warning(
-            f"Model.NLE: {model}, Result: {res['f']}, Expecting: {answer_f}"
-        )
-        assert np.isclose(res["f"], ca.DM(answer_f), rtol=0, atol=1.0e-9)
+        for switch in [True, False]:
+            res = pe.optimize(switch)
+            answer_f = 0
+            answer_param = [5.19625]
 
-        logging.warning(
-            f"Model.NLE: {model}, Result: {res['x']}, Expecting: {answer_param}"
-        )
-        assert np.all(np.isclose(res["x"], ca.DM(answer_param), rtol=0, atol=1.0e-9))
+            logging.warning(
+                f"Model.NLE: {model}, Result: {res['f']}, Expecting: {answer_f}"
+            )
+            assert np.isclose(res["f"], ca.DM(answer_f), rtol=0, atol=1.0e-9)
+
+            logging.warning(
+                f"Model.NLE: {model}, Result: {res['x']}, Expecting: {answer_param}"
+            )
+            assert np.all(np.isclose(res["x"], ca.DM(answer_param), rtol=0, atol=1.0e-9))
 
         for sim in pe.list_simulators:
             if i == 1:
@@ -68,4 +70,4 @@ def test_pe():
 
 if __name__ == "__main__":
     pass
-    # test_pe()
+    test_pe()
