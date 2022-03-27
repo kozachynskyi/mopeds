@@ -14,6 +14,7 @@ matplotlib = "^3.4.2"
 scipy = "^1.8"
 pandas = "^1.4"
 pandasgui = "^0.2.13"
+Sphinx = {version = "^4.4.0", optional = true}
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2"
@@ -21,6 +22,9 @@ pytest-cov = "^2.8"
 tox = "^3.0"
 mypy = "^0.812"
 coverage = {extras = ["toml"], version = "^6.1.1"}
+
+[tool.poetry.extras]
+docs = ["sphinx"]
 
 [build-system]
 requires = ["setuptools", "poetry-core>=1.0.0"]
