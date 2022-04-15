@@ -881,6 +881,8 @@ class SimulatorNLE:
                 self.call_arg["lbx"] = self._lower_bound
                 self.call_arg["ubx"] = self._upper_bound
 
+        self.jacobian = self.simulator.jacobian()
+
     def _set_default_solver_settings(self):
         if self.__solver_name == "rootfinder":
             self.solver_settings = {
