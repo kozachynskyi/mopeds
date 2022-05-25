@@ -519,7 +519,7 @@ class VariableList(OrderedDict):
 
     def set_bounds(self, val=0.25, emerg_val=None):
         for var in self.values():
-            if isinstance(var, VariableParameter) and var.fixed is False:
+            if isinstance(var, (VariableParameter, VariableControl)) and var.fixed is False:
                 value = var.value[0]
                 if value > 0:
                     var.lower_bound = value * (1 - val)
