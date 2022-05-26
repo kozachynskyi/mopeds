@@ -15,6 +15,7 @@ scipy = "^1.8"
 pandas = "^1.4"
 pandasgui = "^0.2.13"
 Sphinx = {version = "^4.4.0", optional = true}
+pyDOE = "^0.3.8"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2"

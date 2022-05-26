@@ -96,12 +96,13 @@ def generate_hammersley(D, N):
     return S
 
 
-def make_startpoints(bound0, N):
+def make_startpoints(bound0, N, sampling="lhs"):
     """bound0 the boundaries for all sampling points, where the number of tuples gives the number of dimensions D
     N is the number of sampling points
     bound0 = np.array([[0, 10],[0, 100]])
     output = B[num_of_samples, num_of_variables], example B[0] would return an array of variables guesses for all variables
     Taken from Erik, not tested"""
+    import pyDOE
 
     D = len(
         bound0[
@@ -109,7 +110,10 @@ def make_startpoints(bound0, N):
         ]
     )
 
-    S = generate_hammersley(D, N)
+    if sampling == "lhs":
+        S = pyDOE.lhs(D, N)
+    elif sampling == "hammersley":
+        S = generate_hammersley(D, N)
 
     B = np.zeros(S.shape)
 
