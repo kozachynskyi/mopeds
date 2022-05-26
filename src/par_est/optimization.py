@@ -51,6 +51,10 @@ class Optimizer(object):
 
         self.list_simulators: List[Simulator] = []
 
+        # List of lists for each Simulation that shows, which index coresponds to each
+        # self.varlist_ variable in simulator._independent_variables
+        self.mapping_decision_simulators: List[List[int]] = []
+
         self.guess = None
         self.lower_bound = None
         self.upper_bound = None
@@ -99,28 +103,36 @@ class Optimizer(object):
         if scale:
             self.scaling = np.where(self.guess == 0, 1, self.guess)
 
-            for simulator in self.list_simulators:
+            for simulator, mapping in zip(self.list_simulators, self.mapping_decision_simulators):
                 simulator._reset_scaling()
 
-                # this loop is used because simple "for loop" fails for ca.MX vector
-                if isinstance(simulator, SimulatorNLE):
-                    independent_variables = simulator._independent_variables
-                elif isinstance(simulator, Simulator):
-                    independent_variables = simulator._independent_variables[0]
-                else:
-                    raise NotImplementedError
-
-                for count in range(independent_variables.size()[0]):
-                    var = independent_variables[count]
-                    if var.is_symbolic():
-                        if var.name() in self.varlist_decision:
-                            current_guess = self.varlist_decision[var.name()].guess
-                            if current_guess == 0:
-                                simulator.scaling[count] = 1
-                            else:
-                                simulator.scaling[count] = current_guess
+                if isinstance(self, ParameterEstimationNLE):
+                    for current_guess, index in zip(self.guess, mapping):
+                        if current_guess == 0:
+                            simulator.scaling[index] = 1
                         else:
-                            simulator.scaling[count] = 1
+                            simulator.scaling[index] = current_guess
+
+                else:
+                    # this loop is used because simple "for loop" fails for ca.MX vector
+                    if isinstance(simulator, SimulatorNLE):
+                        independent_variables = simulator._independent_variables
+                    elif isinstance(simulator, Simulator):
+                        independent_variables = simulator._independent_variables[0]
+                    else:
+                        raise NotImplementedError
+
+                    for count in range(independent_variables.size()[0]):
+                        var = independent_variables[count]
+                        if var.is_symbolic():
+                            if var.name() in self.varlist_decision:
+                                current_guess = self.varlist_decision[var.name()].guess
+                                if current_guess == 0:
+                                    simulator.scaling[count] = 1
+                                else:
+                                    simulator.scaling[count] = current_guess
+                            else:
+                                simulator.scaling[count] = 1
         else:
             self.scaling = 1
             for simulator in self.list_simulators:
@@ -916,20 +928,33 @@ class ParameterEstimationNLE(Optimizer):
         self.array_data = []
         self.array_data_mask = []
 
+        names_variables_decision = list(self.varlist_decision.keys())
+
         for varlist_input in self.list_input_varlist:
             for var in varlist_input.values():
                 if isinstance(var, VariableControl):
                     var.fixed = True
 
-            self.list_simulators.append(
-                SimulatorNLE(
-                    self.model,
-                    varlist_input,
-                    self.simulator_settings,
-                    self.simulator_name,
-                    use_bounds=use_simulator_bounds,
-                )
+            simulator = SimulatorNLE(
+                self.model,
+                varlist_input,
+                self.simulator_settings,
+                self.simulator_name,
+                use_bounds=use_simulator_bounds,
             )
+            self.list_simulators.append(simulator)
+
+            independent_variables = simulator._independent_variables
+            mapping_decision_simulators = list(range(len(names_variables_decision)))
+
+            for count in range(independent_variables.size()[0]):
+                var = independent_variables[count]
+                if var.is_symbolic():
+                    if var.name() in names_variables_decision:
+                        index = list(self.varlist_decision.keys()).index(var.name())
+                        mapping_decision_simulators[index] = count
+
+            self.mapping_decision_simulators.append(mapping_decision_simulators)
 
             for var in varlist_input.values():
                 if isinstance(var, VariableAlgebraic):
