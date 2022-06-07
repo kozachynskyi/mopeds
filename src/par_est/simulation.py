@@ -985,3 +985,23 @@ class SimulatorNLE:
 
         res = self.simulator.call(self.call_arg)
         return res
+
+    def calculate_jac(self):
+        self.call_arg["p"] = self._independent_variables * self.scaling
+
+        res = self.jacobian.call(self.call_arg)
+        return res
+
+    def get_variance_array(self):
+        variance = []
+        for variable_name in self.model.varlist_all.keys():
+            try:
+                var = self.__input_variable_list[variable_name]
+            except KeyError:
+                continue
+
+            if isinstance(var, VariableAlgebraic):
+                variance.append(var.variance)
+
+        variance = np.array(variance)
+        return variance
