@@ -1,4 +1,7 @@
+import copy
+
 import casadi as ca
+
 import par_est
 
 
@@ -417,3 +420,124 @@ def vle_nle_problem():
     model.add_equations_algebraic([RES])  # adding the equations to model
 
     return variable_list, model
+
+
+def bod_model():
+    # BOD data as used in Bates, Watts, Nonlinear regression analysis: Its applications
+    variable_list = par_est.variables.VariableList()  # Preallocate variable_list
+
+    variable_list.add_variable(par_est.VariableAlgebraic("f", 8.3))
+    variable_list.add_variable(par_est.VariableControl("x", 1))
+    variable_list.add_variable(par_est.VariableParameter("theta1", 20))
+    variable_list.add_variable(par_est.VariableParameter("theta2", 0.24))
+
+    m = par_est.Model(variable_list)  # adding all variables to the model
+
+    f = m.varlist_all["f"].casadi_var  # noqa: E501
+    x = m.varlist_all["x"].casadi_var  # noqa: E501
+    theta1 = m.varlist_all["theta1"].casadi_var  # noqa: E501
+    theta2 = m.varlist_all["theta2"].casadi_var  # noqa: E501
+
+    equation = f - (theta1 * (1 - ca.exp(-theta2 * x)))
+    # Equations
+    m.add_equations_algebraic([equation])  # adding the equations to model
+
+    data = [
+        [1, 8.3],
+        [2, 10.3],
+        [3, 19.0],
+        [4, 16.0],
+        [5, 15.6],
+        [7, 19.8],
+    ]
+
+    exp_data = []
+
+    for x_i, f_i in data:
+        var_list = copy.deepcopy(variable_list)
+        var_list["f"].dataframe.iloc[0] = f_i
+        var_list["x"].dataframe.iloc[0] = x_i
+        var_list["theta1"].fixed = False
+        var_list["theta1"].lower_bound = 0
+        var_list["theta1"].upper_bound = 40
+        var_list["theta2"].fixed = False
+        var_list["theta2"].lower_bound = 0
+        var_list["theta2"].upper_bound = 1
+        exp_data.append(var_list)
+
+    return variable_list, m, exp_data
+
+
+def isomerization_model():
+    # Isomerization data as used in Bates, Watts, Nonlinear regression analysis: Its applications
+    variable_list = par_est.variables.VariableList()  # Preallocate variable_list
+
+    variable_list.add_variable(par_est.VariableAlgebraic("f", 8.3))
+    variable_list.add_variable(par_est.VariableControl("x1", 1))
+    variable_list.add_variable(par_est.VariableControl("x2", 1))
+    variable_list.add_variable(par_est.VariableControl("x3", 1))
+    variable_list.add_variable(par_est.VariableParameter("theta1", 35.92))
+    variable_list.add_variable(par_est.VariableParameter("theta2", 0.0708))
+    variable_list.add_variable(par_est.VariableParameter("theta3", 0.0377))
+    variable_list.add_variable(par_est.VariableParameter("theta4", 0.167))
+
+    m = par_est.Model(variable_list)  # adding all variables to the model
+
+    f = m.varlist_all["f"].casadi_var  # noqa: E501
+    x1 = m.varlist_all["x1"].casadi_var  # noqa: E501
+    x2 = m.varlist_all["x2"].casadi_var  # noqa: E501
+    x3 = m.varlist_all["x3"].casadi_var  # noqa: E501
+    theta1 = m.varlist_all["theta1"].casadi_var  # noqa: E501
+    theta2 = m.varlist_all["theta2"].casadi_var  # noqa: E501
+    theta3 = m.varlist_all["theta3"].casadi_var  # noqa: E501
+    theta4 = m.varlist_all["theta4"].casadi_var  # noqa: E501
+
+    equation = f - (theta1 * theta3 * (x2 - x3 / 1.632)) / (
+        1 + theta2 * x1 + theta3 * x2 + theta4 * x3
+    )
+    # Equations
+    m.add_equations_algebraic([equation])  # adding the equations to model
+
+    data = [
+        [205.8, 90.9, 37.1, 3.541],
+        [404.8, 92.9, 36.3, 2.397],
+        [209.7, 174.9, 49.4, 6.694],
+        [401.6, 187.2, 44.9, 4.722],
+        [224.9, 92.7, 116.3, 0.593],
+        [402.6, 102.2, 128.9, 0.268],
+        [212.7, 186.9, 134.4, 2.797],
+        [406.2, 192.6, 134.9, 2.451],
+        [133.3, 140.8, 87.6, 3.196],
+        [470.9, 144.2, 86.9, 2.021],
+        [300.0, 68.3, 81.7, 0.896],
+        [301.6, 214.6, 101.7, 5.084],
+        [297.3, 142.2, 10.5, 5.686],
+        [314.0, 146.7, 157.1, 1.193],
+        [305.7, 142.0, 86.0, 2.648],
+        [300.1, 143.7, 90.2, 3.303],
+        [305.4, 141.1, 87.4, 3.054],
+        [305.2, 141.5, 87.0, 3.302],
+        [300.1, 83.0, 66.4, 1.271],
+        [106.6, 209.6, 33.0, 11.648],
+        [417.2, 83.9, 32.9, 2.002],
+        [251.0, 294.4, 41.5, 9.604],
+        [250.3, 148.0, 14.7, 7.754],
+        [145.1, 291.0, 50.2, 11.590],
+    ]
+
+    exp_data = []
+
+    for x1_i, x2_i, x3_i, f_i in data:
+        var_list = copy.deepcopy(variable_list)
+        var_list["f"].dataframe.iloc[0] = f_i
+        var_list["x1"].dataframe.iloc[0] = x1_i
+        var_list["x2"].dataframe.iloc[0] = x2_i
+        var_list["x3"].dataframe.iloc[0] = x3_i
+        var_list["theta1"].fixed = False
+        var_list["theta2"].fixed = False
+        var_list["theta3"].fixed = False
+        var_list["theta4"].fixed = False
+        var_list.set_bounds()
+        exp_data.append(var_list)
+
+    return variable_list, m, exp_data
