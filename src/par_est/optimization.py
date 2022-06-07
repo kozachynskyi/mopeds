@@ -235,7 +235,10 @@ class Optimizer(object):
         Helps to find feasible starting point for optimization in a few steps.
         WIP: recalcution of algebraic variables doesn't work.
         """
-        hammersley_seeds = np.array(list(zip(self.lower_bound, self.upper_bound)))
+        if isinstance(self, ParameterEstimationNLE_control):
+            hammersley_seeds = np.array(list(zip(self.lower_bound[0:self.num_parameters], self.upper_bound[0:self.num_parameters])))
+        else:
+            hammersley_seeds = np.array(list(zip(self.lower_bound, self.upper_bound)))
 
         list_startpoint = tools.make_startpoints(hammersley_seeds, num_initials)
         result = []
@@ -254,7 +257,12 @@ class Optimizer(object):
             },
         }
         for index, guess in enumerate(list_startpoint):
-            self.guess = guess
+            if isinstance(self, ParameterEstimationNLE_control):
+                for index_guess, current_guess in enumerate(guess):
+                    self.guess[index_guess] = current_guess
+            else:
+                self.guess = guess
+
             print(f"Optimization number {index} started")
             # for sim in self.list_simulators:
             #     sim.calculate_algebraic_initials(apply_intials=True)
@@ -993,3 +1001,98 @@ class ParameterEstimationNLE(Optimizer):
 
     def optimize(self, scale=False):
         return self._optimize(scale)
+
+
+class ParameterEstimationNLE_control(ParameterEstimationNLE):
+    def _setup_simulator(self, use_simulator_bounds):
+        # It's not checked if all supplied varlist have same states etc.
+        for var in self.list_input_varlist[0].values():
+            if isinstance(var, VariableAlgebraic):
+                self.varlist_algebraic.add_variable(var)
+            elif isinstance(var, VariableParameter):
+                self.varlist_parameter.add_variable(var)
+                if var.fixed is False:
+                    self.varlist_decision.add_variable(var)
+            elif isinstance(var, VariableControl):
+                self.varlist_control.add_variable(var)
+
+        self.num_parameters = len(self.varlist_decision)
+
+        self.array_data = []
+        self.array_data_mask = []
+
+        self.array_controls = []
+        self.array_controls_casadi = []
+
+        for index, varlist_input in enumerate(self.list_input_varlist):
+            new_varlist = copy.deepcopy(varlist_input)
+            for var in varlist_input.values():
+                if isinstance(var, VariableControl):
+                    if var.fixed is False:
+                        new_varlist.pop(var.name)
+                        new_var = VariableControl(
+                            f"{var.name}_exp{index}",
+                            var.value[0],
+                            var.lower_bound,
+                            var.upper_bound,
+                            var.opc_ua_id,
+                        )
+                        new_var.fixed = False
+                        self.varlist_decision.add_variable(new_var)
+                        self.array_controls_casadi.append(new_var.casadi_var)
+                        new_varlist[var.name] = new_var
+                        self.array_controls.append(var.value[0])
+
+            # for var in varlist_input.values():
+            #     if isinstance(var, VariableControl):
+            #         var.fixed = True
+
+            simulator = SimulatorNLE(
+                self.model,
+                new_varlist,
+                self.simulator_settings,
+                self.simulator_name,
+                use_bounds=use_simulator_bounds,
+            )
+            self.list_simulators.append(simulator)
+
+            self._setup_simulator_mapping(simulator)
+
+            for var in varlist_input.values():
+                if isinstance(var, VariableAlgebraic):
+                    if var.value[0] is None or np.isnan(var.value[0]):
+                        self.array_data.append(0)
+                        self.array_data_mask.append(0)
+                    else:
+                        self.array_data.append(var.value[0])
+                        self.array_data_mask.append(1)
+
+        self.array_data = ca.DM(self.array_data)
+        self.array_controls = ca.DM(self.array_controls)
+        self.array_data_mask = np.array(self.array_data_mask)
+        self.array_controls_casadi = ca.vcat(self.array_controls_casadi)
+
+    def _objective__(self):
+        array_simulation = None
+
+        for simulator in self.list_simulators:
+            res_simulation = simulator.simulate_sym()
+
+            if array_simulation is None:
+                array_simulation = res_simulation["x"]
+            else:
+                array_simulation = ca.vertcat(array_simulation, res_simulation["x"])
+
+        # multiply by self.array_data_mask needed to ignore elements were error experimental data is zero
+        error = (array_simulation - self.array_data) * self.array_data_mask
+        error_controls = self.array_controls_casadi - self.array_controls
+        objective = ca.sum1(error**2) + ca.sum1(error_controls**2)
+
+        return objective
+
+    def optimize(self, scale=False):
+        res = self._optimize(scale)
+        res["all"] = res["x"]
+        res["x"] = res["all"][0:self.num_parameters]
+        res["p"] = res["all"][self.num_parameters:]
+        return res
