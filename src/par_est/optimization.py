@@ -153,7 +153,7 @@ class Optimizer(object):
         self.solver = ca.nlpsol(
             "solver",
             self.solver_name,
-            {"x": self.varlist_decision.get_casadi_variables(), "f": self._objective()},
+            {"x": self.varlist_decision.get_casadi_variables(), "f": self._objective()[0]},
             self.solver_settings,
         )
 
@@ -184,7 +184,7 @@ class Optimizer(object):
             objective_function = ca.Function(
                 "objective",
                 [decision_variables],
-                [self._objective()],
+                [self._objective()[0]],
                 ["x"],
                 ["f"],
             )
@@ -502,7 +502,7 @@ class ParameterEstimation(Optimizer):
             self.experiments_scale * self.inverted_variances * (error**2)
         )
 
-        return objective
+        return objective, error
 
     def _objective_alg(self):
         array_simulation = None
@@ -525,7 +525,7 @@ class ParameterEstimation(Optimizer):
             self.experiments_scale * self.inverted_variances * (error**2)
         )
 
-        return objective
+        return objective, error
 
     def optimize(self, scale=True, *, scale_experiments=False):
         """Solves optimization problem. Scaling decreases amount of iterations,
@@ -788,7 +788,7 @@ class OptimalExperimentalDesign(Optimizer):
         if analyze:
             return error, covariance_full, jacobian_full, covariance_all, objective_all
 
-        return error
+        return [error]
 
     def optimize(self, scale=False):
         """Run optimization.
@@ -812,7 +812,7 @@ class OptimalExperimentalDesign(Optimizer):
             jacobian,
             covariance_all,
             objective_all,
-        ) = self._objective(True)
+        ) = self._objective(True)[0]
         cond_threshold = 1000
         colin_threshold = 15
 
@@ -989,7 +989,7 @@ class ParameterEstimationNLE(Optimizer):
         error = (array_simulation - self.array_data) * self.array_data_mask
         objective = ca.sum1(error**2)
 
-        return objective
+        return objective, error
 
     def optimize(self, scale=False):
         return self._optimize(scale)
