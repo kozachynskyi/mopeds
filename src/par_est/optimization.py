@@ -51,9 +51,11 @@ class Optimizer(object):
 
         self.list_simulators: List[Simulator] = []
 
-        # List of lists for each Simulation that shows, which index coresponds to each
-        # self.varlist_ variable in simulator._independent_variables
-        self.mapping_decision_simulators: List[List[int]] = []
+        # List of dicts for each Simulation that shows, which index coresponds to each
+        # simulator._independent_variables in self.varlist_ variable
+        # For example [{1: 2}], {1: 3}]: in first simulator._independent_variables[1]
+        # is the same variable as self.varlist_decision[2]
+        self.mapping_simulator_decisions: Dict[List[int]] = []
 
         self.guess = None
         self.lower_bound = None
@@ -103,15 +105,16 @@ class Optimizer(object):
         if scale:
             self.scaling = np.where(self.guess == 0, 1, self.guess)
 
-            for simulator, mapping in zip(self.list_simulators, self.mapping_decision_simulators):
+            for simulator, mapping in zip(self.list_simulators, self.mapping_simulator_decisions):
                 simulator._reset_scaling()
 
                 if isinstance(self, ParameterEstimationNLE):
-                    for current_guess, index in zip(self.guess, mapping):
+                    for index_simulator, index_decision in mapping.items():
+                        current_guess = self.guess[index_decision]
                         if current_guess == 0:
-                            simulator.scaling[index] = 1
+                            simulator.scaling[index_simulator] = 1
                         else:
-                            simulator.scaling[index] = current_guess
+                            simulator.scaling[index_simulator] = current_guess
 
                 else:
                     # this loop is used because simple "for loop" fails for ca.MX vector
@@ -928,8 +931,6 @@ class ParameterEstimationNLE(Optimizer):
         self.array_data = []
         self.array_data_mask = []
 
-        names_variables_decision = list(self.varlist_decision.keys())
-
         for varlist_input in self.list_input_varlist:
             for var in varlist_input.values():
                 if isinstance(var, VariableControl):
@@ -944,17 +945,7 @@ class ParameterEstimationNLE(Optimizer):
             )
             self.list_simulators.append(simulator)
 
-            independent_variables = simulator._independent_variables
-            mapping_decision_simulators = list(range(len(names_variables_decision)))
-
-            for count in range(independent_variables.size()[0]):
-                var = independent_variables[count]
-                if var.is_symbolic():
-                    if var.name() in names_variables_decision:
-                        index = list(self.varlist_decision.keys()).index(var.name())
-                        mapping_decision_simulators[index] = count
-
-            self.mapping_decision_simulators.append(mapping_decision_simulators)
+            self._setup_simulator_mapping(simulator)
 
             for var in varlist_input.values():
                 if isinstance(var, VariableAlgebraic):
@@ -967,6 +958,21 @@ class ParameterEstimationNLE(Optimizer):
 
         self.array_data = ca.DM(self.array_data)
         self.array_data_mask = np.array(self.array_data_mask)
+
+    def _setup_simulator_mapping(self, simulator):
+        names_variables_decision = list(self.varlist_decision.keys())
+
+        independent_variables = simulator._independent_variables
+        mapping_simulator_decisions = {}
+
+        for count in range(independent_variables.size()[0]):
+            var = independent_variables[count]
+            if var.is_symbolic():
+                if var.name() in names_variables_decision:
+                    index = list(self.varlist_decision.keys()).index(var.name())
+                    mapping_simulator_decisions[count] = index
+
+        self.mapping_simulator_decisions.append(mapping_simulator_decisions)
 
     def _objective(self):
         array_simulation = None
