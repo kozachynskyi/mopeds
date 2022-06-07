@@ -16,7 +16,7 @@ varlist, model = par_est.examples.cstr_ode()
 time_grid = np.linspace(0, 1000, num_time + 1)
 for var in varlist.values():
     var.fixed = True
-sim = par_est.Simulator(model, time_grid, varlist)
+sim = par_est.Simulator(model, time_grid, varlist, simulate_jac=True)
 res = sim.simulate_jac()
 
 num_param = 19
