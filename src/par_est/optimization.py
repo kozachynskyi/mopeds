@@ -49,7 +49,10 @@ class Optimizer(object):
         self.simulator_name = simulator_name
         self.simulator_settings = simulator_settings
 
-        self.list_simulators: List[Simulator] = []
+        if isinstance(self, ParameterEstimationNLE):
+            self.list_simulators: list[SimulatorNLE] = []
+        else:
+            self.list_simulators: list[Simulator] = []
 
         # List of dicts for each Simulation that shows, which index coresponds to each
         # simulator._independent_variables in self.varlist_ variable
