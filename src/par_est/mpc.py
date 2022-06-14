@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 import casadi as ca
 import numpy as np
 
@@ -20,7 +18,7 @@ class ModelPredictiveControl(Optimizer):
     def __init__(
         self,
         model: Model,
-        variable_list: List[VariableList],
+        variable_list: list[VariableList],
         number_of_time_horizonts: int,
         simulator_name="idas",
         simulator_settings=None,
@@ -42,9 +40,9 @@ class ModelPredictiveControl(Optimizer):
             self._objective = self._objective_state
 
         self.number_of_time_horizonts = number_of_time_horizonts
-        self.array_data: Optional[np.ndarray] = None
-        self.array_data_mask: Optional[np.ndarray] = None
-        self.inverted_variances: Optional[np.ndarray] = None
+        self.array_data: None | np.ndarray = None
+        self.array_data_mask: None | np.ndarray = None
+        self.inverted_variances: None | np.ndarray = None
 
         self._setup_simulator(
             use_idas_constraints=use_idas_constraints,

@@ -1,6 +1,6 @@
+from __future__ import annotations
 import copy
 import logging
-from typing import Dict, List, Union
 
 import casadi as ca
 import matplotlib.pyplot as plt
@@ -27,7 +27,7 @@ class Optimizer(object):
     def __init__(
         self,
         model: Model,
-        variable_lists: List[VariableList],
+        variable_lists: list[VariableList],
         simulator_name,
         simulator_settings,
     ):
@@ -55,7 +55,7 @@ class Optimizer(object):
         # simulator._independent_variables in self.varlist_ variable
         # For example [{1: 2}], {1: 3}]: in first simulator._independent_variables[1]
         # is the same variable as self.varlist_decision[2]
-        self.mapping_simulator_decisions: Dict[List[int]] = []
+        self.mapping_simulator_decisions: dict[list[int]] = []
 
         self.guess = None
         self.lower_bound = None
@@ -63,7 +63,7 @@ class Optimizer(object):
         self.scaling = 1
 
         self.solver = None
-        self.solver_settings: Union[None, Dict] = None
+        self.solver_settings: None | dict = None
 
     def _setup_simulator(self, *, use_idas_constraints):
         # Creates simulator
@@ -310,7 +310,7 @@ class ParameterEstimation(Optimizer):
     def __init__(
         self,
         model: Model,
-        variable_list: List[VariableList],
+        variable_list: list[VariableList],
         simulator_name="idas",
         simulator_settings=None,
         *,
@@ -336,19 +336,19 @@ class ParameterEstimation(Optimizer):
         # So if you supply 2 experiments one with 10 and another with 20 time_stamps, effect of each experimental
         # point of second experiments on objective function is decreased by 2
         self.experiments_scale = 1
-        self.experiments_weights: List[np.ndarray] = []
+        self.experiments_weights: list[np.ndarray] = []
         """
         This list holds nested arrays with all experimental data. If data is not available for the time_stamp,
         it's replaced with 0. It has follwing form:
         [exp1_var1_time1, exp1_var2_time1, exp1_varN_time1, exp1_var1_time2 ... , exp1_varN_timeN, exp2_var1_time1 ...]
         """
-        self.experimental_data: List[np.ndarray] = []
+        self.experimental_data: list[np.ndarray] = []
         # This list holds nested arrays with True or False values, specifying whether experimental data should be
         # used in an optimization function or not. Same form as self.experimental_data
 
-        self.experimental_data_mask: List[np.ndarray] = []
+        self.experimental_data_mask: list[np.ndarray] = []
         # Inverted variances provided weightning matrix for PE problem
-        self.inverted_variances: List[np.ndarray] = []
+        self.inverted_variances: list[np.ndarray] = []
 
         self._setup_simulator(
             use_idas_constraints=use_idas_constraints,
@@ -619,7 +619,7 @@ class OptimalExperimentalDesign(Optimizer):
     def __init__(
         self,
         model: Model,
-        variable_list: List[VariableList],
+        variable_list: list[VariableList],
         time_grid_relative,
         simulator_name="idas",
         simulator_settings=None,
@@ -632,10 +632,10 @@ class OptimalExperimentalDesign(Optimizer):
         self.time_grid_original = time_grid_relative
 
         # [par_1, par_2, ... par_N]
-        self.parameter_values: List[float] = []
+        self.parameter_values: list[float] = []
         # Index of parameters, that are unfixed. It's used to select Jacobian for only this variables
-        self.select_independent: List[int] = []
-        self.inverted_variances: List[float] = []
+        self.select_independent: list[int] = []
+        self.inverted_variances: list[float] = []
 
         self._setup_simulator()
         self._setup_initialization()
@@ -902,7 +902,7 @@ class ParameterEstimationNLE(Optimizer):
     def __init__(
         self,
         model: Model,
-        variable_lists: List[VariableList],
+        variable_lists: list[VariableList],
         simulator_settings=None,
         simulator_name="rootfinder",
         *,

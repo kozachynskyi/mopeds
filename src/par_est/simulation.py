@@ -1,6 +1,6 @@
+from __future__ import annotations
 import copy
 import logging
-from typing import List, Union
 
 import casadi as ca
 import numpy as np
@@ -136,20 +136,20 @@ class Simulator(object):
         And finally nested lists are changed to casadi.MX or DM vectors
         [ca.MX(var1_t0, var2_t0 ...), ca.MX(var1_t1, var2_t1 ...), [...]]
         """
-        self._independent_variables: List[Union[float, ca.MX]] = []
+        self._independent_variables: list[float | ca.MX] = []
         # List of values of State Variables at time 0
-        self._initial_state: List[float] = []
+        self._initial_state: list[float] = []
 
         # List of expected values of Algebraic Variables at time 0
         # This list is stored in order to retain information about original guess
-        self._initial_algebraic_original: List[float] = []
+        self._initial_algebraic_original: list[float] = []
 
         # List of expected or recalculated values of Algebraic Variables at time 0
         # This list is further used in calculations
-        self._initial_algebraic: List[float] = []
+        self._initial_algebraic: list[float] = []
 
         # This list is used for utility functions, like finding steady state
-        self._guess_or_value_of_independent_variables: List[float] = []
+        self._guess_or_value_of_independent_variables: list[float] = []
 
         # Here all lists from above are initialized
         self._setup_variables()

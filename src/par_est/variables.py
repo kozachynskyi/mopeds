@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 from collections import OrderedDict
 from datetime import datetime, timedelta
-from typing import List, Union
 
 import casadi as ca
 import numpy as np
@@ -25,8 +26,8 @@ class Variable(object):
         self.name: str = name
         self.casadi_var: ca.MX.sym = ca.MX.sym(self.name)
         # fixed is property in order to deal with VariableControlPiecewiseConstant properly
-        self._fixed: Union[bool, List[bool]] = True
-        self.opc_ua_id: Union[None, int] = None
+        self._fixed: bool | list[bool] = True
+        self.opc_ua_id: None | int = None
         if not isinstance(self, VariableControlPiecewiseConstant):
             self.dataframe: pd.DataFrame = None
         self.guess = None
@@ -50,7 +51,7 @@ class Variable(object):
     def __repr__(self):
         return f"{self.name}\n{type(self)}\n{self.value}"
 
-    def get_value_or_casadi(self) -> Union[float, ca.MX]:
+    def get_value_or_casadi(self) -> float | ca.MX:
         """Return either value at time=0 or casadi_variable.
         Used in Simulator for readability and less if statements.
         """
@@ -68,7 +69,7 @@ class Variable(object):
             return self.guess
 
     @property
-    def value(self) -> List:
+    def value(self) -> list:
         """Returns a list with values of variables"""
         return self.dataframe[self.name].tolist()
 
@@ -78,7 +79,7 @@ class Variable(object):
         return self.dataframe.index
 
     @property
-    def time_relative(self) -> List:
+    def time_relative(self) -> list:
         """Returns a list which contains timestamps in seconds.
         First time is considered to be zero second"""
         return (self.dataframe.index - self.dataframe.index[0]).total_seconds().tolist()
@@ -109,7 +110,7 @@ class Variable(object):
             raise BadVariableError(self, "Value of Variable is of wrong type")
 
     @property
-    def origin_ts(self) -> Union[None, pd.Timestamp]:
+    def origin_ts(self) -> None | pd.Timestamp:
         """Propoerty that return the first Timestamp in self.value.
 
         Can be used to compare if Variables have same origin in .value.
@@ -185,7 +186,7 @@ class Variable(object):
         else:
             self._upper_bound = upper_bound
 
-    def _dataframe_from_value(self, value: Union[None, float], origin=ORIGIN_TS):
+    def _dataframe_from_value(self, value: None | float, origin=ORIGIN_TS):
         df = pd.DataFrame(
             [value],
             index=[origin],
@@ -195,7 +196,7 @@ class Variable(object):
         return df
 
     def set_dataframe_from_value_and_time(
-        self, value: List[float], time_relative: List[float], origin="unix"
+        self, value: list[float], time_relative: list[float], origin="unix"
     ):
         if not len(value) == len(time_relative):
             raise ValueError(
@@ -218,7 +219,7 @@ class VariableState(Variable):
     def __init__(
         self,
         name,
-        starting_value: Union[float, None] = None,
+        starting_value: float | None = None,
         lb=None,
         ub=None,
         opc_ua_id=None,
@@ -280,7 +281,7 @@ class VariableControlPiecewiseConstant(VariableControl):
         return time_series
 
     @property
-    def time_relative(self) -> List[float]:
+    def time_relative(self) -> list[float]:
         time_series = self.time_absolute
         return (time_series - time_series.iloc[0]).dt.total_seconds().tolist()
 
@@ -300,7 +301,7 @@ class VariableControlPiecewiseConstant(VariableControl):
         )
         return list(self.variable_list.values())[index]
 
-    def get_value_or_casadi(self, time_grid_relative) -> List:
+    def get_value_or_casadi(self, time_grid_relative) -> list:
         """This method is used to avoid following problem: if current Control is fixed at given time_stamp, simulator
         should use either - a fixed value, provided with Variable, or a value of a Control Variable from previous timestamp.
         Input:
@@ -410,7 +411,7 @@ class VariableList(OrderedDict):
 
     def get_common_origin(
         self, strict=False, variable_type=Variable
-    ) -> Union[pd.Timestamp, bool]:
+    ) -> pd.Timestamp | bool:
         """Returns a common Timestamp of State, Algebraic, and Control variables. If no common origin exists - return ORIGIN_TS, strict is False
 
         Args:
@@ -476,7 +477,7 @@ class VariableList(OrderedDict):
             ns_working = client.get_working_ns_idx()
             for var in self.values():
                 values_opcua = []
-                time_opcua: List[float] = []
+                time_opcua: list[float] = []
                 if isinstance(var, VariableState):
                     sensor = client.get_node(NumericNodeId(var.opc_ua_id, ns_working))
                     process_value = client.get_child_simple(sensor, ["d:ProcessValue"])
