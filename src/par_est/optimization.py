@@ -912,6 +912,8 @@ class ParameterEstimationNLE(Optimizer):
         use_simulator_bounds=True,
     ):
         super().__init__(model, variable_lists, simulator_name, simulator_settings)
+
+        self.inverted_variances = []
         self._setup_simulator(use_simulator_bounds)
         self.logger.debug(
             "Created Optimizer object: \n Data Shape {} \n Desicion Variables {}".format(
@@ -967,6 +969,10 @@ class ParameterEstimationNLE(Optimizer):
                         self.array_data.append(var.value[0])
                         self.array_data_mask.append(1)
 
+                    self.inverted_variances.append(1 / var.variance)
+
+        self.inverted_variances = np.array(self.inverted_variances)
+
         self.array_data = ca.DM(self.array_data)
         self.array_data_mask = np.array(self.array_data_mask)
 
@@ -985,7 +991,7 @@ class ParameterEstimationNLE(Optimizer):
 
         self.mapping_simulator_decisions.append(mapping_simulator_decisions)
 
-    def _objective(self):
+    def _simulate_all(self):
         array_simulation = None
 
         for simulator in self.list_simulators:
@@ -996,13 +1002,38 @@ class ParameterEstimationNLE(Optimizer):
             else:
                 array_simulation = ca.vertcat(array_simulation, res_simulation["x"])
 
+        return array_simulation
+
+    def _objective_ols(self):
+        # Ordinary Least Squares
+        array_simulation = self._simulate_all()
         # multiply by self.array_data_mask needed to ignore elements were error experimental data is zero
         error = (array_simulation - self.array_data) * self.array_data_mask
         objective = ca.sum1(error**2)
 
         return objective, error
 
-    def optimize(self, scale=False):
+    def _objective_wls(self):
+        # Weighted Least Squares
+        array_simulation = self._simulate_all()
+        # multiply by self.array_data_mask needed to ignore elements were error experimental data is zero
+        error = (array_simulation - self.array_data) * self.array_data_mask
+        objective = ca.sum1(self.inverted_variances * error**2)
+
+        return objective, error
+
+    def optimize(self, scale=False, objective_function="wls"):
+        if objective_function == "wls":
+            self._objective = self._objective_wls
+        elif objective_function == "ols":
+            self._objective = self._objective_ols
+
+        variance = [[] for x in range(len(self.varlist_algebraic))]
+
+        for sim in self.list_simulators:
+            variance_i = sim.get_variance_array()
+            variance.append(variance_i)
+
         return self._optimize(scale)
 
 
@@ -1093,7 +1124,12 @@ class ParameterEstimationNLE_control(ParameterEstimationNLE):
 
         return objective
 
-    def optimize(self, scale=False):
+    def optimize(self, scale=False, objective_function="ols"):
+        if objective_function == "wls":
+            self._objective = self._objective_wls
+        elif objective_function == "ols":
+            self._objective = self._objective_ols
+
         res = self._optimize(scale)
         res["all"] = res["x"]
         res["x"] = res["all"][0:self.num_parameters]
