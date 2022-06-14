@@ -409,7 +409,6 @@ class Simulator(object):
                 )
 
                 # import pandas as pd
-                # from pandasgui import show
 
                 # jac_func = function.jacobian()
                 # jac = jac_func(
@@ -427,7 +426,6 @@ class Simulator(object):
 
                 # jac = jac["jac"]
                 # df = pd.DataFrame(jac.toarray(), index=row_names, columns=col_names)
-                # show(df.astype(str))
 
             if apply_intials:
                 self.logger.debug("Fixed algebraic intials")

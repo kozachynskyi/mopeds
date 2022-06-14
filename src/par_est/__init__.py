@@ -5,6 +5,7 @@ except ModuleNotFoundError:
 
 __version__ = importlib_metadata.version(__name__)
 
+from .utilities import MXPickler, show_html_from_dataframe
 from .variables import (
     Variable,
     VariableParameter,
@@ -17,7 +18,6 @@ from .variables import (
 )
 from .variables import BadVariableError
 from .variables import ORIGIN_TS
-from .tools import MXPickler
 from .model import Model
 from .simulation import Simulator, SimulatorNLE
 from .optimization import (

@@ -6,8 +6,6 @@ import par_est.examples
 from matplotlib import pyplot as plt
 plt.ion()
 
-# from pandasgui import show
-
 if __name__ == "__main__":
 
     piecewiseswitch = False
@@ -31,7 +29,7 @@ if __name__ == "__main__":
 
     data1 = par_est.tools.generate_varlist_with_data(variable_list, m, time_grid1, True)
     data2 = par_est.tools.generate_varlist_with_data(variable_list, m, time_grid2, True)
-    # show(data1.dataframe)
+    # data1.show()
 
     # If data is not available for all simulated points, PE works
     e0_T = data2["e0_T"]

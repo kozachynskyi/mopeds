@@ -8,6 +8,8 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
+import par_est
+
 try:
     from opcua import ua
     from opcua.ua import NumericNodeId
@@ -213,6 +215,9 @@ class Variable(object):
                 value, index=time_series, columns=[self.name], dtype="float64"
             )
             self.dataframe = dataframe
+
+    def show(self):
+        par_est.show_html_from_dataframe(self.dataframe)
 
 
 class VariableState(Variable):
@@ -595,6 +600,9 @@ class VariableList(OrderedDict):
                     if algebraic is True:
                         plot_varlist.add_variable(var)
         return plot_varlist
+
+    def show(self):
+        par_est.show_html_from_dataframe(self.dataframe)
 
 
 class SameVariableNameError(Exception):
