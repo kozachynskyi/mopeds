@@ -1036,6 +1036,193 @@ class ParameterEstimationNLE(Optimizer):
 
         return self._optimize(scale)
 
+    def parameter_analysis(self, parameters: dict):
+        import scipy.stats
+        dof = len(self.list_input_varlist) - len(self.varlist_decision)
+        num_par = len(self.varlist_decision)
+        decision_variables = self.varlist_decision.get_casadi_variables()
+
+        self._setup_scaling(False)
+        residuals_function = ca.Function(
+            "objective",
+            [decision_variables],
+            [self._objective_ols()[1]],
+            ["x"],
+            ["f"],
+        )
+
+        selected_parameters = []
+        for var_name in parameters.keys():
+            if var_name in self.varlist_decision.keys():
+                selected_parameters.append(parameters[var_name])
+
+        residuals = residuals_function(selected_parameters).toarray()
+        residuals = residuals[residuals.nonzero()[0]]
+
+        # Index of parameters, that are unfixed. It's used to select Jacobian for only this variables
+        select_independent: list[int] = []
+
+        for var in self.list_input_varlist[0].values():
+            if isinstance(var, VariableParameter):
+                if var.fixed is False:
+                    # Ignore jac_x0_p
+                    index = list(self.model.varlist_independent).index(var.name) + len(self.model.varlist_algebraic)
+                    select_independent.append(index)
+
+        S_squared = ca.sum1(residuals**2).toarray()
+        residual_mean_square = S_squared / dof
+
+        len_alg = len(self.model.varlist_algebraic)
+
+        # It's assumed that there are no missing data
+        select_algebraic = np.reshape(self.array_data_mask, (len(self.list_simulators), len_alg))[0]
+        select_algebraic = np.asarray(select_algebraic == 1).nonzero()[0]
+
+        full_jacobian = [[] for x in range(len(select_algebraic))]
+        variance = [[] for x in range(len(select_algebraic))]
+
+        for sim in self.list_simulators:
+            variance_i = sim.get_variance_array()
+
+            jacobian = ca.Function(
+                "jacobian",
+                [decision_variables],
+                [sim.calculate_jac()["jac"]],
+                ["x"],
+                ["jac"],
+            )
+
+            jac = jacobian(selected_parameters)
+
+            jacobian_selected = jac.get(
+                False, select_algebraic, select_independent
+            ).toarray()
+
+            for index_algebraic, jac_i in enumerate(jacobian_selected):
+                full_jacobian[index_algebraic].append(jac_i)
+
+            for index_selected, index_algebraic in enumerate(select_algebraic):
+                variance[index_selected].append(variance_i[index_algebraic])
+
+        r = None
+        covariance_matrix = None
+        for jacobian_responce, variance_responce in zip(full_jacobian, variance):
+            jacobian_responce = np.array(jacobian_responce)
+            variance_responce = np.array(variance_responce)
+            r_responce = np.linalg.qr((jacobian_responce.T * (1 / np.sqrt(variance_responce))).T)[1]
+            if r is None:
+                r = r_responce
+            else:
+                r = r + r_responce
+
+            # covariance_matrix_responce = jacobian_responce.T.dot(jacobian_responce)
+            covariance_matrix_responce = (jacobian_responce.T * (1 / variance_responce)).dot(jacobian_responce)
+            if covariance_matrix is None:
+                covariance_matrix = covariance_matrix_responce
+            else:
+                covariance_matrix = covariance_matrix + covariance_matrix_responce
+
+        covariance_matrix = np.linalg.inv(covariance_matrix)
+        covariance_matrix = covariance_matrix
+        # full_jacobian = np.array(full_jacobian)
+
+        # breakpoint()
+        # r = np.linalg.qr(full_jacobian)[1]
+
+        par_variance = np.diag(np.sqrt(covariance_matrix * residual_mean_square))
+        # print(selected_parameters)
+        # print(par_variance)
+
+        students_t_dist_95 = scipy.stats.t.ppf(0.975,dof)
+        students_t_dist_99 = scipy.stats.t.ppf(0.995,dof)
+
+        r_inv_diag = np.linalg.norm(np.linalg.inv(r), axis=1)
+        l = np.linalg.inv(r) / r_inv_diag
+
+        par_variance_2 = np.sqrt(residual_mean_square) * r_inv_diag
+        # print(par_variance_2)
+
+        for par, var in zip(selected_parameters, par_variance):
+            print(f"{par} +- {var} |  ({var / par})")
+
+        marginal_conf_interval_95 = par_variance * students_t_dist_95
+        marginal_conf_interval_99 = par_variance * r_inv_diag * students_t_dist_99
+
+        import matplotlib.pyplot as plt
+        from matplotlib.axes import Axes
+        from matplotlib.patches import Ellipse
+        def eigsorted(cov):
+            vals, vecs = np.linalg.eig(cov)
+            # vals, vecs = np.linalg.eigh(cov)
+            order = vals.argsort()[::-1]
+            return vals[order], vecs[:,order]
+
+        # ax = plt.gca()
+        fig, axes = plt.subplots(ncols=num_par-1, nrows=num_par-1)
+        if isinstance(axes, Axes) == 1:
+            axes = [axes]
+
+        fisher_f_dist_95 = scipy.stats.f.ppf(0.95,num_par,dof)
+        fisher_f_dist_99 = scipy.stats.f.ppf(0.99,num_par,dof)
+
+
+        from itertools import combinations
+        comb = combinations(range(num_par), 2)
+        par_names = list(self.varlist_decision.keys())
+
+        breakpoint()
+        title = ""
+        for par, var, name in zip(selected_parameters, par_variance, par_names):
+            title = title + f"{name}: {round(par,5)} ± {round(var,5)} |  ({round((var / par) * 100,1)}%)\n"
+
+        fig.suptitle(title)
+
+         
+        for i in list(comb):
+            if len(axes) == 1:
+                ax = axes[0]
+            else:
+                ax = axes[i[1]-1,i[0]]
+            index_subarray = np.ix_(i, i)
+            parameters_i = []
+            parameters_i.append(selected_parameters[i[0]])
+            parameters_i.append(selected_parameters[i[1]])
+
+            marginal_conf_interval_95_i = []
+            marginal_conf_interval_95_i.append(marginal_conf_interval_95[i[0]])
+            marginal_conf_interval_95_i.append(marginal_conf_interval_95[i[1]])
+            cov_m = covariance_matrix[index_subarray]
+            vals, vecs = eigsorted(cov_m)
+            theta = np.degrees(np.arctan2(*vecs[:,0][::-1]))
+
+            # Width and height are "full" widths, not radius
+            for fisher in [fisher_f_dist_95]:#, fisher_f_dist_99]:
+                width, height = (2 * np.sqrt(num_par * residual_mean_square * fisher * vals))[0]
+                ellip = Ellipse(xy=parameters_i, width=width, height=height, angle=theta, alpha=0.3)
+
+                ax.add_artist(ellip)
+            ax.relim()
+            ax.autoscale()
+
+            if i[0] == 0:
+                ax.set_ylabel(f"{par_names[i[1]]}")
+
+            if i[1] == len(par_names) - 1:
+                ax.set_xlabel(f"{par_names[i[0]]}")
+
+            ax.axvline(parameters_i[0] - marginal_conf_interval_95_i[0])
+            ax.axvline(parameters_i[0] + marginal_conf_interval_95_i[0])
+            ax.axhline(parameters_i[1] - marginal_conf_interval_95_i[1])
+            ax.axhline(parameters_i[1] + marginal_conf_interval_95_i[1])
+            # ax.axvline(parameters_i[0] - marginal_conf_interval_95_i[0][0])
+            # ax.axvline(parameters_i[0] + marginal_conf_interval_95_i[0][0])
+            # plt.axhline(parameters_i[1] - marginal_conf_interval_95_i[0][1])
+            # plt.axhline(parameters_i[1] + marginal_conf_interval_95_i[0][1])
+
+
+        plt.show()
+        return residuals, S_squared, residual_mean_square
+
 
 class ParameterEstimationNLE_control(ParameterEstimationNLE):
     def _setup_simulator(self, use_simulator_bounds):
