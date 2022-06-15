@@ -476,37 +476,8 @@ class VariableList(OrderedDict):
         return ca.vcat(casadi_vars)
 
     def get_data_opcua(self, time_start: datetime, time_stop: datetime):
-        client = OptiPALClient("opc.tcp://admin@localhost:4840")  # type: OptiPALClient
-        client.connect()
-        try:
-            ns_working = client.get_working_ns_idx()
-            for var in self.values():
-                values_opcua = []
-                time_opcua: list[float] = []
-                if isinstance(var, VariableState):
-                    sensor = client.get_node(NumericNodeId(var.opc_ua_id, ns_working))
-                    process_value = client.get_child_simple(sensor, ["d:ProcessValue"])
-                    results = process_value.read_raw_history(
-                        time_start, time_stop, 1000
-                    )
-                    var.value = ExperimentData()
-
-                    for result in results:
-                        if not time_opcua:
-                            time_opcua.append(0.0)
-                            time_zero = result.SourceTimestamp
-                        else:
-                            time_from_ref = (
-                                result.SourceTimestamp - time_zero
-                            ).total_seconds()
-                            time_opcua.append(time_from_ref)
-
-                        values_opcua.append(result.Value.Value)
-
-                    var.value.value = np.array(values_opcua)
-                    var.value.time = np.array(time_opcua)
-        finally:
-            client.disconnect()
+        # Older implementation doesn't work anymore, removed on 06-15-2022
+        raise NotImplementedError
 
     def set_variable_list_fixed(self, fix_list=None):
         self._list_fixation(fix_list, True)
