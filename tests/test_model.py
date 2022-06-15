@@ -2,6 +2,7 @@ import pytest
 import casadi as ca
 import par_est.examples
 from par_est.model import VariableTypeError
+import numpy as np
 
 
 def test_model():
@@ -70,5 +71,24 @@ def test_model():
         assert len(function.free_mx()) == 0
 
 
+def test_varlist_model_reusability():
+    """ Test if model created from supplied varlist and
+    without varlist provides same results."""
+    variable_list, model = par_est.examples.pendulum_dae_1(False)
+    time_grid = np.linspace(0, 1, 3)
+    variable_list["g"].dataframe.iloc[0] = 12.0
+    simulation = par_est.Simulator(model, time_grid, variable_list)
+    res_before = simulation.simulate()
+
+    variable_list, model = par_est.examples.pendulum_dae_1(False, variable_list)
+    simulation = par_est.Simulator(model, time_grid, variable_list)
+    res_after_pickle = simulation.simulate()
+
+    assert np.isclose(
+        ca.vertcat(res_before["xf"], res_before["zf"]), ca.vertcat(res_after_pickle["xf"], res_after_pickle["zf"])
+    ).all()
+
+
 if __name__ == "__main__":
     test_model()
+    # test_varlist_model_reusability()

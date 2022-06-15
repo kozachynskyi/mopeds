@@ -5,6 +5,7 @@ import pickle
 import copy
 import pathlib
 import pytest
+import casadi as ca
 
 
 @pytest.mark.parametrize("piecewise", [True, False])
@@ -39,5 +40,37 @@ def test_pickling_objects(tmp_path, piecewise):
         assert type(loaded_object) == type(object_current)
 
 
+@pytest.mark.parametrize("piecewise", [True, False])
+def test_varlist_simulation_reusability(tmp_path, piecewise):
+    """ Test if simulator created from varlist and pickled/unpickled varlist provides same results."""
+    variable_list, model = par_est.examples.pendulum_dae_1(piecewise)
+    time_grid = np.linspace(0, 1, 3)
+    variable_list["g"].dataframe.iloc[0] = 12.0
+    simulation = par_est.Simulator(model, time_grid, variable_list)
+    res_before_pickle = simulation.simulate()
+
+    file_write = open(tmp_path / "tmp.pkl", "wb")
+    pickler = par_est.MXPickler(file_write)
+    pickler.dump(variable_list)
+    file_write.close()
+    file_read = open(tmp_path / "tmp.pkl", "rb")
+    variable_list_after = pickle.load(file_read)
+    simulation = par_est.Simulator(model, time_grid, variable_list_after)
+    res_after_pickle = simulation.simulate()
+
+    assert np.isclose(
+        ca.vertcat(res_before_pickle["xf"], res_before_pickle["zf"]), ca.vertcat(res_after_pickle["xf"], res_after_pickle["zf"])
+    ).all()
+
+    variable_list, model = par_est.examples.pendulum_dae_1(piecewise, variable_list)
+    simulation = par_est.Simulator(model, time_grid, variable_list)
+    res_after_pickle = simulation.simulate()
+
+    assert np.isclose(
+        ca.vertcat(res_before_pickle["xf"], res_before_pickle["zf"]), ca.vertcat(res_after_pickle["xf"], res_after_pickle["zf"])
+    ).all()
+
+
 if __name__ == "__main__":
     test_pickling_objects(pathlib.Path.cwd())
+    # test_varlist_reusability(pathlib.Path.cwd(), True)

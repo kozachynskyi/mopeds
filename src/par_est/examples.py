@@ -1,3 +1,4 @@
+from __future__ import annotations
 import copy
 
 import casadi as ca
@@ -36,22 +37,23 @@ def empy_dae(piecewise_control=False):
     return variable_list, m
 
 
-def pendulum_dae_1(piecewise_control=False):
-    variable_list = par_est.VariableList()
+def pendulum_dae_1(piecewise_control=False, variable_list: None | par_est.VariableList = None):
+    if variable_list is None:
+        variable_list = par_est.VariableList()
 
-    # fmt: off
-    variable_list.add_variable(par_est.VariableState("x", 3.0))
-    variable_list.add_variable(par_est.VariableState("u", -1.0 / 3))
+        # fmt: off
+        variable_list.add_variable(par_est.VariableState("x", 3.0))
+        variable_list.add_variable(par_est.VariableState("u", -1.0 / 3))
 
-    variable_list.add_variable(par_est.VariableAlgebraic("y", 4.0))
-    variable_list.add_variable(par_est.VariableAlgebraic("v", 1.0 / 4))
-    variable_list.add_variable(par_est.VariableAlgebraic("lambda", 1147.0 / 720))
+        variable_list.add_variable(par_est.VariableAlgebraic("y", 4.0))
+        variable_list.add_variable(par_est.VariableAlgebraic("v", 1.0 / 4))
+        variable_list.add_variable(par_est.VariableAlgebraic("lambda", 1147.0 / 720))
 
-    if piecewise_control:
-        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("L", 5.0))
-    else:
-        variable_list.add_variable(par_est.VariableControl("L", 5.0))
-    variable_list.add_variable(par_est.VariableParameter("g", 10.0))
+        if piecewise_control:
+            variable_list.add_variable(par_est.VariableControlPiecewiseConstant("L", 5.0))
+        else:
+            variable_list.add_variable(par_est.VariableControl("L", 5.0))
+        variable_list.add_variable(par_est.VariableParameter("g", 10.0))
     # fmt: on
 
     m = par_est.Model(variable_list)
