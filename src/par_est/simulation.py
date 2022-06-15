@@ -758,13 +758,6 @@ class Simulator(object):
                 var.casadi_var = None
                 new_var = copy.deepcopy(var)
 
-                if isinstance(var, VariableAlgebraic):
-                    value_time_zero = var.guess
-                elif isinstance(var, VariableState):
-                    value_time_zero = (self.__input_variable_list[var.name].value[0],)
-                else:
-                    raise (NotImplementedError)
-
                 value = res_array[count + shift_by, :]
                 # value is of ca.DM type and data is nested in first array
                 value = value.toarray()[0]
