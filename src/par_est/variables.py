@@ -295,15 +295,15 @@ class VariableControlPiecewiseConstant(VariableControl):
         return time_var_dict
 
     def get_variable_at_time_absolute(self, time_stamp_absolute) -> VariableControl:
-        index = pd.Index(self.time_absolute).get_loc(
-            time_stamp_absolute, method="ffill"
-        )
+        index = pd.Index(self.time_absolute).get_indexer(
+            [time_stamp_absolute], method="ffill"
+        )[0]
         return list(self.variable_list.values())[index]
 
     def get_variable_at_time_relative(self, time_stamp_relative) -> VariableControl:
-        index = pd.Index(self.time_relative).get_loc(
-            time_stamp_relative, method="ffill"
-        )
+        index = pd.Index(self.time_relative).get_indexer(
+            [time_stamp_relative], method="ffill"
+        )[0]
         return list(self.variable_list.values())[index]
 
     def get_value_or_casadi(self, time_grid_relative) -> list:
