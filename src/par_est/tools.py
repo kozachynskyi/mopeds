@@ -2,7 +2,7 @@
 Separated from utilities to avoid dependency hell"""
 import copy
 
-import par_est
+from par_est import Model, VariableList, Simulator, SimulatorNLE
 
 
 def generate_varlist_with_data(variable_list, model, time_grid, algebraic=False):
@@ -10,7 +10,7 @@ def generate_varlist_with_data(variable_list, model, time_grid, algebraic=False)
     var_list_fixed = copy.deepcopy(variable_list)
     for var in var_list_fixed.values():
         var.fixed = True
-    sim = par_est.Simulator(model, time_grid, var_list_fixed)
+    sim = Simulator(model, time_grid, var_list_fixed)
     var_list_exp = sim.generate_exp_data(algebraic)
 
     # Replace empty state variables with results from simulation
@@ -26,7 +26,7 @@ def generate_varlist_with_data_NLE(model, variable_list):
     for var in variable_list.values():
         var.fixed = True
 
-    sim_fixed = par_est.SimulatorNLE(model, variable_list)
+    sim_fixed = SimulatorNLE(model, variable_list)
     # Run simulation and connect results with actual state variables
     varlist_results = sim_fixed.generate_exp_data()
     # Copy variable_list
