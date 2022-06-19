@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import casadi as ca
 import numpy as np
+from collections.abc import Callable
 
 from par_est import (
     Model,
@@ -27,6 +30,7 @@ class ModelPredictiveControl(Optimizer):
         use_idas_constraints=False,
         use_algebraic_vars=False,
     ):
+        raise NotADirectoryError
         super().__init__(
             model,
             variable_list,
@@ -35,9 +39,10 @@ class ModelPredictiveControl(Optimizer):
         )
 
         if use_algebraic_vars:
-            self._objective = self._objective_alg
+            objective = self._objective_alg
         else:
-            self._objective = self._objective_state
+            objective = self._objective_state
+        self._objective: Callable[[], tuple[ca.MX | ca.DM, ca.MX | ca.DM]] = objective
 
         self.number_of_time_horizonts = number_of_time_horizonts
         self.array_data: None | np.ndarray = None
@@ -66,7 +71,7 @@ class ModelPredictiveControl(Optimizer):
                 sim.calculate_algebraic_initials(apply_intials=True)
 
     def _setup_simulator(self, *, use_idas_constraints, use_algebraic_vars):
-
+        self.list_simulators: list[Simulator] = []
         varlist_input = self.list_input_varlist[0]
         # Create a time_grid, that "stops" at every experimental data, for every state variable
         time_grid = np.ndarray((1, 0))
@@ -74,12 +79,12 @@ class ModelPredictiveControl(Optimizer):
             if isinstance(var, VariableState) or (
                 isinstance(var, VariableAlgebraic) and use_algebraic_vars
             ):
-                time_grid = np.append(time_grid, var.value.time)
+                time_grid = np.append(time_grid, var.time_relative)
             elif isinstance(var, VariableParameter):
                 var.fixed = True
             elif isinstance(var, VariableControl):
                 if isinstance(var, VariableControlPiecewiseConstant):
-                    time_grid = np.append(time_grid, var.time)
+                    time_grid = np.append(time_grid, var.time_relative)
 
         time_grid = np.unique(time_grid)
 
@@ -109,7 +114,7 @@ class ModelPredictiveControl(Optimizer):
                         else:
                             # New horizons are created with same guess as at time 0
                             # All horizons are unfixed and are decision variables
-                            values = [var.var_at_time(0).guess] * (
+                            values = [var.get_variable_at_time_relative(0).guess] * (
                                 self.number_of_time_horizonts - 1
                             )
                             var.expand_horizon(time_grid_controls, values)
@@ -143,10 +148,10 @@ class ModelPredictiveControl(Optimizer):
 
         for var_name in variable_name_list:
             var = varlist_input[var_name]
-            time_grid_var = np.array(var.value.time)
+            time_grid_var = np.array(var.time_relative)
             # if simulated point has data - set element to True
             experiment_data_mask_var = 1.0 * np.isin(time_grid, time_grid_var)[1:]
-            experiment_data_var_real = np.array(var.value.value)[1:]
+            experiment_data_var_real = np.array(var.value)[1:]
             # array that would be filled with Experimental data where data_mask is 1
             experiment_data_var_extended = experiment_data_mask_var.copy()
 

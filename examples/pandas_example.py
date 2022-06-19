@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 import par_est
 import matplotlib.pyplot as plt
 
@@ -21,7 +20,7 @@ from_list = pd.to_datetime(times, unit="s")
 print(from_list)
 
 
-data = var_res.index(0).value.value
+data = var_res.index(0).value
 
 exp = pd.DataFrame(data, index=sec)
 

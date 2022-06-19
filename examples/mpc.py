@@ -1,3 +1,4 @@
+# type: ignore
 import copy
 
 import numpy as np
@@ -20,16 +21,18 @@ if __name__ == "__main__":
     time_grid1 = np.linspace(0, 1000, 4)
 
     # Here I setup horizon for artificial data
-    if piecewiseswitch:
-        variable_list["e0_T_in"].expand_horizon([241.0, 482.0, 723.0], [363, 373, 383])
+    e0_T_in = variable_list["e0_T_in"]
+    if isinstance(e0_T_in, par_est.VariableControlPiecewiseConstant):
+        e0_T_in.expand_horizon([241.0, 482.0, 723.0], [363, 373, 383])
 
     # Here data is generated
     data1 = par_est.tools.generate_varlist_with_data(variable_list, m, time_grid1, True)
 
     # Here data is provided from some arrays. Othery variables are not supplied
     data2 = copy.deepcopy(variable_list)
-    data2["e0_T"].value.value = [273.0, 297, 304, 314, 325, 328, 342]
-    data2["e0_T"].value.time = [0, 240, 333, 481, 666, 723, 1000]
+    value = [273.0, 297, 304, 314, 325, 328, 342]
+    time_relative = [0, 240, 333, 481, 666, 723, 1000]
+    data2["e0_T"].set_dataframe_from_value_and_time(value, time_relative)
 
     # Now I need to reset a "e0_T_in" variable! Else - error raised
     # Value will be used as a guess for every horizon
@@ -40,7 +43,7 @@ if __name__ == "__main__":
     data1["e0_T_in"].fixed = False
 
     # Preturbate alg variable from "ideal solution" to see its affect on PE
-    data1["e0_c_tot"].value.value = [val * 1.05 for val in data1["e0_c_tot"].value.value]
+    data1["e0_c_tot"].dataframe["e0_c_tot"] = [val * 1.05 for val in data1["e0_c_tot"].value]
 
     data2["e0_T_in"] = par_est.VariableControlPiecewiseConstant(
         "e0_T_in", 373.0, 353.0, 393.0

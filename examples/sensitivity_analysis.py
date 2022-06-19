@@ -9,18 +9,7 @@ if __name__ == "__main__":
 
     variable_list, m = dae_ode.hyfo_dae.initialize_problem()
 
-    for var in variable_list.values():
-        if isinstance(var, par_est.VariableParameter) or isinstance(
-            var, par_est.VariableControl
-        ):
-            lb = var.value - var.value * 0.1
-            ub = var.value + var.value * 0.1
-
-            var.lower_bound = lb if var.value > 0 else ub
-            var.upper_bound = ub if var.value > 0 else lb
-
-            var.guess = var.lower_bound
-            var.fixed = True
+    variable_list.set_bounds(0.01)
 
     # Create time-grid. Zero should be first
     time_grid = np.linspace(10, 1000, 8)

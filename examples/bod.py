@@ -3,9 +3,22 @@ import par_est
 VAR_LIST, MODEL, EXP_DATA = par_est.examples.isomerization_model()
 # VAR_LIST, MODEL, EXP_DATA = par_est.examples.bod_model()
 
+# for a in par_est.Variable.get_subclasses():
+#     print(type(a))
+# breakpoint()
+a = par_est.VariableControlPiecewiseConstant("a")
+a.fixed = False
+aa = a.get_value_or_guess()
+b = par_est.VariableAlgebraic("a", 1)
+b.fixed = False
+bb = b.get_value_or_guess()
+breakpoint()
+
 
 def parameter_estimation(parameters=None):
     pe = par_est.ParameterEstimationNLE(MODEL, EXP_DATA)
+    print(EXP_DATA.__repr__())
+    breakpoint()
     pe.solver_settings["ipopt"]["linear_solver"] = "ma27"
     if parameters:
         res = pe.parameter_analysis(parameters)

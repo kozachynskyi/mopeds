@@ -11,8 +11,9 @@ if __name__ == "__main__":
 
     piecewiseswitch = False
     variable_list, m = par_est.examples.cstr_dae(piecewiseswitch)
-    if piecewiseswitch:
-        T_in = variable_list["e0_T_in"]
+
+    T_in = variable_list["e0_T_in"]
+    if isinstance(T_in, par_est.VariableControlPiecewiseConstant):
         T_in.expand_horizon([4000, 7500], [283, 400])
 
     # Create time-grid. Zero should be first
@@ -41,15 +42,15 @@ if __name__ == "__main__":
     # res["e0_c_i1"].plot()
     # res.plot_new()
     # res_res.plot_new()
-    for var in res.values():
-        a = var.value.equals(res_res[var.name].value)
-        # breakpoint()
-        # diff = var.value - res_res[var.name].value
-        # b = diff.isin([0]).all(axis=None)
-        if not a:
-            aa = var.value
-            bb = res_res[var.name].value
-            breakpoint()
+    # for var in res.values():
+    #     a = var.value.equals(res_res[var.name].value)
+    #     # breakpoint()
+    #     # diff = var.value - res_res[var.name].value
+    #     # b = diff.isin([0]).all(axis=None)
+    #     if not a:
+    #         aa = var.value
+    #         bb = res_res[var.name].value
+    #         breakpoint()
             # var.value.compare(res_res[var.name].value)
     # res.plot_states(algebraic=True, as_one_plot=False)
     # np.savetxt("exp.txt", res.toarray().T, delimiter="\t")

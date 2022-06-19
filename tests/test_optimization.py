@@ -356,8 +356,8 @@ def test_optimizer(piecewise):  # noqa: C901
 if __name__ == "__main__":
     pass
     # test_optimizer(True)
-    test_oed(True)
+    # test_oed(True)
     # test_pe(True,True)
-    # test_pe_objective(True)
+    test_pe_objective(True)
     # test_pe_intials_algebraic()
     # test_oed_piecewise()

@@ -124,18 +124,7 @@ def initialize_problem():
     variable_list.add_variable(par_est.VariableParameter("e0_E_r6", 32422.021))
     variable_list.add_variable(par_est.VariableParameter("e0_k_ref_r6", 0.010987442))
 
-    for var in variable_list.values():
-        if isinstance(var, par_est.VariableParameter) or isinstance(
-            var, par_est.VariableControl
-        ):
-            lb = var.value - var.value * 0.01
-            ub = var.value + var.value * 0.01
-
-            var.lower_bound = lb if var.value > 0 else ub
-            var.upper_bound = ub if var.value > 0 else lb
-
-            var.guess = var.lower_bound
-            var.fixed = True
+    variable_list.set_bounds(0.01)
 
     m = par_est.Model(variable_list)
 

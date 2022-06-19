@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import copy
 
 import casadi as ca
@@ -6,7 +7,7 @@ import casadi as ca
 import par_est
 
 
-def empy_dae(piecewise_control=False):
+def empy_dae(piecewise_control: bool = False) -> tuple[par_est.VariableList, par_est.Model]:
     variable_list = par_est.VariableList()
 
     # fmt: off
@@ -37,7 +38,7 @@ def empy_dae(piecewise_control=False):
     return variable_list, m
 
 
-def pendulum_dae_1(piecewise_control=False, variable_list: None | par_est.VariableList = None):
+def pendulum_dae_1(piecewise_control: bool = False, variable_list: None | par_est.VariableList = None) -> tuple[par_est.VariableList, par_est.Model]:
     if variable_list is None:
         variable_list = par_est.VariableList()
 
@@ -73,7 +74,7 @@ def pendulum_dae_1(piecewise_control=False, variable_list: None | par_est.Variab
     return variable_list, m
 
 
-def cstr_ode(piecewise_control=False):
+def cstr_ode(piecewise_control: bool = False) -> tuple[par_est.VariableList, par_est.Model]:
     e0_greek_nu_i1_r1 = -1.0
     e0_greek_nu_i1_r2 = 1.0
     e0_greek_nu_i2_r2 = -1.0
@@ -146,7 +147,7 @@ def cstr_ode(piecewise_control=False):
     return variable_list, m
 
 
-def cstr_dae(piecewise_control=False):
+def cstr_dae(piecewise_control: bool = False) -> tuple[par_est.VariableList, par_est.Model]:
     e0_greek_nu_i1_r1 = -1.0
     e0_greek_nu_i1_r2 = 1.0
     e0_greek_nu_i2_r2 = -1.0
@@ -223,7 +224,7 @@ def cstr_dae(piecewise_control=False):
     return variable_list, m
 
 
-def cstr_ode_constant(piecewise_control=False):
+def cstr_ode_constant(piecewise_control: bool = False) -> tuple[par_est.VariableList, par_est.Model]:
 
     variable_list = par_est.VariableList()
 
@@ -296,7 +297,7 @@ def cstr_ode_constant(piecewise_control=False):
     return variable_list, m
 
 
-def cstr_dae_constant(piecewise_control=False):
+def cstr_dae_constant(piecewise_control: bool = False) -> tuple[par_est.VariableList, par_est.Model]:
     variable_list = par_est.VariableList()
 
     # fmt: off
@@ -373,7 +374,7 @@ def cstr_dae_constant(piecewise_control=False):
     return variable_list, m
 
 
-def vle_nle_problem():
+def vle_nle_problem() -> tuple[par_est.VariableList, par_est.Model]:
     # Id. VLE of EtOH and Water
 
     # Variables
@@ -424,7 +425,7 @@ def vle_nle_problem():
     return variable_list, model
 
 
-def bod_model():
+def bod_model() -> tuple[par_est.VariableList, par_est.Model, list[par_est.VariableList]]:
     # BOD data as used in Bates, Watts, Nonlinear regression analysis: Its applications
     variable_list = par_est.variables.VariableList()  # Preallocate variable_list
 
@@ -470,7 +471,7 @@ def bod_model():
     return variable_list, m, exp_data
 
 
-def isomerization_model():
+def isomerization_model() -> tuple[par_est.VariableList, par_est.Model, list[par_est.VariableList]]:
     # Isomerization data as used in Bates, Watts, Nonlinear regression analysis: Its applications
     variable_list = par_est.variables.VariableList()  # Preallocate variable_list
 

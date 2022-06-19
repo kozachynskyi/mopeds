@@ -21,11 +21,12 @@ if __name__ == "__main__":
     time_grid1 = np.linspace(0, 1000, 4)
     time_grid2 = np.linspace(0, 1000, 8)
 
-    if piecewiseswitch:
-        variable_list["e0_T_in"].expand_horizon([10, 723], [363, 453])
-        variable_list["e0_T_in"].variable_list.index(0).fixed = False
-        variable_list["e0_T_in"].variable_list.index(1).fixed = True
-        variable_list["e0_T_in"].variable_list.index(2).fixed = False
+    e0_T_in = variable_list["e0_T_in"]
+    if isinstance(e0_T_in, par_est.VariableControlPiecewiseConstant):
+        e0_T_in.expand_horizon([10, 723], [363, 453])
+        e0_T_in.variable_list.index(0).fixed = False
+        e0_T_in.variable_list.index(1).fixed = True
+        e0_T_in.variable_list.index(2).fixed = False
 
     data1 = par_est.tools.generate_varlist_with_data(variable_list, m, time_grid1, True)
     data2 = par_est.tools.generate_varlist_with_data(variable_list, m, time_grid2, True)
@@ -42,7 +43,7 @@ if __name__ == "__main__":
     a = data2["e0_c_tot"].dataframe
     data2["e0_c_tot"].dataframe = data2["e0_c_tot"].dataframe * 1.05
 
-    # pe_state = par_est.ParameterEstimation(m, [data1, data2])
+    pe_state = par_est.ParameterEstimation(m, [data1, data2])
     # pe_state = par_est.ParameterEstimation(m, [data2])
     # print(pe_state.optimize(True))
 

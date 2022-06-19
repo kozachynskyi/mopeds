@@ -3,9 +3,10 @@ Separated from utilities to avoid dependency hell"""
 import copy
 
 from par_est import Model, VariableList, Simulator, SimulatorNLE
+import numpy as np
 
 
-def generate_varlist_with_data(variable_list, model, time_grid, algebraic=False):
+def generate_varlist_with_data(variable_list: VariableList, model: Model, time_grid: np.ndarray, algebraic: bool = False) -> VariableList:
     # Simulated ODE/DAE and replaces StateVariable values with simulated data
     var_list_fixed = copy.deepcopy(variable_list)
     for var in var_list_fixed.values():

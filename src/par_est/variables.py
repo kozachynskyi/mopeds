@@ -1,56 +1,65 @@
 from __future__ import annotations
 
-from collections import OrderedDict
+import sys
+from collections.abc import Generator
 from datetime import datetime, timedelta
+from typing import Any, Union
+
+if sys.version_info[1] == 8:
+    from typing import OrderedDict
+elif sys.version_info[1] == 9:
+    from collections import OrderedDict
 
 import casadi as ca
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
+from matplotlib.axes import Axes
 
 import par_est
-
-try:
-    from opcua import ua
-    from opcua.ua import NumericNodeId
-    from optipal.client import OptiPALClient
-except Exception:
-    pass
 
 ORIGIN_TS: pd.Timestamp = pd.Timestamp(year=1970, month=1, day=1)
 """ Indicats a default zero timestamp for data, if date is irrelevant.
 Chosen DateTime is the same, that is used by pd.to_datetime() by default.
 """
 
+# Ignored type errors come from mypy issue https://github.com/python/mypy/issues/3004
+
 
 class Variable(object):
-    def __init__(self, name, lb=None, ub=None):
+    def __init__(
+        self,
+        name: str,
+        lb: float | None = None,
+        ub: float | None = None,
+    ) -> None:
         self.name: str = name
-        self.casadi_var: ca.MX.sym = ca.MX.sym(self.name)
+        self.casadi_var: ca.MX = ca.MX.sym(self.name)
         # fixed is property in order to deal with VariableControlPiecewiseConstant properly
-        self._fixed: bool | list[bool] = True
+        self._fixed: bool = True
         self.opc_ua_id: None | int = None
         if not isinstance(self, VariableControlPiecewiseConstant):
             self.dataframe: pd.DataFrame = None
-        self.guess = None
-        self.lower_bound = lb
-        self.upper_bound = ub
-        self.variance = 1.0
+        self.guess: float = np.nan
+        self.lower_bound: float = lb  # type: ignore
+        self.upper_bound: float = ub  # type: ignore
+        self.variance: float = 1.0
         # attibute used to decide if variable should be plotted
-        self.ignore_plotting = True
+        self.ignore_plotting: bool = True
+        self.variable_list: VariableList
 
     @classmethod
-    def get_subclasses(cls):
+    def get_subclasses(cls) -> Generator[type[Variable], None, None]:
         for subclass in cls.__subclasses__():
             yield from subclass.get_subclasses()
             yield subclass
 
-    def plot(self, ax=None):
+    def plot(self, ax: None | Axes = None) -> Axes:
         axis = self.dataframe.plot(ax=ax)
         plt.show()
         return axis
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.name}\n{type(self)}\n{self.value}"
 
     def get_value_or_casadi(self) -> float | ca.MX:
@@ -71,7 +80,7 @@ class Variable(object):
             return self.guess
 
     @property
-    def value(self) -> list:
+    def value(self) -> list[float]:
         """Returns a list with values of variables"""
         return self.dataframe[self.name].tolist()
 
@@ -81,12 +90,12 @@ class Variable(object):
         return self.dataframe.index
 
     @property
-    def time_relative(self) -> list:
+    def time_relative(self) -> list[float]:
         """Returns a list which contains timestamps in seconds.
         First time is considered to be zero second"""
         return (self.dataframe.index - self.dataframe.index[0]).total_seconds().tolist()
 
-    def is_value_consistent(self) -> None:
+    def is_value_consistent(self) -> bool | None:
         """Returns True if self.value is consistent or raise Error.
 
         Checks if index of self.value is increasing and unique,
@@ -111,8 +120,10 @@ class Variable(object):
         else:
             raise BadVariableError(self, "Value of Variable is of wrong type")
 
+        return True
+
     @property
-    def origin_ts(self) -> None | pd.Timestamp:
+    def origin_ts(self) -> pd.Timestamp:
         """Propoerty that return the first Timestamp in self.value.
 
         Can be used to compare if Variables have same origin in .value.
@@ -123,16 +134,13 @@ class Variable(object):
         """
         self.is_value_consistent()
 
-        if self.value is None:
-            return None
+        if isinstance(self, VariableControlPiecewiseConstant):
+            return self.time_absolute[0]
         else:
-            if isinstance(self, VariableControlPiecewiseConstant):
-                return self.time_absolute[0]
-            else:
-                return self.dataframe.index[0]
+            return self.dataframe.index[0]
 
     @property
-    def fixed(self):
+    def fixed(self) -> bool:
         # VariableControlPiecewiseConstant is fixed only if all variables inside are fixed
         if isinstance(self, VariableControlPiecewiseConstant):
             fixed_list = []
@@ -142,14 +150,14 @@ class Variable(object):
         return self._fixed
 
     @fixed.setter
-    def fixed(self, state):
+    def fixed(self, state: bool) -> None:
         if isinstance(self, VariableControlPiecewiseConstant):
             for var in self.variable_list.values():
                 var.fixed = state
         self._fixed = state
 
     @property
-    def get_constraint_idas(self):
+    def get_constraint_idas(self) -> int:
         """Constrain the solution y=[x,z].  0 (default): no constraint on yi,
         1: yi >= 0.0, -1: yi <= 0.0, 2: yi > 0.0, -2: yi < 0.0."}},"""
 
@@ -167,28 +175,41 @@ class Variable(object):
         return constraint
 
     @property
-    def lower_bound(self):
+    def lower_bound(self) -> float:
         return self._lower_bound
 
     @lower_bound.setter
-    def lower_bound(self, lower_bound):
+    def lower_bound(self, lower_bound: float | None) -> None:
         if lower_bound is None or lower_bound == -1e9:
             self._lower_bound = -ca.inf
         else:
             self._lower_bound = lower_bound
 
     @property
-    def upper_bound(self):
+    def guess(self) -> float:
+        return self._guess
+
+    @guess.setter
+    def guess(self, guess: float | None) -> None:
+        if guess is None:
+            self._guess = np.nan
+        else:
+            self._guess = guess
+
+    @property
+    def upper_bound(self) -> float:
         return self._upper_bound
 
     @upper_bound.setter
-    def upper_bound(self, upper_bound):
+    def upper_bound(self, upper_bound: float | None) -> None:
         if upper_bound is None or upper_bound == 1e9:
             self._upper_bound = ca.inf
         else:
             self._upper_bound = upper_bound
 
-    def _dataframe_from_value(self, value: None | float, origin=ORIGIN_TS):
+    def _dataframe_from_value(
+        self, value: None | float, origin: pd.Timestamp = ORIGIN_TS
+    ) -> pd.DataFrame:
         df = pd.DataFrame(
             [value],
             index=[origin],
@@ -198,8 +219,11 @@ class Variable(object):
         return df
 
     def set_dataframe_from_value_and_time(
-        self, value: list[float], time_relative: list[float], origin="unix"
-    ):
+        self,
+        value: list[float | int],
+        time_relative: list[float | int] | np.ndarray,
+        origin: Any = "unix",
+    ) -> None:
         if not len(value) == len(time_relative):
             raise ValueError(
                 f"Value and time must have same length. Supplied Value:\n{value}\nTime:\n{time_relative}"
@@ -216,19 +240,19 @@ class Variable(object):
             )
             self.dataframe = dataframe
 
-    def show(self):
+    def show(self) -> None:
         par_est.show_html_from_dataframe(self.dataframe)
 
 
 class VariableState(Variable):
     def __init__(
         self,
-        name,
+        name: str,
         starting_value: float | None = None,
-        lb=None,
-        ub=None,
-        opc_ua_id=None,
-    ):
+        lb: float | None = None,
+        ub: float | None = None,
+        opc_ua_id: int | None = None,
+    ) -> None:
         super().__init__(name, lb, ub)
         # Assuming that State Variables are always to be plotted
         self.ignore_plotting = False
@@ -237,33 +261,60 @@ class VariableState(Variable):
 
 
 class VariableAlgebraic(Variable):
-    def __init__(self, name, guess=None, lb=None, ub=None, opc_ua_id=None):
+    def __init__(
+        self,
+        name: str,
+        guess: float | None = None,
+        lb: float | None = None,
+        ub: float | None = None,
+        opc_ua_id: int | None = None,
+    ) -> None:
         super().__init__(name, lb, ub)
-        self.guess = guess
+        self.guess = guess  # type: ignore
         self.opc_ua_id = opc_ua_id
         self.dataframe = self._dataframe_from_value(None)
 
 
 class VariableParameter(Variable):
-    def __init__(self, name, value=None, lb=None, ub=None):
+    def __init__(
+        self,
+        name: str,
+        value: float | None = None,
+        lb: float | None = None,
+        ub: float | None = None,
+    ) -> None:
         super().__init__(name, lb, ub)
-        self.guess = value
+        self.guess = value  # type: ignore
         self.dataframe = self._dataframe_from_value(value)
 
 
 class VariableControl(Variable):
-    def __init__(self, name, value=None, lb=None, ub=None, opc_ua_id=None):
+    def __init__(
+        self,
+        name: str,
+        value: float | None = None,
+        lb: float | None = None,
+        ub: float | None = None,
+        opc_ua_id: int | None = None,
+    ) -> None:
         super().__init__(name, lb, ub)
         if not isinstance(self, VariableControlPiecewiseConstant):
             self.dataframe = self._dataframe_from_value(value)
-        self.guess = value
+        self.guess = value  # type: ignore
         self.opc_ua_id = opc_ua_id
 
 
 class VariableControlPiecewiseConstant(VariableControl):
     """self.time - [time_stamps] list with time points of all variables in self.variables_list."""
 
-    def __init__(self, name, value=None, lb=None, ub=None, opc_ua_id=None):
+    def __init__(
+        self,
+        name: str,
+        value: float | None = None,
+        lb: float | None = None,
+        ub: float | None = None,
+        opc_ua_id: int | None = None,
+    ):
         super().__init__(name)
         self.variable_list = VariableList()
         var_t0 = VariableControl(name + "_t0", value, lb, ub, opc_ua_id)
@@ -271,7 +322,7 @@ class VariableControlPiecewiseConstant(VariableControl):
         self.variable_list.add_variable(var_t0)
 
     @property
-    def value(self):
+    def value(self) -> list[float]:
         values = []
         for var in self.variable_list.values():
             values.extend(var.value)
@@ -290,23 +341,29 @@ class VariableControlPiecewiseConstant(VariableControl):
         time_series = self.time_absolute
         return (time_series - time_series.iloc[0]).dt.total_seconds().tolist()
 
-    def to_dictionary(self):
+    def to_dictionary(self) -> dict[float, Variable]:
         time_var_dict = dict(zip(self.time_relative, list(self.variable_list.values())))
         return time_var_dict
 
-    def get_variable_at_time_absolute(self, time_stamp_absolute) -> VariableControl:
+    def get_variable_at_time_absolute(
+        self, time_stamp_absolute: pd.Timestamp
+    ) -> VariableControl:
         index = pd.Index(self.time_absolute).get_indexer(
             [time_stamp_absolute], method="ffill"
         )[0]
         return list(self.variable_list.values())[index]
 
-    def get_variable_at_time_relative(self, time_stamp_relative) -> VariableControl:
+    def get_variable_at_time_relative(
+        self, time_stamp_relative: float
+    ) -> VariableControl:
         index = pd.Index(self.time_relative).get_indexer(
             [time_stamp_relative], method="ffill"
         )[0]
         return list(self.variable_list.values())[index]
 
-    def get_value_or_casadi(self, time_grid_relative) -> list:
+    def get_value_or_casadi(  # type: ignore
+        self, time_grid_relative: list[float] | np.ndarray
+    ) -> list[float | ca.MX]:
         """This method is used to avoid following problem: if current Control is fixed at given time_stamp, simulator
         should use either - a fixed value, provided with Variable, or a value of a Control Variable from previous timestamp.
         Input:
@@ -335,7 +392,7 @@ class VariableControlPiecewiseConstant(VariableControl):
 
         return independent_variable
 
-    def expand_horizon(self, times, values):
+    def expand_horizon(self, times: list[float], values: list[float | None]) -> None:
         if not len(times) == len(values):
             raise ValueError(
                 "Length of times and values vector should be same. You supplied:\ntimes\n{times}\nvalues\n{values}"
@@ -358,13 +415,13 @@ class VariableControlPiecewiseConstant(VariableControl):
             )
             self.variable_list.add_variable(var)
 
-    def set_horizon(self, times, values):
+    def set_horizon(self, times: Any, values: Any) -> None:
         """Used when control at time 0 should also be rewritten"""
         raise NotImplementedError
 
     @property
     # WIP, not tested
-    def dataframe(self):
+    def dataframe(self) -> pd.DataFrame:
         values = []
         times = []
         for var in self.variable_list.values():
@@ -379,7 +436,12 @@ class VariableControlPiecewiseConstant(VariableControl):
 
 
 class VariableConstant(Variable):
-    def __init__(self, name, value=None, opc_ua_id=None):
+    def __init__(
+        self,
+        name: str,
+        value: float | None = None,
+        opc_ua_id: int | None = None,
+    ):
         super().__init__(name)
         self.casadi_var = value
         self.dataframe = self._dataframe_from_value(value)
@@ -387,15 +449,15 @@ class VariableConstant(Variable):
         self.fixed = True
 
 
-class VariableList(OrderedDict):
-    def __init__(self):
+class VariableList(OrderedDict[str, Union[Variable, VariableControlPiecewiseConstant]]):
+    def __init__(self) -> None:
         super().__init__()
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         if bool(self):
             types = [type(item) for item in list(self.values())]
             counter_types = {x: types.count(x) for x in types}
-            list_names = {var_type: [] for var_type in counter_types.keys()}
+            list_names: dict = {var_type: [] for var_type in counter_types.keys()}
             message = f"Var list has {sum(counter_types.values())} variables:\n"
             for var in self.values():
                 list_names[type(var)].extend([var.name])
@@ -415,7 +477,7 @@ class VariableList(OrderedDict):
         return message
 
     def get_common_origin(
-        self, strict=False, variable_type=Variable
+        self, strict: bool = False, variable_type: type[Variable] = Variable
     ) -> pd.Timestamp | bool:
         """Returns a common Timestamp of State, Algebraic, and Control variables. If no common origin exists - return ORIGIN_TS, strict is False
 
@@ -456,13 +518,13 @@ class VariableList(OrderedDict):
         var: Variable = list(self.values())[var_index]
         return var
 
-    def add_variable(self, variable: Variable):
+    def add_variable(self, variable: Variable) -> None:
         if variable.name in self:
             raise SameVariableNameError(variable.name)
         else:
             self.update({variable.name: variable})
 
-    def get_variable_name(self):
+    def get_variable_name(self) -> list[str]:
         names = []
         for var in self.values():
             names.append(var.name)
@@ -475,17 +537,17 @@ class VariableList(OrderedDict):
             casadi_vars.append(var.casadi_var)
         return ca.vcat(casadi_vars)
 
-    def get_data_opcua(self, time_start: datetime, time_stop: datetime):
+    def get_data_opcua(self, time_start: Any, time_stop: Any) -> None:
         # Older implementation doesn't work anymore, removed on 06-15-2022
         raise NotImplementedError
 
-    def set_variable_list_fixed(self, fix_list=None):
+    def set_variable_list_fixed(self, fix_list: list[str] | None = None) -> None:
         self._list_fixation(fix_list, True)
 
-    def set_variable_list_unfixed(self, unfix_list=None):
+    def set_variable_list_unfixed(self, unfix_list: list[str] | None = None) -> None:
         self._list_fixation(unfix_list, False)
 
-    def _list_fixation(self, fixation_list, val):
+    def _list_fixation(self, fixation_list: list[str] | None, val: bool) -> None:
         if fixation_list is None:
             for var in self.values():
                 var.fixed = val
@@ -494,9 +556,14 @@ class VariableList(OrderedDict):
                 if var.name in fixation_list:
                     var.fixed = val
 
-    def set_bounds(self, val=0.25, emerg_val=None):
+    def set_bounds(
+        self, val: int | float = 0.25, emerg_val: int | float | None = None
+    ) -> None:
         for var in self.values():
-            if isinstance(var, (VariableParameter, VariableControl)) and var.fixed is False:
+            if (
+                isinstance(var, (VariableParameter, VariableControl))
+                and var.fixed is False
+            ):
                 value = var.value[0]
                 if value > 0:
                     var.lower_bound = value * (1 - val)
@@ -516,24 +583,17 @@ class VariableList(OrderedDict):
                     raise (NotImplementedError)
                 var.guess = var.lower_bound
 
-    def write_data_opcua(self, time_start: datetime):
-        client = OptiPALClient("opc.tcp://admin@localhost:4840")  # type: OptiPALClient
-        client.connect()
-        try:
-            time_zero = time_start
-            ns_working = client.get_working_ns_idx()
-            for var in self.values():
-                if isinstance(var, VariableState):
-                    sensor = client.get_node(NumericNodeId(var.opc_ua_id, ns_working))
-                    process_value = client.get_child_simple(sensor, ["d:ProcessValue"])
-                    for value, time in zip(var.value.value, var.value.time):
-                        datavalue = ua.DataValue(value)
-                        datavalue.SourceTimestamp = time_zero + timedelta(seconds=time)
-                        process_value.set_attribute(ua.AttributeIds.Value, datavalue)
-        finally:
-            client.disconnect()
+    def write_data_opcua(self, time_start: datetime) -> None:
+        # Older implementation doesn't work anymore, removed on 06-16-2022
+        raise NotImplementedError
 
-    def plot(self, as_one_plot=False, algebraic=False, prefix=None, **kwargs):
+    def plot(
+        self,
+        as_one_plot: bool = False,
+        algebraic: bool = False,
+        prefix: str | None = None,
+        **kwargs,
+    ) -> Axes | np.ndarray:
         """Plots variables that are not ignored via var.ignore_plotting
         If as_one_plot is True, plot every variable on separate plot
         If algebraic is True, plot als algebraic variables
@@ -546,10 +606,10 @@ class VariableList(OrderedDict):
             kwargs["subplots"] = True
 
         if as_one_plot is True:
-            axes = []
+            axes_list = []
             for var in plot_varlist.values():
-                axes.append(var.plot())
-            axes = np.array(axes)
+                axes_list.append(var.plot())
+            axes = np.array(axes_list)
 
         else:
             dataframe = plot_varlist.dataframe
@@ -560,7 +620,7 @@ class VariableList(OrderedDict):
         plt.show()
         return axes
 
-    def _get_varlist_to_plot(self, algebraic=False):
+    def _get_varlist_to_plot(self, algebraic: bool = False) -> VariableList:
         """Return varlist that has only "plottable" variables"""
         plot_varlist = VariableList()
         for var in self.values():
@@ -572,18 +632,18 @@ class VariableList(OrderedDict):
                         plot_varlist.add_variable(var)
         return plot_varlist
 
-    def show(self):
+    def show(self) -> None:
         par_est.show_html_from_dataframe(self.dataframe)
 
 
 class SameVariableNameError(Exception):
-    def __init__(self, name):
+    def __init__(self, name) -> None:
         message = f"There is already an existing variable with the same name! Wrong variable with name: {name}"
         super().__init__(message)
 
 
 class BadVariableError(Exception):
-    def __init__(self, variable, message=None):
+    def __init__(self, variable, message=None) -> None:
         if message is None:
             message = "Failed while using this variable:"
         message = message + f"\n{variable}"

@@ -1,13 +1,16 @@
 from __future__ import annotations
+
 import copy
 import logging
+from collections.abc import Callable
+from abc import abstractmethod
 
 import casadi as ca
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from matplotlib import cm
 from scipy import linalg
+from typing import Sequence, no_type_check_decorator
 
 from par_est import (
     Model,
@@ -19,7 +22,7 @@ from par_est import (
     VariableList,
     VariableParameter,
     VariableState,
-    tools,
+    utilities,
 )
 
 
@@ -28,55 +31,39 @@ class Optimizer(object):
         self,
         model: Model,
         variable_lists: list[VariableList],
-        simulator_name,
-        simulator_settings,
-    ):
+        simulator_name: str,
+        simulator_settings: dict | None,
+    ) -> None:
+        self.solver_name: str
+        self.solver_settings: dict
+
         if not isinstance(variable_lists, list):
             raise (Exception("Variable list should be nested of type list"))
-        self.logger = logging.getLogger(__name__)
-        self.model = model
+        self.logger: logging.Logger = logging.getLogger(__name__)
+        self.model: Model = model
 
         # Deepcopy is used to avoid manipulating input variable list
-        self.list_input_varlist = copy.deepcopy(variable_lists)
+        self.list_input_varlist: list[VariableList] = copy.deepcopy(variable_lists)
 
         # Each varlist holds respective variables
-        self.varlist_decision = VariableList()
-        self.varlist_parameter = VariableList()
-        self.varlist_control = VariableList()
-        self.varlist_state = VariableList()
-        self.varlist_algebraic = VariableList()
+        self.varlist_decision: VariableList = VariableList()
+        self.varlist_parameter: VariableList = VariableList()
+        self.varlist_control: VariableList = VariableList()
+        self.varlist_state: VariableList = VariableList()
+        self.varlist_algebraic: VariableList = VariableList()
 
-        self.simulator_name = simulator_name
-        self.simulator_settings = simulator_settings
+        self.simulator_name: str = simulator_name
+        self.simulator_settings: dict | None = simulator_settings
 
-        if isinstance(self, ParameterEstimationNLE):
-            self.list_simulators: list[SimulatorNLE] = []
-        else:
-            self.list_simulators: list[Simulator] = []
+        self.list_simulators: Sequence[Simulator | SimulatorNLE]
+        self.mapping_simulator_decisions: list = []
 
-        # List of dicts for each Simulation that shows, which index coresponds to each
-        # simulator._independent_variables in self.varlist_ variable
-        # For example [{1: 2}], {1: 3}]: in first simulator._independent_variables[1]
-        # is the same variable as self.varlist_decision[2]
-        self.mapping_simulator_decisions: dict[list[int]] = []
-
-        self.guess = None
-        self.lower_bound = None
-        self.upper_bound = None
-        self.scaling = 1
-
-        self.solver = None
-        self.solver_settings: None | dict = None
-
-    def _setup_simulator(self, *, use_idas_constraints):
-        # Creates simulator
-        raise (NotImplementedError)
-
-    def optimize(self):
+    @abstractmethod
+    def optimize(self, scale):
         # Runs optimization once
         raise (NotImplementedError)
 
-    def _setup_initialization(self):
+    def _setup_initialization(self) -> None:
         """Sets initials and bounds for optimizer, and as default no scaling.
         If guess equals 0, 1 is used instead to avoid division by 0 during initialization"""
         guess = []
@@ -85,20 +72,20 @@ class Optimizer(object):
 
         for var in self.varlist_decision.values():
             if var.guess == 0:
-                guess.append(1)
+                guess.append(1.0)
             else:
                 guess.append(var.guess)
             lower_bound.append(var.lower_bound)
             upper_bound.append(var.upper_bound)
 
-        self.guess = np.array(guess)
-        self.lower_bound = np.array(lower_bound)
-        self.upper_bound = np.array(upper_bound)
+        self.guess: np.ndarray = np.array(guess)
+        self.lower_bound: np.ndarray = np.array(lower_bound)
+        self.upper_bound: np.ndarray = np.array(upper_bound)
         self.logger.debug(
             f"Initialized:\nguess {self.guess}\nlower_bound {self.lower_bound}\nupper_bound {self.upper_bound}"
         )
 
-    def _setup_scaling(self, scale=False):
+    def _setup_scaling(self, scale: bool = False) -> None:
         """Scaling of decision variables should be done before setting a solver and solver settings.
         Sets scaling variables in optimizer and simulator.
         Scaling is used to correctly spread the weight of decision variables in optimizaiton function.
@@ -106,9 +93,11 @@ class Optimizer(object):
         TODO: Whole loop can be replaced by simple np.where, isn't it?
         """
         if scale:
-            self.scaling = np.where(self.guess == 0, 1, self.guess)
+            self.scaling: np.ndarray | int = np.where(self.guess == 0, 1, self.guess)
 
-            for simulator, mapping in zip(self.list_simulators, self.mapping_simulator_decisions):
+            for simulator, mapping in zip(
+                self.list_simulators, self.mapping_simulator_decisions
+            ):
                 simulator._reset_scaling()
 
                 if isinstance(self, ParameterEstimationNLE):
@@ -144,19 +133,23 @@ class Optimizer(object):
             for simulator in self.list_simulators:
                 simulator._reset_scaling()
 
-    def _objective(self):
+    @abstractmethod
+    def _objective(self) -> tuple[ca.MX | ca.DM, ca.MX | ca.DM]:
         """Returns a way to calculate and objective. Dependent on optimization type."""
         raise (NotImplementedError)
 
-    def _optimize(self, scale):
+    def _optimize(self, scale: bool) -> dict[str, ca.DM | ca.MX]:
         """Runs optimizer, uses scaling if needed. Returned values is scaled back.
         Scaling should be done before setting a solver and solver settings."""
         self._setup_scaling(scale)
 
-        self.solver = ca.nlpsol(
+        self.solver: ca.Function = ca.nlpsol(
             "solver",
             self.solver_name,
-            {"x": self.varlist_decision.get_casadi_variables(), "f": self._objective()[0]},
+            {
+                "x": self.varlist_decision.get_casadi_variables(),
+                "f": self._objective()[0],
+            },
             self.solver_settings,
         )
 
@@ -178,7 +171,7 @@ class Optimizer(object):
         res_solver["x"] = res_solver["x"] * self.scaling
         return res_solver
 
-    def map_objective(self, plot=True):
+    def map_objective(self, plot: bool = True) -> None:
         """Calculate objective function for different values of parameters and plot, if needed.
         Currently support only 3 unfixed decision variables."""
         decision_variables = self.varlist_decision.get_casadi_variables()
@@ -233,21 +226,33 @@ class Optimizer(object):
         else:
             raise NotImplementedError
 
-    def optimize_multistart(self, num_initials, scale=True, max_iterations=20):
+    def optimize_multistart(
+        self,
+        num_initials: int,
+        scale: bool = True,
+        max_iterations: int = 20,
+    ) -> list[dict[str, ca.DM]]:
         """Runs multiple optimizations with gueses spread between upper and lower bound.
         Helps to find feasible starting point for optimization in a few steps.
         WIP: recalcution of algebraic variables doesn't work.
         """
         if isinstance(self, ParameterEstimationNLE_control):
-            hammersley_seeds = np.array(list(zip(self.lower_bound[0:self.num_parameters], self.upper_bound[0:self.num_parameters])))
+            hammersley_seeds = np.array(
+                list(
+                    zip(
+                        self.lower_bound[0 : self.num_parameters],
+                        self.upper_bound[0 : self.num_parameters],
+                    )
+                )
+            )
         else:
             hammersley_seeds = np.array(list(zip(self.lower_bound, self.upper_bound)))
 
-        list_startpoint = tools.make_startpoints(hammersley_seeds, num_initials)
+        list_startpoint = utilities.make_startpoints(hammersley_seeds, num_initials)
         result = []
 
         # Optimizer settings and guess are overwritten for multistart, and then returned back
-        initial_guess = self.guess
+        initial_guess = copy.deepcopy(self.guess)
         initial_settings = copy.deepcopy(self.solver_settings)
 
         self.solver_settings = {
@@ -278,35 +283,38 @@ class Optimizer(object):
         self.scaling = initial_guess
         return result
 
-    def check_decision_bounds(self, plot=False):
+    def check_decision_bounds(self, plot: bool = False) -> None:
         """Method is simulating model on upper and lower bounds of decision variables.
         Prints if there were porblems simulation some bounds, meaning that optimizer
         will also have problems, when going near that bounds.
         Only first simulator of optimizers is used"""
-        bound_pairs = []
-        for lb, ub in zip(self.lower_bound, self.upper_bound):
-            bound_pairs.append([lb, ub])
+        if isinstance(self, ParameterEstimation):
+            bound_pairs = []
+            for lb, ub in zip(self.lower_bound, self.upper_bound):
+                bound_pairs.append([lb, ub])
 
-        list_of_bounds = np.array(np.meshgrid(*bound_pairs)).T.reshape(
-            -1, len(bound_pairs)
-        )
+            list_of_bounds = np.array(np.meshgrid(*bound_pairs)).T.reshape(
+                -1, len(bound_pairs)
+            )
 
-        simulation = self.list_simulators[0]
-        results = []
+            simulation = self.list_simulators[0]
+            results = []
 
-        for set_of_bounds in list_of_bounds:
-            bound_dictionary = {}
-            for var, bound in zip(list(self.varlist_decision.values()), set_of_bounds):
-                bound_dictionary[var.name] = bound
-            try:
-                result = simulation.generate_exp_data(True, True, set_of_bounds)
-                if plot:
-                    result._get_varlist_to_plot(True).dataframe.plot(
-                        subplots=True, title=str(bound_dictionary)
-                    )
-                results.append(result)
-            except Exception:
-                print(f"Failed for these bounds: {bound_dictionary}")
+            for set_of_bounds in list_of_bounds:
+                bound_dictionary = {}
+                for var, bound in zip(list(self.varlist_decision.values()), set_of_bounds):
+                    bound_dictionary[var.name] = bound
+                try:
+                    result = simulation.generate_exp_data(True, True, set_of_bounds)
+                    if plot:
+                        result._get_varlist_to_plot(True).dataframe.plot(
+                            subplots=True, title=str(bound_dictionary)
+                        )
+                    results.append(result)
+                except Exception:
+                    print(f"Failed for these bounds: {bound_dictionary}")
+        else:
+            raise NotImplementedError
 
 
 class ParameterEstimation(Optimizer):
@@ -314,12 +322,12 @@ class ParameterEstimation(Optimizer):
         self,
         model: Model,
         variable_list: list[VariableList],
-        simulator_name="idas",
-        simulator_settings=None,
+        simulator_name: str = "idas",
+        simulator_settings: dict | None = None,
         *,
-        use_idas_constraints=False,
-        use_algebraic_vars=False,
-        recalculate_algebraic=False,
+        use_idas_constraints: bool = False,
+        use_algebraic_vars: bool = False,
+        recalculate_algebraic: bool = False,
     ):
         super().__init__(
             model,
@@ -329,29 +337,11 @@ class ParameterEstimation(Optimizer):
         )
 
         if use_algebraic_vars:
-            self._objective = self._objective_alg  # type: ignore[assignment]
+            objective = self._objective_alg
             raise NotImplementedError()
         else:
-            self._objective = self._objective_state  # type: ignore[assignment]
-
-        # This attribute is used while calculating Objective, and is either 1 or self.experiments_weights
-        # It's used to make some experiments as valuable as others, even if they have less experimental points
-        # So if you supply 2 experiments one with 10 and another with 20 time_stamps, effect of each experimental
-        # point of second experiments on objective function is decreased by 2
-        self.experiments_scale = 1
-        self.experiments_weights: list[np.ndarray] = []
-        """
-        This list holds nested arrays with all experimental data. If data is not available for the time_stamp,
-        it's replaced with 0. It has follwing form:
-        [exp1_var1_time1, exp1_var2_time1, exp1_varN_time1, exp1_var1_time2 ... , exp1_varN_timeN, exp2_var1_time1 ...]
-        """
-        self.experimental_data: list[np.ndarray] = []
-        # This list holds nested arrays with True or False values, specifying whether experimental data should be
-        # used in an optimization function or not. Same form as self.experimental_data
-
-        self.experimental_data_mask: list[np.ndarray] = []
-        # Inverted variances provided weightning matrix for PE problem
-        self.inverted_variances: list[np.ndarray] = []
+            objective = self._objective_state
+        self._objective: Callable[[], tuple[ca.MX | ca.DM, ca.MX | ca.DM]] = objective
 
         self._setup_simulator(
             use_idas_constraints=use_idas_constraints,
@@ -376,8 +366,12 @@ class ParameterEstimation(Optimizer):
             sim.calculate_algebraic_initials(apply_intials=True)
 
     def _setup_simulator(
-        self, *, use_idas_constraints, use_algebraic_vars, recalculate_algebraic
-    ):
+        self,
+        *,
+        use_idas_constraints: bool,
+        use_algebraic_vars: bool,
+        recalculate_algebraic: bool,
+    ) -> None:
         # It's not checked if all supplied varlist have same states etc.
         for var in self.list_input_varlist[0].values():
             if isinstance(var, VariableState):
@@ -392,6 +386,10 @@ class ParameterEstimation(Optimizer):
         # Lists used to calculate experiments_weights
         list_timegrid_length = []
         size_simulation_output = []
+        list_simulators = []
+        experimental_data = []
+        experimental_data_mask = []
+        inverted_variances: list[np.ndarray] = []
 
         for varlist_input in self.list_input_varlist:
             # Create a time_grid, that "stops" at every experimental data, for every state variable
@@ -430,7 +428,7 @@ class ParameterEstimation(Optimizer):
 
             list_timegrid_length.append(float(len(time_grid_unique)))
 
-            self.list_simulators.append(
+            list_simulators.append(
                 Simulator(
                     self.model,
                     np.array(time_grid_unique),
@@ -446,11 +444,11 @@ class ParameterEstimation(Optimizer):
             new_experiment_data_varlist = (
                 data_frame.iloc[1:].fillna(0).to_numpy().flatten()
             )
-            self.experimental_data.append(new_experiment_data_varlist)
+            experimental_data.append(new_experiment_data_varlist)
             new_experiment_data_mask_varlist = (
                 data_frame.iloc[1:].notna().to_numpy().flatten().astype(int)
             )
-            self.experimental_data_mask.append(new_experiment_data_mask_varlist)
+            experimental_data_mask.append(new_experiment_data_mask_varlist)
 
             # Generate inverted_variances
             if use_algebraic_vars:
@@ -468,28 +466,41 @@ class ParameterEstimation(Optimizer):
                 inverted_variances_varlist.append(
                     1.0 / (np.full(len(time_grid_unique) - 1, var.variance))
                 )
-            inverted_variances_varlist = np.column_stack(
+            inverted_variances_array = np.column_stack(
                 inverted_variances_varlist
             ).flatten()
-            self.inverted_variances.append(inverted_variances_varlist)
+            inverted_variances.append(inverted_variances_array)
 
-            size_simulation_output.append(len(inverted_variances_varlist))
+            size_simulation_output.append(len(inverted_variances_array))
 
         # Calculate experiments_weights
+        self.list_simulators: Sequence[Simulator] = list_simulators
+
         max_time_grid = max(list_timegrid_length)
+        experiments_weights = []
         for time_grid_length, size_simulation in zip(
             list_timegrid_length, size_simulation_output
         ):
-            self.experiments_weights.append(
+            experiments_weights.append(
                 np.full(size_simulation, max_time_grid / time_grid_length)
             )
 
-        self.experimental_data = np.concatenate(self.experimental_data)
-        self.experimental_data_mask = np.concatenate(self.experimental_data_mask)
-        self.inverted_variances = np.concatenate(self.inverted_variances)
-        self.experiments_weights = np.concatenate(self.experiments_weights)
+        """
+        This list holds nested arrays with all experimental data. If data is not available for the time_stamp,
+        it's replaced with 0. It has follwing form:
+        [exp1_var1_time1, exp1_var2_time1, exp1_varN_time1, exp1_var1_time2 ... , exp1_varN_timeN, exp2_var1_time1 ...]
+        """
+        self.experimental_data: np.ndarray = np.concatenate(experimental_data)
+        # This list holds nested arrays with True or False values, specifying whether experimental data should be
+        # used in an optimization function or not. Same form as self.experimental_data
 
-    def _objective_state(self):
+        self.experimental_data_mask: np.ndarray = np.concatenate(experimental_data_mask)
+        # Inverted variances provided weightning matrix for PE problem
+        self.inverted_variances: np.ndarray = np.concatenate(inverted_variances)
+
+        self.experiments_weights: np.ndarray = np.concatenate(experiments_weights)
+
+    def _objective_state(self) -> tuple[ca.MX | ca.DM, ca.MX | ca.DM]:
         array_simulation = None
 
         for simulator in self.list_simulators:
@@ -515,7 +526,7 @@ class ParameterEstimation(Optimizer):
 
         return objective, error
 
-    def _objective_alg(self):
+    def _objective_alg(self) -> tuple[ca.MX | ca.DM, ca.MX | ca.DM]:
         array_simulation = None
 
         for simulator in self.list_simulators:
@@ -538,32 +549,37 @@ class ParameterEstimation(Optimizer):
 
         return objective, error
 
-    def optimize(self, scale=True, *, scale_experiments=False):
+    def optimize(self, scale=True, *, scale_experiments=False) -> dict[str, ca.DM]:
         """Solves optimization problem. Scaling decreases amount of iterations,
         and should always almost be used
         """
         if scale_experiments:
-            self.experiments_scale = self.experiments_weights
+            experiments_scale: int | np.ndarray = self.experiments_weights
         else:
-            self.experiments_scale = 1
+            experiments_scale = 1
 
+        # This attribute is used while calculating Objective, and is either 1 or self.experiments_weights
+        # It's used to make some experiments as valuable as others, even if they have less experimental points
+        # So if you supply 2 experiments one with 10 and another with 20 time_stamps, effect of each experimental
+        # point of second experiments on objective function is decreased by 2
+        self.experiments_scale: int | np.ndarray = experiments_scale
         res = self._optimize(scale)
         return res
 
     def plot_simulation(
         self,
-        supplied_parameters=None,
-        experiment_names=None,
-        savefig=False,
-        algebraic=True,
-        plot=True,
-    ):  # noqa: E501
+        supplied_parameters: list[float] | None = None,
+        experiment_names: list[str] | None = None,
+        savefig: bool = False,
+        algebraic: bool = True,
+        plot: bool = True,
+    ) -> list[VariableList]:  # noqa: E501
         """Plots experimental points against simulated trajectories, first line, initial guess, than supplied values"""
         self._setup_scaling(False)
 
         if experiment_names is None:
             experiment_names = []
-            for index, simulator in enumerate(self.list_input_varlist):
+            for index, _ in enumerate(self.list_input_varlist):
                 experiment_names.append(f"EXP_{index}")
 
         if not len(experiment_names) == len(self.list_input_varlist):
@@ -572,7 +588,7 @@ class ParameterEstimation(Optimizer):
             )
 
         for input_varlist, simulator, exp_name in zip(
-            self.list_input_varlist, self.list_simulators, experiment_names
+            self.list_input_varlist, self.list_simulators, experiment_names,
         ):
             res_guess = simulator.generate_exp_data(
                 algebraic=algebraic,
@@ -623,22 +639,16 @@ class OptimalExperimentalDesign(Optimizer):
         self,
         model: Model,
         variable_list: list[VariableList],
-        time_grid_relative,
-        simulator_name="idas",
-        simulator_settings=None,
+        time_grid_relative: np.ndarray,
+        simulator_name: str = "idas",
+        simulator_settings: dict = None,
         *,
-        reinitialize_algebraic=False,
-    ):
+        reinitialize_algebraic: bool = False,
+    ) -> None:
         super().__init__(model, variable_list, simulator_name, simulator_settings)
 
         # User specified time_grid is used for initilizaiton of Simulators
-        self.time_grid_original = time_grid_relative
-
-        # [par_1, par_2, ... par_N]
-        self.parameter_values: list[float] = []
-        # Index of parameters, that are unfixed. It's used to select Jacobian for only this variables
-        self.select_independent: list[int] = []
-        self.inverted_variances: list[float] = []
+        self.time_grid_original: np.ndarray = time_grid_relative
 
         self._setup_simulator()
         self._setup_initialization()
@@ -647,8 +657,8 @@ class OptimalExperimentalDesign(Optimizer):
         # So the corrected time_grid of Simulator is used in optimization
         self.time_grid_modified = self.list_simulators[0].time_grid_relative
 
-        self.solver_name = "ipopt"
-        self.solver_settings = {
+        self.solver_name: str = "ipopt"
+        self.solver_settings: dict = {
             "verbose": False,
             # "monitor": ["nlp_grad_f", "nlp_f"],
             "ipopt": {
@@ -661,12 +671,15 @@ class OptimalExperimentalDesign(Optimizer):
             for sim in self.list_simulators:
                 sim.calculate_algebraic_initials(apply_intials=True)
 
-    def _setup_simulator(self, *, use_idas_constraints=False):
+    def _setup_simulator(self, *, use_idas_constraints: bool = False) -> None:
         """Initializes simulator class. Parameter variables are fixed, and an index of an unfixed
         parameter is saved in self.select_independent list.
         This list is used during the calculation of the objective, to ignore jacobian of fixed parameters.
         self.index_all_states is used additionaly to self.select_independent list to get required jacobian.
         """
+        parameter_values = []
+        select_independent = []
+        inverted_variances = []
 
         for variable_name in self.model.varlist_all.keys():
             try:
@@ -685,19 +698,24 @@ class OptimalExperimentalDesign(Optimizer):
             elif isinstance(var, VariableParameter):
                 if var.fixed is False:
                     self.varlist_parameter.add_variable(var)
-                    self.parameter_values.append(var.value)
+                    parameter_values.append(var.value[0])
                     var.fixed = True
                     # index has + 1 to account for tau variable, that is a parameter of a simulation.
                     index = list(self.model.varlist_independent).index(var.name) + 1
-                    self.select_independent.append(index)
+                    select_independent.append(index)
 
             elif isinstance(var, VariableState):
-                self.inverted_variances.append(1 / var.variance)
+                inverted_variances.append(1 / var.variance)
 
-        self.inverted_variances = np.array(self.inverted_variances)
+        # [par_1, par_2, ... par_N]
+        self.parameter_values: list[float] = parameter_values
+        # Index of parameters, that are unfixed. It's used to select Jacobian for only this variables
+        self.select_independent: list[int] = select_independent
+
+        self.inverted_variances: np.ndarray = np.array(inverted_variances)
         self.index_all_states = list(range(len(self.model.varlist_state)))
 
-        self.list_simulators.append(
+        self.list_simulators: list[Simulator] = [
             Simulator(
                 self.model,
                 self.time_grid_original,
@@ -706,9 +724,11 @@ class OptimalExperimentalDesign(Optimizer):
                 self.simulator_settings,
                 simulate_jac=True,
             )
-        )
+        ]
 
-    def _objective(self, analyze=False, values=None):
+    def _objective(
+        self, analyze: bool = False, values: list[float] | None = None
+    ) -> tuple[ca.MX | ca.DM, ca.MX | ca.DM]:
         """Calculates an A OED criteria, beacuse casadi cannot do other.
         "analyze" Flag and values are used for debugging.
 
@@ -797,11 +817,11 @@ class OptimalExperimentalDesign(Optimizer):
         error = ca.trace(ca.inv(covariance_full))
 
         if analyze:
-            return error, covariance_full, jacobian_full, covariance_all, objective_all
+            return error, covariance_full, jacobian_full, covariance_all, objective_all  # type: ignore
 
-        return [error]
+        return error, covariance_full
 
-    def optimize(self, scale=False):
+    def optimize(self, scale: bool = False) -> dict[str, ca.DM | ca.MX]:
         """Run optimization.
 
         Args:
@@ -823,7 +843,7 @@ class OptimalExperimentalDesign(Optimizer):
             jacobian,
             covariance_all,
             objective_all,
-        ) = self._objective(True)[0]
+        ) = self._objective(True)
         cond_threshold = 1000
         colin_threshold = 15
 
@@ -910,10 +930,9 @@ class ParameterEstimationNLE(Optimizer):
         simulator_name="rootfinder",
         *,
         use_simulator_bounds=True,
-    ):
+    ) -> None:
         super().__init__(model, variable_lists, simulator_name, simulator_settings)
 
-        self.inverted_variances = []
         self._setup_simulator(use_simulator_bounds)
         self.logger.debug(
             "Created Optimizer object: \n Data Shape {} \n Desicion Variables {}".format(
@@ -923,13 +942,14 @@ class ParameterEstimationNLE(Optimizer):
         self._setup_initialization()
 
         self.solver_name = "ipopt"
-        if self.solver_settings is None:
-            self.solver_settings = {
-                "verbose": False,
-                "ipopt": {"max_iter": 300},
-            }
+        self.solver_settings = {
+            "verbose": False,
+            "ipopt": {"max_iter": 300},
+        }
+        # Set default objective
+        self._objective: Callable[[], tuple[ca.MX | ca.DM, ca.MX | ca.DM]] = self._objective_ols
 
-    def _setup_simulator(self, use_simulator_bounds):
+    def _setup_simulator(self, use_simulator_bounds:bool) -> None:
         # It's not checked if all supplied varlist have same states etc.
         for var in self.list_input_varlist[0].values():
             if isinstance(var, VariableAlgebraic):
@@ -941,8 +961,11 @@ class ParameterEstimationNLE(Optimizer):
             elif isinstance(var, VariableControl):
                 self.varlist_control.add_variable(var)
 
-        self.array_data = []
-        self.array_data_mask = []
+        array_data = []
+        array_data_mask = []
+        list_simulators = []
+        list_simulator_mappings = []
+        inverted_variances = []
 
         for varlist_input in self.list_input_varlist:
             for var in varlist_input.values():
@@ -956,27 +979,35 @@ class ParameterEstimationNLE(Optimizer):
                 self.simulator_name,
                 use_bounds=use_simulator_bounds,
             )
-            self.list_simulators.append(simulator)
+            list_simulators.append(simulator)
 
-            self._setup_simulator_mapping(simulator)
+            list_simulator_mappings.append(self._setup_simulator_mapping(simulator))
 
             for var in varlist_input.values():
                 if isinstance(var, VariableAlgebraic):
                     if var.value[0] is None or np.isnan(var.value[0]):
-                        self.array_data.append(0)
-                        self.array_data_mask.append(0)
+                        array_data.append(0.0)
+                        array_data_mask.append(0.0)
                     else:
-                        self.array_data.append(var.value[0])
-                        self.array_data_mask.append(1)
+                        array_data.append(var.value[0])
+                        array_data_mask.append(1.0)
 
-                    self.inverted_variances.append(1 / var.variance)
+                    inverted_variances.append(1.0 / var.variance)
 
-        self.inverted_variances = np.array(self.inverted_variances)
+        self.list_simulators: list[SimulatorNLE] = list_simulators
 
-        self.array_data = ca.DM(self.array_data)
-        self.array_data_mask = np.array(self.array_data_mask)
+        # List of dicts for each Simulation that shows, which index coresponds to each
+        # simulator._independent_variables in self.varlist_ variable
+        # For example [{1: 2}], {1: 3}]: in first simulator._independent_variables[1]
+        # is the same variable as self.varlist_decision[2]
+        self.mapping_simulator_decisions: list[dict[int,int]] = list_simulator_mappings
 
-    def _setup_simulator_mapping(self, simulator):
+        self.inverted_variances: np.ndarray = np.array(inverted_variances)
+
+        self.array_data: ca.DM = ca.DM(array_data)
+        self.array_data_mask: np.ndarray = np.array(array_data_mask)
+
+    def _setup_simulator_mapping(self, simulator: SimulatorNLE) -> dict[int,int]:
         names_variables_decision = list(self.varlist_decision.keys())
 
         independent_variables = simulator._independent_variables
@@ -989,7 +1020,7 @@ class ParameterEstimationNLE(Optimizer):
                     index = list(self.varlist_decision.keys()).index(var.name())
                     mapping_simulator_decisions[count] = index
 
-        self.mapping_simulator_decisions.append(mapping_simulator_decisions)
+        return mapping_simulator_decisions
 
     def _simulate_all(self):
         array_simulation = None
@@ -1036,8 +1067,10 @@ class ParameterEstimationNLE(Optimizer):
 
         return self._optimize(scale)
 
-    def parameter_analysis(self, parameters: dict):
+    @no_type_check_decorator
+    def parameter_analysis(self, parameters: dict[str, float]):
         import scipy.stats
+
         dof = len(self.list_input_varlist) - len(self.varlist_decision)
         num_par = len(self.varlist_decision)
         decision_variables = self.varlist_decision.get_casadi_variables()
@@ -1051,7 +1084,7 @@ class ParameterEstimationNLE(Optimizer):
             ["f"],
         )
 
-        selected_parameters = []
+        selected_parameters: list[float] = []
         for var_name in parameters.keys():
             if var_name in self.varlist_decision.keys():
                 selected_parameters.append(parameters[var_name])
@@ -1066,7 +1099,9 @@ class ParameterEstimationNLE(Optimizer):
             if isinstance(var, VariableParameter):
                 if var.fixed is False:
                     # Ignore jac_x0_p
-                    index = list(self.model.varlist_independent).index(var.name) + len(self.model.varlist_algebraic)
+                    index = list(self.model.varlist_independent).index(var.name) + len(
+                        self.model.varlist_algebraic
+                    )
                     select_independent.append(index)
 
         S_squared = ca.sum1(residuals**2).toarray()
@@ -1075,11 +1110,13 @@ class ParameterEstimationNLE(Optimizer):
         len_alg = len(self.model.varlist_algebraic)
 
         # It's assumed that there are no missing data
-        select_algebraic = np.reshape(self.array_data_mask, (len(self.list_simulators), len_alg))[0]
+        select_algebraic = np.reshape(
+            self.array_data_mask, (len(self.list_simulators), len_alg)
+        )[0]
         select_algebraic = np.asarray(select_algebraic == 1).nonzero()[0]
 
-        full_jacobian = [[] for x in range(len(select_algebraic))]
-        variance = [[] for x in range(len(select_algebraic))]
+        full_jacobian: list[list[np.ndarray]] = [[] for x in range(len(select_algebraic))]
+        variance: list[list[float]] = [[] for x in range(len(select_algebraic))]
 
         for sim in self.list_simulators:
             variance_i = sim.get_variance_array()
@@ -1104,85 +1141,92 @@ class ParameterEstimationNLE(Optimizer):
             for index_selected, index_algebraic in enumerate(select_algebraic):
                 variance[index_selected].append(variance_i[index_algebraic])
 
-        r = None
-        covariance_matrix = None
-        for jacobian_responce, variance_responce in zip(full_jacobian, variance):
-            jacobian_responce = np.array(jacobian_responce)
-            variance_responce = np.array(variance_responce)
-            r_responce = np.linalg.qr((jacobian_responce.T * (1 / np.sqrt(variance_responce))).T)[1]
+        r: np.ndarray | None = None
+        covariance_matrix: None | np.ndarray = None
+        for jacobian_responce_list, variance_responce_list in zip(full_jacobian, variance):
+            jacobian_responce = np.array(jacobian_responce_list)
+            variance_responce = np.array(variance_responce_list)
+            r_responce = np.linalg.qr(
+                (jacobian_responce.T * (1 / np.sqrt(variance_responce))).T
+            )[1]
             if r is None:
                 r = r_responce
             else:
                 r = r + r_responce
 
             # covariance_matrix_responce = jacobian_responce.T.dot(jacobian_responce)
-            covariance_matrix_responce = (jacobian_responce.T * (1 / variance_responce)).dot(jacobian_responce)
+            covariance_matrix_responce = (
+                jacobian_responce.T * (1 / variance_responce)
+            ).dot(jacobian_responce)
             if covariance_matrix is None:
                 covariance_matrix = covariance_matrix_responce
             else:
                 covariance_matrix = covariance_matrix + covariance_matrix_responce
 
-        covariance_matrix = np.linalg.inv(covariance_matrix)
-        covariance_matrix = covariance_matrix
+        covariance_matrix_inverse = np.linalg.inv(covariance_matrix)  # type: ignore
         # full_jacobian = np.array(full_jacobian)
 
         # breakpoint()
         # r = np.linalg.qr(full_jacobian)[1]
 
-        par_variance = np.diag(np.sqrt(covariance_matrix * residual_mean_square))
+        par_variance = np.diag(np.sqrt(covariance_matrix_inverse * residual_mean_square))
         # print(selected_parameters)
         # print(par_variance)
 
-        students_t_dist_95 = scipy.stats.t.ppf(0.975,dof)
-        students_t_dist_99 = scipy.stats.t.ppf(0.995,dof)
+        students_t_dist_95 = scipy.stats.t.ppf(0.975, dof)
+        # students_t_dist_99 = scipy.stats.t.ppf(0.995, dof)
 
-        r_inv_diag = np.linalg.norm(np.linalg.inv(r), axis=1)
-        l = np.linalg.inv(r) / r_inv_diag
+        assert r is not None
+        # r_inv_diag = np.linalg.norm(np.linalg.inv(r), axis=1)
+        # l = np.linalg.inv(r) / r_inv_diag
 
-        par_variance_2 = np.sqrt(residual_mean_square) * r_inv_diag
+        # par_variance_2 = np.sqrt(residual_mean_square) * r_inv_diag
         # print(par_variance_2)
 
-        for par, var in zip(selected_parameters, par_variance):
-            print(f"{par} +- {var} |  ({var / par})")
+        for par, var_value in zip(selected_parameters, par_variance):
+            print(f"{par} +- {var_value} |  ({var_value / par})")
 
         marginal_conf_interval_95 = par_variance * students_t_dist_95
-        marginal_conf_interval_99 = par_variance * r_inv_diag * students_t_dist_99
+        # marginal_conf_interval_99 = par_variance * r_inv_diag * students_t_dist_99
 
         import matplotlib.pyplot as plt
         from matplotlib.axes import Axes
         from matplotlib.patches import Ellipse
+
         def eigsorted(cov):
             vals, vecs = np.linalg.eig(cov)
             # vals, vecs = np.linalg.eigh(cov)
             order = vals.argsort()[::-1]
-            return vals[order], vecs[:,order]
+            return vals[order], vecs[:, order]
 
         # ax = plt.gca()
-        fig, axes = plt.subplots(ncols=num_par-1, nrows=num_par-1)
+        fig, axes = plt.subplots(ncols=num_par - 1, nrows=num_par - 1)
         if isinstance(axes, Axes) == 1:
             axes = [axes]
 
-        fisher_f_dist_95 = scipy.stats.f.ppf(0.95,num_par,dof)
-        fisher_f_dist_99 = scipy.stats.f.ppf(0.99,num_par,dof)
-
+        fisher_f_dist_95 = scipy.stats.f.ppf(0.95, num_par, dof)
+        # fisher_f_dist_99 = scipy.stats.f.ppf(0.99, num_par, dof)
 
         from itertools import combinations
+
         comb = combinations(range(num_par), 2)
         par_names = list(self.varlist_decision.keys())
 
         breakpoint()
         title = ""
-        for par, var, name in zip(selected_parameters, par_variance, par_names):
-            title = title + f"{name}: {round(par,5)} ± {round(var,5)} |  ({round((var / par) * 100,1)}%)\n"
+        for par_value, var_variance_i, name in zip(selected_parameters, par_variance, par_names):
+            title = (
+                title
+                + f"{name}: {round(par_value,5)} ± {round(var_variance_i,5)} |  ({round((var_variance_i / par_value) * 100,1)}%)\n"
+            )
 
         fig.suptitle(title)
 
-         
         for i in list(comb):
             if len(axes) == 1:
                 ax = axes[0]
             else:
-                ax = axes[i[1]-1,i[0]]
+                ax = axes[i[1] - 1, i[0]]
             index_subarray = np.ix_(i, i)
             parameters_i = []
             parameters_i.append(selected_parameters[i[0]])
@@ -1191,14 +1235,18 @@ class ParameterEstimationNLE(Optimizer):
             marginal_conf_interval_95_i = []
             marginal_conf_interval_95_i.append(marginal_conf_interval_95[i[0]])
             marginal_conf_interval_95_i.append(marginal_conf_interval_95[i[1]])
-            cov_m = covariance_matrix[index_subarray]
+            cov_m = covariance_matrix_inverse[index_subarray]
             vals, vecs = eigsorted(cov_m)
-            theta = np.degrees(np.arctan2(*vecs[:,0][::-1]))
+            theta = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
 
             # Width and height are "full" widths, not radius
-            for fisher in [fisher_f_dist_95]:#, fisher_f_dist_99]:
-                width, height = (2 * np.sqrt(num_par * residual_mean_square * fisher * vals))[0]
-                ellip = Ellipse(xy=parameters_i, width=width, height=height, angle=theta, alpha=0.3)
+            for fisher in [fisher_f_dist_95]:  # , fisher_f_dist_99]:
+                width, height = (
+                    2 * np.sqrt(num_par * residual_mean_square * fisher * vals)
+                )[0]
+                ellip = Ellipse(
+                    xy=parameters_i, width=width, height=height, angle=theta, alpha=0.3
+                )
 
                 ax.add_artist(ellip)
             ax.relim()
@@ -1219,7 +1267,6 @@ class ParameterEstimationNLE(Optimizer):
             # plt.axhline(parameters_i[1] - marginal_conf_interval_95_i[0][1])
             # plt.axhline(parameters_i[1] + marginal_conf_interval_95_i[0][1])
 
-
         plt.show()
         return residuals, S_squared, residual_mean_square
 
@@ -1239,6 +1286,7 @@ class ParameterEstimationNLE_control(ParameterEstimationNLE):
 
         self.num_parameters = len(self.varlist_decision)
 
+        list_simulators = []
         self.array_data = []
         self.array_data_mask = []
 
@@ -1275,7 +1323,7 @@ class ParameterEstimationNLE_control(ParameterEstimationNLE):
                 self.simulator_name,
                 use_bounds=use_simulator_bounds,
             )
-            self.list_simulators.append(simulator)
+            list_simulators.append(simulator)
 
             self._setup_simulator_mapping(simulator)
 
@@ -1288,6 +1336,7 @@ class ParameterEstimationNLE_control(ParameterEstimationNLE):
                         self.array_data.append(var.value[0])
                         self.array_data_mask.append(1)
 
+        self.list_simulators: list[SimulatorNLE] = list_simulators
         self.array_data = ca.DM(self.array_data)
         self.array_controls = ca.DM(self.array_controls)
         self.array_data_mask = np.array(self.array_data_mask)
@@ -1319,6 +1368,6 @@ class ParameterEstimationNLE_control(ParameterEstimationNLE):
 
         res = self._optimize(scale)
         res["all"] = res["x"]
-        res["x"] = res["all"][0:self.num_parameters]
-        res["p"] = res["all"][self.num_parameters:]
+        res["x"] = res["all"][0 : self.num_parameters]
+        res["p"] = res["all"][self.num_parameters :]
         return res

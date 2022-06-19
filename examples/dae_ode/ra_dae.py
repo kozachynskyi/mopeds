@@ -1230,14 +1230,7 @@ if __name__ == "__main__":
     time_grid = np.linspace(0, 2000, 10)
     # time_grid = np.insert(time_grid, 0, 0)
 
-    for var in variable_list.values():
-        var.fixed = True
-        if isinstance(var, par_est.VariableControl) or isinstance(
-            var, par_est.VariableParameter
-        ):
-            var.lower_bound = var.value - var.value * 0.05
-            var.upper_bound = var.value + var.value * 0.05
-            var.guess = var.lower_bound
+    variable_list.set_bounds(0.05)
     # Set parameters and controls to fixed state so their values are used for simulation
     var_list_fixed = copy.deepcopy(variable_list)
     for var in var_list_fixed.values():
