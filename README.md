@@ -2,9 +2,11 @@
 
 A library wrapped around casadi to solve Simulation / Optimization problems based on ODE and DAE models. Currently Parameter Estimation (PE) and Optimal Experimental Design (OED) are supported out of the box.
 
+For a tutorial check https://www.user.tu-berlin.de/vovakozach/par_est/5min_tutorial.html
+
 ## Installation
 
-- python3.7 is required (based on casadi requirements)
+- python3.8 or 3.9 is required
 - install via pip or poetry
     - INSTALL: pip install git+https://git.tu-berlin.de/vovakozach/pe_oed_casadi
         - ITWM Repo: pip install git+https://gitlab.itwm.fraunhofer.de/bubel/parameter-estimation
