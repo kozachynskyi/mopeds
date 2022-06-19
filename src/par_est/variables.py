@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
 from datetime import datetime, timedelta
 from typing import Any, Union
 
@@ -83,6 +83,13 @@ class Variable(object):
     def value(self) -> list[float]:
         """Returns a list with values of variables"""
         return self.dataframe[self.name].tolist()
+
+    @value.setter
+    def value(self, value: int | float) -> None:
+        """Returns a list with values of variables"""
+        if isinstance(value, Iterable):
+            raise NotImplementedError("Method can only be used to with scalars. Use variable.dataframe[variable.name] for arrays")
+        self.dataframe.iloc[0] = value
 
     @property
     def time_absolute(self) -> pd.Series:
@@ -327,6 +334,10 @@ class VariableControlPiecewiseConstant(VariableControl):
         for var in self.variable_list.values():
             values.extend(var.value)
         return values
+
+    @value.setter
+    def value(self) -> None:
+        raise NotImplementedError
 
     @property
     def time_absolute(self) -> pd.Series:

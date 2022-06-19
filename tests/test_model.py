@@ -76,7 +76,7 @@ def test_varlist_model_reusability():
     without varlist provides same results."""
     variable_list, model = par_est.examples.pendulum_dae_1(False)
     time_grid = np.linspace(0, 1, 3)
-    variable_list["g"].dataframe.iloc[0] = 12.0
+    variable_list["g"].value = 12.0
     simulation = par_est.Simulator(model, time_grid, variable_list)
     res_before = simulation.simulate()
 

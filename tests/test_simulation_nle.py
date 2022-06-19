@@ -8,7 +8,7 @@ def test_vle_nle():
     variable_list, model = par_est.examples.vle_nle_problem()
 
     variable_list.set_variable_list_fixed()
-    variable_list["x"].dataframe.iloc[0] = 0.5
+    variable_list["x"].value = 0.5
     for i in range(2):
         if i == 0:
             sim = par_est.simulation.SimulatorNLE(model, variable_list)

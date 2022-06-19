@@ -31,7 +31,7 @@ if __name__ == "__main__":
     x = [0.00, 0.10, 0.25, 0.50, 0.75, 0.90, 1.00]
 
     for val in x:
-        var_list_fixed["x"].dataframe.iloc[0] = val  # adjust the value for x
+        var_list_fixed["x"].value = val  # adjust the value for x
 
         # Generate data using the fixed values for the parameter. The output
         # is used as starting values for parameter estimation

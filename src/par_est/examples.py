@@ -458,8 +458,8 @@ def bod_model() -> tuple[par_est.VariableList, par_est.Model, list[par_est.Varia
 
     for x_i, f_i in data:
         var_list = copy.deepcopy(variable_list)
-        var_list["f"].dataframe.iloc[0] = f_i
-        var_list["x"].dataframe.iloc[0] = x_i
+        var_list["f"].value = f_i
+        var_list["x"].value = x_i
         var_list["theta1"].fixed = False
         var_list["theta1"].lower_bound = 0
         var_list["theta1"].upper_bound = 40
@@ -532,10 +532,10 @@ def isomerization_model() -> tuple[par_est.VariableList, par_est.Model, list[par
 
     for x1_i, x2_i, x3_i, f_i in data:
         var_list = copy.deepcopy(variable_list)
-        var_list["f"].dataframe.iloc[0] = f_i
-        var_list["x1"].dataframe.iloc[0] = x1_i
-        var_list["x2"].dataframe.iloc[0] = x2_i
-        var_list["x3"].dataframe.iloc[0] = x3_i
+        var_list["f"].value = f_i
+        var_list["x1"].value = x1_i
+        var_list["x2"].value = x2_i
+        var_list["x3"].value = x3_i
         var_list["theta1"].fixed = False
         var_list["theta2"].fixed = False
         var_list["theta3"].fixed = False

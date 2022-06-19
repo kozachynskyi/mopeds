@@ -17,7 +17,7 @@ def test_pe():
     var_list_fixed = copy.deepcopy(variable_list)
     var_list_fixed.set_variable_list_fixed()
 
-    var_list_fixed["x"].dataframe.iloc[0] = 0.5
+    var_list_fixed["x"].value = 0.5
     variable_list_optimizer = par_est.tools.generate_varlist_with_data_NLE(
         model, var_list_fixed
     )

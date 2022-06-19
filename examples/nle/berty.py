@@ -536,7 +536,7 @@ if __name__ == "__main__":
         var.fixed = True
 
     # 3. In this list change set values of control variables and parameter variables as you want
-    var_list_fixed["e0_T_j2"].dataframe.iloc[0] = 500
+    var_list_fixed["e0_T_j2"].value = 500
 
     # 4. Create simulation Object that would generate experimental data
     sim_fixed = par_est.SimulatorNLE(m, var_list_fixed, solver_name="ipopt")
@@ -545,7 +545,7 @@ if __name__ == "__main__":
     5. Generate data - what it does: 
     - Run Simulator to solve NLE at given values of Controls and Parameters
     - Create a new VariableList with all Algebraic Variables
-    - Set results of the simulation to var.dataframe.iloc[0] of the Variable Objects
+    - Set results of the simulation to var.value of the Variable Objects
     (So you can see the simulation results by printng print(res.values())
     '''
     res = sim_fixed.generate_exp_data()
@@ -568,10 +568,10 @@ if __name__ == "__main__":
     '''
     for var in variable_list_optimizer.values():
         if isinstance(var, par_est.VariableControl):
-            var.dataframe.iloc[0] = var_list_fixed[var.name].value
+            var.value = var_list_fixed[var.name].value
 
     # 7. This variable_list_optimizer conssists now of one experiment. If you want to create another experiment, repeat steps 3 till 7: example below. Of course you can create a function to repeat steps 4-7 for you
-    var_list_fixed["e0_T_j2"].dataframe.iloc[0] = 500
+    var_list_fixed["e0_T_j2"].value = 500
     sim_fixed = par_est.SimulatorNLE(m, var_list_fixed, solver_name="ipopt")
     res = sim_fixed.generate_exp_data()
     variable_list_optimizer_2 = copy.deepcopy(variable_list)
@@ -580,7 +580,7 @@ if __name__ == "__main__":
         variable_list_optimizer_2[key] = var
     for var in variable_list_optimizer_2.values():
         if isinstance(var, par_est.VariableControl):
-            var.dataframe.iloc[0] = var_list_fixed[var.name].value[0]
+            var.value = var_list_fixed[var.name].value[0]
 
     # 8. Now just supply all your experiments as a list to ptimizer
     pe = par_est.ParameterEstimationNLE(

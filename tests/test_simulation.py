@@ -8,7 +8,7 @@ import pytest
 @pytest.mark.parametrize("piecewise", [True, False])
 def test_dae_initials_calculation(piecewise):
     varlist, model = par_est.examples.empy_dae(piecewise)
-    varlist["X1"].dataframe.iloc[0] = 1
+    varlist["X1"].value = 1
     varlist["C"].fixed = True
     varlist["P"].fixed = True
     time_grid = np.array([1, 2])
@@ -199,6 +199,6 @@ if __name__ == "__main__":
     pass
     # test_pendulum_dae(True)
     # test_cstr(True)
-    # test_dae_initials_calculation()
+    # test_dae_initials_calculation(True)
     # test_piecewise()
     # test_constraints_idas()
