@@ -12,13 +12,11 @@ aa = a.get_value_or_guess()
 b = par_est.VariableAlgebraic("a", 1)
 b.fixed = False
 bb = b.get_value_or_guess()
-breakpoint()
 
 
 def parameter_estimation(parameters=None):
     pe = par_est.ParameterEstimationNLE(MODEL, EXP_DATA)
     print(EXP_DATA.__repr__())
-    breakpoint()
     pe.solver_settings["ipopt"]["linear_solver"] = "ma27"
     if parameters:
         res = pe.parameter_analysis(parameters)
