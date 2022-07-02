@@ -1067,7 +1067,6 @@ class ParameterEstimationNLE(Optimizer):
 
         return self._optimize(scale)
 
-    @no_type_check_decorator
     def parameter_analysis(self, parameters: dict[str, float]):
         import scipy.stats
 
