@@ -25,15 +25,14 @@ class MXPickler(pickle.Pickler):
 
 
 def show_html_from_dataframe(dataframe: pd.DataFrame):
-    tmp_file = tempfile.NamedTemporaryFile("w")
+    tmp_file = tempfile.NamedTemporaryFile("w", delete=False)
     min_max_html = dataframe.style.highlight_max(color='green').highlight_min(color='red').highlight_null(null_color='yellow').to_html()
     tmp_file.writelines(min_max_html)
     descibe_html = dataframe.describe().style.to_html()
     tmp_file.writelines(descibe_html)
     tmp_file.seek(0)
-    webbrowser.open('file://' + tmp_file.name)
-    breakpoint()
     tmp_file.close()
+    webbrowser.open('file://' + tmp_file.name)
 
 
 def plot_array(array, xticks=None, yticks=None):
