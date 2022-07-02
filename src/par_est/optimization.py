@@ -259,7 +259,7 @@ class Optimizer(object):
             hammersley_seeds = np.array(list(zip(self.lower_bound, self.upper_bound)))
 
         list_startpoint = utilities.make_startpoints(hammersley_seeds, num_initials)
-        result = []
+        results_with_f = []
 
         # Optimizer settings and guess are overwritten for multistart, and then returned back
         initial_guess = copy.deepcopy(self.guess)
@@ -287,11 +287,15 @@ class Optimizer(object):
 
             res = self.optimize(scale)
             print(f"Objective: {res['f']}")
-            result.append(res)
+            res_f = float(res["f"])
+            results_with_f.append([float("inf") if res_f == 0 else res_f, res])
+
+        results_with_f = sorted(results_with_f, key=lambda res: res[0])
+        result_list_sorted = [res[1] for res in results_with_f]
 
         self.solver_settings = initial_settings
         self.scaling = initial_guess
-        return result
+        return result_list_sorted
 
     def check_decision_bounds(self, plot: bool = False) -> None:
         """Method is simulating model on upper and lower bounds of decision variables.
