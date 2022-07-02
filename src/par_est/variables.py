@@ -13,8 +13,6 @@ elif sys.version_info[1] == 9:
 import casadi as ca
 import numpy as np
 import pandas as pd
-from matplotlib import pyplot as plt
-from matplotlib.axes import Axes
 
 import par_est
 
@@ -56,6 +54,8 @@ class Variable(object):
 
     def plot(self, ax: None | Axes = None) -> Axes:
         axis = self.dataframe.plot(ax=ax)
+        from matplotlib import pyplot as plt
+        from matplotlib.axes import Axes
         plt.show()
         return axis
 
@@ -627,6 +627,8 @@ class VariableList(OrderedDict[str, Union[Variable, VariableControlPiecewiseCons
             if prefix is not None:
                 dataframe = dataframe.add_prefix(prefix)
             axes = dataframe.plot(**kwargs)
+
+        from matplotlib import pyplot as plt
 
         plt.show()
         return axes

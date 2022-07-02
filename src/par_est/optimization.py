@@ -6,7 +6,6 @@ from collections.abc import Callable
 from abc import abstractmethod
 
 import casadi as ca
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy import linalg
@@ -174,6 +173,7 @@ class Optimizer(object):
     def map_objective(self, plot: bool = True) -> None:
         """Calculate objective function for different values of parameters and plot, if needed.
         Currently support only 3 unfixed decision variables."""
+        import matplotlib.pyplot as plt
         decision_variables = self.varlist_decision.get_casadi_variables()
         if decision_variables.shape == (3, 1):
             self._setup_scaling(False)

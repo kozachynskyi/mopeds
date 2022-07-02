@@ -5,9 +5,6 @@ import tempfile
 import webbrowser
 
 import casadi as ca
-import matplotlib.cm as cm
-import matplotlib.colors as colors
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -41,6 +38,9 @@ def show_html_from_dataframe(dataframe: pd.DataFrame):
 
 def plot_array(array, xticks=None, yticks=None):
     """Plots given array in an observable way."""
+    import matplotlib.pyplot as plt
+    import matplotlib.colors as colors
+    import matplotlib.cm as cm
     div_norm = colors.TwoSlopeNorm(vcenter=0)
     plt.close()
     plt.imshow(array, cmap=cm.coolwarm, norm=div_norm)
@@ -54,6 +54,8 @@ def plot_array(array, xticks=None, yticks=None):
 
 def plot_arrays(arrays):
     """Same as plot_array but plots every array in a subplot."""
+    import matplotlib.pyplot as plt
+    import matplotlib.cm as cm
     plt.close()
     num_plots = len(arrays)
     fig = plt.figure()
