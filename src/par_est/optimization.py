@@ -1,4 +1,5 @@
 from __future__ import annotations
+from tqdm import tqdm, trange
 
 import copy
 import logging
@@ -264,7 +265,7 @@ class Optimizer(object):
                 "print_level": 0,
             },
         }
-        for index, guess in enumerate(list_startpoint):
+        for index, guess in tqdm(enumerate(list_startpoint)):
             if isinstance(self, ParameterEstimationNLE_control):
                 for index_guess, current_guess in enumerate(guess):
                     self.guess[index_guess] = current_guess
