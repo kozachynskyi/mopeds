@@ -60,7 +60,7 @@ class Variable(object):
         return axis
 
     def __repr__(self) -> str:
-        return f"{self.name}\n{type(self)}\n{self.value}"
+        return f"{self.name}\n{type(self)}\n{self.value}\n"
 
     def get_value_or_casadi(self) -> float | ca.MX:
         """Return either value at time=0 or casadi_variable.
