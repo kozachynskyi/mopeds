@@ -876,6 +876,10 @@ class SimulatorNLE:
                 self.call_arg["ubx"] = self._upper_bound
 
         self.jacobian: ca.Function = self.simulator.jacobian()
+        self.do_once()
+
+    def do_once(self):
+        pass
 
     def _set_solver_settings(self, provided_settings: dict | None) -> None:
         """Set default settings, if None are provided"""
