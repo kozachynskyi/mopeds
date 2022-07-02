@@ -169,6 +169,15 @@ class Optimizer(object):
         )
 
         res_solver["x"] = res_solver["x"] * self.scaling
+
+        res_dict = {}
+        for solution, var_name in zip(
+            res_solver["x"].toarray(), list(self.varlist_parameter.keys())
+        ):
+            res_dict[var_name] = float(solution[0])
+
+        print(res_dict)
+
         return res_solver
 
     def map_objective(self, plot: bool = True) -> None:
