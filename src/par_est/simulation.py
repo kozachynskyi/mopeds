@@ -823,6 +823,8 @@ class SimulatorNLE:
             raise TypeError(
                 f"Provided integrator name {solver_name} is not supported. Only theese are: {self.supported_solvers}."
             )
+        if solver_name == "ipopt":
+            print("IPOPT option for SimulatorNLE is not fully supported, use only if you know what you're doing")
 
         self.__solver_name: str = solver_name
         self.__input_variable_list: VariableList = copy.deepcopy(variable_list)
