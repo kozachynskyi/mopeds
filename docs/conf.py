@@ -28,7 +28,7 @@ author = "Volodymyr Kozachynskyi"
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = []
-extensions = ['myst_parser']
+extensions = ['myst_parser', 'sphinx.ext.autosectionlabel']
 
 source_suffix = ['.rst', '.md']
 

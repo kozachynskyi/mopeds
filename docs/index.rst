@@ -40,6 +40,7 @@ TOC
    :maxdepth: 2
 
    5min_tutorial.rst
+   available_settings.rst
    changelog.rst
 
 Glossary
