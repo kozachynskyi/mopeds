@@ -22,6 +22,7 @@ theta1 = model.varlist_all["theta1"].casadi_var
 theta2 = model.varlist_all["theta2"].casadi_var
 
 import casadi as ca
+
 equation = y - (theta1 * (C - ca.exp(-theta2 * x)))
 
 model.add_equations_algebraic([equation])
@@ -64,3 +65,109 @@ pe = par_est.ParameterEstimationNLE(model, experimental_data)
 result = pe.optimize()
 print(result["x"])
 # >>> 25.2727
+
+simulator = par_est.SimulatorNLE(model, variable_list)
+
+solver_settings = {
+    "nlpsol": "ipopt",
+    "verbose": False,
+    "print_in": False,
+    "print_out": False,
+    "expand": True,
+    "nlpsol_options": {
+        "ipopt.hessian_approximation": "limited-memory",
+        "ipopt.max_iter": 300,
+        "ipopt.print_level": 0,
+        "print_time": False,
+    },
+}
+
+simulator = par_est.SimulatorNLE(
+    model,
+    variable_list,
+    solver_settings=solver_settings,
+    solver_name="rootfinder",
+    use_bounds=True,
+)
+
+solver_settings = {
+    "nlpsol": "ipopt",
+    "verbose": False,
+    "print_in": False,
+    "print_out": False,
+    "expand": True,
+    "nlpsol_options": {
+        "ipopt.hessian_approximation": "exact",
+        "ipopt.linear_solver": "ma57",
+        "ipopt.ma57_automatic_scaling": "yes",
+        "ipopt.max_iter": 300,
+        "ipopt.print_level": 0,
+        "print_time": False,
+    },
+}
+
+simulator = par_est.SimulatorNLE(
+    model,
+    variable_list,
+    solver_settings=solver_settings,
+    solver_name="rootfinder",
+    use_bounds=True,
+)
+
+
+solver_settings = {
+    "nlpsol": "qrsqp",
+    "verbose": False,
+    "print_in": False,
+    "print_out": False,
+    "expand": True,
+    "nlpsol_options": {
+        "print_iteration": False,
+    },
+}
+
+simulator = par_est.SimulatorNLE(
+    model,
+    variable_list,
+    solver_settings=solver_settings,
+    solver_name="rootfinder",
+    use_bounds=True,
+)
+
+
+solver_settings = {
+    "nlpsol": "ipopt",
+    "verbose": False,
+    "print_in": False,
+    "print_out": False,
+    "expand": True,
+    "nlpsol_options": {
+        "ipopt.hessian_approximation": "limited-memory",
+        "ipopt.max_iter": 300,
+        "ipopt.print_level": 0,
+        "print_time": False,
+    },
+}
+
+pe = par_est.ParameterEstimationNLE(
+    model,
+    experimental_data,
+    simulator_settings=solver_settings,
+    simulator_name="rootfinder",
+    use_simulator_bounds=True,
+)
+
+pe.solver_name = "ipopt"
+pe.solver_settings = {
+    "verbose": False,
+    "ipopt": {"max_iter": 300},
+}
+
+pe = par_est.ParameterEstimationNLE(model, experimental_data)
+pe.solver_name = "qrsqp"
+pe.solver_settings = {
+    "verbose": False,
+    "max_iter": 300,
+}
+
+pe.optimize()
