@@ -1097,6 +1097,16 @@ class ParameterEstimationNLE(Optimizer):
             ["f"],
         )
 
+        # jac_ols = ca.jacobian(self._objective_ols()[0], decision_variables)
+
+        # jac_ols_function = ca.Function(
+        #     "jac_ols",
+        #     [decision_variables],
+        #     [jac_ols],
+        #     ["x"],
+        #     ["f"],
+        # )
+
         selected_parameters: list[float] = []
         for var_name in parameters.keys():
             if var_name in self.varlist_decision.keys():
@@ -1128,8 +1138,8 @@ class ParameterEstimationNLE(Optimizer):
         )[0]
         select_algebraic = np.asarray(select_algebraic == 1).nonzero()[0]
 
-        full_jacobian: list[list[np.ndarray]] = [[] for x in range(len(select_algebraic))]
-        variance: list[list[float]] = [[] for x in range(len(select_algebraic))]
+        full_jacobian = []
+        variance = []
 
         for sim in self.list_simulators:
             variance_i = sim.get_variance_array()
@@ -1148,33 +1158,16 @@ class ParameterEstimationNLE(Optimizer):
                 False, select_algebraic, select_independent
             ).toarray()
 
-            for index_algebraic, jac_i in enumerate(jacobian_selected):
-                full_jacobian[index_algebraic].append(jac_i)
+            full_jacobian.append(jacobian_selected)
 
             for index_selected, index_algebraic in enumerate(select_algebraic):
-                variance[index_selected].append(variance_i[index_algebraic])
+                variance.append(variance_i[index_algebraic])
 
-        r: np.ndarray | None = None
-        covariance_matrix: None | np.ndarray = None
-        for jacobian_responce_list, variance_responce_list in zip(full_jacobian, variance):
-            jacobian_responce = np.array(jacobian_responce_list)
-            variance_responce = np.array(variance_responce_list)
-            r_responce = np.linalg.qr(
-                (jacobian_responce.T * (1 / np.sqrt(variance_responce))).T
-            )[1]
-            if r is None:
-                r = r_responce
-            else:
-                r = r + r_responce
+        breakpoint()
+        jac_array = np.concatenate(full_jacobian)
+        var_array = np.linalg.inv(np.diagflat(variance))
 
-            # covariance_matrix_responce = jacobian_responce.T.dot(jacobian_responce)
-            covariance_matrix_responce = (
-                jacobian_responce.T * (1 / variance_responce)
-            ).dot(jacobian_responce)
-            if covariance_matrix is None:
-                covariance_matrix = covariance_matrix_responce
-            else:
-                covariance_matrix = covariance_matrix + covariance_matrix_responce
+        covariance_matrix = jac_array.T.dot(var_array).dot(jac_array)
 
         covariance_matrix_inverse = np.linalg.inv(covariance_matrix)  # type: ignore
         # full_jacobian = np.array(full_jacobian)
@@ -1189,12 +1182,7 @@ class ParameterEstimationNLE(Optimizer):
         students_t_dist_95 = scipy.stats.t.ppf(0.975, dof)
         # students_t_dist_99 = scipy.stats.t.ppf(0.995, dof)
 
-        assert r is not None
-        # r_inv_diag = np.linalg.norm(np.linalg.inv(r), axis=1)
-        # l = np.linalg.inv(r) / r_inv_diag
 
-        # par_variance_2 = np.sqrt(residual_mean_square) * r_inv_diag
-        # print(par_variance_2)
 
         for par, var_value in zip(selected_parameters, par_variance):
             print(f"{par} +- {var_value} |  ({var_value / par})")
