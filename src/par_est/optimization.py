@@ -944,10 +944,11 @@ class ParameterEstimationNLE(Optimizer):
         simulator_name="rootfinder",
         *,
         use_simulator_bounds=True,
+        SimulatorClass=SimulatorNLE,
     ) -> None:
         super().__init__(model, variable_lists, simulator_name, simulator_settings)
 
-        self._setup_simulator(use_simulator_bounds)
+        self._setup_simulator(use_simulator_bounds, SimulatorClass)
         self.logger.debug(
             "Created Optimizer object: \n Data Shape {} \n Desicion Variables {}".format(
                 self.array_data.shape, self.varlist_decision.get_variable_name()
@@ -963,8 +964,11 @@ class ParameterEstimationNLE(Optimizer):
         # Set default objective
         self._objective: Callable[[], tuple[ca.MX | ca.DM, ca.MX | ca.DM]] = self._objective_ols
 
-    def _setup_simulator(self, use_simulator_bounds:bool) -> None:
+    def _setup_simulator(self, use_simulator_bounds:bool, SimulatorClass:SimulatorNLE) -> None:
         # It's not checked if all supplied varlist have same states etc.
+        if not issubclass(SimulatorClass, SimulatorNLE):
+            raise NotImplementedError("Provided simulator_class is not supported")
+
         for var in self.list_input_varlist[0].values():
             if isinstance(var, VariableAlgebraic):
                 self.varlist_algebraic.add_variable(var)
@@ -986,7 +990,7 @@ class ParameterEstimationNLE(Optimizer):
                 if isinstance(var, VariableControl):
                     var.fixed = True
 
-            simulator = SimulatorNLE(
+            simulator = SimulatorClass(
                 self.model,
                 varlist_input,
                 self.simulator_settings,
