@@ -380,7 +380,7 @@ if __name__ == "__main__":
 
     figure, axes_array = plt.subplots(len(Val_dict))
     for var, ax in zip(Val_dict, axes_array):
-        print(Val_dict[var])
-        ax.plot(Time, Val_dict[var], label=var)
+        print(Val_dict[var].toarray())
+        ax.plot(Time, Val_dict[var].toarray(), label=var)
         ax.legend()
     plt.show()
