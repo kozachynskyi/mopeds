@@ -1215,6 +1215,152 @@ class ParameterEstimationNLE(Optimizer):
 
         return result
 
+    def parameter_identifiability_yao(
+        self,
+        parameters: dict[str, float],
+        unfixed_params: list[str],
+        threshold: float = 4e-2,
+    ):
+        """Do parameter ranking based on Yao 2003. Cut-off value taken from Yao 2003.
+        Return ranked parameters in descending order, and divide them in identifiable and not"""
+        self._setup_scaling(False)
+        parameter_values_all: list[float] = []
+        selected_parameters: list[float] = []
+        unranked_parameters: list[str] = []
+
+        for var_name in parameters.keys():
+            if var_name in self.varlist_decision.keys():
+                parameter_values_all.append(parameters[var_name])
+
+        for var_name in parameters.keys():
+            if var_name in unfixed_params:
+                selected_parameters.append(parameters[var_name])
+                unranked_parameters.append(var_name)
+
+        results_sensitivity = self.calculate_sensitivity_and_fim(parameters)
+
+        jacobian_yao = results_sensitivity["jac_yao"]
+
+        XK = np.zeros(jacobian_yao.shape)
+
+        parameters_ranked = []
+        parameters_identifiable = []
+        parameters_not_identifiable = []
+
+        for i in range(len(unranked_parameters)):
+            if i == 0:
+                eucnorm = np.linalg.norm(jacobian_yao, axis=0)
+            else:
+                eucnorm = np.linalg.norm(R, axis=0)
+
+            index_most_identifiable_par = np.argsort(eucnorm)[-1]
+            most_identifiable_parameter = unranked_parameters[
+                index_most_identifiable_par
+            ]
+            parameters_ranked.append(most_identifiable_parameter)
+
+            print(eucnorm[-1])
+            if eucnorm[-1] < threshold:
+                parameters_not_identifiable.append(most_identifiable_parameter)
+            else:
+                parameters_identifiable.append(most_identifiable_parameter)
+
+            if i == 0:
+                XK = jacobian_yao[:, index_most_identifiable_par].reshape(
+                    (jacobian_yao.shape[0], 1)
+                )
+            else:
+                XK = np.append(
+                    XK,
+                    jacobian_yao[:, index_most_identifiable_par].reshape(
+                        (jacobian_yao.shape[0], 1)
+                    ),
+                    axis=1,
+                )
+
+            Z_hat = XK.dot(np.linalg.inv(XK.T.dot(XK))).dot(XK.T).dot(jacobian_yao)
+            R = jacobian_yao - Z_hat
+
+        print(f"Ranked parameters: {parameters_ranked}")
+        print(f"Estimable parameters: {parameters_identifiable}")
+        print(f"Non identifiable parameters: {parameters_not_identifiable}")
+
+        result = {}
+        result["ranked"] = parameters_ranked
+        result["estimable"] = parameters_identifiable
+        result["fixed"] = parameters_not_identifiable
+
+        return result
+
+    def parameter_identifiability_eigenvalue(
+        self,
+        parameters: dict[str, float],
+        unfixed_params: list[str],
+        parameters_identifiable: list[str] | None = None,
+        parameters_not_identifiable: list[str] | None = None,
+        eigenvalue_threshold: float = 10e-4,
+    ):
+        """Do parameter ranking based on Quasier 2009, however use scaled sensitivity as in Yao 2003.
+        Threshold is taken from Quasier 2009.
+        Return ranked parameters in descending order, and divide them in identifiable and not"""
+
+        self._setup_scaling(False)
+        if parameters_identifiable is None:
+            parameters_identifiable = []
+
+        if parameters_not_identifiable is None:
+            parameters_not_identifiable = []
+
+        results_sensitivity = self.calculate_sensitivity_and_fim(
+            parameters, unfixed_params
+        )
+
+        jac_array = results_sensitivity["jac_yao"]
+
+        fim_matrix = jac_array.T.dot(jac_array)
+
+        def eigsorted(cov):
+            vals, vecs = np.linalg.eig(cov)
+            # vals, vecs = np.linalg.eigh(cov)
+            order = np.flip(vals.argsort())
+            return vals[order], vecs[:, order]
+
+        # vals, vecs = eigsorted(results_sensitivity["fim"])
+        vals, vecs = eigsorted(fim_matrix)
+
+        index_max = np.argmax(np.abs(vecs[:, -1]))
+        current_parameter_name = unfixed_params.pop(index_max)
+        print(np.abs(vals[-1]))
+        if np.abs(vals[-1]) > eigenvalue_threshold:
+            parameters_identifiable.insert(0, current_parameter_name)
+        else:
+            parameters_not_identifiable.insert(0, current_parameter_name)
+
+        if len(vals) == 1:
+            parameters_ranked = []
+            for parameter_name in parameters_identifiable + parameters_not_identifiable:
+                parameters_ranked.append(parameter_name)
+
+            print(f"Ranked parameters: {parameters_ranked}")
+            print(f"Estimable parameters: {parameters_identifiable}")
+            print(f"Non identifiable parameters: {parameters_not_identifiable}")
+
+            result = {}
+            result["ranked"] = parameters_ranked
+            result["estimable"] = parameters_identifiable
+            result["fixed"] = parameters_not_identifiable
+
+            return result
+
+        else:
+            self.parameter_identifiability_eigenvalue(
+                parameters,
+                unfixed_params,
+                parameters_identifiable,
+                parameters_not_identifiable,
+                eigenvalue_threshold,
+            )
+
     def parameter_analysis(self, parameters: dict[str, float]):
         import scipy.stats
 
