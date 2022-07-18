@@ -963,17 +963,9 @@ class SimulatorNLE:
         self._independent_variables: ca.MX | ca.DM = ca.vcat(independent_variables)
 
     def generate_exp_data(self, unfixed_variables: list[float] = None) -> VariableList:
-        self.call_arg["p"] = self._independent_variables * self.scaling
-        res_array = self.simulator.call(self.call_arg)["x"]
+        res_array = self.simulate_sym_unfixed(unfixed_variables)
 
         variables = VariableList()
-
-        if not isinstance(res_array, ca.DM):
-            if unfixed_variables is None:
-                raise ValueError("You need to supply values for unfixed variables")
-            else:
-                function = ca.Function("f", ca.symvar(res_array), [res_array])
-                res_array = function(*unfixed_variables)
 
         for count, var in enumerate(self.model.varlist_algebraic.values()):
             new_var = copy.deepcopy(var)
@@ -990,6 +982,21 @@ class SimulatorNLE:
 
     def _reset_scaling(self) -> None:
         self.scaling: ca.DM = ca.DM.ones(self._independent_variables.size())
+
+    def simulate_sym_unfixed(self, unfixed_variables: list[float] = None) -> ca.DM:
+        """This is slower version of simulate_sym but it allows user to supply values
+        for unfixed variables"""
+        self.call_arg["p"] = self._independent_variables * self.scaling
+        res_array = self.simulator.call(self.call_arg)["x"]
+
+        if not isinstance(res_array, ca.DM):
+            if unfixed_variables is None:
+                raise ValueError("You need to supply values for unfixed variables")
+            else:
+                function = ca.Function("f", ca.symvar(res_array), [res_array])
+                res_array = function(*unfixed_variables)
+
+        return res_array
 
     def simulate_sym(self) -> dict[str, ca.MX | ca.DM]:
         self.call_arg["p"] = self._independent_variables * self.scaling
