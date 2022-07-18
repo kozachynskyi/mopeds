@@ -172,7 +172,7 @@ class Optimizer(object):
 
         res_dict = {}
         for solution, var_name in zip(
-            res_solver["x"].toarray(), list(self.varlist_parameter.keys())
+            res_solver["x"].toarray(), list(self.varlist_decision.keys())
         ):
             res_dict[var_name] = float(solution[0])
 
