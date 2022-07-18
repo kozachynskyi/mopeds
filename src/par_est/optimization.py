@@ -1,16 +1,16 @@
 from __future__ import annotations
-from tqdm import tqdm, trange
 
 import copy
 import logging
-from collections.abc import Callable
 from abc import abstractmethod
+from collections.abc import Callable
+from typing import Sequence
 
 import casadi as ca
 import numpy as np
 import pandas as pd
 from scipy import linalg
-from typing import Sequence, no_type_check_decorator
+from tqdm import tqdm
 
 from par_est import (
     Model,
@@ -184,6 +184,7 @@ class Optimizer(object):
         """Calculate objective function for different values of parameters and plot, if needed.
         Currently support only 3 unfixed decision variables."""
         import matplotlib.pyplot as plt
+
         decision_variables = self.varlist_decision.get_casadi_variables()
         if decision_variables.shape == (3, 1):
             self._setup_scaling(False)
@@ -316,7 +317,9 @@ class Optimizer(object):
 
             for set_of_bounds in list_of_bounds:
                 bound_dictionary = {}
-                for var, bound in zip(list(self.varlist_decision.values()), set_of_bounds):
+                for var, bound in zip(
+                    list(self.varlist_decision.values()), set_of_bounds
+                ):
                     bound_dictionary[var.name] = bound
                 try:
                     result = simulation.generate_exp_data(True, True, set_of_bounds)
@@ -602,7 +605,9 @@ class ParameterEstimation(Optimizer):
             )
 
         for input_varlist, simulator, exp_name in zip(
-            self.list_input_varlist, self.list_simulators, experiment_names,
+            self.list_input_varlist,
+            self.list_simulators,
+            experiment_names,
         ):
             res_guess = simulator.generate_exp_data(
                 algebraic=algebraic,
@@ -962,9 +967,13 @@ class ParameterEstimationNLE(Optimizer):
             "ipopt": {"max_iter": 300},
         }
         # Set default objective
-        self._objective: Callable[[], tuple[ca.MX | ca.DM, ca.MX | ca.DM]] = self._objective_ols
+        self._objective: Callable[
+            [], tuple[ca.MX | ca.DM, ca.MX | ca.DM]
+        ] = self._objective_ols
 
-    def _setup_simulator(self, use_simulator_bounds:bool, SimulatorClass:SimulatorNLE) -> None:
+    def _setup_simulator(
+        self, use_simulator_bounds: bool, SimulatorClass: SimulatorNLE
+    ) -> None:
         # It's not checked if all supplied varlist have same states etc.
         if not issubclass(SimulatorClass, SimulatorNLE):
             raise NotImplementedError("Provided simulator_class is not supported")
@@ -1018,14 +1027,14 @@ class ParameterEstimationNLE(Optimizer):
         # simulator._independent_variables in self.varlist_ variable
         # For example [{1: 2}], {1: 3}]: in first simulator._independent_variables[1]
         # is the same variable as self.varlist_decision[2]
-        self.mapping_simulator_decisions: list[dict[int,int]] = list_simulator_mappings
+        self.mapping_simulator_decisions: list[dict[int, int]] = list_simulator_mappings
 
         self.inverted_variances: np.ndarray = np.array(inverted_variances)
 
         self.array_data: ca.DM = ca.DM(array_data)
         self.array_data_mask: np.ndarray = np.array(array_data_mask)
 
-    def _setup_simulator_mapping(self, simulator: SimulatorNLE) -> dict[int,int]:
+    def _setup_simulator_mapping(self, simulator: SimulatorNLE) -> dict[int, int]:
         names_variables_decision = list(self.varlist_decision.keys())
 
         independent_variables = simulator._independent_variables
@@ -1219,7 +1228,9 @@ class ParameterEstimationNLE(Optimizer):
 
         breakpoint()
         title = ""
-        for par_value, var_variance_i, name in zip(selected_parameters, par_variance, par_names):
+        for par_value, var_variance_i, name in zip(
+            selected_parameters, par_variance, par_names
+        ):
             title = (
                 title
                 + f"{name}: {round(par_value,5)} ± {round(var_variance_i,5)} |  ({round((var_variance_i / par_value) * 100,1)}%)\n"
