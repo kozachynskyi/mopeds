@@ -1094,6 +1094,27 @@ class ParameterEstimationNLE(Optimizer):
 
         return self._optimize(scale)
 
+    def calculate_ols_value(self, parameters: dict[str, float]):
+        decision_variables = self.varlist_decision.get_casadi_variables()
+
+        self._setup_scaling(False)
+        residuals_function = ca.Function(
+            "objective",
+            [decision_variables],
+            [self._objective_ols()[1]],
+            ["x"],
+            ["f"],
+        )
+
+        selected_parameters = self.parameters_dict_to_list(parameters)
+
+        residuals = residuals_function(selected_parameters).toarray()
+        residuals = residuals[residuals.nonzero()[0]]
+
+        S_squared = ca.sum1(residuals**2).toarray()
+
+        return S_squared, residuals
+
     def parameter_analysis(self, parameters: dict[str, float]):
         import scipy.stats
 
