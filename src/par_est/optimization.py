@@ -1115,6 +1115,106 @@ class ParameterEstimationNLE(Optimizer):
 
         return S_squared, residuals
 
+    def parameters_dict_to_list(self, parameters: dict[str, float]) -> list[float]:
+        """Takes a dictionary with {"par_name": par_value} and transforms to list
+        corresponding to the order of self.varlist_decision variables"""
+        selected_parameters: list[float] = []
+        for var_name in parameters.keys():
+            if var_name in self.varlist_decision.keys():
+                selected_parameters.append(parameters[var_name])
+
+        return selected_parameters
+
+    def calculate_sensitivity_and_fim(
+        self, parameters: dict[str, float], parameter_names: list[str] | None = None
+    ) -> dict[str, np.ndarray]:
+        """Calculate jacobian, scaled_jacobian, parameter_covariance_matrix only for parameters,
+        which names are listed in paramtere_names, if None, for all unfixed paramters.
+        Jacobian is calculated only for "measured" algebraic variables, the ones which
+        had value, when ParameterEstimationNLE was initialized.
+
+        parameters dictionary holds paramter values for all unfixed parameters, example:
+
+        parameters = {"theta1": 1, "theta2": 2}
+        parameter_names = ["theta1"]
+
+        Jacobian of measured variables will be calculated for theta1=1 and theta2=2, but reported
+        jacobian will only contain parameter theta2.
+
+        Jacobian dimensions: dY/dp [NumOfMeasurements x NumOfParameters]
+        """
+        self._setup_scaling()
+        decision_variables = self.varlist_decision.get_casadi_variables()
+        len_alg = len(self.model.varlist_algebraic)
+
+        full_jacobian = []
+        scaled_yao_jacobian = []
+        variance = []
+        select_independent: list[int] = []
+
+        all_parameter_values = self.parameters_dict_to_list(parameters)
+        selected_parameters_values = []
+
+        for parameter_index, var_name in enumerate(self.varlist_decision.keys()):
+            if parameter_names is not None:
+                if var_name not in parameter_names:
+                    continue
+            index = list(self.model.varlist_independent).index(var_name) + len(
+                self.model.varlist_algebraic
+            )
+            select_independent.append(index)
+            selected_parameters_values.append(all_parameter_values[parameter_index])
+
+        for sim_index, sim in enumerate(self.list_simulators):
+            select_algebraic = np.reshape(
+                self.array_data_mask, (len(self.list_simulators), len_alg)
+            )[sim_index]
+            select_algebraic = np.asarray(select_algebraic == 1).nonzero()[0]
+
+            res_simulation = sim.simulate_sym_unfixed(all_parameter_values).toarray()
+
+            variance_i = sim.get_variance_array()
+
+            jacobian = ca.Function(
+                "jacobian",
+                [decision_variables],
+                [sim.calculate_jac()["jac"]],
+                ["x"],
+                ["jac"],
+            )
+
+            jac = jacobian(all_parameter_values)
+
+            jacobian_selected = jac.get(
+                False, select_algebraic, select_independent
+            ).toarray()
+
+            full_jacobian.append(jacobian_selected)
+
+            simulation_vector = res_simulation.take(select_algebraic)
+            scaled_jac_i = (jacobian_selected.T * (1 / simulation_vector)).T
+            scaled_yao_jacobian.append(scaled_jac_i)
+
+            for index_algebraic in select_algebraic:
+                variance.append(variance_i[index_algebraic])
+
+        jac_array = np.concatenate(full_jacobian)
+        measurement_variance_array_inverted = np.linalg.inv(np.diagflat(variance))
+
+        fim_matrix = jac_array.T.dot(measurement_variance_array_inverted).dot(jac_array)
+        parameter_covariance_matrix = np.linalg.inv(fim_matrix)  # type: ignore
+
+        # jac_array_yao = np.concatenate(scaled_yao_jacobian) * np.sqrt(np.diag(parameter_covariance_matrix))
+        jac_array_yao = np.concatenate(scaled_yao_jacobian) * selected_parameters_values
+
+        result = {}
+        result["jac"] = jac_array
+        result["jac_yao"] = jac_array_yao
+        result["cov_par"] = parameter_covariance_matrix
+        result["fim"] = fim_matrix
+
+        return result
+
     def parameter_analysis(self, parameters: dict[str, float]):
         import scipy.stats
 
