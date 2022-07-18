@@ -176,7 +176,7 @@ class Optimizer(object):
         ):
             res_dict[var_name] = float(solution[0])
 
-        print(res_dict)
+        res_solver["x_dict"] = res_dict
 
         return res_solver
 
