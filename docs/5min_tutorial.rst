@@ -49,11 +49,11 @@ List of variables is further used to create a model instance, that holds infroma
 
 Now we need to create an equation, using symbolic variables, that are stored for each Variable in attribute `.casadi_var`. Use |casadi| syntax  for complex functions, like `syn` or `log`. When creating equations be aware, that one should use symbolic variables from `model.varlist_all`::
 
-    y = m.varlist_all["f"].casadi_var
-    x = m.varlist_all["x"].casadi_var
-    C = m.varlist_all["C"].casadi_var
-    theta1 = m.varlist_all["theta1"].casadi_var
-    theta2 = m.varlist_all["theta2"].casadi_var
+    y = model.varlist_all["y"].casadi_var
+    x = model.varlist_all["x"].casadi_var
+    C = model.varlist_all["C"].casadi_var
+    theta1 = model.varlist_all["theta1"].casadi_var
+    theta2 = model.varlist_all["theta2"].casadi_var
 
     import casadi as ca
     equation = y - (theta1 * (1 - ca.exp(-theta2 * x)))
