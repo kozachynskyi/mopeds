@@ -1,3 +1,80 @@
+## 0.7.1 (2022-07-04)
+
+### Feat
+
+- add SimulaotClass to PENLE
+- WIP - fixed covaraince calculation for PENLE
+- multistart sorts result by objective function
+- optimizer prints result as dict after finishing
+- add tqdm to signalize multistart progress
+- add do_once() method for monkey-patching
+- add tqdm as dependency
+
+### Refactor
+
+- add warning using "ipopt" with NLE
+- do not delete tmp_file after close
+- move import matplotlib inside methods
+- add new line for better output
+- remove breakpoins from examples
+
+### Fix
+
+- removed decorator @notypecheck
+
+## 0.7.0 (2022-06-19)
+
+### Feat
+
+- value.setter alternative to dataframe.iloc[0]
+- add .show() method to show dataframe to HTML
+- remove pandasgui dependency, add Jinja2
+
+### Refactor
+
+- add type annotations
+- remove Variable.get_data_opcua() method
+- import from par_est directly
+- remove unused code
+
+### Fix
+
+- fix DeprecationWarning pandas.Index.get_loc
+
+## 0.6.2 (2022-06-14)
+
+### Feat
+
+- WIP - calculation of parameter variance
+
+## 0.6.1 (2022-06-14)
+
+### Feat
+
+- for PE_NLE add OLS and WLS objective function
+- add jac_calculation and variance extract NLE
+- PE for NLE with variable controls
+- add examples from Literatures
+- Latin Hypercube sampling is default, pyDOE
+- add SimulatorNLE.jacobian
+- add sphinx requirement
+- add scaling to NLEOptimization
+- add bounds for rootfinder, make bounds optional
+
+### Refactor
+
+- fix type of list_simulators
+- use __future__ for type anotations
+- _objective() returns list
+- rework how Simulatore-PE mapping works
+- scaling SimulatorNLE from PENLE
+- black8
+
+### Fix
+
+- fix example change API
+- set_bounds() works for Control Variables
+
 ## 0.6.0 (2022-03-21)
 
 ### Feat
