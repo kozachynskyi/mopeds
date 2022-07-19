@@ -1,3 +1,28 @@
+## 0.7.2 (2022-07-19)
+
+### Refactor
+
+- add .env folder to .gitignore
+- fix version to 0.7.1, add ITWM deploy Readme
+- deleted unnecessary file
+- remove redundant print statements
+- create sim.simulate_sym_unfixed() method
+
+### Fix
+
+- use FIM scaled with meas var for eingevalue ranking
+- fixed naming issues f <-> y and m <-> model in 5min_tutorial.rst
+- resolved an error in examples/nle/cstr_collocation_sim.py
+- wrong variables names while reporting optimize()
+
+### Feat
+
+- example 5-min-tut tested and implemented
+- add parameter_identifiability*yao and *eigenvalue
+- add peNLE.calculate_sensitivity_and_fim() method
+- add pe.calculate_ols_value() to analyze objective
+- add dict with variables and values as output of optimize()
+
 ## 0.7.1 (2022-07-04)
 
 ### Feat
