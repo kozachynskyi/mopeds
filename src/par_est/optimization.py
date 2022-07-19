@@ -1259,7 +1259,7 @@ class ParameterEstimationNLE(Optimizer):
             ]
             parameters_ranked.append(most_identifiable_parameter)
 
-            print(eucnorm[-1])
+            # print(eucnorm[-1])
             if eucnorm[-1] < threshold:
                 parameters_not_identifiable.append(most_identifiable_parameter)
             else:
@@ -1330,7 +1330,7 @@ class ParameterEstimationNLE(Optimizer):
 
         index_max = np.argmax(np.abs(vecs[:, -1]))
         current_parameter_name = unfixed_params.pop(index_max)
-        print(np.abs(vals[-1]))
+        # print(np.abs(vals[-1]))
         if np.abs(vals[-1]) > eigenvalue_threshold:
             parameters_identifiable.insert(0, current_parameter_name)
         else:
