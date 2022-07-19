@@ -12,6 +12,21 @@ For a tutorial check https://www.user.tu-berlin.de/vovakozach/par_est/5min_tutor
         - ITWM Repo: pip install git+https://gitlab.itwm.fraunhofer.de/bubel/parameter-estimation
     - UPDATE: pip install -U git+https://git.tu-berlin.de/vovakozach/pe_oed_casadi
 
+### Installation ITWM
+
+`pip` Installation:
+```
+pip install par_est --extra-index-url https://token:ceBtskLYpNqS6LR17NzP@gitlab.itwm.fraunhofer.de/api/v4/projects/3167/packages/pypi/simple
+```
+
+`poetry` Installation:
+```
+[[tool.poetry.source]]
+name="par_est"
+url="https://token:ceBtskLYpNqS6LR17NzP@gitlab.itwm.fraunhofer.de/api/v4/projects/3167/packages/pypi/simple"
+```
+
+
 ## Development
 
 - Clone this repo on your computer git clone https://git.tu-berlin.de/vovakozach/pe_oed_casadi
