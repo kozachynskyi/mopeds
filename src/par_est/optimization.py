@@ -1315,9 +1315,7 @@ class ParameterEstimationNLE(Optimizer):
             parameters, unfixed_params
         )
 
-        jac_array = results_sensitivity["jac_yao"]
-
-        fim_matrix = jac_array.T.dot(jac_array)
+        fim_matrix = results_sensitivity["fim"]
 
         def eigsorted(cov):
             vals, vecs = np.linalg.eig(cov)
