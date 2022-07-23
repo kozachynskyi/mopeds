@@ -1,3 +1,9 @@
+## 0.7.3 (2022-07-23)
+
+### Refactor
+
+- remove python 3.7 support, let isort skip __init__
+
 ## 0.7.2 (2022-07-19)
 
 ### Refactor
