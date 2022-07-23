@@ -1,9 +1,6 @@
-try:
-    import importlib.metadata as importlib_metadata
-except ModuleNotFoundError:
-    import importlib_metadata  # type: ignore
+import importlib.metadata
 
-__version__ = importlib_metadata.version(__name__)
+__version__ = importlib.metadata.version("par_est")
 
 from .utilities import MXPickler, show_html_from_dataframe
 from .variables import (
