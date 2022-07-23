@@ -1,0 +1,20 @@
+run:
+  image: python:3.9
+  before_script:
+  - pip install poetry
+  - poetry install
+  - source `poetry env info --path`/bin/activate
+
+  script:
+    - echo "This is the build stage"
+    - poetry config repositories.gitlab https://gitlab.itwm.fraunhofer.de/api/v4/projects/$CI_PROJECT_ID/packages/pypi
+    - echo "Repository gitlab configured ..."
+    - poetry build
+    - echo "Build done ..."
+    - pytest
+    - echo "Tests passed ..."
+    - poetry publish --repository gitlab -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD
+    - echo "Publishing done!"
+  only:
+    - tags
+    - $CI_DEFAULT_BRANCH
