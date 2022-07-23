@@ -253,7 +253,7 @@ def test_oed_piecewise():
             logging.warning(f"{res['f'].full()}")
             logging.warning(f"{fix_order}")
             logging.warning(f"{cstr_model}")
-            assert np.isclose(res["f"], ca.DM(result_expected), rtol=0, atol=1.0e-5)
+            assert np.isclose(res["f"], ca.DM(result_expected))
 
 
 @pytest.mark.parametrize("piecewise", [True, False])
