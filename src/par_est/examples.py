@@ -470,6 +470,76 @@ def bod_model() -> tuple[par_est.VariableList, par_est.Model, list[par_est.Varia
 
     return variable_list, m, exp_data
 
+def puromycin_model() -> tuple[par_est.VariableList, par_est.Model, dict(list[par_est.VariableList])]:
+    # Puromycin data as used in Bates, Watts, Nonlinear regression analysis: Its applications
+    variable_list = par_est.variables.VariableList()  # Preallocate variable_list
+
+    variable_list.add_variable(par_est.VariableAlgebraic("f", 8.3))
+    variable_list.add_variable(par_est.VariableControl("x", 1))
+    variable_list.add_variable(par_est.VariableParameter("theta1", 212.7))
+    variable_list.add_variable(par_est.VariableParameter("theta2", 0.0641))
+
+    m = par_est.Model(variable_list)  # adding all variables to the model
+
+    f = m.varlist_all["f"].casadi_var  # noqa: E501
+    x = m.varlist_all["x"].casadi_var  # noqa: E501
+    theta1 = m.varlist_all["theta1"].casadi_var  # noqa: E501
+    theta2 = m.varlist_all["theta2"].casadi_var  # noqa: E501
+
+    equation = f - ((theta1 * x)/(theta2 + x))
+    # Equations
+    m.add_equations_algebraic([equation])  # adding the equations to model
+
+    data_dict = {"Treated":  [
+                            [0.02, 76],
+                            [0.02, 47],
+                            [0.06, 97],
+                            [0.06, 107],
+                            [0.11, 123],
+                            [0.11, 139],
+                            [0.22, 159],
+                            [0.22, 152],
+                            [0.56, 191],
+                            [0.56, 201],
+                            [1.10, 207],
+                            [1.10, 200],
+                        ],
+            "Untreated":  [
+                            [0.02, 67],
+                            [0.02, 51],
+                            [0.06, 84],
+                            [0.06, 86],
+                            [0.11, 98],
+                            [0.11, 115],
+                            [0.22, 131],
+                            [0.22, 124],
+                            [0.56, 144],
+                            [0.56, 158],
+                            [1.10, 160],
+                            [1.10, 160],
+                        ]
+            }
+
+    exp_data = {}
+    
+    for name in list(["Treated", "Untreated"]):
+        data = data_dict[name]
+        exp_data_list = []
+        
+        for x_i, f_i in data:
+            var_list = copy.deepcopy(variable_list)
+            var_list["f"].value = f_i
+            var_list["x"].value = x_i
+            var_list["theta1"].fixed = False
+            var_list["theta1"].lower_bound = 0
+            var_list["theta1"].upper_bound = 40
+            var_list["theta2"].fixed = False
+            var_list["theta2"].lower_bound = 0
+            var_list["theta2"].upper_bound = 1
+            exp_data_list.append(var_list)
+        exp_data[name] = exp_data_list
+
+    return variable_list, m, exp_data
 
 def simple_mixer() -> tuple[par_est.VariableList, par_est.Model]:
     variable_list = par_est.VariableList()
