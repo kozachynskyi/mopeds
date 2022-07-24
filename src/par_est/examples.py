@@ -502,7 +502,7 @@ def puromycin_model() -> tuple[par_est.VariableList, par_est.Model, dict(list[pa
                             [0.56, 191],
                             [0.56, 201],
                             [1.10, 207],
-                            [1.10, 200],
+                            [1.10, 200], 
                         ],
             "Untreated":  [
                             [0.02, 67],
