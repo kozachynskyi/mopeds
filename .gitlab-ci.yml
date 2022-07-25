@@ -1,20 +1,34 @@
-run:
-  image: python:3.9
-  before_script:
-  - pip install poetry
-  - poetry install
-  - source `poetry env info --path`/bin/activate
+stages:
+  - build
+  - deploy
 
+.template_linux_podman: &linux-podman
+  tags:
+    - linux
+    - podman
+  image: python:3.9-slim-buster
+
+linux-build_parameter-estimation:
+  <<: *linux-podman
+  stage: build
+  before_script:
+    - pip install poetry
+    - poetry config virtualenvs.create false
   script:
-    - echo "This is the build stage"
-    - poetry config repositories.gitlab https://gitlab.itwm.fraunhofer.de/api/v4/projects/$CI_PROJECT_ID/packages/pypi
-    - echo "Repository gitlab configured ..."
-    - poetry build
-    - echo "Build done ..."
-    - pytest
-    - echo "Tests passed ..."
-    - poetry publish --repository gitlab -u $CI_DEPLOY_USER -p $CI_DEPLOY_PASSWORD
-    - echo "Publishing done!"
+    - poetry install
+    - poetry run pytest
+
+linux-deploy_parameter-estimation:
+  <<: *linux-podman
+  stage: deploy
+  needs: [linux-build_parameter-estimation]
   only:
     - tags
-    - $CI_DEFAULT_BRANCH
+  before_script:
+    - pip install poetry
+    - poetry config virtualenvs.create false
+  script:
+    - poetry install
+    - poetry build
+    - poetry config repositories.itwm-gitlab https://gitlab.itwm.fraunhofer.de/api/v4/projects/${CI_PROJECT_ID}/packages/pypi
+    - poetry publish -r itwm-gitlab -u gitlab-ci-token -p ${CI_JOB_TOKEN}
