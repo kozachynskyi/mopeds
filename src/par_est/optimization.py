@@ -1199,7 +1199,8 @@ class ParameterEstimationNLE(Optimizer):
                 variance.append(variance_i[index_algebraic])
 
         jac_array = np.concatenate(full_jacobian)
-        measurement_variance_array_inverted = np.linalg.inv(np.diagflat(variance))
+        measurement_variance_matrix = np.diagflat(variance)
+        measurement_variance_array_inverted = np.linalg.inv(measurement_variance_matrix)
 
         fim_matrix = jac_array.T.dot(measurement_variance_array_inverted).dot(jac_array)
         parameter_covariance_matrix = np.linalg.inv(fim_matrix)  # type: ignore
@@ -1211,6 +1212,7 @@ class ParameterEstimationNLE(Optimizer):
         result["jac"] = jac_array
         result["jac_yao"] = jac_array_yao
         result["cov_par"] = parameter_covariance_matrix
+        result["cov_meas"] = measurement_variance_matrix
         result["fim"] = fim_matrix
 
         return result
