@@ -1108,12 +1108,12 @@ class ParameterEstimationNLE(Optimizer):
 
         selected_parameters = self.parameters_dict_to_list(parameters)
 
-        residuals = residuals_function(selected_parameters).toarray()
-        residuals = residuals[residuals.nonzero()[0]]
+        residuals_all = residuals_function(selected_parameters).toarray()
+        residuals = residuals_all[residuals_all.nonzero()[0]]
 
         S_squared = ca.sum1(residuals**2).toarray()
 
-        return S_squared, residuals
+        return S_squared, residuals, residuals_all
 
     def parameters_dict_to_list(self, parameters: dict[str, float]) -> list[float]:
         """Takes a dictionary with {"par_name": par_value} and transforms to list
