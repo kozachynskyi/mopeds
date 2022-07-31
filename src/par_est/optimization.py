@@ -5,6 +5,7 @@ import logging
 from abc import abstractmethod
 from collections.abc import Callable
 from typing import Sequence
+from itertools import combinations
 
 import casadi as ca
 import numpy as np
@@ -1366,16 +1367,9 @@ class ParameterEstimationNLE(Optimizer):
 
         dof = len(self.list_input_varlist) - len(self.varlist_decision)
         num_par = len(self.varlist_decision)
-        decision_variables = self.varlist_decision.get_casadi_variables()
+        len_alg = len(self.model.varlist_algebraic)
 
         self._setup_scaling(False)
-        residuals_function = ca.Function(
-            "objective",
-            [decision_variables],
-            [self._objective_ols()[1]],
-            ["x"],
-            ["f"],
-        )
 
         # jac_ols = ca.jacobian(self._objective_ols()[0], decision_variables)
 
@@ -1387,88 +1381,34 @@ class ParameterEstimationNLE(Optimizer):
         #     ["f"],
         # )
 
-        selected_parameters: list[float] = []
-        for var_name in parameters.keys():
-            if var_name in self.varlist_decision.keys():
-                selected_parameters.append(parameters[var_name])
-
-        residuals = residuals_function(selected_parameters).toarray()
-        residuals = residuals[residuals.nonzero()[0]]
-
-        # Index of parameters, that are unfixed. It's used to select Jacobian for only this variables
-        select_independent: list[int] = []
-
-        for var in self.list_input_varlist[0].values():
-            if isinstance(var, VariableParameter):
-                if var.fixed is False:
-                    # Ignore jac_x0_p
-                    index = list(self.model.varlist_independent).index(var.name) + len(
-                        self.model.varlist_algebraic
-                    )
-                    select_independent.append(index)
-
-        S_squared = ca.sum1(residuals**2).toarray()
+        selected_parameters = self.parameters_dict_to_list(parameters)
+        S_squared, residuals, residuals_all = self.calculate_ols_value(parameters)
         residual_mean_square = S_squared / dof
 
-        len_alg = len(self.model.varlist_algebraic)
+        result_sens = self.calculate_sensitivity_and_fim(parameters)
+        parameter_covariance_matrix = result_sens["cov_par"]
+        measurement_variance_matrix = result_sens["cov_meas"]
 
-        # It's assumed that there are no missing data
-        select_algebraic = np.reshape(
-            self.array_data_mask, (len(self.list_simulators), len_alg)
-        )[0]
-        select_algebraic = np.asarray(select_algebraic == 1).nonzero()[0]
+        residuals_sorted_in_columns = np.reshape(
+            residuals_all, (len(self.list_simulators), len_alg)
+        )
+        residuals_sorted_in_columns = residuals_sorted_in_columns[:, residuals_sorted_in_columns.all(0)]
+        S_squred_sorted_in_columns = np.sum(residuals_sorted_in_columns ** 2, axis=0)
+        real_residual_mean_square = S_squred_sorted_in_columns / dof
 
-        full_jacobian = []
-        variance = []
+        data_in_columns = np.reshape(
+            self.array_data, (len(self.list_simulators), len_alg)
+        )
 
-        for sim in self.list_simulators:
-            variance_i = sim.get_variance_array()
-
-            jacobian = ca.Function(
-                "jacobian",
-                [decision_variables],
-                [sim.calculate_jac()["jac"]],
-                ["x"],
-                ["jac"],
-            )
-
-            jac = jacobian(selected_parameters)
-
-            jacobian_selected = jac.get(
-                False, select_algebraic, select_independent
-            ).toarray()
-
-            full_jacobian.append(jacobian_selected)
-
-            for index_selected, index_algebraic in enumerate(select_algebraic):
-                variance.append(variance_i[index_algebraic])
-
-        breakpoint()
-        jac_array = np.concatenate(full_jacobian)
-        var_array = np.linalg.inv(np.diagflat(variance))
-
-        covariance_matrix = jac_array.T.dot(var_array).dot(jac_array)
-
-        covariance_matrix_inverse = np.linalg.inv(covariance_matrix)  # type: ignore
-        # full_jacobian = np.array(full_jacobian)
-
-        # breakpoint()
-        # r = np.linalg.qr(full_jacobian)[1]
-
-        par_variance = np.diag(np.sqrt(covariance_matrix_inverse * residual_mean_square))
-        # print(selected_parameters)
-        # print(par_variance)
+        parameter_variance = np.diag(parameter_covariance_matrix)
+        parameter_std = real_residual_mean_square * np.sqrt(parameter_variance)
 
         students_t_dist_95 = scipy.stats.t.ppf(0.975, dof)
-        # students_t_dist_99 = scipy.stats.t.ppf(0.995, dof)
 
-
-
-        for par, var_value in zip(selected_parameters, par_variance):
+        for par, var_value in zip(selected_parameters, parameter_std):
             print(f"{par} +- {var_value} |  ({var_value / par})")
 
-        marginal_conf_interval_95 = par_variance * students_t_dist_95
-        # marginal_conf_interval_99 = par_variance * r_inv_diag * students_t_dist_99
+        marginal_conf_interval_95 = (np.sqrt(residual_mean_square) * parameter_std * students_t_dist_95).T
 
         import matplotlib.pyplot as plt
         from matplotlib.axes import Axes
@@ -1480,23 +1420,18 @@ class ParameterEstimationNLE(Optimizer):
             order = vals.argsort()[::-1]
             return vals[order], vecs[:, order]
 
-        # ax = plt.gca()
         fig, axes = plt.subplots(ncols=num_par - 1, nrows=num_par - 1)
         if isinstance(axes, Axes) == 1:
             axes = [axes]
 
         fisher_f_dist_95 = scipy.stats.f.ppf(0.95, num_par, dof)
-        # fisher_f_dist_99 = scipy.stats.f.ppf(0.99, num_par, dof)
 
-        from itertools import combinations
-
-        comb = combinations(range(num_par), 2)
+        comb = list(combinations(range(num_par), 2))
         par_names = list(self.varlist_decision.keys())
 
-        breakpoint()
         title = ""
         for par_value, var_variance_i, name in zip(
-            selected_parameters, par_variance, par_names
+            selected_parameters, parameter_std, par_names
         ):
             title = (
                 title
@@ -1505,7 +1440,7 @@ class ParameterEstimationNLE(Optimizer):
 
         fig.suptitle(title)
 
-        for i in list(comb):
+        for i in comb:
             if len(axes) == 1:
                 ax = axes[0]
             else:
@@ -1518,7 +1453,7 @@ class ParameterEstimationNLE(Optimizer):
             marginal_conf_interval_95_i = []
             marginal_conf_interval_95_i.append(marginal_conf_interval_95[i[0]])
             marginal_conf_interval_95_i.append(marginal_conf_interval_95[i[1]])
-            cov_m = covariance_matrix_inverse[index_subarray]
+            cov_m = parameter_covariance_matrix[index_subarray]
             vals, vecs = eigsorted(cov_m)
             theta = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
 
@@ -1545,10 +1480,6 @@ class ParameterEstimationNLE(Optimizer):
             ax.axvline(parameters_i[0] + marginal_conf_interval_95_i[0])
             ax.axhline(parameters_i[1] - marginal_conf_interval_95_i[1])
             ax.axhline(parameters_i[1] + marginal_conf_interval_95_i[1])
-            # ax.axvline(parameters_i[0] - marginal_conf_interval_95_i[0][0])
-            # ax.axvline(parameters_i[0] + marginal_conf_interval_95_i[0][0])
-            # plt.axhline(parameters_i[1] - marginal_conf_interval_95_i[0][1])
-            # plt.axhline(parameters_i[1] + marginal_conf_interval_95_i[0][1])
 
         plt.show()
         return residuals, S_squared, residual_mean_square
