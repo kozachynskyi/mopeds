@@ -1386,7 +1386,9 @@ class ParameterEstimationNLE(Optimizer):
         residual_mean_square = S_squared / dof
 
         result_sens = self.calculate_sensitivity_and_fim(parameters)
-        parameter_covariance_matrix = result_sens["cov_par"]
+        jac_array = result_sens["jac"]
+        parameter_covariance_matrix = residual_mean_square * np.linalg.inv(jac_array.T.dot(jac_array))
+
         measurement_variance_matrix = result_sens["cov_meas"]
 
         residuals_sorted_in_columns = np.reshape(
@@ -1401,14 +1403,14 @@ class ParameterEstimationNLE(Optimizer):
         )
 
         parameter_variance = np.diag(parameter_covariance_matrix)
-        parameter_std = real_residual_mean_square * np.sqrt(parameter_variance)
+        parameter_std = np.sqrt(parameter_variance).flatten()
 
         students_t_dist_95 = scipy.stats.t.ppf(0.975, dof)
 
         for par, var_value in zip(selected_parameters, parameter_std):
             print(f"{par} +- {var_value} |  ({var_value / par})")
 
-        marginal_conf_interval_95 = (np.sqrt(residual_mean_square) * parameter_std * students_t_dist_95).T
+        marginal_conf_interval_95 = (parameter_std * students_t_dist_95).T
 
         import matplotlib.pyplot as plt
         from matplotlib.axes import Axes
