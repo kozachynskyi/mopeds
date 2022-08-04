@@ -25,6 +25,21 @@ def test_vle_nle():
         assert np.isclose(res["x"], ca.DM(true_answer_T), rtol=0, atol=1.0e-3)
 
 
+def test_utilities_methods():
+    variable_list, model = par_est.examples.simple_mixer()
+
+    sim = par_est.SimulatorNLE(model, variable_list)
+    res_full = sim.simulate()
+
+    assert res_full[0] == sim.simulate(["e0_F_s2"])
+    assert res_full[1] == sim.simulate(["e0_F_s4"])
+
+    sim.change_independent_variables({"e0_F_s1": 10, "e0_F_s3": 15})
+    res_full = sim.simulate()
+    assert np.array_equal(res_full, ca.DM([10., -5., 10.]))
+
+
 if __name__ == "__main__":
     pass
     # test_vle_nle()
+    # test_utilities_methods()
