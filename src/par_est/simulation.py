@@ -980,6 +980,16 @@ class SimulatorNLE:
         else:
             raise NotImplementedError
 
+    def change_independent_variables(self, ind_variables: dict[str,float]):
+        """Use this method to change either Controls or Parameters of the Simulation. ind_variables is a dictionary
+        with VariableNames as dict.keys(), and their respective values, as dict.values(). Example:
+        {"e0_T": 373, "e0_p": 1e5}"""
+        if self.contains_unfixed:
+            raise NotImplementedError("All variables should be fixed, to use this method")
+        for var_name, var_value in ind_variables.items():
+            index_var = self.mapping_independent_variables[var_name]
+            self._independent_variables[index_var] = var_value
+
     def generate_exp_data(self, unfixed_variables: list[float] = None) -> VariableList:
         res_array = self.simulate_sym_unfixed(unfixed_variables)
 
