@@ -962,6 +962,13 @@ class SimulatorNLE:
         self._rootfinder_bounds: list[int] = rootfinder_bounds
         self._independent_variables: ca.MX | ca.DM = ca.vcat(independent_variables)
 
+        if isinstance(self._independent_variables, ca.MX):
+            self.contains_unfixed = True
+        elif isinstance(self._independent_variables, ca.DM):
+            self.contains_unfixed = False
+        else:
+            raise NotImplementedError
+
     def generate_exp_data(self, unfixed_variables: list[float] = None) -> VariableList:
         res_array = self.simulate_sym_unfixed(unfixed_variables)
 
