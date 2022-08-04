@@ -1067,6 +1067,8 @@ class ParameterEstimationNLE(Optimizer):
                 if var.name() in names_variables_decision:
                     index = list(self.varlist_decision.keys()).index(var.name())
                     mapping_simulator_decisions[count] = index
+                else:
+                    raise NotImplementedError
 
         return mapping_simulator_decisions
 
