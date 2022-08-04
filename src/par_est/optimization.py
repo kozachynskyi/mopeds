@@ -991,14 +991,19 @@ class ParameterEstimationNLE(Optimizer):
 
         array_data = []
         array_data_mask = []
+        array_data_mask_new = []
         list_simulators = []
         list_simulator_mappings = []
         inverted_variances = []
+        array_data_new = []
 
         for varlist_input in self.list_input_varlist:
+            varlist_data = []
+            varlist_data_mask = []
             for var in varlist_input.values():
                 if isinstance(var, VariableControl):
-                    var.fixed = True
+                    if not var.fixed:
+                        raise NotImplementedError
 
             simulator = SimulatorClass(
                 self.model,
@@ -1014,15 +1019,30 @@ class ParameterEstimationNLE(Optimizer):
             for var in varlist_input.values():
                 if isinstance(var, VariableAlgebraic):
                     if var.value[0] is None or np.isnan(var.value[0]):
+                        varlist_data.append(np.nan)
                         array_data.append(0.0)
                         array_data_mask.append(0.0)
+                        varlist_data_mask.append(0.0)
                     else:
+                        varlist_data.append(var.value[0])
                         array_data.append(var.value[0])
                         array_data_mask.append(1.0)
+                        varlist_data_mask.append(1.0)
 
                     inverted_variances.append(1.0 / var.variance)
+            array_data_new.append(varlist_data)
+            array_data_mask_new.append(varlist_data_mask)
 
         self.list_simulators: list[SimulatorNLE] = list_simulators
+
+        array_data_new = np.array(array_data_new)
+        array_data_mask_new = np.array(array_data_mask_new)
+
+        all_measurements_names = np.array(list(self.model.varlist_algebraic.keys()))
+        data_columns_with_all_nans = np.isnan(array_data_new).all(axis=0)
+        self.array_data_new = array_data_new[:,~data_columns_with_all_nans]
+        self.array_data_mask_new = array_data_mask_new[:,~data_columns_with_all_nans]
+        self.names_of_measurements = all_measurements_names[~data_columns_with_all_nans].tolist()
 
         # List of dicts for each Simulation that shows, which index coresponds to each
         # simulator._independent_variables in self.varlist_ variable
