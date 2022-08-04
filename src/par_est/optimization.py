@@ -1124,19 +1124,14 @@ class ParameterEstimationNLE(Optimizer):
         residuals_function = ca.Function(
             "objective",
             [decision_variables],
-            [self._objective_ols()[1]],
+            [self._objective_ols()[0], self._objective_ols()[1]],
             ["x"],
-            ["f"],
+            ["f", "residuals"],
         )
 
         selected_parameters = self.parameters_dict_to_list(parameters)
-
-        residuals_all = residuals_function(selected_parameters).toarray()
-        residuals = residuals_all[residuals_all.nonzero()[0]]
-
-        S_squared = ca.sum1(residuals**2).toarray()
-
-        return S_squared, residuals, residuals_all
+        result = residuals_function(x=selected_parameters)
+        return result
 
     def parameters_dict_to_list(self, parameters: dict[str, float]) -> list[float]:
         """Takes a dictionary with {"par_name": par_value} and transforms to list
