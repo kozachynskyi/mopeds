@@ -471,6 +471,35 @@ def bod_model() -> tuple[par_est.VariableList, par_est.Model, list[par_est.Varia
     return variable_list, m, exp_data
 
 
+def simple_mixer() -> tuple[par_est.VariableList, par_est.Model]:
+    variable_list = par_est.VariableList()
+    variable_list.add_variable(par_est.VariableAlgebraic("e0_F_s2", 20.0))  # noqa: E501
+    variable_list.add_variable(par_est.VariableAlgebraic("e0_F_s4", 7.0))  # noqa: E501
+    variable_list.add_variable(par_est.VariableControl("e0_F_s1", 21.0))  # noqa: E501
+    variable_list.add_variable(par_est.VariableParameter("e0_F_s3", 13.0))  # noqa: E501
+    variable_list.add_variable(par_est.VariableAlgebraic("e0_F_s5", 20.0))  # noqa: E501
+
+    m = par_est.Model(variable_list)
+
+    e0_F_s1 = m.varlist_all["e0_F_s1"].casadi_var  # noqa: E501
+    e0_F_s3 = m.varlist_all["e0_F_s3"].casadi_var  # noqa: E501
+    e0_F_s2 = m.varlist_all["e0_F_s2"].casadi_var  # noqa: E501
+    e0_F_s4 = m.varlist_all["e0_F_s4"].casadi_var  # noqa: E501
+    e0_F_s5 = m.varlist_all["e0_F_s5"].casadi_var  # noqa: E501
+
+    EQ_alg1 = (0.0-((e0_F_s1-e0_F_s2)))  # noqa: E501,E226
+    EQ_alg2 = (0.0-(((e0_F_s2-e0_F_s3)-e0_F_s4)))  # noqa: E501,E226
+    EQ_alg3 = (0.0-(((e0_F_s2-e0_F_s5))))  # noqa: E501,E226
+
+    list_algebraic_equations = [EQ_alg1, EQ_alg2, EQ_alg3]  # noqa: E501
+
+    # fmt:on
+
+    m.add_equations_algebraic(list_algebraic_equations)
+
+    return variable_list, m
+
+
 def isomerization_model() -> tuple[par_est.VariableList, par_est.Model, list[par_est.VariableList]]:
     # Isomerization data as used in Bates, Watts, Nonlinear regression analysis: Its applications
     variable_list = par_est.variables.VariableList()  # Preallocate variable_list
