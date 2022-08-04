@@ -6,6 +6,21 @@ from par_est import Model, VariableList, Simulator, SimulatorNLE
 import numpy as np
 
 
+def create_grid(
+    bounds: list[list[float]]) -> list[list[float]]:
+    """Create a grid in a given bounds. Bounds is dictionary, with variable names as keys(),
+    and values() as a list with 3 elements: [lower_bound, upper_bound, num_points]
+    """
+    linspace_list = []
+    for bound in bounds:
+        linspace_list.append(np.linspace(start=bound[0], stop=bound[1], num=bound[2]))
+    grids = np.meshgrid(*linspace_list)
+
+    grids = [n_grid.ravel() for n_grid in grids]
+    grid = np.array(grids).transpose().tolist()
+    return grid
+
+
 def generate_varlist_with_data(variable_list: VariableList, model: Model, time_grid: np.ndarray, algebraic: bool = False) -> VariableList:
     # Simulated ODE/DAE and replaces StateVariable values with simulated data
     var_list_fixed = copy.deepcopy(variable_list)
@@ -22,19 +37,34 @@ def generate_varlist_with_data(variable_list: VariableList, model: Model, time_g
     return variable_list_with_data
 
 
-def generate_varlist_with_data_NLE(model, variable_list):
+def generate_varlist_with_data_NLE(model, variable_list, control_bounds, preturbate: bool = True, rng: np.random.Generator = None):
     # Solves NLE and create varlist to use, for example with Parameter Estimation
+    if rng is None:
+        rng = np.random.default_rng()
+
+    variable_list_original = copy.deepcopy(variable_list)
+
     for var in variable_list.values():
         var.fixed = True
 
+    grid = create_grid(list(control_bounds.values()))
     sim_fixed = SimulatorNLE(model, variable_list)
-    # Run simulation and connect results with actual state variables
-    varlist_results = sim_fixed.generate_exp_data()
-    # Copy variable_list
-    variable_list_optimizer = copy.deepcopy(variable_list)
-    # Set startings values
-    for variable_name, variable in varlist_results.items():
-        variable.guess = variable.value[0]
-        variable_list_optimizer[variable_name] = variable
 
-    return variable_list_optimizer
+    varlist_list = []
+    for grid_point in grid:
+        variable_list_optimizer = copy.deepcopy(variable_list_original)
+        sim_fixed.change_independent_variables(dict(zip(control_bounds.keys(), grid_point)))
+        varlist_results = sim_fixed.generate_exp_data()
+
+        # Set startings values
+        for variable_name, variable in varlist_results.items():
+            value = variable.value[0]
+            if preturbate:
+                value = rng.normal(value, np.sqrt(variable.variance))
+            variable.guess = value
+            variable_list_optimizer[variable_name].value = value
+        for index, var_name in enumerate(control_bounds.keys()):
+            variable_list_optimizer[var_name].value = grid_point[index]
+        varlist_list.append(variable_list_optimizer)
+
+    return varlist_list
