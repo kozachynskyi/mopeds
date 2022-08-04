@@ -914,6 +914,11 @@ class SimulatorNLE:
         self.solver_settings: dict = solver_settings
 
     def _setup_variables(self) -> None:
+        mapping_independent_variables = {}
+        mapping_algebraic_variables = {}
+        index_algebraic = 0
+        index_independent = 0
+
         guess = []
         lower_bound = []
         upper_bound = []
@@ -926,6 +931,8 @@ class SimulatorNLE:
                 continue
 
             if isinstance(var, VariableAlgebraic):
+                mapping_algebraic_variables[var.name] = index_algebraic
+                index_algebraic += 1
                 guess.append(var.guess)
                 if var.lower_bound is None:
                     lower_bound.append(-ca.inf)
@@ -938,10 +945,14 @@ class SimulatorNLE:
             elif isinstance(var, VariableConstant):
                 pass
             elif isinstance(var, (VariableControl, VariableParameter)):
+                mapping_independent_variables[var.name] = index_independent
+                index_independent += 1
                 independent_variables.append(var.get_value_or_casadi())
             else:
                 raise TypeError(f"{type(var)} is not supported")
 
+        self.mapping_independent_variables: dict[str,int] = mapping_independent_variables
+        self.mapping_algebraic_variables: dict[str,int] = mapping_algebraic_variables
         self._lower_bound: list[float] = lower_bound
         self._upper_bound: list[float] = upper_bound
 
