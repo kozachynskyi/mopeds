@@ -1026,6 +1026,21 @@ class SimulatorNLE:
 
         return res_array
 
+    def select_simulation_result(self, result: ca.DM | ca.MX, return_var_indexes: list[int]) -> ca.DM | ca.MX:
+        """Take result from self.simulate_sym() and return only a subset of results, defined by column
+        index in return_var_names"""
+        return result.get(False, return_var_indexes, 0)
+
+    def simulate(self, return_var_names: list[str] | None = None) -> ca.DM | ca.MX:
+        """Wrapper for simulate_sym, that returns only results for variables, specified in return_var_names"""
+        res = self.simulate_sym()["x"]
+        if return_var_names is not None:
+            return_var_index = []
+            for var_name in return_var_names:
+                return_var_index.append(self.mapping_algebraic_variables[var_name])
+            res = self.select_simulation_result(res, return_var_index)
+        return res
+
     def simulate_sym(self) -> dict[str, ca.MX | ca.DM]:
         self.call_arg["p"] = self._independent_variables * self.scaling
 
