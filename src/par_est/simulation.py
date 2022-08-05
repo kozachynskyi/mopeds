@@ -1004,6 +1004,9 @@ class SimulatorNLE:
             new_var.ignore_plotting = self.__input_variable_list[
                 var.name
             ].ignore_plotting
+            new_var.variance = self.__input_variable_list[
+                var.name
+            ].variance
             variables.add_variable(new_var)
 
         return variables
