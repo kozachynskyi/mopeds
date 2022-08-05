@@ -2,7 +2,7 @@
 Separated from utilities to avoid dependency hell"""
 import copy
 
-from par_est import Model, VariableList, Simulator, SimulatorNLE
+from par_est import Model, VariableList, Simulator, SimulatorNLE, VariableParameter
 import numpy as np
 
 
@@ -43,9 +43,15 @@ def generate_varlist_with_data_NLE(model, variable_list, control_bounds, preturb
         rng = np.random.default_rng()
 
     variable_list_original = copy.deepcopy(variable_list)
+    true_parameters = {}
 
     for var in variable_list.values():
         var.fixed = True
+
+    for var in model.varlist_independent.values():
+        if isinstance(var, VariableParameter):
+            var_varlist = variable_list_original[var.name]
+            true_parameters[var_varlist.name] = var_varlist.value[0]
 
     grid = create_grid(list(control_bounds.values()))
     sim_fixed = SimulatorNLE(model, variable_list)
@@ -67,4 +73,4 @@ def generate_varlist_with_data_NLE(model, variable_list, control_bounds, preturb
             variable_list_optimizer[var_name].value = grid_point[index]
         varlist_list.append(variable_list_optimizer)
 
-    return varlist_list
+    return varlist_list, true_parameters
