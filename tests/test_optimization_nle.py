@@ -1,11 +1,11 @@
 import copy
 import logging
+
 import casadi as ca
 import numpy as np
 
-import copy
-import par_est.examples
 import par_est
+import par_est.examples
 import par_est.tools
 
 
@@ -20,8 +20,11 @@ def test_pe():
 
     control_bounds = {"x": [0.5, 0.5, 1]}
 
-    variable_list_optimizer, true_parameters = par_est.tools.generate_varlist_with_data_NLE(
-        model, var_list_fixed, control_bounds, preturbate=False
+    (
+        variable_list_optimizer,
+        true_parameters,
+    ) = par_est.tools.generate_varlist_with_data_NLE(
+        model, variable_list, control_bounds, preturbate=False
     )
     variable_list_optimizer = variable_list_optimizer[0]
     variable_list_optimizer.set_variable_list_unfixed(["a2"])
@@ -79,7 +82,10 @@ def test_multivariate_pe():
     varlist["e0_F_s3"].fixed = False
 
     rng = np.random.default_rng(0)
-    variable_list_optimizer, true_parameters = par_est.tools.generate_varlist_with_data_NLE(
+    (
+        variable_list_optimizer,
+        true_parameters,
+    ) = par_est.tools.generate_varlist_with_data_NLE(
         model, varlist, control_bounds, preturbate=True, rng=rng
     )
 
