@@ -133,7 +133,6 @@ class Optimizer(object):
             self.scaling = 1
             for simulator in self.list_simulators:
                 simulator._reset_scaling()
-        self.generate_simulate_all_functions()
 
     @abstractmethod
     def _objective(self) -> tuple[ca.MX | ca.DM, ca.MX | ca.DM]:
@@ -972,6 +971,10 @@ class ParameterEstimationNLE(Optimizer):
         self._objective: Callable[
             [], tuple[ca.MX | ca.DM, ca.MX | ca.DM]
         ] = self._objective_ols
+
+    def _setup_scaling(self, scale: bool = False) -> None:
+        super()._setup_scaling(scale)
+        self.generate_simulate_all_functions()
 
     def _setup_simulator(
         self, use_simulator_bounds: bool, SimulatorClass: SimulatorNLE
