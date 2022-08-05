@@ -1138,21 +1138,27 @@ class ParameterEstimationNLE(Optimizer):
 
         return self._optimize(scale)
 
-    def calculate_ols_value(self, parameters: dict[str, float]):
-        decision_variables = self.varlist_decision.get_casadi_variables()
+    def calculate_objective_and_residual(self, parameters: dict[str, float], objective_function: str = "ols") -> dict[str, float | np.ndarray]:
+        if objective_function == "ols":
+            obj_f = self._objective_ols()
+        elif objective_function == "wls":
+            obj_f = self._objective_wls()
 
         self._setup_scaling(False)
-        residuals_function = ca.Function(
+        decision_variables = self.varlist_decision.get_casadi_variables()
+        casadi_function = ca.Function(
             "objective",
             [decision_variables],
-            [self._objective_ols()[0], self._objective_ols()[1]],
+            [obj_f[0], obj_f[1]],
             ["x"],
             ["f", "residuals"],
         )
 
         selected_parameters = self.parameters_dict_to_list(parameters)
-        result = residuals_function(x=selected_parameters)
-        return result
+        res = casadi_function(x=selected_parameters)
+        result_np = {"f": float(res["f"]), "residuals": res["residuals"].toarray()}
+
+        return result_np
 
     def parameters_dict_to_list(self, parameters: dict[str, float]) -> list[float]:
         """Takes a dictionary with {"par_name": par_value} and transforms to list
