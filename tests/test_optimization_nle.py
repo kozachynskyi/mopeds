@@ -15,9 +15,8 @@ def test_pe():
     """
     variable_list, model = par_est.examples.vle_nle_problem()
 
-    var_list_fixed = copy.deepcopy(variable_list)
-    var_list_fixed.set_variable_list_fixed()
-
+    variable_list["a2"].fixed = False
+    variable_list.set_bounds(emerg_val=50)
     control_bounds = {"x": [0.5, 0.5, 1]}
 
     (
@@ -27,8 +26,6 @@ def test_pe():
         model, variable_list, control_bounds, preturbate=False
     )
     variable_list_optimizer = variable_list_optimizer[0]
-    variable_list_optimizer.set_variable_list_unfixed(["a2"])
-    variable_list_optimizer.set_bounds(emerg_val=50)
 
     for i in range(3):
         if i == 0:
@@ -49,19 +46,22 @@ def test_pe():
         )
 
         for switch in [True, False]:
-            res = pe.optimize(switch)
-            answer_f = 0
-            answer_param = [5.19625]
+            for objective in ["ols", "wls"]:
+                res = pe.optimize(switch, objective_function=objective)
+                answer_f = 0
+                answer_param = [5.19625]
 
-            logging.warning(
-                f"Model.NLE: {model}, Result: {res['f']}, Expecting: {answer_f}"
-            )
-            assert np.isclose(res["f"], ca.DM(answer_f), rtol=0, atol=1.0e-9)
+                logging.warning(
+                    f"Model.NLE: {model}, Result: {res['f']}, Expecting: {answer_f}"
+                )
+                assert np.isclose(res["f"], ca.DM(answer_f), rtol=0, atol=1.0e-9)
 
-            logging.warning(
-                f"Model.NLE: {model}, Result: {res['x']}, Expecting: {answer_param}"
-            )
-            assert np.all(np.isclose(res["x"], ca.DM(answer_param), rtol=0, atol=1.0e-9))
+                logging.warning(
+                    f"Model.NLE: {model}, Result: {res['x']}, Expecting: {answer_param}"
+                )
+                assert np.all(
+                    np.isclose(res["x"], ca.DM(answer_param), rtol=0, atol=1.0e-9)
+                )
 
         for sim in pe.list_simulators:
             if i == 1:
@@ -77,9 +77,12 @@ def test_pe():
 def test_multivariate_pe():
     varlist, model = par_est.examples.simple_mixer()
 
-    control_bounds = {"e0_F_s1": [0, 20, 3], "e0_F_s3": [10, 15, 3]}
+    control_bounds = {"e0_F_s1": [0, 20, 9]}
 
     varlist["e0_F_s3"].fixed = False
+
+    varlist["e0_F_s2"].variance = 0.1
+    varlist["e0_F_s4"].variance = 0.1
 
     rng = np.random.default_rng(0)
     (
@@ -105,15 +108,15 @@ def test_multivariate_pe():
 
     data_full = np.array(
         [
-            [0.12573022, -10.13210486, 0.64042265],
-            [10.10490012, -0.53566937, 10.36159505],
-            [21.30400005, 0, 19.29626476],
-            [-1.26542147, -13.12327446, 0.04132598],
-            [7.67496923, -2.71879166, 8.75408905],
-            [19.26773265, 6.95574102, 19.68369984],
-            [0.41163054, -13.95748663, -0.12853466],
-            [11.36646347, -5.66519467, 0],
-            [20.90347018, 5.0940123, 19.25650075],
+            [0.03975939, -13.04177523, 0.64042265],
+            [2.53317233, -10.66939353, 2.86159505],
+            [5.41236102, 0.0, 4.29626476],
+            [7.0998386, -5.69709669, 7.54132598],
+            [9.26476071, -3.069188, 8.75408905],
+            [12.26843673, -0.6721098, 12.18369984],
+            [15.130169, 2.32967167, 14.87146534],
+            [17.93211369, 4.28964697, 0.0],
+            [20.28570236, 7.0297293, 19.25650075],
         ]
     )
 
@@ -125,30 +128,33 @@ def test_multivariate_pe():
 
     parameters = {"e0_F_s3": 4}
 
-    ols_f = 690.9195635362676
+    ols_f = 661.7386240718675
+    wls_f = 6588.050781719137
     ols_residuals = np.array(
         [
-            [-0.12573022, 6.13210486, -0.64042265],
-            [-0.10490012, 6.53566937, -0.36159505],
-            [-1.30400005, 0.0, 0.70373524],
-            [1.26542147, 9.12327446, -0.04132598],
-            [2.32503077, 8.71879166, 1.24591095],
-            [0.73226735, 9.04425898, 0.31630016],
-            [-0.41163054, 9.95748663, 0.12853466],
-            [-1.36646347, 11.66519467, 0.0],
-            [-0.90347018, 10.9059877, 0.74349925],
+            [-0.03975939, 9.04177523, -0.64042265],
+            [-0.03317233, 9.16939353, -0.36159505],
+            [-0.41236102, 0.0, 0.70373524],
+            [0.4001614, 9.19709669, -0.04132598],
+            [0.73523929, 9.069188, 1.24591095],
+            [0.23156327, 9.1721098, 0.31630016],
+            [-0.130169, 8.67032833, 0.12853466],
+            [-0.43211369, 9.21035303, 0.0],
+            [-0.28570236, 8.9702707, 0.74349925],
         ]
     )
 
     pe = par_est.ParameterEstimationNLE(model, variable_list_optimizer)
     assert pe.names_of_measurements == ["e0_F_s2", "e0_F_s4", "e0_F_s5"]
-    assert np.array_equal(pe.array_data_mask_new, mask_full)
-    assert np.allclose(pe.array_data_new, data_full, equal_nan=True)
+    assert np.array_equal(pe.array_data_mask, mask_full)
+    assert np.allclose(pe.array_data, data_full, equal_nan=True)
     assert pe.index_measurements_in_sim == [0, 1, 2]
 
-    ols = pe.calculate_ols_value(parameters)
+    ols = pe.calculate_objective_and_residual(parameters, "ols")
+    wls = pe.calculate_objective_and_residual(parameters, "wls")
     assert np.isclose(ols_f, ols["f"])
     assert np.allclose(ols_residuals, ols["residuals"])
+    assert np.isclose(wls_f, wls["f"])
 
     # Remove one measurement variable
     for varlist in variable_list_optimizer:
@@ -156,30 +162,33 @@ def test_multivariate_pe():
 
     pe = par_est.ParameterEstimationNLE(model, variable_list_optimizer)
     assert pe.names_of_measurements == ["e0_F_s4", "e0_F_s5"]
-    assert np.array_equal(pe.array_data_mask_new, mask_full[:, 1:])
-    assert np.allclose(pe.array_data_new, data_full[:, 1:], equal_nan=True)
+    assert np.array_equal(pe.array_data_mask, mask_full[:, 1:])
+    assert np.allclose(pe.array_data, data_full[:, 1:], equal_nan=True)
     assert pe.index_measurements_in_sim == [1, 2]
 
-    ols_f = 678.79613973
+    ols_f = 660.5262816912779
+    wls_f = 6575.9273579132405
     ols_residuals = np.array(
         [
-            [6.13210486, -0.64042265],
-            [6.53566937, -0.36159505],
+            [9.04177523, -0.64042265],
+            [9.16939353, -0.36159505],
             [0.0, 0.70373524],
-            [9.12327446, -0.04132598],
-            [8.71879166, 1.24591095],
-            [9.04425898, 0.31630016],
-            [9.95748663, 0.12853466],
-            [11.66519467, 0.0],
-            [10.9059877, 0.74349925],
+            [9.19709669, -0.04132598],
+            [9.069188, 1.24591095],
+            [9.1721098, 0.31630016],
+            [8.67032833, 0.12853466],
+            [9.21035303, 0.0],
+            [8.9702707, 0.74349925],
         ]
     )
-    ols = pe.calculate_ols_value(parameters)
+    ols = pe.calculate_objective_and_residual(parameters, "ols")
+    wls = pe.calculate_objective_and_residual(parameters, "wls")
     assert np.isclose(ols_f, ols["f"])
     assert np.allclose(ols_residuals, ols["residuals"])
+    assert np.isclose(wls_f, wls["f"])
 
 
 if __name__ == "__main__":
     pass
     test_pe()
-    # test_multivariate_pe()
+    test_multivariate_pe()
