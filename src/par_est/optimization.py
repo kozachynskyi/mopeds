@@ -1044,6 +1044,11 @@ class ParameterEstimationNLE(Optimizer):
         self.array_data_mask_new = array_data_mask_new[:,~data_columns_with_all_nans]
         self.names_of_measurements = all_measurements_names[~data_columns_with_all_nans].tolist()
 
+        self.index_measurements_in_sim = []
+        for name in self.names_of_measurements:
+            index = self.list_simulators[0].mapping_algebraic_variables[name]
+            self.index_measurements_in_sim.append(index)
+
         # List of dicts for each Simulation that shows, which index coresponds to each
         # simulator._independent_variables in self.varlist_ variable
         # For example [{1: 2}], {1: 3}]: in first simulator._independent_variables[1]

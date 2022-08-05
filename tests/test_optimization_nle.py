@@ -1,3 +1,4 @@
+import copy
 import logging
 import casadi as ca
 import numpy as np
@@ -121,33 +122,15 @@ def test_multivariate_pe():
     ols_f = 690.9195635362676
     ols_residuals = np.array(
         [
-            [-0.12573022],
-            [6.13210486],
-            [-0.64042265],
-            [-0.10490012],
-            [6.53566937],
-            [-0.36159505],
-            [-1.30400005],
-            [0.0],
-            [0.70373524],
-            [1.26542147],
-            [9.12327446],
-            [-0.04132598],
-            [2.32503077],
-            [8.71879166],
-            [1.24591095],
-            [0.73226735],
-            [9.04425898],
-            [0.31630016],
-            [-0.41163054],
-            [9.95748663],
-            [0.12853466],
-            [-1.36646347],
-            [11.66519467],
-            [0.0],
-            [-0.90347018],
-            [10.9059877],
-            [0.74349925],
+            [-0.12573022, 6.13210486, -0.64042265],
+            [-0.10490012, 6.53566937, -0.36159505],
+            [-1.30400005, 0.0, 0.70373524],
+            [1.26542147, 9.12327446, -0.04132598],
+            [2.32503077, 8.71879166, 1.24591095],
+            [0.73226735, 9.04425898, 0.31630016],
+            [-0.41163054, 9.95748663, 0.12853466],
+            [-1.36646347, 11.66519467, 0.0],
+            [-0.90347018, 10.9059877, 0.74349925],
         ]
     )
 
@@ -155,11 +138,13 @@ def test_multivariate_pe():
     assert pe.names_of_measurements == ["e0_F_s2", "e0_F_s4", "e0_F_s5"]
     assert np.array_equal(pe.array_data_mask_new, mask_full)
     assert np.allclose(pe.array_data_new, data_full, equal_nan=True)
+    assert pe.index_measurements_in_sim == [0, 1, 2]
 
     ols = pe.calculate_ols_value(parameters)
     assert np.isclose(ols_f, ols["f"])
     assert np.allclose(ols_residuals, ols["residuals"])
 
+    # Remove one measurement variable
     for varlist in variable_list_optimizer:
         varlist["e0_F_s2"].dataframe = varlist["e0_F_s2"]._dataframe_from_value(None)
 
@@ -167,37 +152,20 @@ def test_multivariate_pe():
     assert pe.names_of_measurements == ["e0_F_s4", "e0_F_s5"]
     assert np.array_equal(pe.array_data_mask_new, mask_full[:, 1:])
     assert np.allclose(pe.array_data_new, data_full[:, 1:], equal_nan=True)
+    assert pe.index_measurements_in_sim == [1, 2]
 
     ols_f = 678.79613973
     ols_residuals = np.array(
         [
-            [0.0],
-            [6.13210486],
-            [-0.64042265],
-            [0.0],
-            [6.53566937],
-            [-0.36159505],
-            [0.0],
-            [0.0],
-            [0.70373524],
-            [0.0],
-            [9.12327446],
-            [-0.04132598],
-            [0.0],
-            [8.71879166],
-            [1.24591095],
-            [0.0],
-            [9.04425898],
-            [0.31630016],
-            [0.0],
-            [9.95748663],
-            [0.12853466],
-            [0.0],
-            [11.66519467],
-            [0.0],
-            [0.0],
-            [10.9059877],
-            [0.74349925],
+            [6.13210486, -0.64042265],
+            [6.53566937, -0.36159505],
+            [0.0, 0.70373524],
+            [9.12327446, -0.04132598],
+            [8.71879166, 1.24591095],
+            [9.04425898, 0.31630016],
+            [9.95748663, 0.12853466],
+            [11.66519467, 0.0],
+            [10.9059877, 0.74349925],
         ]
     )
     ols = pe.calculate_ols_value(parameters)
