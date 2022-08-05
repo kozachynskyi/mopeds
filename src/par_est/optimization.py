@@ -1040,7 +1040,7 @@ class ParameterEstimationNLE(Optimizer):
 
         all_measurements_names = np.array(list(self.model.varlist_algebraic.keys()))
         data_columns_with_all_nans = np.isnan(array_data_new).all(axis=0)
-        self.array_data_new = array_data_new[:,~data_columns_with_all_nans]
+        self.array_data_new = np.nan_to_num(array_data_new[:,~data_columns_with_all_nans])
         self.array_data_mask_new = array_data_mask_new[:,~data_columns_with_all_nans]
         self.names_of_measurements = all_measurements_names[~data_columns_with_all_nans].tolist()
 
