@@ -133,6 +133,7 @@ class Optimizer(object):
             self.scaling = 1
             for simulator in self.list_simulators:
                 simulator._reset_scaling()
+        self.generate_simulate_all_functions()
 
     @abstractmethod
     def _objective(self) -> tuple[ca.MX | ca.DM, ca.MX | ca.DM]:
@@ -989,17 +990,17 @@ class ParameterEstimationNLE(Optimizer):
             elif isinstance(var, VariableControl):
                 self.varlist_control.add_variable(var)
 
-        array_data = []
-        array_data_mask = []
-        array_data_mask_new = []
+        list_data_mask = []
         list_simulators = []
         list_simulator_mappings = []
         inverted_variances = []
-        array_data_new = []
+        list_data = []
+        list_inverted_variances = []
 
         for varlist_input in self.list_input_varlist:
             varlist_data = []
             varlist_data_mask = []
+            varlist_variance = []
             for var in varlist_input.values():
                 if isinstance(var, VariableControl):
                     if not var.fixed:
@@ -1020,29 +1021,29 @@ class ParameterEstimationNLE(Optimizer):
                 if isinstance(var, VariableAlgebraic):
                     if var.value[0] is None or np.isnan(var.value[0]):
                         varlist_data.append(np.nan)
-                        array_data.append(0.0)
-                        array_data_mask.append(0.0)
                         varlist_data_mask.append(0.0)
                     else:
                         varlist_data.append(var.value[0])
-                        array_data.append(var.value[0])
-                        array_data_mask.append(1.0)
                         varlist_data_mask.append(1.0)
 
                     inverted_variances.append(1.0 / var.variance)
-            array_data_new.append(varlist_data)
-            array_data_mask_new.append(varlist_data_mask)
+                    varlist_variance.append(1.0 / var.variance)
+            list_data.append(varlist_data)
+            list_data_mask.append(varlist_data_mask)
+            list_inverted_variances.append(varlist_variance)
 
         self.list_simulators: list[SimulatorNLE] = list_simulators
 
-        array_data_new = np.array(array_data_new)
-        array_data_mask_new = np.array(array_data_mask_new)
-
+        array_data = np.array(list_data)
         all_measurements_names = np.array(list(self.model.varlist_algebraic.keys()))
-        data_columns_with_all_nans = np.isnan(array_data_new).all(axis=0)
-        self.array_data_new = np.nan_to_num(array_data_new[:,~data_columns_with_all_nans])
-        self.array_data_mask_new = array_data_mask_new[:,~data_columns_with_all_nans]
-        self.names_of_measurements = all_measurements_names[~data_columns_with_all_nans].tolist()
+
+        index_columns_with_all_nans = np.isnan(array_data).all(axis=0)
+
+        self.array_data = np.nan_to_num(array_data[:,~index_columns_with_all_nans])
+        self.array_data_mask = np.array(list_data_mask)[:,~index_columns_with_all_nans]
+        self.names_of_measurements: list[str] = all_measurements_names[~index_columns_with_all_nans].tolist()
+        self.array_inverted_variance = np.array(list_inverted_variances)[:, ~index_columns_with_all_nans]
+        self.array_inverted_std = np.sqrt(self.array_inverted_variance)
 
         self.index_measurements_in_sim = []
         for name in self.names_of_measurements:
@@ -1057,8 +1058,7 @@ class ParameterEstimationNLE(Optimizer):
 
         self.inverted_variances: np.ndarray = np.array(inverted_variances)
 
-        self.array_data: ca.DM = ca.DM(array_data)
-        self.array_data_mask: np.ndarray = np.array(array_data_mask)
+        self.generate_simulate_all_functions()
 
     def _setup_simulator_mapping(self, simulator: SimulatorNLE) -> dict[int, int]:
         names_variables_decision = list(self.varlist_decision.keys())
@@ -1090,23 +1090,39 @@ class ParameterEstimationNLE(Optimizer):
 
         return array_simulation
 
-    def _objective_ols(self):
-        # Ordinary Least Squares
-        array_simulation = self._simulate_all()
-        # multiply by self.array_data_mask needed to ignore elements were error experimental data is zero
-        error = (array_simulation - self.array_data) * self.array_data_mask
-        objective = ca.sum1(error**2)
+    def generate_simulate_all_functions(self) -> None:
+        """Combines simulate_sym() functions from simulator, and creates MX structure, that is used
+        further in objective_function calculation"""
+        list_simulation_T = []
 
-        return objective, error
+        for simulator in self.list_simulators:
+            res_simulation = simulator.simulate_sym()
+
+            list_simulation_T.append(res_simulation["x"].T)
+
+        free_variables = self.varlist_decision.get_casadi_variables()
+        all_selected_measurements = ca.vcat(list_simulation_T).get(False, ca.Slice(), self.index_measurements_in_sim)
+        self.simulate_all_function = ca.Function("sim_all", [free_variables], [all_selected_measurements])
+        self.simulate_all_mx = self.simulate_all_function(free_variables)
+
+    def _objective_ols(self):
+        """Objective function is a trace(Z.T * Z), where Z is a residual matrix with shape:
+        numRows -> amount of supplied experiments, numCol -> amount of variables that have measurements
+        If experiments do not supply a measurement for one of the measurements, self.array_data_mask will
+        have 0 as the respective element of the martix, otherwise 1"""
+        residuals = (self.simulate_all_mx - self.array_data) * self.array_data_mask
+        objective = ca.sumsqr(residuals)
+
+        return objective, residuals
 
     def _objective_wls(self):
-        # Weighted Least Squares
-        array_simulation = self._simulate_all()
-        # multiply by self.array_data_mask needed to ignore elements were error experimental data is zero
-        error = (array_simulation - self.array_data) * self.array_data_mask
-        objective = ca.sum1(self.inverted_variances * error**2)
-
-        return objective, error
+        """Objective function is a trace(Z.T * inv(VarY) * Z), where Z is a same matrix as in _objective_ols
+        inv(VarY) is the variance of the respective measurements in Z, and has the same shape.
+        Thus, covariance of the measurements is assumed to be zero."""
+        residuals = (self.simulate_all_mx - self.array_data) * self.array_data_mask
+        scaled_residuals = residuals * self.array_inverted_std
+        objective = ca.sumsqr(scaled_residuals)
+        return objective, residuals
 
     def optimize(self, scale=False, objective_function="wls"):
         if objective_function == "wls":
@@ -1419,10 +1435,6 @@ class ParameterEstimationNLE(Optimizer):
         residuals_sorted_in_columns = residuals_sorted_in_columns[:, residuals_sorted_in_columns.all(0)]
         S_squred_sorted_in_columns = np.sum(residuals_sorted_in_columns ** 2, axis=0)
         real_residual_mean_square = S_squred_sorted_in_columns / dof
-
-        data_in_columns = np.reshape(
-            self.array_data, (len(self.list_simulators), len_alg)
-        )
 
         parameter_variance = np.diag(parameter_covariance_matrix)
         parameter_std = np.sqrt(parameter_variance).flatten()
