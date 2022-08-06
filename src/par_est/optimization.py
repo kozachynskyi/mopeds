@@ -1132,6 +1132,8 @@ class ParameterEstimationNLE(Optimizer):
             self._objective = self._objective_wls
         elif objective_function == "ols":
             self._objective = self._objective_ols
+        else:
+            raise NotImplementedError(f"Objective function '{objective_function}' is not supported")
 
         variance = [[] for x in range(len(self.varlist_algebraic))]
 
