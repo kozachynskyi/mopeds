@@ -143,6 +143,75 @@ def test_multivariate_pe():
             [-0.28570236, 8.9702707, 0.74349925],
         ]
     )
+    jac_full = np.array(
+        [
+            [0.0],
+            [0.0],
+            [0.0],
+            [0.0],
+            [0.0],
+            [0.0],
+            [0.0],
+            [0.0],
+            [0.0],
+            [-1.0],
+            [-1.0],
+            [-0.0],
+            [-1.0],
+            [-1.0],
+            [-1.0],
+            [-1.0],
+            [-1.0],
+            [-1.0],
+            [0.0],
+            [0.0],
+            [0.0],
+            [0.0],
+            [0.0],
+            [0.0],
+            [0.0],
+            [0.0],
+            [0.0],
+        ]
+    )
+
+    jac_scaled_full = np.array(
+        [
+            [0.0],
+            [0.0],
+            [0.0],
+            [0.0],
+            [0.0],
+            [0.0],
+            [0.0],
+            [0.0],
+            [0.0],
+            [-3.16227766],
+            [-3.16227766],
+            [-0.0],
+            [-3.16227766],
+            [-3.16227766],
+            [-3.16227766],
+            [-3.16227766],
+            [-3.16227766],
+            [-3.16227766],
+            [0.0],
+            [0.0],
+            [0.0],
+            [0.0],
+            [0.0],
+            [0.0],
+            [0.0],
+            [0.0],
+            [0.0],
+        ]
+    )
+
+    fim = 8.
+    fim_scaled = 80.
+    cov_par = 0.06821176
+    jac_ols = -1.00103
+    hess_ols = 16
 
     pe = par_est.ParameterEstimationNLE(model, variable_list_optimizer)
     assert pe.names_of_measurements == ["e0_F_s2", "e0_F_s4", "e0_F_s5"]
@@ -155,6 +224,15 @@ def test_multivariate_pe():
     assert np.isclose(ols_f, ols["f"])
     assert np.allclose(ols_residuals, ols["residuals"])
     assert np.isclose(wls_f, wls["f"])
+
+    res_sens = pe.calculate_sensitivity_and_fim(true_parameters)
+    assert np.array_equal(res_sens["jac_full"], jac_full)
+    assert np.allclose(res_sens["jac_scaled_full"], jac_scaled_full)
+    assert np.isclose(res_sens["cov_par"], cov_par)
+    assert np.isclose(res_sens["jac_ols"], jac_ols)
+    assert np.isclose(res_sens["fim"], fim)
+    assert np.isclose(res_sens["fim_scaled"], fim_scaled)
+    assert np.isclose(res_sens["hess_ols"], hess_ols)
 
     # Remove one measurement variable
     for varlist in variable_list_optimizer:
@@ -186,6 +264,13 @@ def test_multivariate_pe():
     assert np.isclose(ols_f, ols["f"])
     assert np.allclose(ols_residuals, ols["residuals"])
     assert np.isclose(wls_f, wls["f"])
+
+    cov_par = 0.05172068
+
+    res_sens = pe.calculate_sensitivity_and_fim(true_parameters)
+    assert np.array_equal(res_sens["jac_full"], jac_full[9:])
+    assert np.allclose(res_sens["jac_scaled_full"], jac_scaled_full[9:])
+    assert np.isclose(res_sens["cov_par"], cov_par)
 
 
 if __name__ == "__main__":
