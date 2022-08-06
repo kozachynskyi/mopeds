@@ -1170,8 +1170,13 @@ class ParameterEstimationNLE(Optimizer):
         corresponding to the order of self.varlist_decision variables"""
         selected_parameters: list[float] = []
         for var_name in parameters.keys():
-            if var_name in self.varlist_decision.keys():
+            if var_name not in self.varlist_decision.keys():
+                print(f"Supplied value for parameter {var_name} is ignored!")
+        for var_name in self.varlist_decision.keys():
+            try:
                 selected_parameters.append(parameters[var_name])
+            except KeyError:
+                raise KeyError(f"Missing parameter value for {var_name}")
 
         return selected_parameters
 
