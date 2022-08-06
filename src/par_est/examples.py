@@ -7,42 +7,54 @@ import casadi as ca
 import par_est
 
 
-def empy_dae(piecewise_control: bool = False) -> tuple[par_est.VariableList, par_est.Model]:
+def empy_dae(
+    piecewise_control: bool = False,
+) -> tuple[par_est.VariableList, par_est.Model]:
     variable_list = par_est.VariableList()
 
-    # fmt: off
     variable_list.add_variable(par_est.VariableState("X1", 0))
-
     variable_list.add_variable(par_est.VariableState("X2", 0))
-
     variable_list.add_variable(par_est.VariableAlgebraic("Z1", 0.0))
 
     if piecewise_control:
-        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("C", 0.0, -1, 1))
+        variable_list.add_variable(
+            par_est.VariableControlPiecewiseConstant("C", 0.0, -1, 1)
+        )
     else:
         variable_list.add_variable(par_est.VariableControl("C", 0.0, -1, 1))
     variable_list.add_variable(par_est.VariableParameter("P", 0.0, -1, 1))
-    # fmt: on
 
     m = par_est.Model(variable_list)
 
-    # fmt: off
     dydx1 = m.varlist_all["C"].casadi_var * 0
     dydx2 = m.varlist_all["P"].casadi_var * 0
-    alg1 = m.varlist_all["X1"].casadi_var + m.varlist_all["X2"].casadi_var + m.varlist_all["Z1"].casadi_var
+    alg1 = (
+        m.varlist_all["X1"].casadi_var
+        + m.varlist_all["X2"].casadi_var
+        + m.varlist_all["Z1"].casadi_var
+    )
 
-    m.add_equations_differential([dydx1, dydx2, ])
-    m.add_equations_algebraic([alg1, ])
-    # fmt: on
+    m.add_equations_differential(
+        [
+            dydx1,
+            dydx2,
+        ]
+    )
+    m.add_equations_algebraic(
+        [
+            alg1,
+        ]
+    )
 
     return variable_list, m
 
 
-def pendulum_dae_1(piecewise_control: bool = False, variable_list: None | par_est.VariableList = None) -> tuple[par_est.VariableList, par_est.Model]:
+def pendulum_dae_1(
+    piecewise_control: bool = False, variable_list: None | par_est.VariableList = None
+) -> tuple[par_est.VariableList, par_est.Model]:
     if variable_list is None:
         variable_list = par_est.VariableList()
 
-        # fmt: off
         variable_list.add_variable(par_est.VariableState("x", 3.0))
         variable_list.add_variable(par_est.VariableState("u", -1.0 / 3))
 
@@ -51,11 +63,12 @@ def pendulum_dae_1(piecewise_control: bool = False, variable_list: None | par_es
         variable_list.add_variable(par_est.VariableAlgebraic("lambda", 1147.0 / 720))
 
         if piecewise_control:
-            variable_list.add_variable(par_est.VariableControlPiecewiseConstant("L", 5.0))
+            variable_list.add_variable(
+                par_est.VariableControlPiecewiseConstant("L", 5.0)
+            )
         else:
             variable_list.add_variable(par_est.VariableControl("L", 5.0))
         variable_list.add_variable(par_est.VariableParameter("g", 10.0))
-    # fmt: on
 
     m = par_est.Model(variable_list)
 
@@ -74,7 +87,9 @@ def pendulum_dae_1(piecewise_control: bool = False, variable_list: None | par_es
     return variable_list, m
 
 
-def cstr_ode(piecewise_control: bool = False) -> tuple[par_est.VariableList, par_est.Model]:
+def cstr_ode(
+    piecewise_control: bool = False,
+) -> tuple[par_est.VariableList, par_est.Model]:
     e0_greek_nu_i1_r1 = -1.0
     e0_greek_nu_i1_r2 = 1.0
     e0_greek_nu_i2_r2 = -1.0
@@ -88,13 +103,13 @@ def cstr_ode(piecewise_control: bool = False) -> tuple[par_est.VariableList, par
 
     variable_list = par_est.VariableList()
 
-    # fmt: off
     variable_list.add_variable(par_est.VariableState("e0_T", 273.0))
     variable_list.add_variable(par_est.VariableState("e0_c_i1", 3.0))
     variable_list.add_variable(par_est.VariableState("e0_c_i2", 10.0))
     variable_list.add_variable(par_est.VariableState("e0_c_i3", 0.0))
     variable_list.add_variable(par_est.VariableState("e0_c_i4", 0.0))
 
+    # fmt: off
     variable_list.add_variable(par_est.VariableParameter("e0_E_r1", 9.6e4, 9.0e4, 10.0e4))
     variable_list.add_variable(par_est.VariableParameter("e0_E_r2", 7.2e4, 6.8e4, 7.6e4))
     variable_list.add_variable(par_est.VariableParameter("e0_E_r3", 6.9e4, 6.5e4, 7.3e4))
@@ -147,7 +162,9 @@ def cstr_ode(piecewise_control: bool = False) -> tuple[par_est.VariableList, par
     return variable_list, m
 
 
-def cstr_dae(piecewise_control: bool = False) -> tuple[par_est.VariableList, par_est.Model]:
+def cstr_dae(
+    piecewise_control: bool = False,
+) -> tuple[par_est.VariableList, par_est.Model]:
     e0_greek_nu_i1_r1 = -1.0
     e0_greek_nu_i1_r2 = 1.0
     e0_greek_nu_i2_r2 = -1.0
@@ -224,7 +241,9 @@ def cstr_dae(piecewise_control: bool = False) -> tuple[par_est.VariableList, par
     return variable_list, m
 
 
-def cstr_ode_constant(piecewise_control: bool = False) -> tuple[par_est.VariableList, par_est.Model]:
+def cstr_ode_constant(
+    piecewise_control: bool = False,
+) -> tuple[par_est.VariableList, par_est.Model]:
 
     variable_list = par_est.VariableList()
 
@@ -297,7 +316,9 @@ def cstr_ode_constant(piecewise_control: bool = False) -> tuple[par_est.Variable
     return variable_list, m
 
 
-def cstr_dae_constant(piecewise_control: bool = False) -> tuple[par_est.VariableList, par_est.Model]:
+def cstr_dae_constant(
+    piecewise_control: bool = False,
+) -> tuple[par_est.VariableList, par_est.Model]:
     variable_list = par_est.VariableList()
 
     # fmt: off
@@ -425,7 +446,9 @@ def vle_nle_problem() -> tuple[par_est.VariableList, par_est.Model]:
     return variable_list, model
 
 
-def bod_model() -> tuple[par_est.VariableList, par_est.Model, list[par_est.VariableList]]:
+def bod_model() -> tuple[
+    par_est.VariableList, par_est.Model, list[par_est.VariableList]
+]:
     # BOD data as used in Bates, Watts, Nonlinear regression analysis: Its applications
     variable_list = par_est.variables.VariableList()  # Preallocate variable_list
 
@@ -470,7 +493,10 @@ def bod_model() -> tuple[par_est.VariableList, par_est.Model, list[par_est.Varia
 
     return variable_list, m, exp_data
 
-def puromycin_model() -> tuple[par_est.VariableList, par_est.Model, dict(list[par_est.VariableList])]:
+
+def puromycin_model() -> tuple[
+    par_est.VariableList, par_est.Model, dict(list[par_est.VariableList])
+]:
     # Puromycin data as used in Bates, Watts, Nonlinear regression analysis: Its applications
     variable_list = par_est.variables.VariableList()  # Preallocate variable_list
 
@@ -486,53 +512,54 @@ def puromycin_model() -> tuple[par_est.VariableList, par_est.Model, dict(list[pa
     theta1 = m.varlist_all["theta1"].casadi_var  # noqa: E501
     theta2 = m.varlist_all["theta2"].casadi_var  # noqa: E501
 
-    equation = f - ((theta1 * x)/(theta2 + x))
+    equation = f - ((theta1 * x) / (theta2 + x))
     # Equations
     m.add_equations_algebraic([equation])  # adding the equations to model
 
-    data_dict = {"Treated":  [
-                            [0.02, 76],
-                            [0.02, 47],
-                            [0.06, 97],
-                            [0.06, 107],
-                            [0.11, 123],
-                            [0.11, 139],
-                            [0.22, 159],
-                            [0.22, 152],
-                            [0.56, 191],
-                            [0.56, 201],
-                            [1.10, 207],
-                            [1.10, 200], 
-                        ],
-            "Untreated":  [
-                            [0.02, 67],
-                            [0.02, 51],
-                            [0.06, 84],
-                            [0.06, 86],
-                            [0.11, 98],
-                            [0.11, 115],
-                            [0.22, 131],
-                            [0.22, 124],
-                            [0.56, 144],
-                            [0.56, 158],
-                            [1.10, 160],
-                            [1.10, 160],
-                        ]
-            }
+    data_dict = {
+        "Treated": [
+            [0.02, 76],
+            [0.02, 47],
+            [0.06, 97],
+            [0.06, 107],
+            [0.11, 123],
+            [0.11, 139],
+            [0.22, 159],
+            [0.22, 152],
+            [0.56, 191],
+            [0.56, 201],
+            [1.10, 207],
+            [1.10, 200],
+        ],
+        "Untreated": [
+            [0.02, 67],
+            [0.02, 51],
+            [0.06, 84],
+            [0.06, 86],
+            [0.11, 98],
+            [0.11, 115],
+            [0.22, 131],
+            [0.22, 124],
+            [0.56, 144],
+            [0.56, 158],
+            [1.10, 160],
+            [1.10, 160],
+        ],
+    }
 
     exp_data = {}
-    
+
     for name in list(["Treated", "Untreated"]):
         data = data_dict[name]
         exp_data_list = []
-        
+
         for x_i, f_i in data:
             var_list = copy.deepcopy(variable_list)
             var_list["f"].value = f_i
             var_list["x"].value = x_i
             var_list["theta1"].fixed = False
             var_list["theta1"].lower_bound = 0
-            var_list["theta1"].upper_bound = 40
+            var_list["theta1"].upper_bound = 300
             var_list["theta2"].fixed = False
             var_list["theta2"].lower_bound = 0
             var_list["theta2"].upper_bound = 1
@@ -540,6 +567,7 @@ def puromycin_model() -> tuple[par_est.VariableList, par_est.Model, dict(list[pa
         exp_data[name] = exp_data_list
 
     return variable_list, m, exp_data
+
 
 def simple_mixer() -> tuple[par_est.VariableList, par_est.Model]:
     variable_list = par_est.VariableList()
@@ -557,20 +585,20 @@ def simple_mixer() -> tuple[par_est.VariableList, par_est.Model]:
     e0_F_s4 = m.varlist_all["e0_F_s4"].casadi_var  # noqa: E501
     e0_F_s5 = m.varlist_all["e0_F_s5"].casadi_var  # noqa: E501
 
-    EQ_alg1 = (0.0-((e0_F_s1-e0_F_s2)))  # noqa: E501,E226
-    EQ_alg2 = (0.0-(((e0_F_s2-e0_F_s3)-e0_F_s4)))  # noqa: E501,E226
-    EQ_alg3 = (0.0-(((e0_F_s2-e0_F_s5))))  # noqa: E501,E226
+    EQ_alg1 = 0.0 - ((e0_F_s1 - e0_F_s2))  # noqa: E501,E226
+    EQ_alg2 = 0.0 - (((e0_F_s2 - e0_F_s3) - e0_F_s4))  # noqa: E501,E226
+    EQ_alg3 = 0.0 - (((e0_F_s2 - e0_F_s5)))  # noqa: E501,E226
 
     list_algebraic_equations = [EQ_alg1, EQ_alg2, EQ_alg3]  # noqa: E501
-
-    # fmt:on
 
     m.add_equations_algebraic(list_algebraic_equations)
 
     return variable_list, m
 
 
-def isomerization_model() -> tuple[par_est.VariableList, par_est.Model, list[par_est.VariableList]]:
+def isomerization_model() -> tuple[
+    par_est.VariableList, par_est.Model, list[par_est.VariableList]
+]:
     # Isomerization data as used in Bates, Watts, Nonlinear regression analysis: Its applications
     variable_list = par_est.variables.VariableList()  # Preallocate variable_list
 
