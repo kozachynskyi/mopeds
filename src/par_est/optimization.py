@@ -1200,75 +1200,65 @@ class ParameterEstimationNLE(Optimizer):
         """
         self._setup_scaling()
         decision_variables = self.varlist_decision.get_casadi_variables()
-        len_alg = len(self.model.varlist_algebraic)
-
-        full_jacobian = []
-        scaled_yao_jacobian = []
-        variance = []
-        select_independent: list[int] = []
+        if parameter_names is not None:
+            list_selected_parameters_index = []
+            for par_index, par_name in enumerate(self.varlist_decision.keys()):
+                if par_name in parameter_names:
+                    list_selected_parameters_index.append(par_index)
 
         all_parameter_values = self.parameters_dict_to_list(parameters)
-        selected_parameters_values = []
 
-        for parameter_index, var_name in enumerate(self.varlist_decision.keys()):
-            if parameter_names is not None:
-                if var_name not in parameter_names:
-                    continue
-            index = list(self.model.varlist_independent).index(var_name) + len(
-                self.model.varlist_algebraic
-            )
-            select_independent.append(index)
-            selected_parameters_values.append(all_parameter_values[parameter_index])
+        residuals = self.calculate_objective_and_residual(parameters, objective_function="ols")["residuals"]
+        measurement_variance_estimate = np.trace(residuals.T @ residuals) / (len(self.list_simulators) - len(self.varlist_decision) / len(self.names_of_measurements))
 
-        for sim_index, sim in enumerate(self.list_simulators):
-            select_algebraic = np.reshape(
-                self.array_data_mask, (len(self.list_simulators), len_alg)
-            )[sim_index]
-            select_algebraic = np.asarray(select_algebraic == 1).nonzero()[0]
+        jacobian = {}
+        jacobian_scaled = {}
+        jacobian_yao = {}
+        res_simulation = ca.Function("sim", [decision_variables], [self.simulate_all_mx])(all_parameter_values)
 
-            res_simulation = sim.simulate_sym_unfixed(all_parameter_values).toarray()
+        for index_measurement, meas_name in enumerate(self.names_of_measurements):
+            jac_meas_mx = ca.jacobian(self.simulate_all_mx[:,index_measurement], decision_variables)
+            jac_meas_function = ca.Function("jac_meas", [decision_variables], [jac_meas_mx])
+            jac_meas_dm = jac_meas_function(all_parameter_values)
+            jac_meas_selected_dm = jac_meas_dm * self.array_data_mask[:, index_measurement]
+            jac_meas_selected_scaled_dm = jac_meas_selected_dm * self.array_inverted_std[:, index_measurement]
+            jac_meas_selected_yao_dm = jac_meas_selected_dm * (1 / res_simulation[:, index_measurement])
+            if parameter_names is None:
+                jacobian[meas_name] = jac_meas_selected_dm
+                jacobian_scaled[meas_name] = jac_meas_selected_scaled_dm
+                jacobian_yao[meas_name] = jac_meas_selected_yao_dm
+            else:
+                jacobian[meas_name] = jac_meas_selected_dm[:, list_selected_parameters_index]
+                jacobian_scaled[meas_name] = jac_meas_selected_scaled_dm[:, list_selected_parameters_index]
+                jacobian_yao[meas_name] = jac_meas_selected_yao_dm[:, list_selected_parameters_index]
 
-            variance_i = sim.get_variance_array()
+        jac_array = np.concatenate(list(jacobian.values()))
+        jac_array_scaled = np.concatenate(list(jacobian_scaled.values()))
+        jac_array_yao = np.concatenate(list(jacobian_yao.values()))
 
-            jacobian = ca.Function(
-                "jacobian",
-                [decision_variables],
-                [sim.calculate_jac()["jac"]],
-                ["x"],
-                ["jac"],
-            )
+        # Generate jacobian and hessian on obj function
+        jac_objective = ca.Function("jf", [decision_variables], [ca.jacobian(self._objective_ols()[0], decision_variables)])(all_parameter_values)
+        hessian_objective = ca.Function("jf", [decision_variables], [ca.hessian(self._objective_ols()[0], decision_variables)[0]])(all_parameter_values)
+        if parameter_names is not None:
+            jac_objective = jac_objective[:, list_selected_parameters_index]
+            hessian_objective = hessian_objective[list_selected_parameters_index, list_selected_parameters_index]
 
-            jac = jacobian(all_parameter_values)
-
-            jacobian_selected = jac.get(
-                False, select_algebraic, select_independent
-            ).toarray()
-
-            full_jacobian.append(jacobian_selected)
-
-            simulation_vector = res_simulation.take(select_algebraic)
-            scaled_jac_i = (jacobian_selected.T * (1 / simulation_vector)).T
-            scaled_yao_jacobian.append(scaled_jac_i)
-
-            for index_algebraic in select_algebraic:
-                variance.append(variance_i[index_algebraic])
-
-        jac_array = np.concatenate(full_jacobian)
-        measurement_variance_matrix = np.diagflat(variance)
-        measurement_variance_array_inverted = np.linalg.inv(measurement_variance_matrix)
-
-        fim_matrix = jac_array.T.dot(measurement_variance_array_inverted).dot(jac_array)
-        parameter_covariance_matrix = np.linalg.inv(fim_matrix)  # type: ignore
-
-        # jac_array_yao = np.concatenate(scaled_yao_jacobian) * np.sqrt(np.diag(parameter_covariance_matrix))
-        jac_array_yao = np.concatenate(scaled_yao_jacobian) * selected_parameters_values
+        fim_matrix = jac_array.T @ jac_array
+        fim_matrix_scaled = jac_array_scaled.T @ jac_array_scaled
+        parameter_covariance_matrix = measurement_variance_estimate * np.linalg.inv(fim_matrix)  # type: ignore
 
         result = {}
-        result["jac"] = jac_array
-        result["jac_yao"] = jac_array_yao
-        result["cov_par"] = parameter_covariance_matrix
-        result["cov_meas"] = measurement_variance_matrix
+        result["jac_full"] = jac_array
+        result["jac_sorted"] = jacobian
+        result["jac_scaled_full"] = jac_array_scaled
+        result["jac_scaled_sorted"] = jacobian_scaled
+        result["jac_yao_full"] = jac_array_yao
+        result["jac_yao_sorted"] = jacobian_yao
         result["fim"] = fim_matrix
+        result["fim_scaled"] = fim_matrix_scaled
+        result["cov_par"] = parameter_covariance_matrix
+        result["jac_ols"] = jac_objective
+        result["hess_ols"] = hessian_objective
 
         return result
 
