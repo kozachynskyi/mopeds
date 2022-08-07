@@ -1331,7 +1331,7 @@ class ParameterEstimationNLE(Optimizer):
 
         results_sensitivity = self.calculate_sensitivity_and_fim(parameters)
 
-        jacobian_yao = results_sensitivity["jac_yao"]
+        jacobian_yao = results_sensitivity["jac_yao_full"]
 
         XK = np.zeros(jacobian_yao.shape)
 
