@@ -1,9 +1,10 @@
 import copy
+
+import dae_ode.hyfo_dae  # type: ignore
 import numpy as np
 
 import par_est
 import par_est.examples
-import dae_ode.hyfo_dae  # type: ignore
 
 if __name__ == "__main__":
 

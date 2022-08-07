@@ -1,5 +1,6 @@
-import par_est
 import numpy as np
+
+import par_est
 
 
 def main():
@@ -12,7 +13,7 @@ def main():
     # Puromycin 6 Bates Page 51
     res_x = pe.optimize(objective_function="ols")["x_dict"]
     print("res_x: ", res_x)
-    print("s2 = ", pe.calculate_objective_and_residual(res_x)["f"]/10)
+    print("s2 = ", pe.calculate_objective_and_residual(res_x)["f"] / 10)
 
     # Puromycin 6 Bates Page 53
     res_sens = pe.calculate_sensitivity_and_fim(res_x)

@@ -2,12 +2,12 @@
 Separated from utilities to avoid dependency hell"""
 import copy
 
-from par_est import Model, VariableList, Simulator, SimulatorNLE, VariableParameter
 import numpy as np
 
+from par_est import Model, Simulator, SimulatorNLE, VariableList, VariableParameter
 
-def create_grid(
-    bounds: list[list[float]]) -> list[list[float]]:
+
+def create_grid(bounds: list[list[float]]) -> list[list[float]]:
     """Create a grid in a given bounds. Bounds is dictionary, with variable names as keys(),
     and values() as a list with 3 elements: [lower_bound, upper_bound, num_points]
     """
@@ -21,7 +21,12 @@ def create_grid(
     return grid
 
 
-def generate_varlist_with_data(variable_list: VariableList, model: Model, time_grid: np.ndarray, algebraic: bool = False) -> VariableList:
+def generate_varlist_with_data(
+    variable_list: VariableList,
+    model: Model,
+    time_grid: np.ndarray,
+    algebraic: bool = False,
+) -> VariableList:
     # Simulated ODE/DAE and replaces StateVariable values with simulated data
     var_list_fixed = copy.deepcopy(variable_list)
     for var in var_list_fixed.values():
@@ -37,7 +42,13 @@ def generate_varlist_with_data(variable_list: VariableList, model: Model, time_g
     return variable_list_with_data
 
 
-def generate_varlist_with_data_NLE(model, variable_list, control_bounds, preturbate: bool = True, rng: np.random.Generator = None):
+def generate_varlist_with_data_NLE(
+    model,
+    variable_list,
+    control_bounds,
+    preturbate: bool = True,
+    rng: np.random.Generator = None,
+):
     # Solves NLE and create varlist to use, for example with Parameter Estimation
     if rng is None:
         rng = np.random.default_rng()
@@ -59,7 +70,9 @@ def generate_varlist_with_data_NLE(model, variable_list, control_bounds, preturb
     varlist_list = []
     for grid_point in grid:
         variable_list_optimizer = copy.deepcopy(variable_list_original)
-        sim_fixed.change_independent_variables(dict(zip(control_bounds.keys(), grid_point)))
+        sim_fixed.change_independent_variables(
+            dict(zip(control_bounds.keys(), grid_point))
+        )
         varlist_results = sim_fixed.generate_exp_data()
 
         # Set startings values

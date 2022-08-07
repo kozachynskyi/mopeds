@@ -1,11 +1,11 @@
+import copy
+
 import casadi as ca
 import numpy as np
 
-import copy
-import par_est.examples
 import par_est
+import par_est.examples
 import par_est.tools
-
 
 var_list, m = par_est.examples.cstr_dae()
 # Create time-grid. Zero should be first

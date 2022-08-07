@@ -1,9 +1,11 @@
 import copy
+
 import numpy as np
+from matplotlib import pyplot as plt
 
 import par_est
 import par_est.examples
-from matplotlib import pyplot as plt
+
 plt.ion()
 import pandas as pd
 
@@ -51,6 +53,6 @@ if __name__ == "__main__":
     #         aa = var.value
     #         bb = res_res[var.name].value
     #         breakpoint()
-            # var.value.compare(res_res[var.name].value)
+    # var.value.compare(res_res[var.name].value)
     # res.plot_states(algebraic=True, as_one_plot=False)
     # np.savetxt("exp.txt", res.toarray().T, delimiter="\t")

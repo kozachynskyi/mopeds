@@ -1,10 +1,10 @@
 import copy
 import pickle
+
 import numpy as np
 
 import par_est
 import par_est.examples
-
 
 if __name__ == "__main__":
     """This example shows how one can store Data in pickle files and

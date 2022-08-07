@@ -12,14 +12,12 @@ import pytest
 @pytest.mark.parametrize("piecewise", [True, False])
 def test_pe_intials_algebraic(piecewise):
     variable_list1, model = par_est.examples.empy_dae(piecewise)
-    variable_list1["X1"].set_dataframe_from_value_and_time([1, 0],[0,1])
-    variable_list1["X2"].set_dataframe_from_value_and_time([0],[0])
+    variable_list1["X1"].set_dataframe_from_value_and_time([1, 0], [0, 1])
+    variable_list1["X2"].set_dataframe_from_value_and_time([0], [0])
     variable_list2 = copy.deepcopy(variable_list1)
-    variable_list2["X1"].set_dataframe_from_value_and_time([1, 0],[0,1])
-    variable_list2["X2"].set_dataframe_from_value_and_time([1, 0],[0,1])
-    pe = par_est.ParameterEstimation(
-        model, [variable_list1, variable_list2]
-    )
+    variable_list2["X1"].set_dataframe_from_value_and_time([1, 0], [0, 1])
+    variable_list2["X2"].set_dataframe_from_value_and_time([1, 0], [0, 1])
+    pe = par_est.ParameterEstimation(model, [variable_list1, variable_list2])
     pe.solver_settings = {
         "ipopt": {
             "max_iter": 0,
@@ -44,13 +42,13 @@ def test_pe_objective(piecewise):
         ):
             var.fixed = False
 
-    variable_list1["X1"].set_dataframe_from_value_and_time([0, 1],[0,1])
-    variable_list1["X2"].set_dataframe_from_value_and_time([0],[0])
+    variable_list1["X1"].set_dataframe_from_value_and_time([0, 1], [0, 1])
+    variable_list1["X2"].set_dataframe_from_value_and_time([0], [0])
     variable_list1["X2"].variance = 10
     variable_list2 = copy.deepcopy(variable_list1)
-    variable_list2["X1"].set_dataframe_from_value_and_time([0, 3],[0,1])
+    variable_list2["X1"].set_dataframe_from_value_and_time([0, 3], [0, 1])
     variable_list2["X1"].variance = 20
-    variable_list2["X2"].set_dataframe_from_value_and_time([0, 4],[0,2])
+    variable_list2["X2"].set_dataframe_from_value_and_time([0, 4], [0, 2])
     variable_list2["X2"].variance = 40
     pe = par_est.ParameterEstimation(model, [variable_list1, variable_list2])
     pe.solver_settings = {
@@ -187,7 +185,7 @@ def test_oed(piecewise):
 
 
 def test_oed_piecewise():
-    """ Test if OED works consistently with different horizons"""
+    """Test if OED works consistently with different horizons"""
     for cstr_model in [
         par_est.examples.cstr_ode,
         par_est.examples.cstr_ode_constant,

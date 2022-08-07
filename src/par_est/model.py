@@ -1,13 +1,15 @@
 from __future__ import annotations
+
 import casadi as ca
+
 from par_est import (
-    VariableAlgebraic,
-    VariableState,
-    VariableParameter,
-    VariableControl,
-    VariableConstant,
     Variable,
+    VariableAlgebraic,
+    VariableConstant,
+    VariableControl,
     VariableList,
+    VariableParameter,
+    VariableState,
 )
 
 
@@ -34,7 +36,9 @@ class Model(object):
                 if isinstance(var, VariableState):
                     self.varlist_state.add_variable(VariableState(var.name))
                 elif isinstance(var, VariableAlgebraic):
-                    self.varlist_algebraic.add_variable(VariableAlgebraic(var.name, var.guess))
+                    self.varlist_algebraic.add_variable(
+                        VariableAlgebraic(var.name, var.guess)
+                    )
                 elif isinstance(var, VariableParameter) or isinstance(
                     var, VariableControl
                 ):

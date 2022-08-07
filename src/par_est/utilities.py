@@ -26,20 +26,26 @@ class MXPickler(pickle.Pickler):
 
 def show_html_from_dataframe(dataframe: pd.DataFrame):
     tmp_file = tempfile.NamedTemporaryFile("w", delete=False)
-    min_max_html = dataframe.style.highlight_max(color='green').highlight_min(color='red').highlight_null(null_color='yellow').to_html()
+    min_max_html = (
+        dataframe.style.highlight_max(color="green")
+        .highlight_min(color="red")
+        .highlight_null(null_color="yellow")
+        .to_html()
+    )
     tmp_file.writelines(min_max_html)
     descibe_html = dataframe.describe().style.to_html()
     tmp_file.writelines(descibe_html)
     tmp_file.seek(0)
     tmp_file.close()
-    webbrowser.open('file://' + tmp_file.name)
+    webbrowser.open("file://" + tmp_file.name)
 
 
 def plot_array(array, xticks=None, yticks=None):
     """Plots given array in an observable way."""
-    import matplotlib.pyplot as plt
-    import matplotlib.colors as colors
     import matplotlib.cm as cm
+    import matplotlib.colors as colors
+    import matplotlib.pyplot as plt
+
     div_norm = colors.TwoSlopeNorm(vcenter=0)
     plt.close()
     plt.imshow(array, cmap=cm.coolwarm, norm=div_norm)
@@ -53,8 +59,9 @@ def plot_array(array, xticks=None, yticks=None):
 
 def plot_arrays(arrays):
     """Same as plot_array but plots every array in a subplot."""
-    import matplotlib.pyplot as plt
     import matplotlib.cm as cm
+    import matplotlib.pyplot as plt
+
     plt.close()
     num_plots = len(arrays)
     fig = plt.figure()
@@ -96,7 +103,7 @@ def generate_hammersley(D, N):
             bj = j + 1
             """maximum for the devision of binary logarithms"""
             n = np.int(np.max([1, np.round(np.log2(bj + 1) / np.log2(pk))]))
-            while pk ** n <= bj:
+            while pk**n <= bj:
                 n = n + 1
 
             b = np.zeros(n)

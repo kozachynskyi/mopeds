@@ -1,9 +1,9 @@
 import numpy as np
+from matplotlib import pyplot as plt
 
 import par_est
 import par_est.examples
 
-from matplotlib import pyplot as plt
 plt.ion()
 
 if __name__ == "__main__":

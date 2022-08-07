@@ -130,7 +130,9 @@ def test_piecewise():
         T_in.expand_horizon([2000, 4000], [373, 373])
         for var in variable_list.values():
             var.fixed = True
-        sim = par_est.Simulator(m, time_grid_piecewise, variable_list, simulate_jac=True)
+        sim = par_est.Simulator(
+            m, time_grid_piecewise, variable_list, simulate_jac=True
+        )
 
         res_piecewise = sim.simulate_jac()
 

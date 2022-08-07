@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 import logging
-from typing import cast, Callable
+from typing import Callable, cast
 
 import casadi as ca
 import numpy as np
@@ -824,7 +824,9 @@ class SimulatorNLE:
                 f"Provided integrator name {solver_name} is not supported. Only theese are: {self.supported_solvers}."
             )
         if solver_name == "ipopt":
-            print("IPOPT option for SimulatorNLE is not fully supported, use only if you know what you're doing")
+            print(
+                "IPOPT option for SimulatorNLE is not fully supported, use only if you know what you're doing"
+            )
 
         self.__solver_name: str = solver_name
         self.__input_variable_list: VariableList = copy.deepcopy(variable_list)
@@ -951,8 +953,10 @@ class SimulatorNLE:
             else:
                 raise TypeError(f"{type(var)} is not supported")
 
-        self.mapping_independent_variables: dict[str,int] = mapping_independent_variables
-        self.mapping_algebraic_variables: dict[str,int] = mapping_algebraic_variables
+        self.mapping_independent_variables: dict[
+            str, int
+        ] = mapping_independent_variables
+        self.mapping_algebraic_variables: dict[str, int] = mapping_algebraic_variables
         self._lower_bound: list[float] = lower_bound
         self._upper_bound: list[float] = upper_bound
 
@@ -980,12 +984,14 @@ class SimulatorNLE:
         else:
             raise NotImplementedError
 
-    def change_independent_variables(self, ind_variables: dict[str,float]):
+    def change_independent_variables(self, ind_variables: dict[str, float]):
         """Use this method to change either Controls or Parameters of the Simulation. ind_variables is a dictionary
         with VariableNames as dict.keys(), and their respective values, as dict.values(). Example:
         {"e0_T": 373, "e0_p": 1e5}"""
         if self.contains_unfixed:
-            raise NotImplementedError("All variables should be fixed, to use this method")
+            raise NotImplementedError(
+                "All variables should be fixed, to use this method"
+            )
         for var_name, var_value in ind_variables.items():
             index_var = self.mapping_independent_variables[var_name]
             self._independent_variables[index_var] = var_value
@@ -1004,9 +1010,7 @@ class SimulatorNLE:
             new_var.ignore_plotting = self.__input_variable_list[
                 var.name
             ].ignore_plotting
-            new_var.variance = self.__input_variable_list[
-                var.name
-            ].variance
+            new_var.variance = self.__input_variable_list[var.name].variance
             variables.add_variable(new_var)
 
         return variables
@@ -1029,7 +1033,9 @@ class SimulatorNLE:
 
         return res_array
 
-    def select_simulation_result(self, result: ca.DM | ca.MX, return_var_indexes: list[int]) -> ca.DM | ca.MX:
+    def select_simulation_result(
+        self, result: ca.DM | ca.MX, return_var_indexes: list[int]
+    ) -> ca.DM | ca.MX:
         """Take result from self.simulate_sym() and return only a subset of results, defined by column
         index in return_var_names"""
         return result.get(False, return_var_indexes, 0)

@@ -1,4 +1,5 @@
 import copy
+
 import casadi as ca
 
 import par_est
@@ -541,13 +542,13 @@ if __name__ == "__main__":
     # 4. Create simulation Object that would generate experimental data
     sim_fixed = par_est.SimulatorNLE(m, var_list_fixed, solver_name="ipopt")
 
-    '''
+    """
     5. Generate data - what it does: 
     - Run Simulator to solve NLE at given values of Controls and Parameters
     - Create a new VariableList with all Algebraic Variables
     - Set results of the simulation to var.value of the Variable Objects
     (So you can see the simulation results by printng print(res.values())
-    '''
+    """
     res = sim_fixed.generate_exp_data()
 
     # 6. Now create a variable list that would tell PE that there is "experimental data to be optimized". It's done by setting algebraic variables in variable_optimizer_dictionary to variable in res dictionary
@@ -562,10 +563,10 @@ if __name__ == "__main__":
         # Here you set the variable
         variable_list_optimizer[key] = var
 
-    '''
+    """
     7. So you changed COntroller variables in Step3 only in fixed variable list, now you need last things:
     - Set values of controller variables to the values that you defined in step 3
-    '''
+    """
     for var in variable_list_optimizer.values():
         if isinstance(var, par_est.VariableControl):
             var.value = var_list_fixed[var.name].value

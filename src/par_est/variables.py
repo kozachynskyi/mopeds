@@ -56,6 +56,7 @@ class Variable(object):
         axis = self.dataframe.plot(ax=ax)
         from matplotlib import pyplot as plt
         from matplotlib.axes import Axes
+
         plt.show()
         return axis
 
@@ -88,7 +89,9 @@ class Variable(object):
     def value(self, value: int | float) -> None:
         """Returns a list with values of variables"""
         if isinstance(value, Iterable):
-            raise NotImplementedError("Method can only be used to with scalars. Use variable.dataframe[variable.name] for arrays")
+            raise NotImplementedError(
+                "Method can only be used to with scalars. Use variable.dataframe[variable.name] for arrays"
+            )
         self.dataframe.iloc[0] = value
 
     @property

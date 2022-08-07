@@ -1,12 +1,13 @@
-import par_est.examples
-import par_est
 import casadi as ca
 import numpy as np
+
+import par_est
+import par_est.examples
 import par_est.tools
 
 
 def jacobian_manipulation():
-    """ Vizualizes how OED manipulates jacobian to get covariance. """
+    """Vizualizes how OED manipulates jacobian to get covariance."""
 
     num_time = 3
     varlist, model = par_est.examples.cstr_ode()

@@ -43,7 +43,9 @@ if __name__ == "__main__":
     data1["e0_T_in"].fixed = False
 
     # Preturbate alg variable from "ideal solution" to see its affect on PE
-    data1["e0_c_tot"].dataframe["e0_c_tot"] = [val * 1.05 for val in data1["e0_c_tot"].value]
+    data1["e0_c_tot"].dataframe["e0_c_tot"] = [
+        val * 1.05 for val in data1["e0_c_tot"].value
+    ]
 
     data2["e0_T_in"] = par_est.VariableControlPiecewiseConstant(
         "e0_T_in", 373.0, 353.0, 393.0
@@ -54,7 +56,9 @@ if __name__ == "__main__":
     # Than divided in 4 equal horizonts and for each of this
     # Horizons a new decision variable is created
     # Tested only for one VariableControlPiecewiseConstant
-    mpc = par_est.ModelPredictiveControl(m, [data1], number_of_time_horizonts=4, use_algebraic_vars=False)
+    mpc = par_est.ModelPredictiveControl(
+        m, [data1], number_of_time_horizonts=4, use_algebraic_vars=False
+    )
     print(f"Optimizer calculates control variables at time:\n {mpc.time_grid_controls}")
 
     # Because optimizer is formulated as Single Shooting, ipopt is not efficient. So it may get stuck and may require many iterations.
@@ -62,7 +66,9 @@ if __name__ == "__main__":
 
     print(mpc.optimize())
 
-    mpc = par_est.ModelPredictiveControl(m, [data1], number_of_time_horizonts=4, use_algebraic_vars=True)
+    mpc = par_est.ModelPredictiveControl(
+        m, [data1], number_of_time_horizonts=4, use_algebraic_vars=True
+    )
     print(f"Optimizer calculates control variables at time:\n {mpc.time_grid_controls}")
 
     # Because optimizer is formulated as Single Shooting, ipopt is not efficient. So it may get stuck and may require many iterations.

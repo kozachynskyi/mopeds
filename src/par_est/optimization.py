@@ -4,8 +4,8 @@ import copy
 import logging
 from abc import abstractmethod
 from collections.abc import Callable
-from typing import Sequence
 from itertools import combinations
+from typing import Sequence
 
 import casadi as ca
 import numpy as np
@@ -1042,10 +1042,14 @@ class ParameterEstimationNLE(Optimizer):
 
         index_columns_with_all_nans = np.isnan(array_data).all(axis=0)
 
-        self.array_data = np.nan_to_num(array_data[:,~index_columns_with_all_nans])
-        self.array_data_mask = np.array(list_data_mask)[:,~index_columns_with_all_nans]
-        self.names_of_measurements: list[str] = all_measurements_names[~index_columns_with_all_nans].tolist()
-        self.array_inverted_variance = np.array(list_inverted_variances)[:, ~index_columns_with_all_nans]
+        self.array_data = np.nan_to_num(array_data[:, ~index_columns_with_all_nans])
+        self.array_data_mask = np.array(list_data_mask)[:, ~index_columns_with_all_nans]
+        self.names_of_measurements: list[str] = all_measurements_names[
+            ~index_columns_with_all_nans
+        ].tolist()
+        self.array_inverted_variance = np.array(list_inverted_variances)[
+            :, ~index_columns_with_all_nans
+        ]
         self.array_inverted_std = np.sqrt(self.array_inverted_variance)
 
         self.index_measurements_in_sim = []
@@ -1104,8 +1108,12 @@ class ParameterEstimationNLE(Optimizer):
             list_simulation_T.append(res_simulation["x"].T)
 
         free_variables = self.varlist_decision.get_casadi_variables()
-        all_selected_measurements = ca.vcat(list_simulation_T).get(False, ca.Slice(), self.index_measurements_in_sim)
-        self.simulate_all_function = ca.Function("sim_all", [free_variables], [all_selected_measurements])
+        all_selected_measurements = ca.vcat(list_simulation_T).get(
+            False, ca.Slice(), self.index_measurements_in_sim
+        )
+        self.simulate_all_function = ca.Function(
+            "sim_all", [free_variables], [all_selected_measurements]
+        )
         self.simulate_all_mx = self.simulate_all_function(free_variables)
 
     def _objective_ols(self):
@@ -1133,7 +1141,9 @@ class ParameterEstimationNLE(Optimizer):
         elif objective_function == "ols":
             self._objective = self._objective_ols
         else:
-            raise NotImplementedError(f"Objective function '{objective_function}' is not supported")
+            raise NotImplementedError(
+                f"Objective function '{objective_function}' is not supported"
+            )
 
         variance = [[] for x in range(len(self.varlist_algebraic))]
 
@@ -1143,7 +1153,9 @@ class ParameterEstimationNLE(Optimizer):
 
         return self._optimize(scale)
 
-    def calculate_objective_and_residual(self, parameters: dict[str, float], objective_function: str = "ols") -> dict[str, float | np.ndarray]:
+    def calculate_objective_and_residual(
+        self, parameters: dict[str, float], objective_function: str = "ols"
+    ) -> dict[str, float | np.ndarray]:
         if objective_function == "ols":
             obj_f = self._objective_ols()
         elif objective_function == "wls":
@@ -1208,40 +1220,73 @@ class ParameterEstimationNLE(Optimizer):
 
         all_parameter_values = self.parameters_dict_to_list(parameters)
 
-        residuals = self.calculate_objective_and_residual(parameters, objective_function="ols")["residuals"]
-        measurement_variance_estimate = np.trace(residuals.T @ residuals) / (len(self.list_simulators) - len(self.varlist_decision) / len(self.names_of_measurements))
+        residuals = self.calculate_objective_and_residual(
+            parameters, objective_function="ols"
+        )["residuals"]
+        measurement_variance_estimate = np.trace(residuals.T @ residuals) / (
+            len(self.list_simulators)
+            - len(self.varlist_decision) / len(self.names_of_measurements)
+        )
 
         jacobian = {}
         jacobian_scaled = {}
         jacobian_yao = {}
-        res_simulation = ca.Function("sim", [decision_variables], [self.simulate_all_mx])(all_parameter_values)
+        res_simulation = ca.Function(
+            "sim", [decision_variables], [self.simulate_all_mx]
+        )(all_parameter_values)
 
         for index_measurement, meas_name in enumerate(self.names_of_measurements):
-            jac_meas_mx = ca.jacobian(self.simulate_all_mx[:,index_measurement], decision_variables)
-            jac_meas_function = ca.Function("jac_meas", [decision_variables], [jac_meas_mx])
+            jac_meas_mx = ca.jacobian(
+                self.simulate_all_mx[:, index_measurement], decision_variables
+            )
+            jac_meas_function = ca.Function(
+                "jac_meas", [decision_variables], [jac_meas_mx]
+            )
             jac_meas_dm = jac_meas_function(all_parameter_values)
-            jac_meas_selected_dm = jac_meas_dm * self.array_data_mask[:, index_measurement]
-            jac_meas_selected_scaled_dm = jac_meas_selected_dm * self.array_inverted_std[:, index_measurement]
-            jac_meas_selected_yao_dm = jac_meas_selected_dm * (1 / res_simulation[:, index_measurement])
+            jac_meas_selected_dm = (
+                jac_meas_dm * self.array_data_mask[:, index_measurement]
+            )
+            jac_meas_selected_scaled_dm = (
+                jac_meas_selected_dm * self.array_inverted_std[:, index_measurement]
+            )
+            jac_meas_selected_yao_dm = jac_meas_selected_dm * (
+                1 / res_simulation[:, index_measurement]
+            )
             if parameter_names is None:
                 jacobian[meas_name] = jac_meas_selected_dm
                 jacobian_scaled[meas_name] = jac_meas_selected_scaled_dm
                 jacobian_yao[meas_name] = jac_meas_selected_yao_dm
             else:
-                jacobian[meas_name] = jac_meas_selected_dm[:, list_selected_parameters_index]
-                jacobian_scaled[meas_name] = jac_meas_selected_scaled_dm[:, list_selected_parameters_index]
-                jacobian_yao[meas_name] = jac_meas_selected_yao_dm[:, list_selected_parameters_index]
+                jacobian[meas_name] = jac_meas_selected_dm[
+                    :, list_selected_parameters_index
+                ]
+                jacobian_scaled[meas_name] = jac_meas_selected_scaled_dm[
+                    :, list_selected_parameters_index
+                ]
+                jacobian_yao[meas_name] = jac_meas_selected_yao_dm[
+                    :, list_selected_parameters_index
+                ]
 
         jac_array = np.concatenate(list(jacobian.values()))
         jac_array_scaled = np.concatenate(list(jacobian_scaled.values()))
         jac_array_yao = np.concatenate(list(jacobian_yao.values()))
 
         # Generate jacobian and hessian on obj function
-        jac_objective = ca.Function("jf", [decision_variables], [ca.jacobian(self._objective_ols()[0], decision_variables)])(all_parameter_values)
-        hessian_objective = ca.Function("jf", [decision_variables], [ca.hessian(self._objective_ols()[0], decision_variables)[0]])(all_parameter_values)
+        jac_objective = ca.Function(
+            "jf",
+            [decision_variables],
+            [ca.jacobian(self._objective_ols()[0], decision_variables)],
+        )(all_parameter_values)
+        hessian_objective = ca.Function(
+            "jf",
+            [decision_variables],
+            [ca.hessian(self._objective_ols()[0], decision_variables)[0]],
+        )(all_parameter_values)
         if parameter_names is not None:
             jac_objective = jac_objective[:, list_selected_parameters_index]
-            hessian_objective = hessian_objective[list_selected_parameters_index, list_selected_parameters_index]
+            hessian_objective = hessian_objective[
+                list_selected_parameters_index, list_selected_parameters_index
+            ]
 
         fim_matrix = jac_array.T @ jac_array
         fim_matrix_scaled = jac_array_scaled.T @ jac_array_scaled
@@ -1431,15 +1476,19 @@ class ParameterEstimationNLE(Optimizer):
 
         result_sens = self.calculate_sensitivity_and_fim(parameters)
         jac_array = result_sens["jac"]
-        parameter_covariance_matrix = residual_mean_square * np.linalg.inv(jac_array.T.dot(jac_array))
+        parameter_covariance_matrix = residual_mean_square * np.linalg.inv(
+            jac_array.T.dot(jac_array)
+        )
 
         measurement_variance_matrix = result_sens["cov_meas"]
 
         residuals_sorted_in_columns = np.reshape(
             residuals_all, (len(self.list_simulators), len_alg)
         )
-        residuals_sorted_in_columns = residuals_sorted_in_columns[:, residuals_sorted_in_columns.all(0)]
-        S_squred_sorted_in_columns = np.sum(residuals_sorted_in_columns ** 2, axis=0)
+        residuals_sorted_in_columns = residuals_sorted_in_columns[
+            :, residuals_sorted_in_columns.all(0)
+        ]
+        S_squred_sorted_in_columns = np.sum(residuals_sorted_in_columns**2, axis=0)
         real_residual_mean_square = S_squred_sorted_in_columns / dof
 
         parameter_variance = np.diag(parameter_covariance_matrix)

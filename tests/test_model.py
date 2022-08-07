@@ -72,7 +72,7 @@ def test_model():
 
 
 def test_varlist_model_reusability():
-    """ Test if model created from supplied varlist and
+    """Test if model created from supplied varlist and
     without varlist provides same results."""
     variable_list, model = par_est.examples.pendulum_dae_1(False)
     time_grid = np.linspace(0, 1, 3)
@@ -85,7 +85,8 @@ def test_varlist_model_reusability():
     res_after_pickle = simulation.simulate()
 
     assert np.isclose(
-        ca.vertcat(res_before["xf"], res_before["zf"]), ca.vertcat(res_after_pickle["xf"], res_after_pickle["zf"])
+        ca.vertcat(res_before["xf"], res_before["zf"]),
+        ca.vertcat(res_after_pickle["xf"], res_after_pickle["zf"]),
     ).all()
 
 

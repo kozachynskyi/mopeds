@@ -13,9 +13,7 @@ def test_vle_nle():
         if i == 0:
             sim = par_est.simulation.SimulatorNLE(model, variable_list)
         else:
-            sim = par_est.simulation.SimulatorNLE(
-                model, variable_list
-            )
+            sim = par_est.simulation.SimulatorNLE(model, variable_list)
         res = sim.simulate_sym()
         true_answer_T = 359.451
 
@@ -36,7 +34,7 @@ def test_utilities_methods():
 
     sim.change_independent_variables({"e0_F_s1": 10, "e0_F_s3": 15})
     res_full = sim.simulate()
-    assert np.array_equal(res_full, ca.DM([10., -5., 10.]))
+    assert np.array_equal(res_full, ca.DM([10.0, -5.0, 10.0]))
 
 
 if __name__ == "__main__":

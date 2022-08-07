@@ -1,19 +1,20 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import casadi as ca
 import numpy as np
-from collections.abc import Callable
 
 from par_est import (
     Model,
     Optimizer,
     Simulator,
+    VariableAlgebraic,
     VariableControl,
     VariableControlPiecewiseConstant,
     VariableList,
     VariableParameter,
     VariableState,
-    VariableAlgebraic,
 )
 
 
@@ -203,7 +204,7 @@ class ModelPredictiveControl(Optimizer):
 
         # multiply by self.array_data_mask needed to ignore elements were error experimental data is zero
         error = (array_simulation - self.array_data) * self.array_data_mask
-        objective = ca.sum1(self.inverted_variances * (error ** 2))
+        objective = ca.sum1(self.inverted_variances * (error**2))
 
         return objective
 
@@ -221,7 +222,7 @@ class ModelPredictiveControl(Optimizer):
 
         # multiply by self.array_data_mask needed to ignore elements were error experimental data is zero
         error = (array_simulation - self.array_data) * self.array_data_mask
-        objective = ca.sum1(self.inverted_variances * (error ** 2))
+        objective = ca.sum1(self.inverted_variances * (error**2))
 
         return objective
 

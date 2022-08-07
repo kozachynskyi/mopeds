@@ -1,7 +1,8 @@
+import copy
+
+import casadi as ca
 import matplotlib.pyplot as plt
 import numpy as np
-import copy
-import casadi as ca
 
 import par_est
 
@@ -30,7 +31,13 @@ def get_model(linear=True):
     return model, varlist
 
 
-def generate_data(linear, x_bounds: list[float], preturbate=True, num_x: int = 20, parameters: dict = None):
+def generate_data(
+    linear,
+    x_bounds: list[float],
+    preturbate=True,
+    num_x: int = 20,
+    parameters: dict = None,
+):
     model, varlist = get_model(linear)
     if parameters is not None:
         for par, val in parameters.items():
@@ -74,16 +81,15 @@ if __name__ == "__main__":
     TRUE_PARAMETERS = {"theta1": 1, "theta2": 2}
     PARAMETERS_2 = {"theta1": 1, "theta2": -2}
     model, varlist = get_model(LINEAR)
-    BOUNDS = [0.5 , 1.5]
+    BOUNDS = [0.5, 1.5]
     BOUNDS2 = [3.5, 4.5]
 
-
-    for parameters in [TRUE_PARAMETERS]:#, PARAMETERS_2]:
+    for parameters in [TRUE_PARAMETERS]:  # , PARAMETERS_2]:
         for bounds in [BOUNDS, BOUNDS2]:
             x, y = generate_data(LINEAR, bounds, False, 30, parameters)
             x_data, y_data = generate_data(LINEAR, bounds, True, 5, parameters)
-            plt.errorbar(x_data,y_data, 0.3, linestyle="None", marker=".")
-            plt.plot(x,y)
+            plt.errorbar(x_data, y_data, 0.3, linestyle="None", marker=".")
+            plt.plot(x, y)
             varlist_list = generate_varlist(LINEAR, x_data, y_data)
 
     for bounds in [BOUNDS, BOUNDS2]:

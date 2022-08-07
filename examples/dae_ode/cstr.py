@@ -1,10 +1,10 @@
 import copy
 from datetime import datetime, timedelta  # noqa: F401
+
 import numpy as np
 
 import par_est
 import par_est.examples
-
 
 if __name__ == "__main__":
 

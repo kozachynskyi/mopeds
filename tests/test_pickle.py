@@ -42,7 +42,7 @@ def test_pickling_objects(tmp_path, piecewise):
 
 @pytest.mark.parametrize("piecewise", [True, False])
 def test_varlist_simulation_reusability(tmp_path, piecewise):
-    """ Test if simulator created from varlist and pickled/unpickled varlist provides same results."""
+    """Test if simulator created from varlist and pickled/unpickled varlist provides same results."""
     variable_list, model = par_est.examples.pendulum_dae_1(piecewise)
     time_grid = np.linspace(0, 1, 3)
     variable_list["g"].value = 12.0
@@ -59,7 +59,8 @@ def test_varlist_simulation_reusability(tmp_path, piecewise):
     res_after_pickle = simulation.simulate()
 
     assert np.isclose(
-        ca.vertcat(res_before_pickle["xf"], res_before_pickle["zf"]), ca.vertcat(res_after_pickle["xf"], res_after_pickle["zf"])
+        ca.vertcat(res_before_pickle["xf"], res_before_pickle["zf"]),
+        ca.vertcat(res_after_pickle["xf"], res_after_pickle["zf"]),
     ).all()
 
     variable_list, model = par_est.examples.pendulum_dae_1(piecewise, variable_list)
@@ -67,7 +68,8 @@ def test_varlist_simulation_reusability(tmp_path, piecewise):
     res_after_pickle = simulation.simulate()
 
     assert np.isclose(
-        ca.vertcat(res_before_pickle["xf"], res_before_pickle["zf"]), ca.vertcat(res_after_pickle["xf"], res_after_pickle["zf"])
+        ca.vertcat(res_before_pickle["xf"], res_before_pickle["zf"]),
+        ca.vertcat(res_after_pickle["xf"], res_after_pickle["zf"]),
     ).all()
 
 

@@ -1,6 +1,7 @@
+import numpy as np
+
 import par_est
 import par_est.examples
-import numpy as np
 
 """
 Not sure if jacobian of a function that ipopt uses for solver direction

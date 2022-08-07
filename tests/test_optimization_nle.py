@@ -207,8 +207,8 @@ def test_multivariate_pe():
         ]
     )
 
-    fim = 8.
-    fim_scaled = 80.
+    fim = 8.0
+    fim_scaled = 80.0
     cov_par = 0.06821176
     jac_ols = -1.00103
     hess_ols = 16
