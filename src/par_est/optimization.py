@@ -1456,40 +1456,13 @@ class ParameterEstimationNLE(Optimizer):
 
         dof = len(self.list_input_varlist) - len(self.varlist_decision)
         num_par = len(self.varlist_decision)
-        len_alg = len(self.model.varlist_algebraic)
 
         self._setup_scaling(False)
 
-        # jac_ols = ca.jacobian(self._objective_ols()[0], decision_variables)
-
-        # jac_ols_function = ca.Function(
-        #     "jac_ols",
-        #     [decision_variables],
-        #     [jac_ols],
-        #     ["x"],
-        #     ["f"],
-        # )
-
         selected_parameters = self.parameters_dict_to_list(parameters)
-        S_squared, residuals, residuals_all = self.calculate_ols_value(parameters)
-        residual_mean_square = S_squared / dof
-
         result_sens = self.calculate_sensitivity_and_fim(parameters)
-        jac_array = result_sens["jac"]
-        parameter_covariance_matrix = residual_mean_square * np.linalg.inv(
-            jac_array.T.dot(jac_array)
-        )
 
-        measurement_variance_matrix = result_sens["cov_meas"]
-
-        residuals_sorted_in_columns = np.reshape(
-            residuals_all, (len(self.list_simulators), len_alg)
-        )
-        residuals_sorted_in_columns = residuals_sorted_in_columns[
-            :, residuals_sorted_in_columns.all(0)
-        ]
-        S_squred_sorted_in_columns = np.sum(residuals_sorted_in_columns**2, axis=0)
-        real_residual_mean_square = S_squred_sorted_in_columns / dof
+        parameter_covariance_matrix = result_sens["cov_par"]
 
         parameter_variance = np.diag(parameter_covariance_matrix)
         parameter_std = np.sqrt(parameter_variance).flatten()
@@ -1551,8 +1524,8 @@ class ParameterEstimationNLE(Optimizer):
             # Width and height are "full" widths, not radius
             for fisher in [fisher_f_dist_95]:  # , fisher_f_dist_99]:
                 width, height = (
-                    2 * np.sqrt(num_par * residual_mean_square * fisher * vals)
-                )[0]
+                    2 * np.sqrt(num_par * fisher * vals)
+                )
                 ellip = Ellipse(
                     xy=parameters_i, width=width, height=height, angle=theta, alpha=0.3
                 )
@@ -1573,7 +1546,6 @@ class ParameterEstimationNLE(Optimizer):
             ax.axhline(parameters_i[1] + marginal_conf_interval_95_i[1])
 
         plt.show()
-        return residuals, S_squared, residual_mean_square
 
 
 class ParameterEstimationNLE_control(ParameterEstimationNLE):
