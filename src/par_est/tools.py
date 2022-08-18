@@ -48,10 +48,11 @@ def generate_varlist_with_data_NLE(
     control_bounds,
     preturbate: bool = True,
     rng: np.random.Generator = None,
+    seed: int = None,
 ):
     # Solves NLE and create varlist to use, for example with Parameter Estimation
     if rng is None:
-        rng = np.random.default_rng()
+        rng = np.random.default_rng(seed=seed)
 
     variable_list_original = copy.deepcopy(variable_list)
     true_parameters = {}
