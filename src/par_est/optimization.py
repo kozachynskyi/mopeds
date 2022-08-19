@@ -1556,6 +1556,39 @@ class ParameterEstimationNLE(Optimizer):
         dict_of_artificial_controls: dict = None,
         seed: int = None,
         ):
+        """Method to calculate one-dimensional inference bounds for a given dict of responses. 
+        If dict_of_artificial_controls is supplied, artificial data is generated and used for instead
+        of experimental data. If seed is supplied, the given seed is used for articficial data generation. 
+
+        Parameters
+        ----------
+        dict_of_params : dict
+            keys: parameter name
+            values: corresponding parameter value
+        dict_of_responses : dict
+            keys: response names
+            values: corresponding response variance
+            Only used for artificial data generation.
+            If values are None, the defualt response variance value is utilized.
+        dict_of_controls : dict
+            keys: control names
+            values: corresponding list of necessary information about controls with
+            list = list([lower bound: float, upper bound: float, number of points: int])
+        dict_of_artificial_controls : dict, optional
+            dict_of_controls used for artificial data generation, by default None
+        seed : int, optional
+            seed used for artifical data generation, by default None
+            
+        Output
+        ------
+        inference_results : dict
+            Contains all inference bounds related results 
+        exp_data : dict
+            Contains experimental data OR generated artifical data
+        sim_results : dict
+            Contains data of the simulation needed for inference computation
+            Content of same dimension as content of inference_results
+        """        
         def generate_simulation_data(
             template_varlist: VariableList,
             dict_of_params: dict,  
