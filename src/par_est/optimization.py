@@ -1553,20 +1553,19 @@ class ParameterEstimationNLE(Optimizer):
         dict_of_params: dict,  
         dict_of_responses: dict,
         dict_of_controls: dict,
-        dict_of_artificial_controls: dict=None,
-        seed: int=None
+        dict_of_artificial_controls: dict = None,
+        seed: int = None,
         ):
-        
         def generate_simulation_data(
             template_varlist: VariableList,
             dict_of_params: dict,  
             dict_of_responses: dict,
             dict_of_controls: dict, 
             perturbation_mode: bool,
-            seed: int=None           
+            seed: int = None,
         ):  
             
-            for param , param_value in dict_of_params.items():
+            for param, param_value in dict_of_params.items():
                 template_varlist[param].value = param_value
             for key, variance in dict_of_responses.items():
                 if variance is None:
@@ -1613,9 +1612,7 @@ class ParameterEstimationNLE(Optimizer):
             return generated_var_lists, sim_data
         
         def generate_exp_data_dict(
-            experimental_data,
-            dict_of_responses: dict,
-            dict_of_controls: dict,
+            experimental_data, dict_of_responses: dict, dict_of_controls: dict,
         ):
             exp_controls = {}
             for control in dict_of_controls:
@@ -1641,9 +1638,7 @@ class ParameterEstimationNLE(Optimizer):
             artificial_mode = False
             experimental_data = copy.deepcopy(self.list_input_varlist)
             exp_data = generate_exp_data_dict(
-                    experimental_data,
-                    dict_of_responses,
-                    dict_of_controls,
+                experimental_data, dict_of_responses, dict_of_controls,
                     )
         else:
             artificial_mode = True
@@ -1653,7 +1648,7 @@ class ParameterEstimationNLE(Optimizer):
                 dict_of_responses,
                 dict_of_artificial_controls,
                 True,      
-                seed=seed    
+                seed=seed,
                 )
                 
         variable_list_real, sim_data = generate_simulation_data(
@@ -1668,20 +1663,42 @@ class ParameterEstimationNLE(Optimizer):
         if artificial_mode:
             pe_artificial = ParameterEstimationNLE(self.model, experimental_data)
             for index, response in enumerate(dict_of_responses.keys()):
-                OLS[response] = np.sum(pe_artificial.calculate_objective_and_residual(dict_of_params)["residuals"][:,index]**2)            
-            assert np.isclose(sum(OLS.values()), pe_artificial.calculate_objective_and_residual(dict_of_params)['f'])
-            jac = pe_artificial.calculate_sensitivity_and_fim(dict_of_params,list(dict_of_params.keys()))["jac_sorted"]
+                OLS[response] = np.sum(
+                    pe_artificial.calculate_objective_and_residual(dict_of_params)[
+                        "residuals"
+                    ][:, index]
+                    ** 2
+                )
+            assert np.isclose(
+                sum(OLS.values()),
+                pe_artificial.calculate_objective_and_residual(dict_of_params)["f"],
+            )
+            jac = pe_artificial.calculate_sensitivity_and_fim(
+                dict_of_params, list(dict_of_params.keys())
+            )["jac_sorted"]
         else:
             for index, response in enumerate(dict_of_responses.keys()):
-                OLS[response] = np.sum(self.calculate_objective_and_residual(dict_of_params)["residuals"][:,index]**2)            
-            assert np.isclose(sum(OLS.values()), self.calculate_objective_and_residual(dict_of_params)['f'])
-            jac = self.calculate_sensitivity_and_fim(dict_of_params,list(dict_of_params.keys()))["jac_sorted"]
+                OLS[response] = np.sum(
+                    self.calculate_objective_and_residual(dict_of_params)["residuals"][
+                        :, index
+                    ]
+                    ** 2
+                )
+            assert np.isclose(
+                sum(OLS.values()),
+                self.calculate_objective_and_residual(dict_of_params)["f"],
+            )
+            jac = self.calculate_sensitivity_and_fim(
+                dict_of_params, list(dict_of_params.keys())
+            )["jac_sorted"]
         pe_grid = ParameterEstimationNLE(self.model, variable_list_real)
-        jac_grid = pe_grid.calculate_sensitivity_and_fim(dict_of_params,list(dict_of_params.keys()))["jac_sorted"]
+        jac_grid = pe_grid.calculate_sensitivity_and_fim(
+            dict_of_params, list(dict_of_params.keys())
+        )["jac_sorted"]
         
         len_exp = len(experimental_data)
         len_param = len(dict_of_params)
-        DOF = len_exp-len_param
+        DOF = len_exp - len_param
         fisher95 = stats.f(len_param, DOF).ppf(0.95)
         
         inference_results = {}
@@ -1690,19 +1707,26 @@ class ParameterEstimationNLE(Optimizer):
             
         for response in dict_of_responses:
             inference_results[response] = {}
-            s = np.sqrt(OLS[response]/DOF)
+            s = np.sqrt(OLS[response] / DOF)
             R = np.linalg.qr(jac[response], mode="reduced")[1]
-            bound = s*np.linalg.norm(jac_grid[response]@np.linalg.inv(R), axis=1)*np.sqrt(len_param*fisher95)
+            bound = (
+                s
+                * np.linalg.norm(jac_grid[response] @ np.linalg.inv(R), axis=1)
+                * np.sqrt(len_param * fisher95)
+            )
             
             inference_results[response]["s"] = s
             inference_results[response]["R"] = R
             inference_results[response]["bound"] = bound
-            inference_results[response]["lower bound"] = np.array(sim_data[response])-bound
+            inference_results[response]["lower bound"] = (
+                np.array(sim_data[response]) - bound
+            )
             inference_results[response]["simulation"] = np.array(sim_data[response])
-            inference_results[response]["upper bound"] = np.array(sim_data[response])+bound
+            inference_results[response]["upper bound"] = (
+                np.array(sim_data[response]) + bound
+            )
         
         return inference_results, exp_data, sim_data                
-
 
 
 class ParameterEstimationNLE_control(ParameterEstimationNLE):
