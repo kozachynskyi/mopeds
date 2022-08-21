@@ -10,7 +10,7 @@ from typing import Sequence
 import casadi as ca
 import numpy as np
 import pandas as pd
-from scipy import linalg, stats
+from scipy import linalg
 from tqdm import tqdm
 
 from par_est import (
@@ -1589,6 +1589,7 @@ class ParameterEstimationNLE(Optimizer):
             Contains data of the simulation needed for inference computation
             Content of same dimension as content of inference_results
         """
+        import scipy.stats
 
         def convert_varlist_to_data_dictionary(
             var_list_list: list[VariableList],
@@ -1692,7 +1693,7 @@ class ParameterEstimationNLE(Optimizer):
         len_exp = len(experimental_data)
         len_param = len(dict_of_params)
         DOF = len_exp - len_param
-        fisher95 = stats.f(len_param, DOF).ppf(0.95)
+        fisher95 = scipy.stats.f(len_param, DOF).ppf(0.95)
 
         inference_results = {}
         for control in dict_of_controls:
