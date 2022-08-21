@@ -23,9 +23,10 @@ from par_est import (
     VariableList,
     VariableParameter,
     VariableState,
-    utilities,
     tools,
+    utilities,
 )
+
 
 class Optimizer(object):
     def __init__(
@@ -940,6 +941,7 @@ class OptimalExperimentalDesign(Optimizer):
 
         return unfix_parameters, error, covariance_full, jacobian_original
 
+
 class ParameterEstimationNLE(Optimizer):
     def __init__(
         self,
@@ -1545,18 +1547,18 @@ class ParameterEstimationNLE(Optimizer):
             ax.axhline(parameters_i[1] + marginal_conf_interval_95_i[1])
 
         plt.show()
-        
+
     def calculate_inference_bounds(
-        self, 
-        dict_of_params: dict,  
+        self,
+        dict_of_params: dict,
         dict_of_responses: dict,
         dict_of_controls: dict,
         dict_of_artificial_controls: dict = None,
         rng: np.random.Generator = None,
-        ):
-        """Method to calculate one-dimensional inference bounds for a given dict of responses. 
+    ):
+        """Method to calculate one-dimensional inference bounds for a given dict of responses.
         If dict_of_artificial_controls is supplied, artificial data is generated and used for instead
-        of experimental data. If rng is supplied, the given rng is used for articficial data generation. 
+        of experimental data. If rng is supplied, the given rng is used for articficial data generation.
 
         Parameters
         ----------
@@ -1576,26 +1578,27 @@ class ParameterEstimationNLE(Optimizer):
             dict_of_controls used for artificial data generation, by default None
         rng : np.random.Generator, optional
             rng used for artifical data generation, by default None
-            
+
         Output
         ------
         inference_results : dict
-            Contains all inference bounds related results 
+            Contains all inference bounds related results
         exp_data : dict
             Contains experimental data OR generated artifical data
         sim_results : dict
             Contains data of the simulation needed for inference computation
             Content of same dimension as content of inference_results
-        """        
+        """
+
         def generate_simulation_data(
             template_varlist: VariableList,
-            dict_of_params: dict,  
+            dict_of_params: dict,
             dict_of_responses: dict,
-            dict_of_controls: dict, 
+            dict_of_controls: dict,
             perturbation_mode: bool,
             rng: np.random.Generator = None,
-        ):  
-            
+        ):
+
             for param, param_value in dict_of_params.items():
                 template_varlist[param].value = param_value
             for key, variance in dict_of_responses.items():
@@ -1603,93 +1606,97 @@ class ParameterEstimationNLE(Optimizer):
                     pass
                 else:
                     template_varlist[key].variance = variance
-            
+
             generated_var_lists, true_parameters = tools.generate_varlist_with_data_NLE(
-                self.model, 
-                template_varlist, 
-                dict_of_controls, 
+                self.model,
+                template_varlist,
+                dict_of_controls,
                 preturbate=perturbation_mode,
                 rng=rng,
-                )
-                
+            )
+
             for variable_list in generated_var_lists:
                 for var in variable_list.values():
                     if isinstance(var, VariableAlgebraic):
                         if var.name not in dict_of_responses.keys():
                             var.dataframe = var._dataframe_from_value(None)
-            
+
             for parameter in dict_of_params:
                 for simulation in generated_var_lists:
                     simulation[parameter].fixed = False
-                    
+
             sim_controls = {}
             for control in dict_of_controls:
                 sim_controls[control] = []
                 for simulation in generated_var_lists:
                     sim_controls[control].append(simulation[control].value[0])
-            
+
             sim_responses = {}
             for response in dict_of_responses:
                 sim_responses[response] = []
                 for simulation in generated_var_lists:
-                    sim_responses[response].append(simulation[response].value[0])    
-            
+                    sim_responses[response].append(simulation[response].value[0])
+
             sim_data = {}
             for control in dict_of_controls:
                 sim_data[control] = np.array(sim_controls[control])
             for response in dict_of_responses:
                 sim_data[response] = np.array(sim_responses[response])
-            
+
             return generated_var_lists, sim_data
-        
+
         def generate_exp_data_dict(
-            experimental_data, dict_of_responses: dict, dict_of_controls: dict,
+            experimental_data,
+            dict_of_responses: dict,
+            dict_of_controls: dict,
         ):
             exp_controls = {}
             for control in dict_of_controls:
                 exp_controls[control] = []
                 for experiment in experimental_data:
                     exp_controls[control].append(experiment[control].value[0])
-            
+
             exp_responses = {}
             for response in dict_of_responses:
                 exp_responses[response] = []
                 for experiment in experimental_data:
                     exp_responses[response].append(experiment[response].value[0])
-                    
+
             exp_data = {}
             for control in dict_of_controls:
                 exp_data[control] = np.array(exp_controls[control])
             for response in dict_of_responses:
                 exp_data[response] = np.array(exp_responses[response])
-                
-            return exp_data 
-                
+
+            return exp_data
+
         if dict_of_artificial_controls is None:
             artificial_mode = False
             experimental_data = copy.deepcopy(self.list_input_varlist)
             exp_data = generate_exp_data_dict(
-                experimental_data, dict_of_responses, dict_of_controls,
-                    )
+                experimental_data,
+                dict_of_responses,
+                dict_of_controls,
+            )
         else:
             artificial_mode = True
             experimental_data, exp_data = generate_simulation_data(
                 copy.deepcopy(self.list_input_varlist[0]),
-                dict_of_params,  
+                dict_of_params,
                 dict_of_responses,
                 dict_of_artificial_controls,
-                True,      
+                True,
                 rng=rng,
-                )
-                
+            )
+
         variable_list_real, sim_data = generate_simulation_data(
-                copy.deepcopy(self.list_input_varlist[0]),
-                dict_of_params,  
-                dict_of_responses,
-                dict_of_controls,
-                False,          
-            )            
-                
+            copy.deepcopy(self.list_input_varlist[0]),
+            dict_of_params,
+            dict_of_responses,
+            dict_of_controls,
+            False,
+        )
+
         OLS = {}
         if artificial_mode:
             pe_artificial = ParameterEstimationNLE(self.model, experimental_data)
@@ -1726,16 +1733,16 @@ class ParameterEstimationNLE(Optimizer):
         jac_grid = pe_grid.calculate_sensitivity_and_fim(
             dict_of_params, list(dict_of_params.keys())
         )["jac_sorted"]
-        
+
         len_exp = len(experimental_data)
         len_param = len(dict_of_params)
         DOF = len_exp - len_param
         fisher95 = stats.f(len_param, DOF).ppf(0.95)
-        
+
         inference_results = {}
         for control in dict_of_controls:
             inference_results[control] = np.array(sim_data[control])
-            
+
         for response in dict_of_responses:
             inference_results[response] = {}
             s = np.sqrt(OLS[response] / DOF)
@@ -1745,7 +1752,7 @@ class ParameterEstimationNLE(Optimizer):
                 * np.linalg.norm(jac_grid[response] @ np.linalg.inv(R), axis=1)
                 * np.sqrt(len_param * fisher95)
             )
-            
+
             inference_results[response]["s"] = s
             inference_results[response]["R"] = R
             inference_results[response]["bound"] = bound
@@ -1756,8 +1763,8 @@ class ParameterEstimationNLE(Optimizer):
             inference_results[response]["upper bound"] = (
                 np.array(sim_data[response]) + bound
             )
-        
-        return inference_results, exp_data, sim_data                
+
+        return inference_results, exp_data, sim_data
 
 
 class ParameterEstimationNLE_control(ParameterEstimationNLE):
