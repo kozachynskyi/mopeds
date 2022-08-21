@@ -32,7 +32,8 @@ class Variable(object):
         ub: float | None = None,
     ) -> None:
         self.name: str = name
-        self.casadi_var: ca.MX = ca.MX.sym(self.name)
+        if not isinstance(self, VariableConstant):
+            self.casadi_var: ca.MX = ca.MX.sym(self.name)
         # fixed is property in order to deal with VariableControlPiecewiseConstant properly
         self._fixed: bool = True
         self.opc_ua_id: None | int = None
@@ -457,10 +458,15 @@ class VariableConstant(Variable):
         opc_ua_id: int | None = None,
     ):
         super().__init__(name)
-        self.casadi_var = value
         self.dataframe = self._dataframe_from_value(value)
         self.opc_ua_id = opc_ua_id
         self.fixed = True
+
+    @property
+    def casadi_var(self):
+        """Variable Constant doesn't have a a symbolic variable, so casadi_var is replaced
+        by a value of the constant in the equations directly"""
+        return self.value[0]
 
 
 class VariableList(OrderedDict[str, Union[Variable, VariableControlPiecewiseConstant]]):
