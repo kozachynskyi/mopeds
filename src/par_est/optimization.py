@@ -1711,11 +1711,11 @@ class ParameterEstimationNLE(Optimizer):
             inference_results[response]["R"] = R
             inference_results[response]["bound"] = bound
             inference_results[response]["lower bound"] = (
-                np.array(sim_data[response]) - bound
+                sim_data[response] - bound
             )
-            inference_results[response]["simulation"] = np.array(sim_data[response])
+            inference_results[response]["simulation"] = sim_data[response]
             inference_results[response]["upper bound"] = (
-                np.array(sim_data[response]) + bound
+                sim_data[response] + bound
             )
 
         return inference_results, exp_data, sim_data
