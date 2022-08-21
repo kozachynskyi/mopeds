@@ -1674,13 +1674,11 @@ class ParameterEstimationNLE(Optimizer):
             pe_artificial = ParameterEstimationNLE(self.model, experimental_data)
         else:
             pe_artificial = self
-        for index, response in enumerate(dict_of_responses.keys()):
-            OLS[response] = np.sum(
-                pe_artificial.calculate_objective_and_residual(dict_of_params)[
-                    "residuals"
-                ][:, index]
-                ** 2
-            )
+
+        residuals = pe_artificial.calculate_objective_and_residual(dict_of_params)["residuals"]
+        OLS_values = np.diag(residuals.T @ residuals)
+        OLS = dict(zip(self.names_of_measurements, OLS_values))
+
         jac = pe_artificial.calculate_sensitivity_and_fim(
             dict_of_params, list(dict_of_params.keys())
         )["jac_sorted"]
