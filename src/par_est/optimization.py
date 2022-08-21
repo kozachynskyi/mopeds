@@ -1602,9 +1602,7 @@ class ParameterEstimationNLE(Optimizer):
             for param, param_value in dict_of_params.items():
                 template_varlist[param].value = param_value
             for key, variance in dict_of_responses.items():
-                if variance is None:
-                    pass
-                else:
+                if variance is not None:
                     template_varlist[key].variance = variance
 
             generated_var_lists, true_parameters = tools.generate_varlist_with_data_NLE(
