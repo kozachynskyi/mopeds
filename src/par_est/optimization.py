@@ -1590,6 +1590,20 @@ class ParameterEstimationNLE(Optimizer):
             Content of same dimension as content of inference_results
         """
 
+        def convert_varlist_to_data_dictionary(
+            var_list_list: list[VariableList],
+            dict_of_responses: dict,
+            dict_of_controls: dict,
+        ):
+            sim_data = {}
+            for var_name in [*dict_of_controls.keys(), *dict_of_responses.keys()]:
+                var_values = []
+                for simulation in var_list_list:
+                    var_values.append(simulation[var_name].value[0])
+                sim_data[var_name] = np.array(var_values)
+
+            return sim_data
+
         def generate_simulation_data(
             template_varlist: VariableList,
             dict_of_params: dict,
@@ -1623,55 +1637,14 @@ class ParameterEstimationNLE(Optimizer):
                 for simulation in generated_var_lists:
                     simulation[parameter].fixed = False
 
-            sim_controls = {}
-            for control in dict_of_controls:
-                sim_controls[control] = []
-                for simulation in generated_var_lists:
-                    sim_controls[control].append(simulation[control].value[0])
-
-            sim_responses = {}
-            for response in dict_of_responses:
-                sim_responses[response] = []
-                for simulation in generated_var_lists:
-                    sim_responses[response].append(simulation[response].value[0])
-
-            sim_data = {}
-            for control in dict_of_controls:
-                sim_data[control] = np.array(sim_controls[control])
-            for response in dict_of_responses:
-                sim_data[response] = np.array(sim_responses[response])
+            sim_data = convert_varlist_to_data_dictionary(generated_var_lists, dict_of_controls, dict_of_responses)
 
             return generated_var_lists, sim_data
-
-        def generate_exp_data_dict(
-            experimental_data,
-            dict_of_responses: dict,
-            dict_of_controls: dict,
-        ):
-            exp_controls = {}
-            for control in dict_of_controls:
-                exp_controls[control] = []
-                for experiment in experimental_data:
-                    exp_controls[control].append(experiment[control].value[0])
-
-            exp_responses = {}
-            for response in dict_of_responses:
-                exp_responses[response] = []
-                for experiment in experimental_data:
-                    exp_responses[response].append(experiment[response].value[0])
-
-            exp_data = {}
-            for control in dict_of_controls:
-                exp_data[control] = np.array(exp_controls[control])
-            for response in dict_of_responses:
-                exp_data[response] = np.array(exp_responses[response])
-
-            return exp_data
 
         if dict_of_artificial_controls is None:
             artificial_mode = False
             experimental_data = copy.deepcopy(self.list_input_varlist)
-            exp_data = generate_exp_data_dict(
+            exp_data = convert_varlist_to_data_dictionary(
                 experimental_data,
                 dict_of_responses,
                 dict_of_controls,
