@@ -1671,35 +1671,19 @@ class ParameterEstimationNLE(Optimizer):
         OLS = {}
         if artificial_mode:
             pe_artificial = ParameterEstimationNLE(self.model, experimental_data)
-            for index, response in enumerate(dict_of_responses.keys()):
-                OLS[response] = np.sum(
-                    pe_artificial.calculate_objective_and_residual(dict_of_params)[
-                        "residuals"
-                    ][:, index]
-                    ** 2
-                )
-            assert np.isclose(
-                sum(OLS.values()),
-                pe_artificial.calculate_objective_and_residual(dict_of_params)["f"],
-            )
-            jac = pe_artificial.calculate_sensitivity_and_fim(
-                dict_of_params, list(dict_of_params.keys())
-            )["jac_sorted"]
         else:
-            for index, response in enumerate(dict_of_responses.keys()):
-                OLS[response] = np.sum(
-                    self.calculate_objective_and_residual(dict_of_params)["residuals"][
-                        :, index
-                    ]
-                    ** 2
-                )
-            assert np.isclose(
-                sum(OLS.values()),
-                self.calculate_objective_and_residual(dict_of_params)["f"],
+            pe_artificial = self
+        for index, response in enumerate(dict_of_responses.keys()):
+            OLS[response] = np.sum(
+                pe_artificial.calculate_objective_and_residual(dict_of_params)[
+                    "residuals"
+                ][:, index]
+                ** 2
             )
-            jac = self.calculate_sensitivity_and_fim(
-                dict_of_params, list(dict_of_params.keys())
-            )["jac_sorted"]
+        jac = pe_artificial.calculate_sensitivity_and_fim(
+            dict_of_params, list(dict_of_params.keys())
+        )["jac_sorted"]
+
         pe_grid = ParameterEstimationNLE(self.model, variable_list_real)
         jac_grid = pe_grid.calculate_sensitivity_and_fim(
             dict_of_params, list(dict_of_params.keys())
