@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 
 import par_est
 
@@ -63,7 +64,7 @@ dict_of_artificial_controls = {
     dict_of_responses,
     dict_of_controls,
     dict_of_artificial_controls,
-    seed=42,
+    rng=np.random.default_rng(42),
 )
 
 plt.plot(artificial_data["x"], artificial_data["f"], "ko", label="Artifial data")

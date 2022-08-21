@@ -1552,11 +1552,11 @@ class ParameterEstimationNLE(Optimizer):
         dict_of_responses: dict,
         dict_of_controls: dict,
         dict_of_artificial_controls: dict = None,
-        seed: int = None,
+        rng: np.random.Generator = None,
         ):
         """Method to calculate one-dimensional inference bounds for a given dict of responses. 
         If dict_of_artificial_controls is supplied, artificial data is generated and used for instead
-        of experimental data. If seed is supplied, the given seed is used for articficial data generation. 
+        of experimental data. If rng is supplied, the given rng is used for articficial data generation. 
 
         Parameters
         ----------
@@ -1574,8 +1574,8 @@ class ParameterEstimationNLE(Optimizer):
             list = list([lower bound: float, upper bound: float, number of points: int])
         dict_of_artificial_controls : dict, optional
             dict_of_controls used for artificial data generation, by default None
-        seed : int, optional
-            seed used for artifical data generation, by default None
+        rng : np.random.Generator, optional
+            rng used for artifical data generation, by default None
             
         Output
         ------
@@ -1593,7 +1593,7 @@ class ParameterEstimationNLE(Optimizer):
             dict_of_responses: dict,
             dict_of_controls: dict, 
             perturbation_mode: bool,
-            seed: int = None,
+            rng: np.random.Generator = None,
         ):  
             
             for param, param_value in dict_of_params.items():
@@ -1609,7 +1609,7 @@ class ParameterEstimationNLE(Optimizer):
                 template_varlist, 
                 dict_of_controls, 
                 preturbate=perturbation_mode,
-                seed=seed,
+                rng=rng,
                 )
                 
             for variable_list in generated_var_lists:
@@ -1679,7 +1679,7 @@ class ParameterEstimationNLE(Optimizer):
                 dict_of_responses,
                 dict_of_artificial_controls,
                 True,      
-                seed=seed,
+                rng=rng,
                 )
                 
         variable_list_real, sim_data = generate_simulation_data(
