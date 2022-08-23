@@ -81,8 +81,8 @@ def bod():
     plot_inference(artificial_inference_results)
     set_plot_legend(x_bounds, y_bounds, "Time", "Oxygen Demand")
 
-    print(exp_inference_results["f"]["s"])
-    print(artificial_inference_results["f"]["s"])
+    print(np.round(exp_inference_results["f"]["s"],2))
+    print(np.round(artificial_inference_results["f"]["s"],2))
 
 
 def puromycin():
@@ -134,8 +134,8 @@ def puromycin():
     plot_inference(artificial_inference_results)
     set_plot_legend(x_bounds, y_bounds, "Concentration", "Velocity")
 
-    print(exp_inference_results["f"]["s"])
-    print(artificial_inference_results["f"]["s"])
+    print(np.round(exp_inference_results["f"]["s"],2))
+    print(np.round(artificial_inference_results["f"]["s"],2))
 
 
 if __name__ == "__main__":
