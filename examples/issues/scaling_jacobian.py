@@ -15,7 +15,7 @@ time_grid = np.insert(time_grid, 0, 0)
 var_list_fixed = copy.deepcopy(var_list)
 for var in var_list_fixed.values():
     var.fixed = True
-var_list_exp = par_est.Simulator(m, time_grid, var_list_fixed).generate_exp_data()
+var_list_exp = par_est.Simulator(m, time_grid, var_list_fixed, simulate_jac=True).generate_exp_data()
 
 for key, var in var_list_exp.items():
     var_list[key] = var
