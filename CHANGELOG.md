@@ -1,3 +1,66 @@
+## 0.8.0 (2022-08-24)
+
+### Feat
+
+- **NLE**: add option to GenerateDataNle to supply responce names
+- rounds print output of bates examples
+- adds a documentation for calculate_inference_bounds in optimization.py
+- inference band for NLE PE using exp OR artificial data
+- added examples for calculate_inference_bound based on Bates et al.
+- added inference examples
+- added puromycin examples from Nonlinear regression analysis (M. Bates)
+- **PENLE**: rework how calculate_sensitivity() works
+- **PEnle**: rename calculate_ols_value to calculate_objective_and_residual
+- **PeNLE**: new ols and wls objective calculations (moredimensional)
+- **PENLE**: add index_measurements_in_sim list
+- **NLE**: data generator now returns true_parameters
+- **PENLE**: add new way to data_array and data_mask calculation
+- **SimNLE**: add simulate() method with option to select variables
+- **SimNLE**: add change_independent_variables method
+- **SimNLE**: add mapping of algebraic and independent variables
+- **SimNLE**: add contains_unfixed argument to Simulator
+- **utilities**: rework how generate_varlist_for_optimizer NLE works
+- pe.calculate_sensitivity -> return meas_covaraince
+- return all residuals, not only nonzero ones
+
+### Refactor
+
+- **examples**: add dostring
+- fix typo preturbate to perturbate
+- fix not working examples
+- combine examples, remove redundancy
+- remove redundant type conversion to array
+- hide import scipy.stats in method
+- remove redundancy and assert
+- rename perturbation_mode
+- avoid redundancy
+- more readable code
+- remove unused imports
+- code formatting
+- **NLE**: move all examples from bates to separate file
+- **ExampleNLE**: add example file for puromycin
+- pre-commit
+- **PENLE**: rework calculate_ols_value
+- **examples**: add simple_mixer NLE example
+- add example from seminar 2022-08-02
+- clean up pe.parameter_analysis
+
+### Fix
+
+- **MPC**: raise NotImplementedError (optimizer is not supported)
+- fix OLS dictionary
+- **NLEinference**: remove redundant seed attribute
+- **Vars**: VariableConstant.casadi_var returns self.value
+- **PENLE**: parameter_analysis plotting and calculations new API
+- **PENLE**: parameter identifiability yao new API
+- **PENLE**: fix how parameter_dict_to_list works, make it robust
+- **PENLE**: raise error, when optimize(obj_func=) str is not supported
+- **PEnle**: fix bug with _reset_scaling
+- **SimNLE**: generate_exp_data -> var.variance is propagated further
+- **PENLE**: array_data_new nan replaced with 0
+- **PENLE**: add raise error
+- (parameter_analysis) -> correctly scaled parameter covariance
+
 ## 0.7.4 (2022-07-23)
 
 ## 0.7.3 (2022-07-23)

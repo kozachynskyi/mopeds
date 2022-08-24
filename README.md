@@ -4,6 +4,14 @@ A library wrapped around casadi to solve Simulation / Optimization problems base
 
 For a tutorial check https://www.user.tu-berlin.de/vovakozach/par_est/5min_tutorial.html
 
+## What's New?
+
+### 0.8.0
+
+NLE Simulator and Parameter Estimation were reworked, with focus on analysis of parameter variance-covariance matrix.
+Parameter Estimation has different internals on how objective function is calculated, making it a bit faster and much more unrestandable.
+Examples from Bates, Watts "Nonlinear Regression analysis and its applications" were imlemented and tested.
+
 ## Installation
 
 - python3.8 or 3.9 is required
