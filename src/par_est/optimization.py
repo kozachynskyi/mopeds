@@ -1626,13 +1626,8 @@ class ParameterEstimationNLE(Optimizer):
                 dict_of_controls,
                 perturbate=perturbate,
                 rng=rng,
+                measurement_names=dict_of_responses.keys()
             )
-
-            for variable_list in generated_var_lists:
-                for var in variable_list.values():
-                    if isinstance(var, VariableAlgebraic):
-                        if var.name not in dict_of_responses.keys():
-                            var.dataframe = var._dataframe_from_value(None)
 
             for parameter in dict_of_params:
                 for simulation in generated_var_lists:
