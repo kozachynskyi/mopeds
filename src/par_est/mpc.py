@@ -31,7 +31,7 @@ class ModelPredictiveControl(Optimizer):
         use_idas_constraints=False,
         use_algebraic_vars=False,
     ):
-        raise NotADirectoryError
+        raise NotImplementedError
         super().__init__(
             model,
             variable_list,
