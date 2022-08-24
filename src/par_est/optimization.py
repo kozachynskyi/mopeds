@@ -1524,9 +1524,7 @@ class ParameterEstimationNLE(Optimizer):
 
             # Width and height are "full" widths, not radius
             for fisher in [fisher_f_dist_95]:  # , fisher_f_dist_99]:
-                width, height = (
-                    2 * np.sqrt(num_par * fisher * vals)
-                )
+                width, height = 2 * np.sqrt(num_par * fisher * vals)
                 ellip = Ellipse(
                     xy=parameters_i, width=width, height=height, angle=theta, alpha=0.3
                 )
@@ -1626,14 +1624,16 @@ class ParameterEstimationNLE(Optimizer):
                 dict_of_controls,
                 perturbate=perturbate,
                 rng=rng,
-                measurement_names=dict_of_responses.keys()
+                measurement_names=dict_of_responses.keys(),
             )
 
             for parameter in dict_of_params:
                 for simulation in generated_var_lists:
                     simulation[parameter].fixed = False
 
-            sim_data = convert_varlist_to_data_dictionary(generated_var_lists, dict_of_controls, dict_of_responses)
+            sim_data = convert_varlist_to_data_dictionary(
+                generated_var_lists, dict_of_controls, dict_of_responses
+            )
 
             return generated_var_lists, sim_data
 
@@ -1670,7 +1670,9 @@ class ParameterEstimationNLE(Optimizer):
         else:
             pe_artificial = self
 
-        residuals = pe_artificial.calculate_objective_and_residual(dict_of_params)["residuals"]
+        residuals = pe_artificial.calculate_objective_and_residual(dict_of_params)[
+            "residuals"
+        ]
         OLS_values = np.diag(residuals.T @ residuals)
         OLS = dict(zip(self.names_of_measurements, OLS_values))
 
@@ -1705,13 +1707,9 @@ class ParameterEstimationNLE(Optimizer):
             inference_results[response]["s"] = s
             inference_results[response]["R"] = R
             inference_results[response]["bound"] = bound
-            inference_results[response]["lower bound"] = (
-                sim_data[response] - bound
-            )
+            inference_results[response]["lower bound"] = sim_data[response] - bound
             inference_results[response]["simulation"] = sim_data[response]
-            inference_results[response]["upper bound"] = (
-                sim_data[response] + bound
-            )
+            inference_results[response]["upper bound"] = sim_data[response] + bound
 
         return inference_results, exp_data, sim_data
 
