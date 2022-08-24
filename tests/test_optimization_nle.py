@@ -273,7 +273,71 @@ def test_multivariate_pe():
     assert np.isclose(res_sens["cov_par"], cov_par)
 
 
+def test_inference_bounds():
+    VAR_LIST, MODEL, EXP_DATA = par_est.examples.bod_model()
+
+    dict_of_params = {
+        "theta1": 19.143,
+        "theta2": 0.5311,
+    }
+
+    dict_of_controls = {
+        "x": [0, 8, 5 + 1],
+    }
+
+    dict_of_responses = {
+        "f": 1e1,
+    }
+
+    pe = par_est.ParameterEstimationNLE(MODEL, EXP_DATA)
+    exp_inference_results, exp_data, sim_data = pe.calculate_inference_bounds(
+        dict_of_params,
+        dict_of_responses,
+        dict_of_controls,
+    )
+
+    R = np.array([[-1.95560506, -20.49667278], [0.0, -12.55188463]])
+    simulation = np.array(
+        [0.0, 10.95903204, 15.64421028, 17.64720608, 18.50352189, 18.8696119]
+    )
+    bound = np.array([0.0, 6.0464797, 4.44109375, 4.8561333, 6.55208547, 7.80504387])
+
+    exp_data_expected = np.array([8.3, 10.3, 19.0, 16.0, 15.6, 19.8])
+    sim_data_expected = np.array(
+        [0.0, 10.95903204, 15.64421028, 17.64720608, 18.50352189, 18.8696119]
+    )
+
+    assert np.allclose(R, exp_inference_results["f"]["R"])
+    assert np.allclose(simulation, exp_inference_results["f"]["simulation"])
+    assert np.allclose(bound, exp_inference_results["f"]["bound"])
+    assert np.allclose(exp_data["f"], exp_data_expected)
+    assert np.allclose(sim_data["f"], sim_data_expected)
+
+    exp_inference_results, exp_data, sim_data = pe.calculate_inference_bounds(
+        dict_of_params,
+        dict_of_responses,
+        dict_of_controls,
+        dict_of_controls,
+        rng=np.random.default_rng(0),
+    )
+    exp_data_expected = np.array(
+        [0.39759387, 10.54127978, 17.66940452, 17.97892938, 16.8095866, 20.01307587]
+    )
+    sim_data_expected = np.array(
+        [0.0, 10.95903204, 15.64421028, 17.64720608, 18.50352189, 18.8696119]
+    )
+    R = np.array([[1.93684673, 15.16727704], [0.0, -11.82590011]])
+    bound = np.array([0.0, 4.32448195, 3.22057785, 2.61916078, 3.18725966, 3.80380586])
+
+    assert np.allclose(R, exp_inference_results["f"]["R"])
+    assert np.allclose(sim_data_expected, exp_inference_results["f"]["simulation"])
+    assert np.allclose(bound, exp_inference_results["f"]["bound"])
+    assert np.allclose(exp_data["f"], exp_data_expected)
+    assert np.allclose(sim_data["f"], sim_data_expected)
+
+
 if __name__ == "__main__":
     pass
-    test_pe()
-    test_multivariate_pe()
+    # test_pe()
+    # test_multivariate_pe()
+    test_inference_bounds()
