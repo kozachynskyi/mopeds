@@ -569,7 +569,7 @@ if __name__ == "__main__":
     """
     for var in variable_list_optimizer.values():
         if isinstance(var, par_est.VariableControl):
-            var.value = var_list_fixed[var.name].value
+            var.value = var_list_fixed[var.name].value[0]
 
     # 7. This variable_list_optimizer conssists now of one experiment. If you want to create another experiment, repeat steps 3 till 7: example below. Of course you can create a function to repeat steps 4-7 for you
     var_list_fixed["e0_T_j2"].value = 500
@@ -587,4 +587,4 @@ if __name__ == "__main__":
     pe = par_est.ParameterEstimationNLE(
         m, [variable_list_optimizer, variable_list_optimizer_2], simulator_name="ipopt"
     )
-    res = pe.optimize(False)
+    res = pe.optimize(True)

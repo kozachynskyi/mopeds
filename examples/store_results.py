@@ -50,7 +50,7 @@ if __name__ == "__main__":
     # Open file to read data back
     file_read = open("tmp.pkl", "rb")
     loaded_dict = pickle.load(file_read)
-    loaded_dict["res"].plot_states()
+    loaded_dict["res"].plot()
     file_read.close()
 
     # Notice that all Casadi Objects were transformed to Strings and are not usable anymore

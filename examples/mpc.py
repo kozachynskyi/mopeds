@@ -42,7 +42,7 @@ if __name__ == "__main__":
     )
     data1["e0_T_in"].fixed = False
 
-    # Preturbate alg variable from "ideal solution" to see its affect on PE
+    # Perturbate alg variable from "ideal solution" to see its affect on PE
     data1["e0_c_tot"].dataframe["e0_c_tot"] = [
         val * 1.05 for val in data1["e0_c_tot"].value
     ]

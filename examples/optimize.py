@@ -39,7 +39,7 @@ if __name__ == "__main__":
     e0_c_i1_df = data2["e0_c_i1"].dataframe
     e0_c_i1_df.drop(e0_c_i1_df.index[2:], inplace=True)
 
-    # Preturbate alg variable from "ideal solution" to see its affect on PE
+    # Perturbate alg variable from "ideal solution" to see its affect on PE
     a = data2["e0_c_tot"].dataframe
     data2["e0_c_tot"].dataframe = data2["e0_c_tot"].dataframe * 1.05
 

@@ -46,12 +46,26 @@ def generate_varlist_with_data_NLE(
     model,
     variable_list,
     control_bounds,
-    preturbate: bool = True,
+    perturbate: bool = True,
     rng: np.random.Generator = None,
-):
-    # Solves NLE and create varlist to use, for example with Parameter Estimation
+    measurement_names: list[str] = None,
+) -> tuple[list[VariableList], dict[str, float]]:
+    """Generate artificial data that can immediately be used by Parameter Estimator.
+    Returns list of varlists and a dictionary with parameter values that were used
+    to generate data.
+
+    Parameter values that are used are taken from variable list.
+    control_bounds is dictionary, with variable names as keys(),
+    and values() as a list with 3 elements: [lower_bound, upper_bound, num_points]
+    perturbate: if True, generated data is perturbated based on variance in variable_list
+    rng: is a rng object, user can use it to predefine the randomization of the noise
+    measurement_names: list with variable names, for which artificial data should be generated
+    """
     if rng is None:
         rng = np.random.default_rng()
+
+    if measurement_names is None:
+        measurement_names = model.varlist_algebraic.keys()
 
     variable_list_original = copy.deepcopy(variable_list)
     true_parameters = {}
@@ -77,11 +91,12 @@ def generate_varlist_with_data_NLE(
 
         # Set startings values
         for variable_name, variable in varlist_results.items():
-            value = variable.value[0]
-            if preturbate:
-                value = rng.normal(value, np.sqrt(variable.variance))
-            variable.guess = value
-            variable_list_optimizer[variable_name].value = value
+            if variable_name in measurement_names:
+                value = variable.value[0]
+                if perturbate:
+                    value = rng.normal(value, np.sqrt(variable.variance))
+                variable.guess = value
+                variable_list_optimizer[variable_name].value = value
         for index, var_name in enumerate(control_bounds.keys()):
             variable_list_optimizer[var_name].value = grid_point[index]
         varlist_list.append(variable_list_optimizer)

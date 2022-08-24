@@ -15,7 +15,7 @@ def jacobian_manipulation():
     time_grid = np.linspace(0, 1000, num_time + 1)
     for var in varlist.values():
         var.fixed = True
-    sim = par_est.Simulator(model, time_grid, varlist)
+    sim = par_est.Simulator(model, time_grid, varlist, simulate_jac=True)
     res = sim.simulate_jac()
 
     num_param = 19
@@ -30,7 +30,7 @@ def jacobian_manipulation():
 
     for jacobian in list_jacobian_at_timepoint:
         selected = jacobian.get(False, index_all_states, [0, 2])
-        par_est.tools.plot_arrays([jacobian, selected])
+        par_est.utilities.plot_arrays([jacobian, selected])
 
 
 if __name__ == "__main__":
