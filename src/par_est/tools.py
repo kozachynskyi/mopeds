@@ -46,7 +46,7 @@ def generate_varlist_with_data_NLE(
     model,
     variable_list,
     control_bounds,
-    preturbate: bool = True,
+    perturbate: bool = True,
     rng: np.random.Generator = None,
 ):
     # Solves NLE and create varlist to use, for example with Parameter Estimation

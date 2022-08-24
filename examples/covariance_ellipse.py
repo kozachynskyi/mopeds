@@ -34,7 +34,7 @@ def get_model(linear=True):
 def generate_data(
     linear,
     x_bounds: list[float],
-    preturbate=True,
+    perturbate=True,
     num_x: int = 20,
     parameters: dict = None,
 ):
@@ -53,7 +53,7 @@ def generate_data(
         res = simulator.simulate_sym()
         y = float(res["x"])
 
-        if preturbate:
+        if perturbate:
             y = rng.normal(y, 0.05)
         y_range.append(y)
 

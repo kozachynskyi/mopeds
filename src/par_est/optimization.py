@@ -1610,7 +1610,7 @@ class ParameterEstimationNLE(Optimizer):
             dict_of_params: dict,
             dict_of_responses: dict,
             dict_of_controls: dict,
-            preturbate: bool,
+            perturbate: bool,
             rng: np.random.Generator = None,
         ):
 
@@ -1624,7 +1624,7 @@ class ParameterEstimationNLE(Optimizer):
                 self.model,
                 template_varlist,
                 dict_of_controls,
-                preturbate=preturbate,
+                perturbate=perturbate,
                 rng=rng,
             )
 

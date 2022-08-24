@@ -23,7 +23,7 @@ def test_pe():
         variable_list_optimizer,
         true_parameters,
     ) = par_est.tools.generate_varlist_with_data_NLE(
-        model, variable_list, control_bounds, preturbate=False
+        model, variable_list, control_bounds, perturbate=False
     )
     variable_list_optimizer = variable_list_optimizer[0]
 
@@ -89,7 +89,7 @@ def test_multivariate_pe():
         variable_list_optimizer,
         true_parameters,
     ) = par_est.tools.generate_varlist_with_data_NLE(
-        model, varlist, control_bounds, preturbate=True, rng=rng
+        model, varlist, control_bounds, perturbate=True, rng=rng
     )
 
     mask_full = np.array(
