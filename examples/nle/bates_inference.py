@@ -1,3 +1,5 @@
+"""This are examples from Bates book, showing how to plot
+model uncertainty that is caused by parameter uncertainty"""
 import matplotlib.pyplot as plt
 
 import par_est
