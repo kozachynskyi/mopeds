@@ -1157,12 +1157,12 @@ class ParameterEstimationNLE(Optimizer):
     def calculate_objective_and_residual(
         self, parameters: dict[str, float], objective_function: str = "ols"
     ) -> dict[str, float | np.ndarray]:
+        self._setup_scaling(False)
         if objective_function == "ols":
             obj_f = self._objective_ols()
         elif objective_function == "wls":
             obj_f = self._objective_wls()
 
-        self._setup_scaling(False)
         decision_variables = self.varlist_decision.get_casadi_variables()
         casadi_function = ca.Function(
             "objective",
