@@ -1,3 +1,9 @@
+## 0.8.1 (2022-10-26)
+
+### Fix
+
+- **PENLE**: calculate_objective_and_residual fixed scaling bug
+
 ## 0.8.0 (2022-08-24)
 
 ### Feat
