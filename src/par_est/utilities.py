@@ -102,7 +102,7 @@ def generate_hammersley(D, N):
         for j in range(0, N):
             bj = j + 1
             """maximum for the devision of binary logarithms"""
-            n = np.int(np.max([1, np.round(np.log2(bj + 1) / np.log2(pk))]))
+            n = int(np.max([1, np.round(np.log2(bj + 1) / np.log2(pk))]))
             while pk**n <= bj:
                 n = n + 1
 
