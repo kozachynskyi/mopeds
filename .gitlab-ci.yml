@@ -7,13 +7,12 @@ stages:
     - linux
     - podman
   image: python:3.9-slim-buster
+  before_script:
+    - pip install poetry
 
 linux-build_parameter-estimation:
   <<: *linux-podman
   stage: build
-  before_script:
-    - pip install poetry
-    - poetry config virtualenvs.create false
   script:
     - poetry install
     - poetry run pytest
@@ -24,9 +23,6 @@ linux-deploy_parameter-estimation:
   needs: [linux-build_parameter-estimation]
   only:
     - tags
-  before_script:
-    - pip install poetry
-    - poetry config virtualenvs.create false
   script:
     - poetry install
     - poetry build
