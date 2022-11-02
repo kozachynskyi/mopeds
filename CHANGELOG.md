@@ -1,3 +1,10 @@
+## 0.8.2 (2022-11-02)
+
+### Fix
+
+- make python3.8 work, fix __future__ annotations
+- remove np.int depreciation warning
+
 ## 0.8.1 (2022-10-26)
 
 ### Fix
