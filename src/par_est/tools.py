@@ -1,5 +1,7 @@
 """ Here come methods that use par_est as import.
 Separated from utilities to avoid dependency hell"""
+from __future__ import annotations
+
 import copy
 
 import numpy as np
