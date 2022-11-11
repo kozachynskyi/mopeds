@@ -206,6 +206,19 @@ def test_multivariate_pe():
             [0.0],
         ]
     )
+    ols_y = np.array(
+        [
+            [0.0, -4.0, 0.0],
+            [2.5, -1.5, 2.5],
+            [5.0, 1.0, 5.0],
+            [7.5, 3.5, 7.5],
+            [10.0, 6.0, 10.0],
+            [12.5, 8.5, 12.5],
+            [15.0, 11.0, 15.0],
+            [17.5, 13.5, 17.5],
+            [20.0, 16.0, 20.0],
+        ]
+    )
 
     fim = 8.0
     fim_scaled = 80.0
@@ -223,6 +236,7 @@ def test_multivariate_pe():
     wls = pe.calculate_objective_and_residual(parameters, "wls")
     assert np.isclose(ols_f, ols["f"])
     assert np.allclose(ols_residuals, ols["residuals"])
+    assert np.allclose(ols_y, ols["y"])
     assert np.isclose(wls_f, wls["f"])
 
     res_sens = pe.calculate_sensitivity_and_fim(true_parameters)
@@ -263,6 +277,7 @@ def test_multivariate_pe():
     wls = pe.calculate_objective_and_residual(parameters, "wls")
     assert np.isclose(ols_f, ols["f"])
     assert np.allclose(ols_residuals, ols["residuals"])
+    assert np.allclose(ols_y[:,1:], ols["y"])
     assert np.isclose(wls_f, wls["f"])
 
     cov_par = 0.05172068

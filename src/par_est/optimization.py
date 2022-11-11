@@ -1167,14 +1167,18 @@ class ParameterEstimationNLE(Optimizer):
         casadi_function = ca.Function(
             "objective",
             [decision_variables],
-            [obj_f[0], obj_f[1]],
+            [obj_f[0], obj_f[1], self.simulate_all_mx],
             ["x"],
-            ["f", "residuals"],
+            ["f", "residuals", "y"],
         )
 
         selected_parameters = self.parameters_dict_to_list(parameters)
         res = casadi_function(x=selected_parameters)
-        result_np = {"f": float(res["f"]), "residuals": res["residuals"].toarray()}
+        result_np = {
+            "f": float(res["f"]),
+            "residuals": res["residuals"].toarray(),
+            "y": res["y"].toarray(),
+        }
 
         return result_np
 
