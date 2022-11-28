@@ -1009,6 +1009,11 @@ class ParameterEstimationNLE(Optimizer):
                 if isinstance(var, VariableControl):
                     if not var.fixed:
                         raise NotImplementedError
+                if isinstance(var, VariableParameter):
+                    # Avoid situations, where parameters unfixed differently
+                    # in each self.list_input_varlist
+                    fixed = var.name not in self.varlist_decision.keys()
+                    var.fixed = fixed
 
             simulator = SimulatorClass(
                 self.model,
