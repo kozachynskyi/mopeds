@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import logging
 from typing import Callable, cast
+from numpy.typing import ArrayLike
 
 import casadi as ca
 import numpy as np
@@ -787,9 +788,10 @@ class Simulator(object):
 
         return variables
 
-    def setup_time_grid(self, time_grid: np.ndarray) -> None:
+    def setup_time_grid(self, time_grid: ArrayLike) -> None:
         """Time_grid provided by user may not take into account piecewise controls.
         Thus it might be needed to expand a time grid."""
+        time_grid = np.asfarray(time_grid)
         for var in self.__input_variable_list.values():
             if isinstance(var, VariableControlPiecewiseConstant):
                 time_grid = np.append(time_grid, var.time_relative)
