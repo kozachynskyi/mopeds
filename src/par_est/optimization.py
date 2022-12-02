@@ -1453,7 +1453,7 @@ class ParameterEstimationNLE(Optimizer):
             return result
 
         else:
-            self.parameter_identifiability_eigenvalue(
+            return self.parameter_identifiability_eigenvalue(
                 parameters,
                 unfixed_params,
                 parameters_identifiable,
