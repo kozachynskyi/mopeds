@@ -612,6 +612,7 @@ class VariableList(OrderedDict[str, Union[Variable, VariableControlPiecewiseCons
         as_one_plot: bool = False,
         algebraic: bool = False,
         prefix: str | None = None,
+        show: bool = True,
         **kwargs,
     ) -> Axes | np.ndarray:
         """Plots variables that are not ignored via var.ignore_plotting
@@ -619,7 +620,9 @@ class VariableList(OrderedDict[str, Union[Variable, VariableControlPiecewiseCons
         If algebraic is True, plot als algebraic variables
 
         prefix is used to append name to a variable name
-        **kwargs are matplotlib options, for example marker='o'"""
+        **kwargs are matplotlib options, for example marker='o'
+        supply ax argument to provide axis and plot multiple varlists
+        Use show=True to reuse axis before showing plot"""
         plot_varlist = self._get_varlist_to_plot(algebraic)
 
         if "subplots" not in kwargs:
@@ -639,7 +642,9 @@ class VariableList(OrderedDict[str, Union[Variable, VariableControlPiecewiseCons
 
         from matplotlib import pyplot as plt
 
-        plt.show()
+        if show:
+            plt.show()
+
         return axes
 
     def _get_varlist_to_plot(self, algebraic: bool = False) -> VariableList:
