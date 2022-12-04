@@ -195,6 +195,12 @@ class Simulator(object):
 
     def _setup_variables(self) -> None:
         """Setup all important lists for simulator"""
+        mapping_independent_variables = {}
+        mapping_algebraic_variables = {}
+        mapping_state_variables = {}
+        index_algebraic = 0
+        index_state = 0
+        index_independent = 0
         num_time_steps = len(self.time_grid_relative) - 1
         independent_variables = []
         initial_algebraic = []
@@ -207,6 +213,8 @@ class Simulator(object):
                 continue
 
             if isinstance(var, VariableState):
+                mapping_state_variables[var.name] = index_state
+                index_state += 1
                 try:
                     initial_state.append(var.value[0])
                 except Exception as e:
@@ -214,9 +222,13 @@ class Simulator(object):
 
             elif isinstance(var, VariableAlgebraic):
                 cast(VariableAlgebraic, var)
+                mapping_algebraic_variables[var.name] = index_algebraic
+                index_algebraic += 1
                 initial_algebraic.append(var.guess)
 
             elif isinstance(var, VariableParameter):
+                mapping_independent_variables[var.name] = index_independent
+                index_independent += 1
                 independent_variable = []
                 independent_variable.extend(
                     [var.get_value_or_casadi()] * num_time_steps
@@ -226,6 +238,8 @@ class Simulator(object):
                 )
                 independent_variables.append(independent_variable)
             elif isinstance(var, VariableControl):
+                mapping_independent_variables[var.name] = index_independent
+                index_independent += 1
                 if isinstance(var, VariableControlPiecewiseConstant):
                     var_t0 = var.get_variable_at_time_relative(0)
                     self._guess_or_value_of_independent_variables.append(
@@ -245,6 +259,11 @@ class Simulator(object):
 
                 independent_variables.append(independent_variable)
 
+        self.mapping_independent_variables: dict[
+            str, int
+        ] = mapping_independent_variables
+        self.mapping_algebraic_variables: dict[str, int] = mapping_algebraic_variables
+        self.mapping_state_variables: dict[str, int] = mapping_state_variables
         """ This nested list holds either a value or a casadi variable of
         each independent variable at every timestamp in time_grid.  First it has form:
         [[var1_t0, var1_t1 ...], [var2_t0, var2_t1 ...], [...]]
