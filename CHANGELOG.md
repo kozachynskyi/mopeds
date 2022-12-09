@@ -1,3 +1,20 @@
+## 0.8.3 (2022-12-09)
+
+### Feat
+
+- **SimDAE**: add self.mapping_*_variables dictionary
+- **Varlist**: add show argument to plot()
+- **PENLE**: calclulate_objective_residuals returns sim values
+
+### Refactor
+
+- **Variable**: allow lists to specify time_grid
+
+### Fix
+
+- **PENLE**: but at recursion of indetifiability analysis
+- **PENLE**: bug when parameters are not fixed as in varlist_decision
+
 ## 0.8.2 (2022-11-02)
 
 ### Fix
@@ -5,7 +22,7 @@
 - make python3.8 work, fix __future__ annotations
 - remove np.int depreciation warning
 
-## 0.8.1 (2022-10-26)
+## 0.8.1 (2022-10-27)
 
 ### Fix
 
