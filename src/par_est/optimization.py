@@ -376,6 +376,37 @@ class Optimizer(object):
 
 class PE_base(Optimizer):
 
+    def _objective_ols(self):
+        """Objective function is a trace(Z.T * Z), where Z is a residual matrix with shape:
+        numRows -> amount of supplied experiments, numCol -> amount of variables that have measurements
+        If experiments do not supply a measurement for one of the measurements, self.array_data_mask will
+        have 0 as the respective element of the martix, otherwise 1"""
+        residuals = (self.simulate_all_mx - self.array_data) * self.array_data_mask * np.sqrt(self.experiments_scale)
+        objective = ca.sumsqr(residuals)
+
+        return objective, residuals
+
+    def _objective_wls(self):
+        """Objective function is a trace(Z.T * inv(VarY) * Z), where Z is a same matrix as in _objective_ols
+        inv(VarY) is the variance of the respective measurements in Z, and has the same shape.
+        Thus, covariance of the measurements is assumed to be zero."""
+        residuals = (self.simulate_all_mx - self.array_data) * self.array_data_mask
+        scaled_residuals = residuals * self.array_inverted_std * np.sqrt(self.experiments_scale)
+        objective = ca.sumsqr(scaled_residuals)
+        return objective, residuals
+
+    def optimize(self, scale=True, objective_function="wls"):
+        if objective_function == "wls":
+            self._objective = self._objective_wls
+        elif objective_function == "ols":
+            self._objective = self._objective_ols
+        else:
+            raise NotImplementedError(
+                f"Objective function '{objective_function}' is not supported"
+            )
+
+        return self._optimize(scale)
+
     def calculate_objective_and_residual(
         self, parameters: dict[str, float], objective_function: str = "ols"
     ) -> dict[str, float | np.ndarray]:
@@ -1152,44 +1183,6 @@ class ParameterEstimationNLE(PE_base):
         self.mapping_simulator_decisions: list[dict[int, int]] = list_simulator_mappings
 
         self.generate_simulate_all_functions()
-
-
-    def _objective_ols(self):
-        """Objective function is a trace(Z.T * Z), where Z is a residual matrix with shape:
-        numRows -> amount of supplied experiments, numCol -> amount of variables that have measurements
-        If experiments do not supply a measurement for one of the measurements, self.array_data_mask will
-        have 0 as the respective element of the martix, otherwise 1"""
-        residuals = (self.simulate_all_mx - self.array_data) * self.array_data_mask
-        objective = ca.sumsqr(residuals)
-
-        return objective, residuals
-
-    def _objective_wls(self):
-        """Objective function is a trace(Z.T * inv(VarY) * Z), where Z is a same matrix as in _objective_ols
-        inv(VarY) is the variance of the respective measurements in Z, and has the same shape.
-        Thus, covariance of the measurements is assumed to be zero."""
-        residuals = (self.simulate_all_mx - self.array_data) * self.array_data_mask
-        scaled_residuals = residuals * self.array_inverted_std
-        objective = ca.sumsqr(scaled_residuals)
-        return objective, residuals
-
-    def optimize(self, scale=False, objective_function="wls"):
-        if objective_function == "wls":
-            self._objective = self._objective_wls
-        elif objective_function == "ols":
-            self._objective = self._objective_ols
-        else:
-            raise NotImplementedError(
-                f"Objective function '{objective_function}' is not supported"
-            )
-
-        variance = [[] for x in range(len(self.varlist_algebraic))]
-
-        for sim in self.list_simulators:
-            variance_i = sim.get_variance_array()
-            variance.append(variance_i)
-
-        return self._optimize(scale)
 
     def calculate_sensitivity_and_fim(
         self, parameters: dict[str, float], parameter_names: list[str] | None = None
