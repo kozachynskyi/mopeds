@@ -57,16 +57,16 @@ def test_pe_objective(piecewise):
         },
     }
 
-    weight = np.array([1.5, 1.5, 1.0, 1.0, 1.0, 1.0])
-    var = np.array([1.0, 0.1, 0.05, 0.025, 0.05, 0.025])
-    data = np.array([1.0, 0.0, 3.0, 0.0, 0.0, 4.0])
-    mask = np.array([1.0, 0.0, 1.0, 0.0, 0.0, 1.0])
+    weight = np.array([[1.5, 1.5], [1. , 1.], [1. , 1.]])
+    var = np.array([[1., 0.1], [0.05 , 0.025], [0.05 , 0.025]])
+    data = np.array([[1., 0], [3., 0], [0, 4.]])
+    mask = np.array([[1, 0], [1, 0], [0, 1]])
 
     assert_numpy = np.testing.assert_array_equal
-    assert_numpy(data, pe.experimental_data)
-    assert_numpy(var, pe.inverted_variances)
+    assert_numpy(data, pe.array_data)
+    assert_numpy(var, pe.array_inverted_variance)
     assert_numpy(weight, pe.experiments_weights)
-    assert_numpy(mask, pe.experimental_data_mask)
+    assert_numpy(mask, pe.array_data_mask)
 
     obj = np.sum(var * (data * mask) ** 2)
     obj_weight = np.sum(weight * var * (data * mask) ** 2)
@@ -74,7 +74,7 @@ def test_pe_objective(piecewise):
         res = pe.optimize(switch)
         res_weight = pe.optimize(switch, scale_experiments=True)
         assert res["f"] == obj
-        assert res_weight["f"] == obj_weight
+        assert np.isclose(res_weight["f"], obj_weight)
 
 
 @pytest.mark.parametrize(
@@ -356,6 +356,6 @@ if __name__ == "__main__":
     # test_optimizer(True)
     # test_oed(True)
     # test_pe(True,True)
-    test_pe_objective(True)
+    test_pe_objective(False)
     # test_pe_intials_algebraic()
     # test_oed_piecewise()

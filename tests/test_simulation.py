@@ -27,7 +27,7 @@ def test_pendulum_dae(piecewise):
     for var in varlist.values():
         var.fixed = True
     sim = par_est.Simulator(model, time_grid, varlist)
-    res_tau = sim.simulate()
+    res_tau = sim.simulate_sym()
     res = sim.integrator(
         x0=sim._initial_state,
         z0=sim._initial_algebraic,
@@ -77,7 +77,7 @@ def test_cstr(piecewise):
 
                 sim = par_est.Simulator(m, time_grid, variable_list, simulate_jac=True)
                 if j == 0:
-                    res_simple = sim.simulate()
+                    res_simple = sim.simulate_sym()
                 else:
                     res_simple = sim.simulate_jac()
 
@@ -157,7 +157,7 @@ def test_steadystate(piecewise):
 
         sim = par_est.Simulator(m, time_grid, variable_list)
 
-        sim_res = sim.simulate()
+        sim_res = sim.simulate_sym()
 
         steady_state = sim.calculate_steady_state()
 
@@ -176,11 +176,11 @@ def test_constraints_idas():
     variable_list["e0_c_tot"].upper_bound = 0
 
     sim = par_est.Simulator(m, time_grid, variable_list)
-    sim.simulate()
+    sim.simulate_sym()
 
     sim = par_est.Simulator(m, time_grid, variable_list, use_idas_constraints=True)
     with pytest.raises(RuntimeError):
-        sim.simulate()
+        sim.simulate_sym()
 
     # VariableState
     variable_list, m = par_est.examples.cstr_ode()
@@ -190,11 +190,11 @@ def test_constraints_idas():
     variable_list["e0_c_i1"].upper_bound = 0
 
     sim = par_est.Simulator(m, time_grid, variable_list)
-    sim.simulate()
+    sim.simulate_sym()
 
     sim = par_est.Simulator(m, time_grid, variable_list, use_idas_constraints=True)
     with pytest.raises(RuntimeError):
-        sim.simulate()
+        sim.simulate_sym()
 
 
 if __name__ == "__main__":
