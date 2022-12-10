@@ -430,11 +430,11 @@ class ParameterEstimation(PE_base):
         )
 
         if use_algebraic_vars:
-            objective = self._objective_alg
             raise NotImplementedError()
-        else:
-            objective = self._objective_state
-        self._objective: Callable[[], tuple[ca.MX | ca.DM, ca.MX | ca.DM]] = objective
+        self._objective: Callable[
+            [], tuple[ca.MX | ca.DM, ca.MX | ca.DM]
+        ] = self._objective_ols
+
 
         self._setup_simulator(
             use_idas_constraints=use_idas_constraints,
@@ -589,6 +589,25 @@ class ParameterEstimation(PE_base):
 
         self.experiments_weights: np.ndarray = np.concatenate(experiments_weights)
 
+    def _objective_ols(self):
+        """Objective function is a trace(Z.T * Z), where Z is a residual matrix with shape:
+        numRows -> amount of supplied experiments, numCol -> amount of variables that have measurements
+        If experiments do not supply a measurement for one of the measurements, self.array_data_mask will
+        have 0 as the respective element of the martix, otherwise 1"""
+        residuals = (self.simulate_all_mx - self.array_data) * self.array_data_mask
+        objective = ca.sumsqr(residuals)
+
+        return objective, residuals
+
+    def _objective_wls(self):
+        """Objective function is a trace(Z.T * inv(VarY) * Z), where Z is a same matrix as in _objective_ols
+        inv(VarY) is the variance of the respective measurements in Z, and has the same shape.
+        Thus, covariance of the measurements is assumed to be zero."""
+        residuals = (self.simulate_all_mx - self.array_data) * self.array_data_mask
+        scaled_residuals = residuals * self.array_inverted_std
+        objective = ca.sumsqr(scaled_residuals)
+        return objective, residuals
+
     def _objective_state(self) -> tuple[ca.MX | ca.DM, ca.MX | ca.DM]:
         array_simulation = None
 
@@ -615,28 +634,6 @@ class ParameterEstimation(PE_base):
 
         return objective, error
 
-    def _objective_alg(self) -> tuple[ca.MX | ca.DM, ca.MX | ca.DM]:
-        array_simulation = None
-
-        for simulator in self.list_simulators:
-            res_simulation = simulator.simulate()
-
-            if array_simulation is None:
-                res_all = ca.vertcat(res_simulation["xf"], res_simulation["zf"])
-                array_simulation = res_all[:]
-            else:
-                res_all = ca.vertcat(res_simulation["xf"], res_simulation["zf"])
-                array_simulation = ca.vertcat(array_simulation, res_all[:])
-
-        # multiply by self.array_data_mask needed to ignore elements were error experimental data is zero
-        error = (
-            array_simulation - self.experimental_data
-        ) * self.experimental_data_mask
-        objective = ca.sum1(
-            self.experiments_scale * self.inverted_variances * (error**2)
-        )
-
-        return objective, error
 
     def optimize(self, scale=True, *, scale_experiments=False) -> dict[str, ca.DM]:
         """Solves optimization problem. Scaling decreases amount of iterations,
