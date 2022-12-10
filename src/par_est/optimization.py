@@ -65,6 +65,21 @@ class Optimizer(object):
         # Runs optimization once
         raise (NotImplementedError)
 
+    def parameters_dict_to_list(self, parameters: dict[str, float]) -> list[float]:
+        """Takes a dictionary with {"par_name": par_value} and transforms to list
+        corresponding to the order of self.varlist_decision variables"""
+        selected_parameters: list[float] = []
+        for var_name in parameters.keys():
+            if var_name not in self.varlist_decision.keys():
+                print(f"Supplied value for parameter {var_name} is ignored!")
+        for var_name in self.varlist_decision.keys():
+            try:
+                selected_parameters.append(parameters[var_name])
+            except KeyError:
+                raise KeyError(f"Missing parameter value for {var_name}")
+
+        return selected_parameters
+
     def _setup_initialization(self) -> None:
         """Sets initials and bounds for optimizer, and as default no scaling.
         If guess equals 0, 1 is used instead to avoid division by 0 during initialization"""
@@ -336,7 +351,46 @@ class Optimizer(object):
             raise NotImplementedError
 
 
-class ParameterEstimation(Optimizer):
+class PE_base(Optimizer):
+
+    def calculate_objective_and_residual(
+        self, parameters: dict[str, float], objective_function: str = "ols"
+    ) -> dict[str, float | np.ndarray]:
+        self._setup_scaling(False)
+        if objective_function == "ols":
+            obj_f = self._objective_ols()
+        elif objective_function == "wls":
+            obj_f = self._objective_wls()
+
+        decision_variables = self.varlist_decision.get_casadi_variables()
+        casadi_function = ca.Function(
+            "objective",
+            [decision_variables],
+            [obj_f[0], obj_f[1], self.simulate_all_mx],
+            ["x"],
+            ["f", "residuals", "y"],
+        )
+
+        selected_parameters = self.parameters_dict_to_list(parameters)
+        res = casadi_function(x=selected_parameters)
+        result_np = {
+            "f": float(res["f"]),
+            "residuals": res["residuals"].toarray(),
+            "y": res["y"].toarray(),
+        }
+
+        return result_np
+
+    def _setup_varlist_decision(self):
+        for variable_name in self.model.varlist_independent.keys():
+            var = self.list_input_varlist[0][variable_name]
+
+            if isinstance(var, VariableParameter):
+                if var.fixed is False:
+                    self.varlist_decision.add_variable(var)
+
+
+class ParameterEstimation(PE_base):
     def __init__(
         self,
         model: Model,
@@ -942,7 +996,7 @@ class OptimalExperimentalDesign(Optimizer):
         return unfix_parameters, error, covariance_full, jacobian_original
 
 
-class ParameterEstimationNLE(Optimizer):
+class ParameterEstimationNLE(PE_base):
     def __init__(
         self,
         model: Model,
@@ -1158,49 +1212,6 @@ class ParameterEstimationNLE(Optimizer):
             variance.append(variance_i)
 
         return self._optimize(scale)
-
-    def calculate_objective_and_residual(
-        self, parameters: dict[str, float], objective_function: str = "ols"
-    ) -> dict[str, float | np.ndarray]:
-        self._setup_scaling(False)
-        if objective_function == "ols":
-            obj_f = self._objective_ols()
-        elif objective_function == "wls":
-            obj_f = self._objective_wls()
-
-        decision_variables = self.varlist_decision.get_casadi_variables()
-        casadi_function = ca.Function(
-            "objective",
-            [decision_variables],
-            [obj_f[0], obj_f[1], self.simulate_all_mx],
-            ["x"],
-            ["f", "residuals", "y"],
-        )
-
-        selected_parameters = self.parameters_dict_to_list(parameters)
-        res = casadi_function(x=selected_parameters)
-        result_np = {
-            "f": float(res["f"]),
-            "residuals": res["residuals"].toarray(),
-            "y": res["y"].toarray(),
-        }
-
-        return result_np
-
-    def parameters_dict_to_list(self, parameters: dict[str, float]) -> list[float]:
-        """Takes a dictionary with {"par_name": par_value} and transforms to list
-        corresponding to the order of self.varlist_decision variables"""
-        selected_parameters: list[float] = []
-        for var_name in parameters.keys():
-            if var_name not in self.varlist_decision.keys():
-                print(f"Supplied value for parameter {var_name} is ignored!")
-        for var_name in self.varlist_decision.keys():
-            try:
-                selected_parameters.append(parameters[var_name])
-            except KeyError:
-                raise KeyError(f"Missing parameter value for {var_name}")
-
-        return selected_parameters
 
     def calculate_sensitivity_and_fim(
         self, parameters: dict[str, float], parameter_names: list[str] | None = None
