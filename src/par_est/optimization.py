@@ -170,6 +170,9 @@ class Optimizer(object):
             for simulator in self.list_simulators:
                 simulator._reset_scaling()
 
+        if isinstance(self, PE_base):
+            self.generate_simulate_all_functions()
+
     @abstractmethod
     def _objective(self) -> tuple[ca.MX | ca.DM, ca.MX | ca.DM]:
         """Returns a way to calculate and objective. Dependent on optimization type."""
@@ -408,6 +411,31 @@ class PE_base(Optimizer):
             if isinstance(var, VariableParameter):
                 if var.fixed is False:
                     self.varlist_decision.add_variable(var)
+
+    def generate_simulate_all_functions(self) -> None:
+        """Combines simulate_sym() functions from simulator, and creates MX structure, that is used
+        further in objective_function calculation"""
+        if isinstance(self.list_simulators[0], Simulator):
+            res_dict_name = "xf"
+        elif isinstance(self.list_simulators[0], SimulatorNLE):
+            res_dict_name = "x"
+
+        list_simulation_T = []
+
+        for simulator in self.list_simulators:
+            res_simulation = simulator.simulate_sym()
+
+            list_simulation_T.append(res_simulation[res_dict_name].T)
+
+        free_variables = self.varlist_decision.get_casadi_variables()
+        all_selected_measurements = ca.vcat(list_simulation_T).get(
+            False, ca.Slice(), self.index_measurements_in_sim
+        )
+        self.simulate_all_function = ca.Function(
+            "sim_all", [free_variables], [all_selected_measurements]
+        )
+        self.simulate_all_mx = self.simulate_all_function(free_variables)
+
 
 
 class ParameterEstimation(PE_base):
@@ -1040,10 +1068,6 @@ class ParameterEstimationNLE(PE_base):
             [], tuple[ca.MX | ca.DM, ca.MX | ca.DM]
         ] = self._objective_ols
 
-    def _setup_scaling(self, scale: bool = False) -> None:
-        super()._setup_scaling(scale)
-        self.generate_simulate_all_functions()
-
     def _setup_simulator(
         self, use_simulator_bounds: bool, SimulatorClass: SimulatorNLE
     ) -> None:
@@ -1133,24 +1157,6 @@ class ParameterEstimationNLE(PE_base):
 
         self.generate_simulate_all_functions()
 
-    def generate_simulate_all_functions(self) -> None:
-        """Combines simulate_sym() functions from simulator, and creates MX structure, that is used
-        further in objective_function calculation"""
-        list_simulation_T = []
-
-        for simulator in self.list_simulators:
-            res_simulation = simulator.simulate_sym()
-
-            list_simulation_T.append(res_simulation["x"].T)
-
-        free_variables = self.varlist_decision.get_casadi_variables()
-        all_selected_measurements = ca.vcat(list_simulation_T).get(
-            False, ca.Slice(), self.index_measurements_in_sim
-        )
-        self.simulate_all_function = ca.Function(
-            "sim_all", [free_variables], [all_selected_measurements]
-        )
-        self.simulate_all_mx = self.simulate_all_function(free_variables)
 
     def _objective_ols(self):
         """Objective function is a trace(Z.T * Z), where Z is a residual matrix with shape:
