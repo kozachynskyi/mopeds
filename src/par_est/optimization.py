@@ -80,6 +80,26 @@ class Optimizer(object):
 
         return selected_parameters
 
+    def _setup_simulator_mapping(self, simulator: Simulator | SimulatorNLE) -> dict[int, int]:
+        names_variables_decision = list(self.varlist_decision.keys())
+
+        if isinstance(simulator, Simulator):
+            independent_variables = simulator._independent_variables[0]
+        elif isinstance(simulator, SimulatorNLE):
+            independent_variables = simulator._independent_variables
+        mapping_simulator_decisions = {}
+
+        for count in range(independent_variables.size()[0]):
+            var = independent_variables[count]
+            if var.is_symbolic():
+                if var.name() in names_variables_decision:
+                    index = list(self.varlist_decision.keys()).index(var.name())
+                    mapping_simulator_decisions[count] = index
+                else:
+                    raise NotImplementedError
+
+        return mapping_simulator_decisions
+
     def _setup_initialization(self) -> None:
         """Sets initials and bounds for optimizer, and as default no scaling.
         If guess equals 0, 1 is used instead to avoid division by 0 during initialization"""
@@ -117,7 +137,7 @@ class Optimizer(object):
             ):
                 simulator._reset_scaling()
 
-                if isinstance(self, ParameterEstimationNLE):
+                if isinstance(self, (ParameterEstimation, ParameterEstimationNLE)):
                     for index_simulator, index_decision in mapping.items():
                         current_guess = self.guess[index_decision]
                         if current_guess == 0:
@@ -464,6 +484,8 @@ class ParameterEstimation(PE_base):
         experimental_data_mask = []
         inverted_variances: list[np.ndarray] = []
 
+        list_simulator_mappings = []
+
         for varlist_input in self.list_input_varlist:
             # Create a time_grid, that "stops" at every experimental data, for every state variable
             if not varlist_input.get_common_origin(
@@ -501,8 +523,7 @@ class ParameterEstimation(PE_base):
 
             list_timegrid_length.append(float(len(time_grid_unique)))
 
-            list_simulators.append(
-                Simulator(
+            simulator = Simulator(
                     self.model,
                     np.array(time_grid_unique),
                     varlist_input,
@@ -511,7 +532,10 @@ class ParameterEstimation(PE_base):
                     use_idas_constraints=use_idas_constraints,
                     recalculate_algebraic=recalculate_algebraic,
                 )
-            )
+
+            list_simulators.append(simulator)
+
+            list_simulator_mappings.append(self._setup_simulator_mapping(simulator))
 
             # Generate an array (experiment_data_varlist) with Experimental data with the same dimensions as simulation results.
             new_experiment_data_varlist = (
@@ -1038,15 +1062,7 @@ class ParameterEstimationNLE(PE_base):
         if not issubclass(SimulatorClass, SimulatorNLE):
             raise NotImplementedError("Provided simulator_class is not supported")
 
-        for var in self.list_input_varlist[0].values():
-            if isinstance(var, VariableAlgebraic):
-                self.varlist_algebraic.add_variable(var)
-            elif isinstance(var, VariableParameter):
-                self.varlist_parameter.add_variable(var)
-                if var.fixed is False:
-                    self.varlist_decision.add_variable(var)
-            elif isinstance(var, VariableControl):
-                self.varlist_control.add_variable(var)
+        self._setup_varlist_decision()
 
         list_data_mask = []
         list_simulators = []
@@ -1126,36 +1142,6 @@ class ParameterEstimationNLE(PE_base):
         self.inverted_variances: np.ndarray = np.array(inverted_variances)
 
         self.generate_simulate_all_functions()
-
-    def _setup_simulator_mapping(self, simulator: SimulatorNLE) -> dict[int, int]:
-        names_variables_decision = list(self.varlist_decision.keys())
-
-        independent_variables = simulator._independent_variables
-        mapping_simulator_decisions = {}
-
-        for count in range(independent_variables.size()[0]):
-            var = independent_variables[count]
-            if var.is_symbolic():
-                if var.name() in names_variables_decision:
-                    index = list(self.varlist_decision.keys()).index(var.name())
-                    mapping_simulator_decisions[count] = index
-                else:
-                    raise NotImplementedError
-
-        return mapping_simulator_decisions
-
-    def _simulate_all(self):
-        array_simulation = None
-
-        for simulator in self.list_simulators:
-            res_simulation = simulator.simulate_sym()
-
-            if array_simulation is None:
-                array_simulation = res_simulation["x"]
-            else:
-                array_simulation = ca.vertcat(array_simulation, res_simulation["x"])
-
-        return array_simulation
 
     def generate_simulate_all_functions(self) -> None:
         """Combines simulate_sym() functions from simulator, and creates MX structure, that is used
