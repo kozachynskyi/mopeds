@@ -310,7 +310,6 @@ class Optimizer(object):
             "verbose": False,
             "print_time": False,
             "ipopt": {
-                "hessian_approximation": "limited-memory",
                 "max_iter": max_iterations,
                 "print_level": 0,
             },
@@ -529,7 +528,7 @@ class ParameterEstimation(PE_base):
         self.solver_name = "ipopt"
         self.solver_settings = {
             "verbose": False,
-            "ipopt": {"hessian_approximation": "limited-memory", "max_iter": 300},
+            "ipopt": {"max_iter": 300},
         }
 
         for sim in self.list_simulators:
@@ -785,7 +784,6 @@ class OptimalExperimentalDesign(Optimizer):
             "verbose": False,
             # "monitor": ["nlp_grad_f", "nlp_f"],
             "ipopt": {
-                "hessian_approximation": "limited-memory",
                 "max_iter": 100,
                 # "print_level": 6,
             },
