@@ -161,7 +161,7 @@ class Simulator(object):
             simulate = self._simulate_ode
             simulate_jac_func = self._simulate_jac_ode
 
-        self.simulate: Callable[[], dict[str, ca.DM | ca.MX]] = simulate
+        self.simulate_sym: Callable[[], dict[str, ca.DM | ca.MX]] = simulate
         self.simulate_jac: Callable[[], dict[str, ca.DM | ca.MX]] = simulate_jac_func
 
     def _reset_scaling(self) -> None:
@@ -756,7 +756,7 @@ class Simulator(object):
         if recalculate_algebraic and self.model.DAE:
             self.calculate_algebraic_initials(apply_intials=True)
 
-        result_simulation = self.simulate()
+        result_simulation = self.simulate_sym()
         result_initial = self._simulate_t0()
         if not algebraic or not self.model.DAE:
             result_varlist = [copy.deepcopy(self.model.varlist_state)]
