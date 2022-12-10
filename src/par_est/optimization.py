@@ -1088,17 +1088,18 @@ class ParameterEstimationNLE(PE_base):
 
             list_simulator_mappings.append(self._setup_simulator_mapping(simulator))
 
-            for var in varlist_input.values():
-                if isinstance(var, VariableAlgebraic):
-                    if var.value[0] is None or np.isnan(var.value[0]):
-                        varlist_data.append(np.nan)
-                        varlist_data_mask.append(0.0)
-                    else:
-                        varlist_data.append(var.value[0])
-                        varlist_data_mask.append(1.0)
+            for variable_name in self.model.varlist_algebraic.keys():
+                var = varlist_input[variable_name]
 
-                    inverted_variances.append(1.0 / var.variance)
-                    varlist_variance.append(1.0 / var.variance)
+                if var.value[0] is None or np.isnan(var.value[0]):
+                    varlist_data.append(np.nan)
+                    varlist_data_mask.append(0.0)
+                else:
+                    varlist_data.append(var.value[0])
+                    varlist_data_mask.append(1.0)
+
+                inverted_variances.append(1.0 / var.variance)
+                varlist_variance.append(1.0 / var.variance)
             list_data.append(varlist_data)
             list_data_mask.append(varlist_data_mask)
             list_inverted_variances.append(varlist_variance)
