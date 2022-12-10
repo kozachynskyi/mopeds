@@ -1080,7 +1080,6 @@ class ParameterEstimationNLE(PE_base):
         list_data_mask = []
         list_simulators = []
         list_simulator_mappings = []
-        inverted_variances = []
         list_data = []
         list_inverted_variances = []
 
@@ -1119,7 +1118,6 @@ class ParameterEstimationNLE(PE_base):
                     varlist_data.append(var.value[0])
                     varlist_data_mask.append(1.0)
 
-                inverted_variances.append(1.0 / var.variance)
                 varlist_variance.append(1.0 / var.variance)
             list_data.append(varlist_data)
             list_data_mask.append(varlist_data_mask)
@@ -1152,8 +1150,6 @@ class ParameterEstimationNLE(PE_base):
         # For example [{1: 2}], {1: 3}]: in first simulator._independent_variables[1]
         # is the same variable as self.varlist_decision[2]
         self.mapping_simulator_decisions: list[dict[int, int]] = list_simulator_mappings
-
-        self.inverted_variances: np.ndarray = np.array(inverted_variances)
 
         self.generate_simulate_all_functions()
 
