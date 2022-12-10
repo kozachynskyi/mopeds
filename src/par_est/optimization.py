@@ -466,15 +466,7 @@ class ParameterEstimation(PE_base):
         recalculate_algebraic: bool,
     ) -> None:
         # It's not checked if all supplied varlist have same states etc.
-        for var in self.list_input_varlist[0].values():
-            if isinstance(var, VariableState):
-                self.varlist_state.add_variable(var)
-            elif isinstance(var, VariableParameter):
-                self.varlist_parameter.add_variable(var)
-                if var.fixed is False:
-                    self.varlist_decision.add_variable(var)
-            elif isinstance(var, VariableControl):
-                self.varlist_control.add_variable(var)
+        self._setup_varlist_decision()
 
         # Lists used to calculate experiments_weights
         list_timegrid_length = []
