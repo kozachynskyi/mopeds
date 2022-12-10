@@ -407,10 +407,28 @@ class PE_base(Optimizer):
 
         return self._optimize(scale)
 
+    def _setup_experiments_scale(self, scale_experiments):
+        if isinstance(self, ParameterEstimation):
+            if scale_experiments:
+                experiments_scale: int | np.ndarray = self.experiments_weights
+            else:
+                experiments_scale = 1
+
+            # This attribute is used while calculating Objective, and is either 1 or self.experiments_weights
+            # It's used to make some experiments as valuable as others, even if they have less experimental points
+            # So if you supply 2 experiments one with 10 and another with 20 time_stamps, effect of each experimental
+            # point of second experiments on objective function is decreased by 2
+            self.experiments_scale: int | np.ndarray = experiments_scale
+        else:
+            self.experiments_scale = 1
+
     def calculate_objective_and_residual(
-        self, parameters: dict[str, float], objective_function: str = "ols"
+            self, parameters: dict[str, float], objective_function: str = "ols", experiment_weigts: bool = False,
     ) -> dict[str, float | np.ndarray]:
         self._setup_scaling(False)
+        if experiment_weigts:
+            if isinstance(self, ParameterEstimation):
+                self._setup_
         if objective_function == "ols":
             obj_f = self._objective_ols()
         elif objective_function == "wls":
@@ -516,6 +534,8 @@ class ParameterEstimation(PE_base):
 
         for sim in self.list_simulators:
             sim.calculate_algebraic_initials(apply_intials=True)
+
+        self._setup_experiments_scale(False)
 
     def _setup_simulator(
         self,
@@ -664,16 +684,7 @@ class ParameterEstimation(PE_base):
         """Solves optimization problem. Scaling decreases amount of iterations,
         and should always almost be used
         """
-        if scale_experiments:
-            experiments_scale: int | np.ndarray = self.experiments_weights
-        else:
-            experiments_scale = 1
-
-        # This attribute is used while calculating Objective, and is either 1 or self.experiments_weights
-        # It's used to make some experiments as valuable as others, even if they have less experimental points
-        # So if you supply 2 experiments one with 10 and another with 20 time_stamps, effect of each experimental
-        # point of second experiments on objective function is decreased by 2
-        self.experiments_scale: int | np.ndarray = experiments_scale
+        self._setup_experiments_scale(scale_experiments)
         return PE_base.optimize(self, scale, objective_function)
 
     def plot_simulation(
@@ -1064,7 +1075,7 @@ class ParameterEstimationNLE(PE_base):
             [], tuple[ca.MX | ca.DM, ca.MX | ca.DM]
         ] = self._objective_ols
 
-        self.experiments_scale = 1
+        self._setup_experiments_scale(False)
 
     def _setup_simulator(
         self, use_simulator_bounds: bool, SimulatorClass: SimulatorNLE
