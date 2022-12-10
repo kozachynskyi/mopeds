@@ -503,7 +503,7 @@ class ParameterEstimation(PE_base):
 
         self.logger.debug(
             "Created Optimizer object: \n Data Shape {} \n Desicion Variables {}".format(
-                self.experimental_data.shape, self.varlist_decision.get_variable_name()  # type: ignore
+                self.array_data.shape, self.varlist_decision.get_variable_name()  # type: ignore
             )
         )
         self._setup_initialization()
@@ -533,9 +533,9 @@ class ParameterEstimation(PE_base):
         list_simulators = []
         experimental_data = []
         experimental_data_mask = []
-        inverted_variances: list[np.ndarray] = []
 
         list_simulator_mappings = []
+        list_inverted_variances = []
 
         for varlist_input in self.list_input_varlist:
             # Create a time_grid, that "stops" at every experimental data, for every state variable
@@ -590,24 +590,16 @@ class ParameterEstimation(PE_base):
 
             # Generate an array (experiment_data_varlist) with Experimental data with the same dimensions as simulation results.
             new_experiment_data_varlist = (
-                data_frame.iloc[1:].fillna(0).to_numpy().flatten()
+                data_frame.iloc[1:].to_numpy()
             )
             experimental_data.append(new_experiment_data_varlist)
             new_experiment_data_mask_varlist = (
-                data_frame.iloc[1:].notna().to_numpy().flatten().astype(int)
+                data_frame.iloc[1:].notna().to_numpy().astype(int)
             )
             experimental_data_mask.append(new_experiment_data_mask_varlist)
 
             # Generate inverted_variances
-            if use_algebraic_vars:
-                variable_name_list = list(
-                    [
-                        *self.model.varlist_state.keys(),
-                        *self.model.varlist_algebraic.keys(),
-                    ]
-                )
-            else:
-                variable_name_list = list(self.model.varlist_state.keys())
+            variable_name_list = list(self.model.varlist_state.keys())
             inverted_variances_varlist = []
             for var_name in variable_name_list:
                 var = varlist_input[var_name]
@@ -616,13 +608,18 @@ class ParameterEstimation(PE_base):
                 )
             inverted_variances_array = np.column_stack(
                 inverted_variances_varlist
-            ).flatten()
-            inverted_variances.append(inverted_variances_array)
+            )
+            list_inverted_variances.append(inverted_variances_array)
 
-            size_simulation_output.append(len(inverted_variances_array))
+            size_simulation_output.append(inverted_variances_array.shape)
 
         # Calculate experiments_weights
         self.list_simulators: Sequence[Simulator] = list_simulators
+
+        array_data = np.concatenate(experimental_data)
+        all_measurements_names = np.array(list(self.model.varlist_state.keys()))
+
+        index_columns_with_all_nans = np.isnan(array_data).all(axis=0)
 
         max_time_grid = max(list_timegrid_length)
         experiments_weights = []
@@ -638,63 +635,32 @@ class ParameterEstimation(PE_base):
         it's replaced with 0. It has follwing form:
         [exp1_var1_time1, exp1_var2_time1, exp1_varN_time1, exp1_var1_time2 ... , exp1_varN_timeN, exp2_var1_time1 ...]
         """
-        self.experimental_data: np.ndarray = np.concatenate(experimental_data)
-        # This list holds nested arrays with True or False values, specifying whether experimental data should be
-        # used in an optimization function or not. Same form as self.experimental_data
+        self.array_data = np.nan_to_num(array_data[:, ~index_columns_with_all_nans])
+        self.array_data_mask = np.concatenate(experimental_data_mask)[:, ~index_columns_with_all_nans]
+        self.names_of_measurements: list[str] = all_measurements_names[
+            ~index_columns_with_all_nans
+        ].tolist()
 
-        self.experimental_data_mask: np.ndarray = np.concatenate(experimental_data_mask)
+        self.index_measurements_in_sim = []
+        for name in self.names_of_measurements:
+            index = self.list_simulators[0].mapping_state_variables[name]
+            self.index_measurements_in_sim.append(index)
+
         # Inverted variances provided weightning matrix for PE problem
-        self.inverted_variances: np.ndarray = np.concatenate(inverted_variances)
+        self.array_inverted_variance: np.ndarray = np.concatenate(list_inverted_variances)[
+            :, ~index_columns_with_all_nans
+        ]
+        self.array_inverted_std = np.sqrt(self.array_inverted_variance)
 
         self.experiments_weights: np.ndarray = np.concatenate(experiments_weights)
 
-    def _objective_ols(self):
-        """Objective function is a trace(Z.T * Z), where Z is a residual matrix with shape:
-        numRows -> amount of supplied experiments, numCol -> amount of variables that have measurements
-        If experiments do not supply a measurement for one of the measurements, self.array_data_mask will
-        have 0 as the respective element of the martix, otherwise 1"""
-        residuals = (self.simulate_all_mx - self.array_data) * self.array_data_mask
-        objective = ca.sumsqr(residuals)
+        # List of dicts for each Simulation that shows, which index coresponds to each
+        # simulator._independent_variables in self.varlist_ variable
+        # For example [{1: 2}], {1: 3}]: in first simulator._independent_variables[1]
+        # is the same variable as self.varlist_decision[2]
+        self.mapping_simulator_decisions: list[dict[int, int]] = list_simulator_mappings
 
-        return objective, residuals
-
-    def _objective_wls(self):
-        """Objective function is a trace(Z.T * inv(VarY) * Z), where Z is a same matrix as in _objective_ols
-        inv(VarY) is the variance of the respective measurements in Z, and has the same shape.
-        Thus, covariance of the measurements is assumed to be zero."""
-        residuals = (self.simulate_all_mx - self.array_data) * self.array_data_mask
-        scaled_residuals = residuals * self.array_inverted_std
-        objective = ca.sumsqr(scaled_residuals)
-        return objective, residuals
-
-    def _objective_state(self) -> tuple[ca.MX | ca.DM, ca.MX | ca.DM]:
-        array_simulation = None
-
-        for simulator in self.list_simulators:
-            res_simulation = simulator.simulate()
-            if array_simulation is None:
-                array_simulation = res_simulation["xf"][:]
-            else:
-                array_simulation = ca.vertcat(array_simulation, res_simulation["xf"][:])
-        # res_simulation = self.list_simulators[0].simulate()
-        # array_simulation = res_simulation["xf"][:]
-
-        # for simulator in self.list_simulators[1:]:
-        #     res_simulation = simulator.simulate()
-        #     array_simulation = ca.vertcat(array_simulation, res_simulation["xf"][:])
-
-        # multiply by self.array_data_mask needed to ignore elements were error experimental data is zero
-        error = (
-            array_simulation - self.experimental_data
-        ) * self.experimental_data_mask
-        objective = ca.sum1(
-            self.experiments_scale * self.inverted_variances * (error**2)
-        )
-
-        return objective, error
-
-
-    def optimize(self, scale=True, *, scale_experiments=False) -> dict[str, ca.DM]:
+    def optimize(self, scale=True, objective_function="wls", *, scale_experiments=False) -> dict[str, ca.DM]:
         """Solves optimization problem. Scaling decreases amount of iterations,
         and should always almost be used
         """
@@ -708,8 +674,7 @@ class ParameterEstimation(PE_base):
         # So if you supply 2 experiments one with 10 and another with 20 time_stamps, effect of each experimental
         # point of second experiments on objective function is decreased by 2
         self.experiments_scale: int | np.ndarray = experiments_scale
-        res = self._optimize(scale)
-        return res
+        return PE_base.optimize(self, scale, objective_function)
 
     def plot_simulation(
         self,
@@ -1098,6 +1063,8 @@ class ParameterEstimationNLE(PE_base):
         self._objective: Callable[
             [], tuple[ca.MX | ca.DM, ca.MX | ca.DM]
         ] = self._objective_ols
+
+        self.experiments_scale = 1
 
     def _setup_simulator(
         self, use_simulator_bounds: bool, SimulatorClass: SimulatorNLE
