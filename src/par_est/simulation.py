@@ -286,9 +286,26 @@ class Simulator(object):
         self._initial_algebraic_original = copy.deepcopy(self._initial_algebraic)
 
         # Transforms nested lists in ca.MX or ca.DM array
+        self.contains_unfixed = False
         for index, column in enumerate(self._independent_variables):
             casadi_mx = ca.vcat(column)
+            if self.contains_unfixed is False:
+                if isinstance(casadi_mx, ca.MX):
+                    self.contains_unfixed = True
             self._independent_variables[index] = casadi_mx
+
+    def change_independent_variables(self, ind_variables: dict[str, float]):
+        """Use this method to change either Controls or Parameters of the Simulation. ind_variables is a dictionary
+        with VariableNames as dict.keys(), and their respective values, as dict.values(). Example:
+        {"e0_T": 373, "e0_p": 1e5}"""
+        if self.contains_unfixed:
+            raise NotImplementedError(
+                "All variables should be fixed, to use this method"
+            )
+        for var_name, var_value in ind_variables.items():
+            index_var = self.mapping_independent_variables[var_name]
+            for index in range(len(self._independent_variables)):
+                self._independent_variables[index][index_var] = var_value
 
     def _set_integrator_settings(self, provided_settings: dict | None) -> None:
         """Sane default settings for integrators"""
