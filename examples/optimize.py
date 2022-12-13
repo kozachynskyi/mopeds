@@ -14,7 +14,7 @@ if __name__ == "__main__":
     for var in variable_list.values():
         var.fixed = True
         if isinstance(var, par_est.VariableParameter):
-            par_dict[var.name] = var.value[0]
+            res_dict[var.name] = var.value[0]
 
     variable_list["e0_U"].fixed = False
     variable_list["e0_E_r1"].fixed = False
@@ -36,6 +36,7 @@ if __name__ == "__main__":
 
     data1 = par_est.tools.generate_varlist_with_data(variable_list, m, time_grid1, True)
     data2 = par_est.tools.generate_varlist_with_data(variable_list, m, time_grid2, True)
+    data1.set_bounds(0.4)
     # data1.show()
 
     # If data is not available for all simulated points, PE works
