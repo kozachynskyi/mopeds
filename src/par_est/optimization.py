@@ -1438,7 +1438,7 @@ class ParameterEstimationNLE(PE_base):
         students_t_dist_95 = scipy.stats.t.ppf(0.975, dof)
 
         for par, var_value in zip(selected_parameters, parameter_std):
-            print(f"{par} +- {var_value} |  ({var_value / par})")
+            print(f"{par} +- {var_value} |  ({var_value * 100 / par}%)")
 
         marginal_conf_interval_95 = (parameter_std * students_t_dist_95).T
 
@@ -1492,8 +1492,10 @@ class ParameterEstimationNLE(PE_base):
             # Width and height are "full" widths, not radius
             for fisher in [fisher_f_dist_95]:  # , fisher_f_dist_99]:
                 width, height = 2 * np.sqrt(num_par * fisher * vals)
+                height = height / parameters_i[0]
+                width = width / parameters_i[1]
                 ellip = Ellipse(
-                    xy=parameters_i, width=width, height=height, angle=theta, alpha=0.3
+                    xy=[1,1], width=width, height=height, angle=theta, alpha=0.3, lw=2, linestyle="-", color="red"
                 )
 
                 ax.add_artist(ellip)
@@ -1506,10 +1508,10 @@ class ParameterEstimationNLE(PE_base):
             if i[1] == len(par_names) - 1:
                 ax.set_xlabel(f"{par_names[i[0]]}")
 
-            ax.axvline(parameters_i[0] - marginal_conf_interval_95_i[0])
-            ax.axvline(parameters_i[0] + marginal_conf_interval_95_i[0])
-            ax.axhline(parameters_i[1] - marginal_conf_interval_95_i[1])
-            ax.axhline(parameters_i[1] + marginal_conf_interval_95_i[1])
+            # ax.axvline(parameters_i[0] - marginal_conf_interval_95_i[0])
+            # ax.axvline(parameters_i[0] + marginal_conf_interval_95_i[0])
+            # ax.axhline(parameters_i[1] - marginal_conf_interval_95_i[1])
+            # ax.axhline(parameters_i[1] + marginal_conf_interval_95_i[1])
 
         plt.show()
 
