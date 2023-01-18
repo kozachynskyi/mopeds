@@ -168,7 +168,7 @@ def initialize_problem(mode="old"):  # noqa: C901
 if __name__ == "__main__":
 
     mode = "old"
-    mode = "gc"
+    # mode = "gc"
     variable_list, m = initialize_problem(mode)
 
     var_list_fixed = copy.deepcopy(variable_list)
@@ -192,9 +192,9 @@ if __name__ == "__main__":
     if mode == "old":
         meas_names = [
             "e0_x_i1_l1",
-            "e0_x_i2_l1",
-            "e0_x_i3_l1",
-            "e0_x_i4_l1",
+            # "e0_x_i2_l1",
+            # "e0_x_i3_l1",
+            # "e0_x_i4_l1",
         ]
     elif mode == "gc":
         meas_names = [
@@ -203,6 +203,7 @@ if __name__ == "__main__":
             "e0_x_i3_gc",
         ]
 
+    # meas_names = m.varlist_algebraic.keys()
 
     controls = {"e0_x_F_i1": (0.2, 0.8, 5), "e0_T": (350, 370, 5)}
     variable_list.set_variable_list_unfixed(unfix_names)
@@ -212,7 +213,7 @@ if __name__ == "__main__":
     variable_list["e0_k_for_pre"].guess = 1e7
 
     for var_name in meas_names:
-        variable_list[var_name].variance = 0.0005
+        variable_list[var_name].variance = 0.0005 ** 2
 
     grid = par_est.tools.create_grid(list(controls.values()))
 
@@ -224,7 +225,7 @@ if __name__ == "__main__":
     pe = par_est.ParameterEstimationNLE(m, list_varlist)
 
     if False:
-        residuals = pe.calculate_objective_and_residual(true_par)["y"]
+        residuals = pe.calculate_objective_and_residual(true_par)["residuals"]
         data = np.column_stack((np.array(grid), residuals[:,0]))
         fig = plt.figure()
         ax = fig.add_subplot(projection='3d')
