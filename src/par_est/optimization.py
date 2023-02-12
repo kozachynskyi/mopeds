@@ -278,16 +278,7 @@ class Optimizer(object):
         else:
             raise NotImplementedError
 
-    def optimize_multistart(
-        self,
-        num_initials: int,
-        scale: bool = True,
-        max_iterations: int = 20,
-    ) -> list[dict[str, ca.DM]]:
-        """Runs multiple optimizations with gueses spread between upper and lower bound.
-        Helps to find feasible starting point for optimization in a few steps.
-        WIP: recalcution of algebraic variables doesn't work.
-        """
+    def generate_multistart_guess(self, num_initials: int):
         if isinstance(self, ParameterEstimationNLE_control):
             hammersley_seeds = np.array(
                 list(
@@ -300,7 +291,21 @@ class Optimizer(object):
         else:
             hammersley_seeds = np.array(list(zip(self.lower_bound, self.upper_bound)))
 
-        list_startpoint = utilities.make_startpoints(hammersley_seeds, num_initials)
+        list_startpoint = utilities.make_startpoints(hammersley_seeds, num_initials, sampling="lhs")
+        return list_startpoint
+
+
+    def optimize_multistart(
+        self,
+        num_initials: int,
+        scale: bool = True,
+        max_iterations: int = 20,
+    ) -> list[dict[str, ca.DM]]:
+        """Runs multiple optimizations with gueses spread between upper and lower bound.
+        Helps to find feasible starting point for optimization in a few steps.
+        WIP: recalcution of algebraic variables doesn't work.
+        """
+        list_startpoint = self.generate_multistart_guess(num_initials)
         results_with_f = []
 
         # Optimizer settings and guess are overwritten for multistart, and then returned back
