@@ -6,6 +6,7 @@ from abc import abstractmethod
 from collections.abc import Callable
 from itertools import combinations
 from typing import Sequence
+from warnings import warn
 
 import casadi as ca
 import numpy as np
@@ -504,6 +505,10 @@ class ParameterEstimation(PE_base):
             simulator_name,
             simulator_settings,
         )
+
+        if use_idas_constraints:
+            warn("idas constraints option is ignored", DeprecationWarning)
+            use_idas_constraints = False
 
         if use_algebraic_vars:
             raise NotImplementedError()
