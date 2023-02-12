@@ -164,6 +164,28 @@ class Simulator(object):
         self.simulate_sym: Callable[[], dict[str, ca.DM | ca.MX]] = simulate
         self.simulate_jac: Callable[[], dict[str, ca.DM | ca.MX]] = simulate_jac_func
 
+    def simulate_sym_unfixed(self, unfixed_variables: list[float] = None) -> ca.DM:
+        """This is slower version of simulate_sym but it allows user to supply values
+        for unfixed variables"""
+        res_array = self.simulate_sym()
+
+        if not isinstance(res_array, ca.DM):
+            if unfixed_variables is None:
+                raise ValueError("You need to supply values for unfixed variables")
+            else:
+                unfixed_symbols = ca.symvar(res_array["xf"])
+                return_values = [res_array["xf"]]
+                if self.model.DAE:
+                    return_values.append(res_array["zf"])
+                function = ca.Function("f", unfixed_symbols, return_values)
+                final_res = function(*unfixed_variables)
+
+        res_dict = {"xf": final_res[0]}
+        if self.model.DAE:
+            res_dict["zf"] = final_res[1]
+
+        return res_dict
+
     def _reset_scaling(self) -> None:
         self.scaling: ca.DM = ca.DM.ones(self._independent_variables[0].size())
 
