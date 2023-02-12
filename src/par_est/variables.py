@@ -340,8 +340,12 @@ class VariableControlPiecewiseConstant(VariableControl):
         return values
 
     @value.setter
-    def value(self) -> None:
-        raise NotImplementedError
+    def value(self, value: int | float) -> None:
+        if isinstance(value, Iterable):
+            raise NotImplementedError(
+                "Method can only be used with scalars."
+            )
+        self.variable_list.index(0).value = value
 
     @property
     def time_absolute(self) -> pd.Series:

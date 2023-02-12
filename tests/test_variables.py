@@ -108,6 +108,8 @@ def test_variables():
     )
     assert var_2.fixed is True
     assert var_2.get_variable_at_time_relative(10).value == [20]
+    var_2.value = 19
+    assert var_2.get_variable_at_time_relative(10).value == [19]
     assert var_2.get_variable_at_time_relative(11).value == [4]
     assert var_2.get_variable_at_time_relative(11.299999).value == [4]
     assert var_2.get_variable_at_time_relative(11.300001).value == [5]
