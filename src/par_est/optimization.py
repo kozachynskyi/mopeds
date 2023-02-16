@@ -511,6 +511,19 @@ class ParameterEstimation(PE_base):
             simulator_settings,
         )
 
+        if self.simulator_name == "acados":
+            if self.simulator_settings is None:
+                self.simulator_settings = {}
+                self.simulator_settings["acados"] = { 
+                    "integrator_type": "IRK",
+                    "collocation_type": "GAUSS_RADAU_IIA",
+                    "num_stages": 3,
+                    "num_steps": 100,
+                    "newton_tol": 1e-9,
+                    "newton_iter": 100,
+                    "code_reuse": False,
+                }
+
         if use_idas_constraints:
             warn("idas constraints option is ignored", DeprecationWarning)
             use_idas_constraints = False
@@ -566,7 +579,7 @@ class ParameterEstimation(PE_base):
         list_simulator_mappings = []
         list_inverted_variances = []
 
-        for varlist_input in self.list_input_varlist:
+        for simulator_index, varlist_input in enumerate(self.list_input_varlist):
             # Create a time_grid, that "stops" at every experimental data, for every state variable
             if not varlist_input.get_common_origin(
                 strict=True, variable_type=VariableState
@@ -603,12 +616,21 @@ class ParameterEstimation(PE_base):
 
             list_timegrid_length.append(float(len(time_grid_unique)))
 
+            if self.simulator_name == "acados":
+                if simulator_index == 0:
+                    simulator_settings = self.simulator_settings
+                else:
+                    simulator_settings = copy.deepcopy(simulator_settings)
+                    simulator_settings["acados"]["code_reuse"] = True
+            else:
+                simulator_settings = self.simulator_settings
+
             simulator = Simulator(
                     self.model,
                     np.array(time_grid_unique),
                     varlist_input,
                     self.simulator_name,
-                    self.simulator_settings,
+                    simulator_settings,
                     use_idas_constraints=use_idas_constraints,
                     recalculate_algebraic=recalculate_algebraic,
                 )
