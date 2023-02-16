@@ -668,9 +668,10 @@ class Simulator(object):
     def _simulate_t0(self) -> dict[str, ca.DM | ca.MX]:
         """Return dictionary with results "xf0" and "zf0" for state and
         algebraic variables at time 0"""
-        prev_time_step = self.time_grid_relative[1]
+        res = {"xf0": self._initial_state}
 
         if self.model.DAE:
+            prev_time_step = self.time_grid_relative[1]
             res_integration = self.integrator_tau_with_t0(
                 x0=self._initial_state,
                 z0=self._initial_algebraic,
@@ -679,21 +680,9 @@ class Simulator(object):
                     self._independent_variables[0] * self.scaling,
                 ),
             )
-        else:
-            res_integration = self.integrator_tau_with_t0(
-                x0=self._initial_state,
-                p=ca.vertcat(
-                    prev_time_step,
-                    self._independent_variables[0] * self.scaling,
-                ),
-            )
-
-        init_states = res_integration["xf"][:, 0]
-
-        res = {"xf0": init_states}
-        if self.model.DAE:
             init_algebraic = res_integration["zf"][:, 0]
             res["zf0"] = init_algebraic
+
 
         return res
 
