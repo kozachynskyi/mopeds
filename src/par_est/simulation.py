@@ -96,7 +96,10 @@ class Simulator(object):
                 "DAE_zf_init", "newton", self.function_algebraic_equations
             )
 
-        self._set_integrator_settings(integrator_settings)
+        if integrator_settings is not None:
+            self.__integrator_settings = integrator_settings
+        else:
+            self.__integrator_settings = self.get_default_simulator_settings()
 
         self._setup_constraints_idas(use_idas_constraints)
 
@@ -329,11 +332,9 @@ class Simulator(object):
             for index in range(len(self._independent_variables)):
                 self._independent_variables[index][index_var] = var_value
 
-    def _set_integrator_settings(self, provided_settings: dict | None) -> None:
+    def get_default_simulator_settings(self) -> None:
         """Sane default settings for integrators"""
-        if provided_settings is not None:
-            integrator_settings = provided_settings
-        elif self.__integrator_name == "idas":
+        if self.__integrator_name == "idas":
             integrator_settings = {
                 "tf": 1,
                 "expand": True,
@@ -375,7 +376,7 @@ class Simulator(object):
                 # "print_stats": True,
             }
 
-        self.__integrator_settings = integrator_settings
+        return integrator_settings
 
     def calculate_steady_state(self) -> dict[str, ca.DM]:
         if self.model.DAE:
@@ -891,7 +892,10 @@ class SimulatorNLE:
         self.__solver_name: str = solver_name
         self.__input_variable_list: VariableList = copy.deepcopy(variable_list)
 
-        self._set_solver_settings(solver_settings)
+        if solver_settings is not None:
+            self.solver_settings: dict = solver_settings
+        else:
+            self.solver_settings = self.get_default_simulator_settings()
 
         self._setup_variables()
         self._reset_scaling()
@@ -941,11 +945,9 @@ class SimulatorNLE:
 
         self.jacobian: ca.Function = self.simulator.jacobian()
 
-    def _set_solver_settings(self, provided_settings: dict | None) -> None:
+    def get_default_simulator_settings(self) -> None:
         """Set default settings, if None are provided"""
-        if provided_settings is not None:
-            solver_settings = provided_settings
-        elif self.__solver_name == "rootfinder":
+        if self.__solver_name == "rootfinder":
             solver_settings = {
                 "nlpsol": "ipopt",
                 "verbose": False,
@@ -973,7 +975,7 @@ class SimulatorNLE:
                 },
             }
 
-        self.solver_settings: dict = solver_settings
+        return solver_settings
 
     def _setup_variables(self) -> None:
         mapping_independent_variables = {}
