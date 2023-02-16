@@ -716,9 +716,9 @@ def free_fall_example() -> tuple[
     variable_list["a_i"].ignore_plotting = False
 
     time = [0.0, 7.5, 15.0, 22.5, 30.0]
-    data = [[  0.        , 151.1831578 ,  85.26994645,  28.73744369,
-        175.83004085],
-            ]
+    data = [
+        [0.0, 151.1831578, 85.26994645, 28.73744369, 175.83004085],
+    ]
 
     exp_data = []
     for s_v in data:

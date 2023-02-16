@@ -342,9 +342,7 @@ class VariableControlPiecewiseConstant(VariableControl):
     @value.setter
     def value(self, value: int | float) -> None:
         if isinstance(value, Iterable):
-            raise NotImplementedError(
-                "Method can only be used with scalars."
-            )
+            raise NotImplementedError("Method can only be used with scalars.")
         self.variable_list.index(0).value = value
 
     @property

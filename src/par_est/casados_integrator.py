@@ -62,12 +62,18 @@ def create_casados_integrator(model, integrator_opts, DAE=True):
     sim.model = model
 
     dir_path = Path.cwd() / "par_est_code"
-    sim.code_export_directory = str(dir_path / f'c_generated_code_{model.name}_{sim.solver_options.integrator_type}')
+    sim.code_export_directory = str(
+        dir_path / f"c_generated_code_{model.name}_{sim.solver_options.integrator_type}"
+    )
 
     if DAE:
-        casados_integrator = CasadosIntegratorDAE(sim, integrator_opts, use_cython=False, code_reuse=code_reuse)
+        casados_integrator = CasadosIntegratorDAE(
+            sim, integrator_opts, use_cython=False, code_reuse=code_reuse
+        )
     else:
-        casados_integrator = CasadosIntegrator(sim, integrator_opts, use_cython=False, code_reuse=code_reuse)
+        casados_integrator = CasadosIntegrator(
+            sim, integrator_opts, use_cython=False, code_reuse=code_reuse
+        )
 
     return casados_integrator
 
@@ -82,7 +88,9 @@ class CasadosIntegrator(Callback):
     This makes it fully functional within CasADi NLPs
     """
 
-    def __init__(self, acados_sim: AcadosSim, settings, use_cython=True, code_reuse=False):
+    def __init__(
+        self, acados_sim: AcadosSim, settings, use_cython=True, code_reuse=False
+    ):
         dir_path = Path(acados_sim.code_export_directory).parent
         json_file = str(dir_path / f"acados_sim_{acados_sim.model.name}.json")
         if use_cython:
@@ -94,10 +102,13 @@ class CasadosIntegrator(Callback):
             self.acados_integrator = AcadosSimSolver.create_cython_solver(json_file)
         else:
             if code_reuse:
-                self.acados_integrator = AcadosSimSolver(acados_sim, json_file, generate=False, build=False)
+                self.acados_integrator = AcadosSimSolver(
+                    acados_sim, json_file, generate=False, build=False
+                )
             else:
-                self.acados_integrator = AcadosSimSolver(acados_sim, json_file, generate=True, build=True)
-
+                self.acados_integrator = AcadosSimSolver(
+                    acados_sim, json_file, generate=True, build=True
+                )
 
         self.settings = copy.deepcopy(settings)
         self.settings.pop("acados")
@@ -370,7 +381,6 @@ class CasadosIntegratorSensAdj(Callback):
         # output
         S_adj = self.acados_integrator.get("S_adj")
 
-
         S_adj_x = S_adj[: self.nx]
         S_adj_u = S_adj[self.nx :]
 
@@ -484,7 +494,9 @@ class CasadosIntegratorSensHess(Callback):
 
 
 class CasadosIntegratorDAE(CasadosIntegrator):
-    def __init__(self, acados_sim: AcadosSim, settings, use_cython=True, code_reuse=False):
+    def __init__(
+        self, acados_sim: AcadosSim, settings, use_cython=True, code_reuse=False
+    ):
         self.nz = casadi_length(acados_sim.model.z)
         self.z0 = None
 
@@ -734,7 +746,6 @@ class CasadosIntegratorSensAdjDAE(CasadosIntegratorSensAdj):
         # output
         S_adj = self.acados_integrator.get("S_adj")
 
-
         S_adj_x = S_adj[: self.nx]
         S_adj_u = S_adj[self.nx :]
 
@@ -782,7 +793,9 @@ class CasadosIntegratorSensHessDAE(CasadosIntegratorSensHess):
         return out
 
     def get_sparsity_out(self, i):
-        out = Sparsity.dense(self.nx + self.nu + self.nz, 3 * self.nx +  self.nu + 3 * self.nz)
+        out = Sparsity.dense(
+            self.nx + self.nu + self.nz, 3 * self.nx + self.nu + 3 * self.nz
+        )
         return out
 
     def get_name_in(self, i):
@@ -818,7 +831,6 @@ class CasadosIntegratorSensHessDAE(CasadosIntegratorSensHess):
         u0 = np.array(arg[1])
         z0 = np.array(arg[2])
 
-
         # set adj seed:
         self.acados_integrator.set("seed_adj", seed)
         # set input
@@ -839,7 +851,13 @@ class CasadosIntegratorSensHessDAE(CasadosIntegratorSensHess):
         # NOTE: casadi expects jacobian(S_adj, [x, u, nominal_out, seed_adj])
         #                            = [S_hess(for x,u), zeros(nx+nu, nx), S_forw ]
         row1 = np.concatenate(
-            [S_hess, np.zeros((self.nx + self.nu, self.nx + 2 * self.nz)), S_forw.T, np.zeros((self.nx + self.nu, self.nz))], axis=1
+            [
+                S_hess,
+                np.zeros((self.nx + self.nu, self.nx + 2 * self.nz)),
+                S_forw.T,
+                np.zeros((self.nx + self.nu, self.nz)),
+            ],
+            axis=1,
         )
 
         row2 = np.zeros((self.nz, 3 * self.nx + self.nu + 3 * self.nz))

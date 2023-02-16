@@ -2,9 +2,10 @@ import importlib.metadata
 
 __version__ = importlib.metadata.version("par_est")
 
-try: 
+try:
     import acados_template
     import par_est.casados_integrator
+
     _ACADOS_SUPPORT = True
 except ImportError:
     _ACADOS_SUPPORT = False

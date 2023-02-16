@@ -35,7 +35,6 @@ class Simulator(object):
     if _ACADOS_SUPPORT:
         supported_integrators.append("acados")
 
-
     def __init__(  # noqa: C901
         self,
         model: Model,
@@ -117,7 +116,11 @@ class Simulator(object):
                 "integrator",
                 self.__integrator_name,
                 self.ode_system,
-                {"grid": self.time_grid_relative, "output_t0": False, "print_stats": True},
+                {
+                    "grid": self.time_grid_relative,
+                    "output_t0": False,
+                    "print_stats": True,
+                },
             )
 
         if self.__integrator_name == "acados":
@@ -134,11 +137,18 @@ class Simulator(object):
             )
             if self.model.DAE:
                 model_acados.z = self.model.varlist_algebraic.get_casadi_variables()
-                model_acados.f_impl_expr = ca.vertcat(model_acados.xdot - self.model.equations_differential * self.tau, self.model.equations_algebraic)
+                model_acados.f_impl_expr = ca.vertcat(
+                    model_acados.xdot - self.model.equations_differential * self.tau,
+                    self.model.equations_algebraic,
+                )
             else:
-                model_acados.f_impl_expr = model_acados.xdot - self.model.equations_differential * self.tau
+                model_acados.f_impl_expr = (
+                    model_acados.xdot - self.model.equations_differential * self.tau
+                )
             self.model_acados = model_acados
-            self.integrator_tau = casados_integrator.create_casados_integrator(self.model_acados, self.__integrator_settings, self.model.DAE)
+            self.integrator_tau = casados_integrator.create_casados_integrator(
+                self.model_acados, self.__integrator_settings, self.model.DAE
+            )
         else:
             self.integrator_tau: ca.Function = ca.integrator(
                 "integrator_tau",
@@ -417,7 +427,7 @@ class Simulator(object):
             }
         elif self.__integrator_name == "acados":
             integrator_settings = {}
-            integrator_settings["acados"] = { 
+            integrator_settings["acados"] = {
                 "integrator_type": "IRK",
                 "collocation_type": "GAUSS_RADAU_IIA",
                 "num_stages": 3,
@@ -734,7 +744,6 @@ class Simulator(object):
             init_algebraic = res_integration["zf"][:, 0]
             res["zf0"] = init_algebraic
 
-
         return res
 
     def _simulate_dae_acados(self) -> dict[str, ca.DM | ca.MX]:
@@ -748,7 +757,7 @@ class Simulator(object):
         alg_last_step = self.rootfinder(
             res_algebraic[:, -1],
             ca.vertcat(
-                res_states[:,-1],
+                res_states[:, -1],
                 self._independent_variables[0] * self.scaling,
             ),
         )

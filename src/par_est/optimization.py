@@ -81,7 +81,9 @@ class Optimizer(object):
 
         return selected_parameters
 
-    def _setup_simulator_mapping(self, simulator: Simulator | SimulatorNLE) -> dict[int, int]:
+    def _setup_simulator_mapping(
+        self, simulator: Simulator | SimulatorNLE
+    ) -> dict[int, int]:
         names_variables_decision = list(self.varlist_decision.keys())
 
         if isinstance(simulator, Simulator):
@@ -291,9 +293,10 @@ class Optimizer(object):
         else:
             hammersley_seeds = np.array(list(zip(self.lower_bound, self.upper_bound)))
 
-        list_startpoint = utilities.make_startpoints(hammersley_seeds, num_initials, sampling="lhs")
+        list_startpoint = utilities.make_startpoints(
+            hammersley_seeds, num_initials, sampling="lhs"
+        )
         return list_startpoint
-
 
     def optimize_multistart(
         self,
@@ -380,13 +383,16 @@ class Optimizer(object):
 
 
 class PE_base(Optimizer):
-
     def _objective_ols(self):
         """Objective function is a trace(Z.T * Z), where Z is a residual matrix with shape:
         numRows -> amount of supplied experiments, numCol -> amount of variables that have measurements
         If experiments do not supply a measurement for one of the measurements, self.array_data_mask will
         have 0 as the respective element of the martix, otherwise 1"""
-        residuals = (self.simulate_all_mx - self.array_data) * self.array_data_mask * np.sqrt(self.experiments_scale)
+        residuals = (
+            (self.simulate_all_mx - self.array_data)
+            * self.array_data_mask
+            * np.sqrt(self.experiments_scale)
+        )
         objective = ca.sumsqr(residuals)
 
         return objective, residuals
@@ -396,7 +402,9 @@ class PE_base(Optimizer):
         inv(VarY) is the variance of the respective measurements in Z, and has the same shape.
         Thus, covariance of the measurements is assumed to be zero."""
         residuals = (self.simulate_all_mx - self.array_data) * self.array_data_mask
-        scaled_residuals = residuals * self.array_inverted_std * np.sqrt(self.experiments_scale)
+        scaled_residuals = (
+            residuals * self.array_inverted_std * np.sqrt(self.experiments_scale)
+        )
         objective = ca.sumsqr(scaled_residuals)
         return objective, residuals
 
@@ -428,7 +436,10 @@ class PE_base(Optimizer):
             self.experiments_scale = 1
 
     def calculate_objective_and_residual(
-            self, parameters: dict[str, float], objective_function: str = "ols", experiment_weigts: bool = False,
+        self,
+        parameters: dict[str, float],
+        objective_function: str = "ols",
+        experiment_weigts: bool = False,
     ) -> dict[str, float | np.ndarray]:
         self._setup_scaling(False)
         if experiment_weigts:
@@ -491,7 +502,6 @@ class PE_base(Optimizer):
         self.simulate_all_mx = self.simulate_all_function(free_variables)
 
 
-
 class ParameterEstimation(PE_base):
     def __init__(
         self,
@@ -514,7 +524,7 @@ class ParameterEstimation(PE_base):
         if self.simulator_name == "acados":
             if self.simulator_settings is None:
                 self.simulator_settings = {}
-                self.simulator_settings["acados"] = { 
+                self.simulator_settings["acados"] = {
                     "integrator_type": "IRK",
                     "collocation_type": "GAUSS_RADAU_IIA",
                     "num_stages": 3,
@@ -533,7 +543,6 @@ class ParameterEstimation(PE_base):
         self._objective: Callable[
             [], tuple[ca.MX | ca.DM, ca.MX | ca.DM]
         ] = self._objective_ols
-
 
         self._setup_simulator(
             use_idas_constraints=use_idas_constraints,
@@ -626,23 +635,21 @@ class ParameterEstimation(PE_base):
                 simulator_settings = self.simulator_settings
 
             simulator = Simulator(
-                    self.model,
-                    np.array(time_grid_unique),
-                    varlist_input,
-                    self.simulator_name,
-                    simulator_settings,
-                    use_idas_constraints=use_idas_constraints,
-                    recalculate_algebraic=recalculate_algebraic,
-                )
+                self.model,
+                np.array(time_grid_unique),
+                varlist_input,
+                self.simulator_name,
+                simulator_settings,
+                use_idas_constraints=use_idas_constraints,
+                recalculate_algebraic=recalculate_algebraic,
+            )
 
             list_simulators.append(simulator)
 
             list_simulator_mappings.append(self._setup_simulator_mapping(simulator))
 
             # Generate an array (experiment_data_varlist) with Experimental data with the same dimensions as simulation results.
-            new_experiment_data_varlist = (
-                data_frame.iloc[1:].to_numpy()
-            )
+            new_experiment_data_varlist = data_frame.iloc[1:].to_numpy()
             experimental_data.append(new_experiment_data_varlist)
             new_experiment_data_mask_varlist = (
                 data_frame.iloc[1:].notna().to_numpy().astype(int)
@@ -657,9 +664,7 @@ class ParameterEstimation(PE_base):
                 inverted_variances_varlist.append(
                     1.0 / (np.full(len(time_grid_unique) - 1, var.variance))
                 )
-            inverted_variances_array = np.column_stack(
-                inverted_variances_varlist
-            )
+            inverted_variances_array = np.column_stack(inverted_variances_varlist)
             list_inverted_variances.append(inverted_variances_array)
 
             size_simulation_output.append(inverted_variances_array.shape)
@@ -687,7 +692,9 @@ class ParameterEstimation(PE_base):
         [exp1_var1_time1, exp1_var2_time1, exp1_varN_time1, exp1_var1_time2 ... , exp1_varN_timeN, exp2_var1_time1 ...]
         """
         self.array_data = np.nan_to_num(array_data[:, ~index_columns_with_all_nans])
-        self.array_data_mask = np.concatenate(experimental_data_mask)[:, ~index_columns_with_all_nans]
+        self.array_data_mask = np.concatenate(experimental_data_mask)[
+            :, ~index_columns_with_all_nans
+        ]
         self.names_of_measurements: list[str] = all_measurements_names[
             ~index_columns_with_all_nans
         ].tolist()
@@ -698,9 +705,9 @@ class ParameterEstimation(PE_base):
             self.index_measurements_in_sim.append(index)
 
         # Inverted variances provided weightning matrix for PE problem
-        self.array_inverted_variance: np.ndarray = np.concatenate(list_inverted_variances)[
-            :, ~index_columns_with_all_nans
-        ]
+        self.array_inverted_variance: np.ndarray = np.concatenate(
+            list_inverted_variances
+        )[:, ~index_columns_with_all_nans]
         self.array_inverted_std = np.sqrt(self.array_inverted_variance)
 
         self.experiments_weights: np.ndarray = np.concatenate(experiments_weights)
@@ -711,7 +718,9 @@ class ParameterEstimation(PE_base):
         # is the same variable as self.varlist_decision[2]
         self.mapping_simulator_decisions: list[dict[int, int]] = list_simulator_mappings
 
-    def optimize(self, scale=True, objective_function="wls", *, scale_experiments=False) -> dict[str, ca.DM]:
+    def optimize(
+        self, scale=True, objective_function="wls", *, scale_experiments=False
+    ) -> dict[str, ca.DM]:
         """Solves optimization problem. Scaling decreases amount of iterations,
         and should always almost be used
         """
@@ -1527,7 +1536,14 @@ class ParameterEstimationNLE(PE_base):
                 height = height / parameters_i[0]
                 width = width / parameters_i[1]
                 ellip = Ellipse(
-                    xy=[1,1], width=width, height=height, angle=theta, alpha=0.3, lw=2, linestyle="-", color="red"
+                    xy=[1, 1],
+                    width=width,
+                    height=height,
+                    angle=theta,
+                    alpha=0.3,
+                    lw=2,
+                    linestyle="-",
+                    color="red",
                 )
 
                 ax.add_artist(ellip)

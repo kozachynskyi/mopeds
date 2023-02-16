@@ -18,12 +18,16 @@ if __name__ == "__main__":
 
     # Create simulation Object
     sim_idas = par_est.Simulator(
-        m, time_grid, variable_list, use_idas_constraints=True, simulate_jac=True, integrator_name="idas",
+        m,
+        time_grid,
+        variable_list,
+        use_idas_constraints=True,
+        simulate_jac=True,
+        integrator_name="idas",
     )
 
-
     integrator_settings = {}
-    integrator_settings["acados"] = { 
+    integrator_settings["acados"] = {
         "integrator_type": "IRK",
         "collocation_type": "GAUSS_RADAU_IIA",
         "num_stages": 3,
@@ -36,10 +40,15 @@ if __name__ == "__main__":
 
     for i in range(2):
         if i == 0:
-            pe = par_est.ParameterEstimation(m, exp_data*3, simulator_name="acados", simulator_settings=integrator_settings)
+            pe = par_est.ParameterEstimation(
+                m,
+                exp_data * 3,
+                simulator_name="acados",
+                simulator_settings=integrator_settings,
+            )
             par = pe.optimize(True)["x_dict"]
         else:
-            pe = par_est.ParameterEstimation(m, exp_data*3, simulator_name="idas")
+            pe = par_est.ParameterEstimation(m, exp_data * 3, simulator_name="idas")
 
         r.append(pe.calculate_objective_and_residual(par)["y"])
     print(r[0] - r[1])
