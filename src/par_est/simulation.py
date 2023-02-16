@@ -653,41 +653,16 @@ class Simulator(object):
         """Return dictionary with results "xf" - state,
         "zf" - algebraic
         """
-        prev_time_step = 0
-        res_states = []
-        res_algebraic = []
-        x_init = self._initial_state
-
         alg_init = self.rootfinder(
             self._initial_algebraic_original,
             ca.vertcat(
-                x_init,
+                self._initial_state,
                 self._independent_variables[0] * self.scaling,
             ),
         )
+        self._initial_algebraic = alg_init
+        res = self._simulate_dae()
 
-        for time_step, independent_variables in zip(
-            self.time_grid_relative[1:], self._independent_variables
-        ):
-            res_integration = self.integrator_tau(
-                x0=x_init,
-                z0=alg_init,
-                p=ca.vertcat(
-                    time_step - prev_time_step, independent_variables * self.scaling
-                ),
-            )
-
-            prev_time_step = time_step
-            x_init = res_integration["xf"]
-            alg_init = res_integration["zf"]
-
-            res_states.append(res_integration["xf"])
-            res_algebraic.append(res_integration["zf"])
-
-        res_states = ca.hcat(res_states)
-        res_algebraic = ca.hcat(res_algebraic)
-
-        res = {"xf": res_states, "zf": res_algebraic}
         return res
 
     def _simulate_t0(self) -> dict[str, ca.DM | ca.MX]:
