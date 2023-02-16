@@ -2,6 +2,13 @@ import importlib.metadata
 
 __version__ = importlib.metadata.version("par_est")
 
+try: 
+    import acados_template
+    import par_est.casados_integrator
+    _ACADOS_SUPPORT = True
+except ImportError:
+    _ACADOS_SUPPORT = False
+
 from .utilities import MXPickler, show_html_from_dataframe
 from .variables import (
     Variable,

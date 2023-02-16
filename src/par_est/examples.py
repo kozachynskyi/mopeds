@@ -671,3 +671,64 @@ def isomerization_model() -> tuple[
         exp_data.append(var_list)
 
     return variable_list, m, exp_data
+
+
+def free_fall_example() -> tuple[
+    par_est.VariableList, par_est.Model, list[par_est.VariableList]
+]:
+    # Isomerization data as used in Bates, Watts, Nonlinear regression analysis: Its applications
+    variable_list = par_est.variables.VariableList()  # Preallocate variable_list
+
+    variable_list.add_variable(par_est.VariableState("s", 0))
+    variable_list.add_variable(par_est.VariableState("v", 0))
+
+    variable_list.add_variable(par_est.VariableAlgebraic("a", 8.8))
+    variable_list.add_variable(par_est.VariableAlgebraic("d", 1))
+    variable_list.add_variable(par_est.VariableAlgebraic("a_i", 0))
+
+    variable_list.add_variable(par_est.VariableParameter("g", 9.8))
+    variable_list.add_variable(par_est.VariableParameter("k1", 1))
+    variable_list.add_variable(par_est.VariableParameter("k2", 1.1))
+    variable_list.add_variable(par_est.VariableParameter("k3", 1.0))
+
+    m = par_est.Model(variable_list)  # adding all variables to the model
+
+    s = m.varlist_all["s"].casadi_var  # noqa: E501
+    v = m.varlist_all["v"].casadi_var  # noqa: E501
+    a = m.varlist_all["a"].casadi_var  # noqa: E501
+    d = m.varlist_all["d"].casadi_var  # noqa: E501
+    a_i = m.varlist_all["a_i"].casadi_var  # noqa: E501
+    g = m.varlist_all["g"].casadi_var  # noqa: E501
+    k1 = m.varlist_all["k1"].casadi_var  # noqa: E501
+    k2 = m.varlist_all["k2"].casadi_var  # noqa: E501
+    k3 = m.varlist_all["k3"].casadi_var  # noqa: E501
+
+    eq1 = v
+    eq2 = a
+
+    eq3 = a - (g - d - a_i)
+    eq4 = d - k1
+    eq5 = a_i - s * (k2 - k3)
+
+    m.add_equations_differential([eq1, eq2])  # adding the equations to model
+    m.add_equations_algebraic([eq3, eq4, eq5])  # adding the equations to model
+    variable_list["a"].ignore_plotting = False
+    variable_list["a_i"].ignore_plotting = False
+
+    time = [0.0, 7.5, 15.0, 22.5, 30.0]
+    data = [[  0.        , 151.1831578 ,  85.26994645,  28.73744369,
+        175.83004085],
+            ]
+
+    exp_data = []
+    for s_v in data:
+        var_list = copy.deepcopy(variable_list)
+        var_list["s"].set_dataframe_from_value_and_time(s_v, time)
+        var_list["s"].variance = 100
+        var_list["g"].lower_bound = 1
+        var_list["g"].upper_bound = 100
+        var_list["g"].guess = 39
+        var_list["g"].fixed = False
+        exp_data.append(var_list)
+
+    return variable_list, m, exp_data

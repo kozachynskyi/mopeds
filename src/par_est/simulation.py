@@ -18,7 +18,12 @@ from par_est import (
     VariableList,
     VariableParameter,
     VariableState,
+    casados_integrator,
+    _ACADOS_SUPPORT,
 )
+
+if _ACADOS_SUPPORT:
+    from acados_template import AcadosModel
 
 
 class Simulator(object):
@@ -27,6 +32,9 @@ class Simulator(object):
     """
 
     supported_integrators = ["idas", "cvodes", "collocation"]
+    if _ACADOS_SUPPORT:
+        supported_integrators.append("acados")
+
 
     def __init__(  # noqa: C901
         self,
@@ -104,30 +112,54 @@ class Simulator(object):
         self._setup_constraints_idas(use_idas_constraints)
 
         # TODO This integrator is not used so far...
-        self.integrator: ca.Function = ca.integrator(
-            "integrator",
-            self.__integrator_name,
-            self.ode_system,
-            {"grid": self.time_grid_relative, "output_t0": False, "print_stats": True},
-        )
+        if not self.__integrator_name == "acados":
+            self.integrator: ca.Function = ca.integrator(
+                "integrator",
+                self.__integrator_name,
+                self.ode_system,
+                {"grid": self.time_grid_relative, "output_t0": False, "print_stats": True},
+            )
 
-        self.integrator_tau: ca.Function = ca.integrator(
-            "integrator_tau",
-            self.__integrator_name,
-            self.ode_system_tau,
-            self.__integrator_settings,
-        )
+        if self.__integrator_name == "acados":
+            model_acados = AcadosModel()
+
+            xdot = []
+            for key in self.model.varlist_state.keys():
+                xdot.append(ca.MX.sym(f"{key}_dot"))
+            model_acados.xdot = ca.vcat(xdot)
+            model_acados.x = self.model.varlist_state.get_casadi_variables()
+            model_acados.name = self.model.name
+            model_acados.u = ca.vertcat(
+                self.tau, self.model.varlist_independent.get_casadi_variables()
+            )
+            if self.model.DAE:
+                model_acados.z = self.model.varlist_algebraic.get_casadi_variables()
+                model_acados.f_impl_expr = ca.vertcat(model_acados.xdot - self.model.equations_differential * self.tau, self.model.equations_algebraic)
+            else:
+                model_acados.f_impl_expr = model_acados.xdot - self.model.equations_differential * self.tau
+            self.model_acados = model_acados
+            self.integrator_tau = casados_integrator.create_casados_integrator(self.model_acados, self.__integrator_settings, self.model.DAE)
+        else:
+            self.integrator_tau: ca.Function = ca.integrator(
+                "integrator_tau",
+                self.__integrator_name,
+                self.ode_system_tau,
+                self.__integrator_settings,
+            )
 
         # This integrator is used to output values of algebraic variables at time 0
         # and should be run first to get algebraic variables at time 0 for whole simulation
         integrator_settings_with_output_t0 = copy.deepcopy(self.__integrator_settings)
         integrator_settings_with_output_t0["output_t0"] = True
-        self.integrator_tau_with_t0: ca.Function = ca.integrator(
-            "integrator_tau_with_t0",
-            self.__integrator_name,
-            self.ode_system_tau,
-            integrator_settings_with_output_t0,
-        )
+        if self.__integrator_name == "acados":
+            self.integrator_tau_with_t0 = self.integrator_tau
+        else:
+            self.integrator_tau_with_t0: ca.Function = ca.integrator(
+                "integrator_tau_with_t0",
+                self.__integrator_name,
+                self.ode_system_tau,
+                integrator_settings_with_output_t0,
+            )
 
         # This list is used for utility functions, like finding steady state
         self._guess_or_value_of_independent_variables: list[float] = []
@@ -138,27 +170,35 @@ class Simulator(object):
         # .factory() method is very expensive so should be requested externally
         if simulate_jac:
             if self.model.DAE is True:
-                integrator_tau_jac = self.integrator_tau.factory(
-                    "integrator_tau_jacobian",
-                    self.integrator_tau.name_in(),
-                    ["xf", "qf", "zf", "rxf", "rqf", "rzf", "jac:xf:p"],
-                )
+                if self.__integrator_name == "acados":
+                    factory_names = ["xf", "zf", "jac:xf:p"]
+                else:
+                    factory_names = ["xf", "qf", "zf", "rxf", "rqf", "rzf", "jac:xf:p"]
             else:
-                integrator_tau_jac = self.integrator_tau.factory(
-                    "integrator_tau_jacobian",
-                    self.integrator_tau.name_in(),
-                    ["xf", "qf", "rxf", "rqf", "jac:xf:p"],
-                )
-            self.integrator_tau_jac: ca.Function = integrator_tau_jac
+                if self.__integrator_name == "acados":
+                    factory_names = ["xf", "jac:xf:p"]
+                else:
+                    factory_names = ["xf", "qf", "rxf", "rqf", "jac:xf:p"]
+
+            self.integrator_tau_jac = self.integrator_tau.factory(
+                "integrator_tau_jacobian",
+                self.integrator_tau.name_in(),
+                factory_names,
+            )
 
         self._reset_scaling()
 
         # This code is moved here, so this if statement shouldn't be called every simulation
         if self.model.DAE is True:
+            if self.__integrator_name == "acados":
+                self._simulate_dae = self._simulate_dae_acados
+                simulate = self._simulate_dae
+            else:
+                self._simulate_dae = self._simulate_dae_casadi
+                simulate = self._simulate_dae
             if recalculate_algebraic:
                 simulate = self._simulate_dae_calculate_algebraic
-            else:
-                simulate = self._simulate_dae
+
             simulate_jac_func = self._simulate_jac_dae
         else:
             simulate = self._simulate_ode
@@ -374,6 +414,17 @@ class Simulator(object):
                 # "print_out": True,
                 # "verbose": True,
                 # "print_stats": True,
+            }
+        elif self.__integrator_name == "acados":
+            integrator_settings = {}
+            integrator_settings["acados"] = { 
+                "integrator_type": "IRK",
+                "collocation_type": "GAUSS_RADAU_IIA",
+                "num_stages": 3,
+                "num_steps": 10,
+                "newton_tol": 1e-8,
+                "newton_iter": 100,
+                "code_reuse": False,
             }
 
         return integrator_settings
@@ -686,7 +737,28 @@ class Simulator(object):
 
         return res
 
-    def _simulate_dae(self) -> dict[str, ca.DM | ca.MX]:
+    def _simulate_dae_acados(self) -> dict[str, ca.DM | ca.MX]:
+        """Return dictionary with results "xf" - state,
+        "zf" - algebraic
+        """
+        res = self._simulate_dae_casadi()
+        res_states = res["xf"]
+        res_algebraic = res["zf"]
+
+        alg_last_step = self.rootfinder(
+            res_algebraic[:, -1],
+            ca.vertcat(
+                res_states[:,-1],
+                self._independent_variables[0] * self.scaling,
+            ),
+        )
+
+        res_algebraic = ca.hcat([res_algebraic[:, 1:], alg_last_step])
+
+        res = {"xf": res_states, "zf": res_algebraic}
+        return res
+
+    def _simulate_dae_casadi(self) -> dict[str, ca.DM | ca.MX]:
         """Return dictionary with results "xf" - state,
         "zf" - algebraic
         """
@@ -699,6 +771,14 @@ class Simulator(object):
         for time_step, independent_variables in zip(
             self.time_grid_relative[1:], self._independent_variables
         ):
+            alg_init = self.rootfinder(
+                alg_init,
+                ca.vertcat(
+                    x_init,
+                    self._independent_variables[0] * self.scaling,
+                ),
+            )
+
             res_integration = self.integrator_tau(
                 x0=x_init,
                 z0=alg_init,
