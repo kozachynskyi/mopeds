@@ -724,7 +724,7 @@ def free_fall_example() -> tuple[
     for s_v in data:
         var_list = copy.deepcopy(variable_list)
         var_list["s"].set_dataframe_from_value_and_time(s_v, time)
-        var_list["s"].variance = 100
+        var_list["s"].variance = 0.1
         var_list["g"].lower_bound = 1
         var_list["g"].upper_bound = 100
         var_list["g"].guess = 39

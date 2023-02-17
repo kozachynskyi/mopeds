@@ -408,11 +408,26 @@ class PE_base(Optimizer):
         objective = ca.sumsqr(scaled_residuals)
         return objective, residuals
 
+    def _objective_fair(self):
+        c = 2
+        residuals = (self.simulate_all_mx - self.array_data) * self.array_data_mask
+        scaled_residuals = (
+            residuals * self.array_inverted_std * np.sqrt(self.experiments_scale)
+        )
+        res_mod = ca.sqrt(scaled_residuals ** 2)
+        objective = 2 * c**2 * (res_mod/c -  ca.log(1 + res_mod/c))
+        objective = ca.sum1(objective)
+        objective = ca.sum2(objective)
+        # objective = ca.sumsqr(scaled_residuals)
+        return objective, residuals
+
     def optimize(self, scale=True, objective_function="wls"):
         if objective_function == "wls":
             self._objective = self._objective_wls
         elif objective_function == "ols":
             self._objective = self._objective_ols
+        elif objective_function == "fair":
+            self._objective = self._objective_fair
         else:
             raise NotImplementedError(
                 f"Objective function '{objective_function}' is not supported"

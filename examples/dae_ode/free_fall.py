@@ -8,6 +8,7 @@ import par_est.examples
 
 plt.ion()
 import pandas as pd
+import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
 
@@ -15,6 +16,8 @@ if __name__ == "__main__":
 
     # Create time-grid. Zero should be first
     time_grid = np.linspace(0, 30, 5)
+    orig = copy.deepcopy(exp_data[0]["s"].dataframe)
+    exp_data[0]["s"].dataframe.iloc[-1] = 100
 
     # Create simulation Object
     sim_idas = par_est.Simulator(
@@ -34,24 +37,23 @@ if __name__ == "__main__":
         "num_steps": 10,
         "newton_tol": 1e-8,
         "newton_iter": 100,
-        "code_reuse": False,
+        "code_reuse": True,
     }
     r = []
 
-    for i in range(2):
-        if i == 0:
-            pe = par_est.ParameterEstimation(
-                m,
-                exp_data * 3,
-                simulator_name="acados",
-                simulator_settings=integrator_settings,
-            )
-            par = pe.optimize(True)["x_dict"]
-        else:
-            pe = par_est.ParameterEstimation(m, exp_data * 3, simulator_name="idas")
+    pe = par_est.ParameterEstimation(
+        m,
+        exp_data,
+        simulator_name="acados",
+        simulator_settings=integrator_settings,
+    )
+    par = pe.optimize(True, objective_function="fair")["x_dict"]
 
-        r.append(pe.calculate_objective_and_residual(par)["y"])
-    print(r[0] - r[1])
+    res = pe.calculate_objective_and_residual(par)
+    plt.plot(pe.list_simulators[0].time_grid_relative[1:], res["y"])
+    plt.scatter(pe.list_simulators[0].time_grid_relative[1:], exp_data[0].dataframe["s"].iloc[1:])
+    plt.scatter(pe.list_simulators[0].time_grid_relative[1:], orig["s"].iloc[1:])
+    plt.show()
     # print(sim_fixed.simulate_jac())
     # for sim in [sim_acados, sim_idas]:
     #     res_simple = sim.simulate_sym()
