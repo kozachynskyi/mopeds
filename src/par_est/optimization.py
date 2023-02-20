@@ -26,8 +26,11 @@ from par_est import (
     VariableState,
     tools,
     utilities,
-    casados_integrator,
+    _ACADOS_SUPPORT,
 )
+
+if _ACADOS_SUPPORT:
+    from par_est import casados_integrator
 
 
 class Optimizer(object):
