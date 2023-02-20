@@ -780,14 +780,6 @@ class Simulator(object):
         for time_step, independent_variables in zip(
             self.time_grid_relative[1:], self._independent_variables
         ):
-            alg_init = self.rootfinder(
-                alg_init,
-                ca.vertcat(
-                    x_init,
-                    self._independent_variables[0] * self.scaling,
-                ),
-            )
-
             res_integration = self.integrator_tau(
                 x0=x_init,
                 z0=alg_init,
