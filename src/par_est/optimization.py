@@ -26,6 +26,7 @@ from par_est import (
     VariableState,
     tools,
     utilities,
+    casados_integrator,
 )
 
 
@@ -220,8 +221,18 @@ class Optimizer(object):
             res_dict[var_name] = float(solution[0])
 
         res_solver["x_dict"] = res_dict
+        self.reset_acados()
 
         return res_solver
+
+    def reset_acados(self):
+        if self.simulator_name == "acados":
+            new_settings = copy.deepcopy(self.simulator_settings)
+            new_settings["acados"]["code_reuse"] = True
+            for sim in self.list_simulators:
+                sim.integrator_tau = casados_integrator.create_casados_integrator(
+                    sim.model_acados, new_settings, sim.model.DAE
+                )
 
     def map_objective(self, plot: bool = True) -> None:
         """Calculate objective function for different values of parameters and plot, if needed.
