@@ -527,6 +527,188 @@ class PE_base(Optimizer):
         )
         self.simulate_all_mx = self.simulate_all_function(free_variables)
 
+    def calculate_sensitivity_and_fim(
+        self, parameters: dict[str, float], parameter_names: list[str] | None = None
+    ) -> dict[str, np.ndarray]:
+        """Calculate jacobian, scaled_jacobian, parameter_covariance_matrix only for parameters,
+        which names are listed in paramtere_names, if None, for all unfixed paramters.
+        Jacobian is calculated only for "measured" algebraic variables, the ones which
+        had value, when ParameterEstimationNLE was initialized.
+
+        parameters dictionary holds paramter values for all unfixed parameters, example:
+
+        parameters = {"theta1": 1, "theta2": 2}
+        parameter_names = ["theta1"]
+
+        Jacobian of measured variables will be calculated for theta1=1 and theta2=2, but reported
+        jacobian will only contain parameter theta2.
+
+        Jacobian dimensions: dY/dp [NumOfMeasurements x NumOfParameters]
+        """
+        self._setup_scaling()
+        decision_variables = self.varlist_decision.get_casadi_variables()
+        if parameter_names is not None:
+            list_selected_parameters_index = []
+            for par_index, par_name in enumerate(self.varlist_decision.keys()):
+                if par_name in parameter_names:
+                    list_selected_parameters_index.append(par_index)
+
+        all_parameter_values = self.parameters_dict_to_list(parameters)
+
+        residuals = self.calculate_objective_and_residual(
+            parameters, objective_function="ols"
+        )["residuals"]
+        measurement_variance_estimate = np.trace(residuals.T @ residuals) / (
+            len(self.list_simulators)
+            - len(self.varlist_decision) / len(self.names_of_measurements)
+        )
+
+        jacobian = {}
+        jacobian_scaled = {}
+        jacobian_yao = {}
+        res_simulation = ca.Function(
+            "sim", [decision_variables], [self.simulate_all_mx]
+        )(all_parameter_values)
+
+        for index_measurement, meas_name in enumerate(self.names_of_measurements):
+            jac_meas_mx = ca.jacobian(
+                self.simulate_all_mx[:, index_measurement], decision_variables
+            )
+            jac_meas_function = ca.Function(
+                "jac_meas", [decision_variables], [jac_meas_mx]
+            )
+            jac_meas_dm = jac_meas_function(all_parameter_values)
+            jac_meas_selected_dm = (
+                jac_meas_dm * self.array_data_mask[:, index_measurement]
+            )
+            jac_meas_selected_scaled_dm = (
+                jac_meas_selected_dm * self.array_inverted_std[:, index_measurement]
+            )
+            jac_meas_selected_yao_dm = jac_meas_selected_dm * (
+                1 / res_simulation[:, index_measurement]
+            )
+            if parameter_names is None:
+                jacobian[meas_name] = jac_meas_selected_dm
+                jacobian_scaled[meas_name] = jac_meas_selected_scaled_dm
+                jacobian_yao[meas_name] = jac_meas_selected_yao_dm
+            else:
+                jacobian[meas_name] = jac_meas_selected_dm[
+                    :, list_selected_parameters_index
+                ]
+                jacobian_scaled[meas_name] = jac_meas_selected_scaled_dm[
+                    :, list_selected_parameters_index
+                ]
+                jacobian_yao[meas_name] = jac_meas_selected_yao_dm[
+                    :, list_selected_parameters_index
+                ]
+
+        jac_array = np.concatenate(list(jacobian.values()))
+        jac_array_scaled = np.concatenate(list(jacobian_scaled.values()))
+        jac_array_yao = np.concatenate(list(jacobian_yao.values()))
+
+        # Generate jacobian and hessian on obj function
+        jac_objective = ca.Function(
+            "jf",
+            [decision_variables],
+            [ca.jacobian(self._objective_ols()[0], decision_variables)],
+        )(all_parameter_values)
+        hessian_objective = ca.Function(
+            "jf",
+            [decision_variables],
+            [ca.hessian(self._objective_ols()[0], decision_variables)[0]],
+        )(all_parameter_values)
+        if parameter_names is not None:
+            jac_objective = jac_objective[:, list_selected_parameters_index]
+            hessian_objective = hessian_objective[
+                list_selected_parameters_index, list_selected_parameters_index
+            ]
+
+        fim_matrix = jac_array.T @ jac_array
+        fim_matrix_scaled = jac_array_scaled.T @ jac_array_scaled
+        parameter_covariance_matrix = measurement_variance_estimate * np.linalg.inv(fim_matrix)  # type: ignore
+
+        result = {}
+        result["jac_full"] = jac_array
+        result["jac_sorted"] = jacobian
+        result["jac_scaled_full"] = jac_array_scaled
+        result["jac_scaled_sorted"] = jacobian_scaled
+        result["jac_yao_full"] = jac_array_yao
+        result["jac_yao_sorted"] = jacobian_yao
+        result["fim"] = fim_matrix
+        result["fim_scaled"] = fim_matrix_scaled
+        result["cov_par"] = parameter_covariance_matrix
+        result["jac_ols"] = jac_objective
+        result["hess_ols"] = hessian_objective
+
+        return result
+
+    def parameter_identifiability_eigenvalue(
+        self,
+        parameters: dict[str, float],
+        unfixed_params: list[str],
+        parameters_identifiable: list[str] | None = None,
+        parameters_not_identifiable: list[str] | None = None,
+        eigenvalue_threshold: float = 10e-4,
+    ):
+        """Do parameter ranking based on Quasier 2009, however use scaled sensitivity as in Yao 2003.
+        Threshold is taken from Quasier 2009.
+        Return ranked parameters in descending order, and divide them in identifiable and not"""
+
+        self._setup_scaling(False)
+        if parameters_identifiable is None:
+            parameters_identifiable = []
+
+        if parameters_not_identifiable is None:
+            parameters_not_identifiable = []
+
+        results_sensitivity = self.calculate_sensitivity_and_fim(
+            parameters, unfixed_params
+        )
+
+        fim_matrix = results_sensitivity["fim"]
+
+        def eigsorted(cov):
+            vals, vecs = np.linalg.eig(cov)
+            # vals, vecs = np.linalg.eigh(cov)
+            order = np.flip(vals.argsort())
+            return vals[order], vecs[:, order]
+
+        # vals, vecs = eigsorted(results_sensitivity["fim"])
+        vals, vecs = eigsorted(fim_matrix)
+
+        index_max = np.argmax(np.abs(vecs[:, -1]))
+        current_parameter_name = unfixed_params.pop(index_max)
+        # print(np.abs(vals[-1]))
+        if np.abs(vals[-1]) > eigenvalue_threshold:
+            parameters_identifiable.insert(0, current_parameter_name)
+        else:
+            parameters_not_identifiable.insert(0, current_parameter_name)
+
+        if len(vals) == 1:
+            parameters_ranked = []
+            for parameter_name in parameters_identifiable + parameters_not_identifiable:
+                parameters_ranked.append(parameter_name)
+
+            print(f"Ranked parameters: {parameters_ranked}")
+            print(f"Estimable parameters: {parameters_identifiable}")
+            print(f"Non identifiable parameters: {parameters_not_identifiable}")
+
+            result = {}
+            result["ranked"] = parameters_ranked
+            result["estimable"] = parameters_identifiable
+            result["fixed"] = parameters_not_identifiable
+
+            return result
+
+        else:
+            return self.parameter_identifiability_eigenvalue(
+                parameters,
+                unfixed_params,
+                parameters_identifiable,
+                parameters_not_identifiable,
+                eigenvalue_threshold,
+            )
+
 
 class ParameterEstimation(PE_base):
     def __init__(
@@ -1227,120 +1409,6 @@ class ParameterEstimationNLE(PE_base):
 
         self.generate_simulate_all_functions()
 
-    def calculate_sensitivity_and_fim(
-        self, parameters: dict[str, float], parameter_names: list[str] | None = None
-    ) -> dict[str, np.ndarray]:
-        """Calculate jacobian, scaled_jacobian, parameter_covariance_matrix only for parameters,
-        which names are listed in paramtere_names, if None, for all unfixed paramters.
-        Jacobian is calculated only for "measured" algebraic variables, the ones which
-        had value, when ParameterEstimationNLE was initialized.
-
-        parameters dictionary holds paramter values for all unfixed parameters, example:
-
-        parameters = {"theta1": 1, "theta2": 2}
-        parameter_names = ["theta1"]
-
-        Jacobian of measured variables will be calculated for theta1=1 and theta2=2, but reported
-        jacobian will only contain parameter theta2.
-
-        Jacobian dimensions: dY/dp [NumOfMeasurements x NumOfParameters]
-        """
-        self._setup_scaling()
-        decision_variables = self.varlist_decision.get_casadi_variables()
-        if parameter_names is not None:
-            list_selected_parameters_index = []
-            for par_index, par_name in enumerate(self.varlist_decision.keys()):
-                if par_name in parameter_names:
-                    list_selected_parameters_index.append(par_index)
-
-        all_parameter_values = self.parameters_dict_to_list(parameters)
-
-        residuals = self.calculate_objective_and_residual(
-            parameters, objective_function="ols"
-        )["residuals"]
-        measurement_variance_estimate = np.trace(residuals.T @ residuals) / (
-            len(self.list_simulators)
-            - len(self.varlist_decision) / len(self.names_of_measurements)
-        )
-
-        jacobian = {}
-        jacobian_scaled = {}
-        jacobian_yao = {}
-        res_simulation = ca.Function(
-            "sim", [decision_variables], [self.simulate_all_mx]
-        )(all_parameter_values)
-
-        for index_measurement, meas_name in enumerate(self.names_of_measurements):
-            jac_meas_mx = ca.jacobian(
-                self.simulate_all_mx[:, index_measurement], decision_variables
-            )
-            jac_meas_function = ca.Function(
-                "jac_meas", [decision_variables], [jac_meas_mx]
-            )
-            jac_meas_dm = jac_meas_function(all_parameter_values)
-            jac_meas_selected_dm = (
-                jac_meas_dm * self.array_data_mask[:, index_measurement]
-            )
-            jac_meas_selected_scaled_dm = (
-                jac_meas_selected_dm * self.array_inverted_std[:, index_measurement]
-            )
-            jac_meas_selected_yao_dm = jac_meas_selected_dm * (
-                1 / res_simulation[:, index_measurement]
-            )
-            if parameter_names is None:
-                jacobian[meas_name] = jac_meas_selected_dm
-                jacobian_scaled[meas_name] = jac_meas_selected_scaled_dm
-                jacobian_yao[meas_name] = jac_meas_selected_yao_dm
-            else:
-                jacobian[meas_name] = jac_meas_selected_dm[
-                    :, list_selected_parameters_index
-                ]
-                jacobian_scaled[meas_name] = jac_meas_selected_scaled_dm[
-                    :, list_selected_parameters_index
-                ]
-                jacobian_yao[meas_name] = jac_meas_selected_yao_dm[
-                    :, list_selected_parameters_index
-                ]
-
-        jac_array = np.concatenate(list(jacobian.values()))
-        jac_array_scaled = np.concatenate(list(jacobian_scaled.values()))
-        jac_array_yao = np.concatenate(list(jacobian_yao.values()))
-
-        # Generate jacobian and hessian on obj function
-        jac_objective = ca.Function(
-            "jf",
-            [decision_variables],
-            [ca.jacobian(self._objective_ols()[0], decision_variables)],
-        )(all_parameter_values)
-        hessian_objective = ca.Function(
-            "jf",
-            [decision_variables],
-            [ca.hessian(self._objective_ols()[0], decision_variables)[0]],
-        )(all_parameter_values)
-        if parameter_names is not None:
-            jac_objective = jac_objective[:, list_selected_parameters_index]
-            hessian_objective = hessian_objective[
-                list_selected_parameters_index, list_selected_parameters_index
-            ]
-
-        fim_matrix = jac_array.T @ jac_array
-        fim_matrix_scaled = jac_array_scaled.T @ jac_array_scaled
-        parameter_covariance_matrix = measurement_variance_estimate * np.linalg.inv(fim_matrix)  # type: ignore
-
-        result = {}
-        result["jac_full"] = jac_array
-        result["jac_sorted"] = jacobian
-        result["jac_scaled_full"] = jac_array_scaled
-        result["jac_scaled_sorted"] = jacobian_scaled
-        result["jac_yao_full"] = jac_array_yao
-        result["jac_yao_sorted"] = jacobian_yao
-        result["fim"] = fim_matrix
-        result["fim_scaled"] = fim_matrix_scaled
-        result["cov_par"] = parameter_covariance_matrix
-        result["jac_ols"] = jac_objective
-        result["hess_ols"] = hessian_objective
-
-        return result
 
     def parameter_identifiability_yao(
         self,
@@ -1419,72 +1487,6 @@ class ParameterEstimationNLE(PE_base):
 
         return result
 
-    def parameter_identifiability_eigenvalue(
-        self,
-        parameters: dict[str, float],
-        unfixed_params: list[str],
-        parameters_identifiable: list[str] | None = None,
-        parameters_not_identifiable: list[str] | None = None,
-        eigenvalue_threshold: float = 10e-4,
-    ):
-        """Do parameter ranking based on Quasier 2009, however use scaled sensitivity as in Yao 2003.
-        Threshold is taken from Quasier 2009.
-        Return ranked parameters in descending order, and divide them in identifiable and not"""
-
-        self._setup_scaling(False)
-        if parameters_identifiable is None:
-            parameters_identifiable = []
-
-        if parameters_not_identifiable is None:
-            parameters_not_identifiable = []
-
-        results_sensitivity = self.calculate_sensitivity_and_fim(
-            parameters, unfixed_params
-        )
-
-        fim_matrix = results_sensitivity["fim"]
-
-        def eigsorted(cov):
-            vals, vecs = np.linalg.eig(cov)
-            # vals, vecs = np.linalg.eigh(cov)
-            order = np.flip(vals.argsort())
-            return vals[order], vecs[:, order]
-
-        # vals, vecs = eigsorted(results_sensitivity["fim"])
-        vals, vecs = eigsorted(fim_matrix)
-
-        index_max = np.argmax(np.abs(vecs[:, -1]))
-        current_parameter_name = unfixed_params.pop(index_max)
-        # print(np.abs(vals[-1]))
-        if np.abs(vals[-1]) > eigenvalue_threshold:
-            parameters_identifiable.insert(0, current_parameter_name)
-        else:
-            parameters_not_identifiable.insert(0, current_parameter_name)
-
-        if len(vals) == 1:
-            parameters_ranked = []
-            for parameter_name in parameters_identifiable + parameters_not_identifiable:
-                parameters_ranked.append(parameter_name)
-
-            print(f"Ranked parameters: {parameters_ranked}")
-            print(f"Estimable parameters: {parameters_identifiable}")
-            print(f"Non identifiable parameters: {parameters_not_identifiable}")
-
-            result = {}
-            result["ranked"] = parameters_ranked
-            result["estimable"] = parameters_identifiable
-            result["fixed"] = parameters_not_identifiable
-
-            return result
-
-        else:
-            return self.parameter_identifiability_eigenvalue(
-                parameters,
-                unfixed_params,
-                parameters_identifiable,
-                parameters_not_identifiable,
-                eigenvalue_threshold,
-            )
 
     def parameter_analysis(self, parameters: dict[str, float]):
         import scipy.stats
