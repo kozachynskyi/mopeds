@@ -18,12 +18,12 @@ from par_est import (
     VariableList,
     VariableParameter,
     VariableState,
-    casados_integrator,
     _ACADOS_SUPPORT,
 )
 
 if _ACADOS_SUPPORT:
     from acados_template import AcadosModel
+    from par_est import casados_integrator
 
 
 class Simulator(object):
