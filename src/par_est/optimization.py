@@ -712,6 +712,186 @@ class PE_base(Optimizer):
                 eigenvalue_threshold,
             )
 
+    def parameter_identifiability_yao(
+        self,
+        parameters: dict[str, float],
+        unfixed_params: list[str],
+        threshold: float = 4e-2,
+    ):
+        """Do parameter ranking based on Yao 2003. Cut-off value taken from Yao 2003.
+        Return ranked parameters in descending order, and divide them in identifiable and not"""
+        self._setup_scaling(False)
+        parameter_values_all: list[float] = []
+        selected_parameters: list[float] = []
+        unranked_parameters: list[str] = []
+
+        for var_name in parameters.keys():
+            if var_name in self.varlist_decision.keys():
+                parameter_values_all.append(parameters[var_name])
+
+        for var_name in parameters.keys():
+            if var_name in unfixed_params:
+                selected_parameters.append(parameters[var_name])
+                unranked_parameters.append(var_name)
+
+        results_sensitivity = self.calculate_sensitivity_and_fim(parameters)
+
+        jacobian_yao = results_sensitivity["jac_yao_full"]
+
+        XK = np.zeros(jacobian_yao.shape)
+
+        parameters_ranked = []
+        parameters_identifiable = []
+        parameters_not_identifiable = []
+
+        for i in range(len(unranked_parameters)):
+            if i == 0:
+                eucnorm = np.linalg.norm(jacobian_yao, axis=0)
+            else:
+                eucnorm = np.linalg.norm(R, axis=0)
+
+            index_most_identifiable_par = np.argsort(eucnorm)[-1]
+            most_identifiable_parameter = unranked_parameters[
+                index_most_identifiable_par
+            ]
+            parameters_ranked.append(most_identifiable_parameter)
+
+            # print(eucnorm[-1])
+            if eucnorm[-1] < threshold:
+                parameters_not_identifiable.append(most_identifiable_parameter)
+            else:
+                parameters_identifiable.append(most_identifiable_parameter)
+
+            if i == 0:
+                XK = jacobian_yao[:, index_most_identifiable_par].reshape(
+                    (jacobian_yao.shape[0], 1)
+                )
+            else:
+                XK = np.append(
+                    XK,
+                    jacobian_yao[:, index_most_identifiable_par].reshape(
+                        (jacobian_yao.shape[0], 1)
+                    ),
+                    axis=1,
+                )
+
+            Z_hat = XK.dot(np.linalg.inv(XK.T.dot(XK))).dot(XK.T).dot(jacobian_yao)
+            R = jacobian_yao - Z_hat
+
+        print(f"Ranked parameters: {parameters_ranked}")
+        print(f"Estimable parameters: {parameters_identifiable}")
+        print(f"Non identifiable parameters: {parameters_not_identifiable}")
+
+        result = {}
+        result["ranked"] = parameters_ranked
+        result["estimable"] = parameters_identifiable
+        result["fixed"] = parameters_not_identifiable
+
+        return result
+
+    def parameter_analysis(self, parameters: dict[str, float]):
+        import scipy.stats
+
+        dof = self.array_data.shape[0] - len(self.varlist_decision)
+        num_par = len(self.varlist_decision)
+
+        self._setup_scaling(False)
+
+        selected_parameters = self.parameters_dict_to_list(parameters)
+        result_sens = self.calculate_sensitivity_and_fim(parameters)
+
+        parameter_covariance_matrix = result_sens["cov_par"]
+
+        parameter_variance = np.diag(parameter_covariance_matrix)
+        parameter_std = np.sqrt(parameter_variance).flatten()
+
+        students_t_dist_95 = scipy.stats.t.ppf(0.975, dof)
+
+        for par, var_value in zip(selected_parameters, parameter_std):
+            print(f"{par} +- {var_value} |  ({var_value * 100 / par}%)")
+
+        marginal_conf_interval_95 = (parameter_std * students_t_dist_95).T
+
+        import matplotlib.pyplot as plt
+        from matplotlib.axes import Axes
+        from matplotlib.patches import Ellipse
+
+        def eigsorted(cov):
+            vals, vecs = np.linalg.eig(cov)
+            # vals, vecs = np.linalg.eigh(cov)
+            order = vals.argsort()[::-1]
+            return vals[order], vecs[:, order]
+
+        fig, axes = plt.subplots(ncols=num_par - 1, nrows=num_par - 1)
+        if isinstance(axes, Axes) == 1:
+            axes = [axes]
+
+        fisher_f_dist_95 = scipy.stats.f.ppf(0.95, num_par, dof)
+
+        comb = list(combinations(range(num_par), 2))
+        par_names = list(self.varlist_decision.keys())
+
+        title = ""
+        for par_value, var_variance_i, name in zip(
+            selected_parameters, parameter_std, par_names
+        ):
+            title = (
+                title
+                + f"{name}: {round(par_value,5)} ± {round(var_variance_i,5)} |  ({round((var_variance_i / par_value) * 100,1)}%)\n"
+            )
+
+        fig.suptitle(title)
+
+        for i in comb:
+            if len(axes) == 1:
+                ax = axes[0]
+            else:
+                ax = axes[i[1] - 1, i[0]]
+            index_subarray = np.ix_(i, i)
+            parameters_i = []
+            parameters_i.append(selected_parameters[i[0]])
+            parameters_i.append(selected_parameters[i[1]])
+
+            marginal_conf_interval_95_i = []
+            marginal_conf_interval_95_i.append(marginal_conf_interval_95[i[0]])
+            marginal_conf_interval_95_i.append(marginal_conf_interval_95[i[1]])
+            cov_m = parameter_covariance_matrix[index_subarray]
+            vals, vecs = eigsorted(cov_m)
+            theta = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
+
+            # Width and height are "full" widths, not radius
+            for fisher in [fisher_f_dist_95]:  # , fisher_f_dist_99]:
+                width, height = 2 * np.sqrt(num_par * fisher * vals)
+                height = height / parameters_i[0]
+                width = width / parameters_i[1]
+                ellip = Ellipse(
+                    xy=[1, 1],
+                    width=width,
+                    height=height,
+                    angle=theta,
+                    alpha=0.3,
+                    lw=2,
+                    linestyle="-",
+                    color="red",
+                )
+
+                ax.add_artist(ellip)
+            ax.relim()
+            ax.autoscale()
+
+            if i[0] == 0:
+                ax.set_ylabel(f"{par_names[i[1]]}")
+
+            if i[1] == len(par_names) - 1:
+                ax.set_xlabel(f"{par_names[i[0]]}")
+
+            # ax.axvline(parameters_i[0] - marginal_conf_interval_95_i[0])
+            # ax.axvline(parameters_i[0] + marginal_conf_interval_95_i[0])
+            # ax.axhline(parameters_i[1] - marginal_conf_interval_95_i[1])
+            # ax.axhline(parameters_i[1] + marginal_conf_interval_95_i[1])
+
+        plt.show()
+
 
 class ParameterEstimation(PE_base):
     def __init__(
@@ -1413,186 +1593,6 @@ class ParameterEstimationNLE(PE_base):
         self.generate_simulate_all_functions()
 
 
-    def parameter_identifiability_yao(
-        self,
-        parameters: dict[str, float],
-        unfixed_params: list[str],
-        threshold: float = 4e-2,
-    ):
-        """Do parameter ranking based on Yao 2003. Cut-off value taken from Yao 2003.
-        Return ranked parameters in descending order, and divide them in identifiable and not"""
-        self._setup_scaling(False)
-        parameter_values_all: list[float] = []
-        selected_parameters: list[float] = []
-        unranked_parameters: list[str] = []
-
-        for var_name in parameters.keys():
-            if var_name in self.varlist_decision.keys():
-                parameter_values_all.append(parameters[var_name])
-
-        for var_name in parameters.keys():
-            if var_name in unfixed_params:
-                selected_parameters.append(parameters[var_name])
-                unranked_parameters.append(var_name)
-
-        results_sensitivity = self.calculate_sensitivity_and_fim(parameters)
-
-        jacobian_yao = results_sensitivity["jac_yao_full"]
-
-        XK = np.zeros(jacobian_yao.shape)
-
-        parameters_ranked = []
-        parameters_identifiable = []
-        parameters_not_identifiable = []
-
-        for i in range(len(unranked_parameters)):
-            if i == 0:
-                eucnorm = np.linalg.norm(jacobian_yao, axis=0)
-            else:
-                eucnorm = np.linalg.norm(R, axis=0)
-
-            index_most_identifiable_par = np.argsort(eucnorm)[-1]
-            most_identifiable_parameter = unranked_parameters[
-                index_most_identifiable_par
-            ]
-            parameters_ranked.append(most_identifiable_parameter)
-
-            # print(eucnorm[-1])
-            if eucnorm[-1] < threshold:
-                parameters_not_identifiable.append(most_identifiable_parameter)
-            else:
-                parameters_identifiable.append(most_identifiable_parameter)
-
-            if i == 0:
-                XK = jacobian_yao[:, index_most_identifiable_par].reshape(
-                    (jacobian_yao.shape[0], 1)
-                )
-            else:
-                XK = np.append(
-                    XK,
-                    jacobian_yao[:, index_most_identifiable_par].reshape(
-                        (jacobian_yao.shape[0], 1)
-                    ),
-                    axis=1,
-                )
-
-            Z_hat = XK.dot(np.linalg.inv(XK.T.dot(XK))).dot(XK.T).dot(jacobian_yao)
-            R = jacobian_yao - Z_hat
-
-        print(f"Ranked parameters: {parameters_ranked}")
-        print(f"Estimable parameters: {parameters_identifiable}")
-        print(f"Non identifiable parameters: {parameters_not_identifiable}")
-
-        result = {}
-        result["ranked"] = parameters_ranked
-        result["estimable"] = parameters_identifiable
-        result["fixed"] = parameters_not_identifiable
-
-        return result
-
-
-    def parameter_analysis(self, parameters: dict[str, float]):
-        import scipy.stats
-
-        dof = len(self.list_input_varlist) - len(self.varlist_decision)
-        num_par = len(self.varlist_decision)
-
-        self._setup_scaling(False)
-
-        selected_parameters = self.parameters_dict_to_list(parameters)
-        result_sens = self.calculate_sensitivity_and_fim(parameters)
-
-        parameter_covariance_matrix = result_sens["cov_par"]
-
-        parameter_variance = np.diag(parameter_covariance_matrix)
-        parameter_std = np.sqrt(parameter_variance).flatten()
-
-        students_t_dist_95 = scipy.stats.t.ppf(0.975, dof)
-
-        for par, var_value in zip(selected_parameters, parameter_std):
-            print(f"{par} +- {var_value} |  ({var_value * 100 / par}%)")
-
-        marginal_conf_interval_95 = (parameter_std * students_t_dist_95).T
-
-        import matplotlib.pyplot as plt
-        from matplotlib.axes import Axes
-        from matplotlib.patches import Ellipse
-
-        def eigsorted(cov):
-            vals, vecs = np.linalg.eig(cov)
-            # vals, vecs = np.linalg.eigh(cov)
-            order = vals.argsort()[::-1]
-            return vals[order], vecs[:, order]
-
-        fig, axes = plt.subplots(ncols=num_par - 1, nrows=num_par - 1)
-        if isinstance(axes, Axes) == 1:
-            axes = [axes]
-
-        fisher_f_dist_95 = scipy.stats.f.ppf(0.95, num_par, dof)
-
-        comb = list(combinations(range(num_par), 2))
-        par_names = list(self.varlist_decision.keys())
-
-        title = ""
-        for par_value, var_variance_i, name in zip(
-            selected_parameters, parameter_std, par_names
-        ):
-            title = (
-                title
-                + f"{name}: {round(par_value,5)} ± {round(var_variance_i,5)} |  ({round((var_variance_i / par_value) * 100,1)}%)\n"
-            )
-
-        fig.suptitle(title)
-
-        for i in comb:
-            if len(axes) == 1:
-                ax = axes[0]
-            else:
-                ax = axes[i[1] - 1, i[0]]
-            index_subarray = np.ix_(i, i)
-            parameters_i = []
-            parameters_i.append(selected_parameters[i[0]])
-            parameters_i.append(selected_parameters[i[1]])
-
-            marginal_conf_interval_95_i = []
-            marginal_conf_interval_95_i.append(marginal_conf_interval_95[i[0]])
-            marginal_conf_interval_95_i.append(marginal_conf_interval_95[i[1]])
-            cov_m = parameter_covariance_matrix[index_subarray]
-            vals, vecs = eigsorted(cov_m)
-            theta = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
-
-            # Width and height are "full" widths, not radius
-            for fisher in [fisher_f_dist_95]:  # , fisher_f_dist_99]:
-                width, height = 2 * np.sqrt(num_par * fisher * vals)
-                height = height / parameters_i[0]
-                width = width / parameters_i[1]
-                ellip = Ellipse(
-                    xy=[1, 1],
-                    width=width,
-                    height=height,
-                    angle=theta,
-                    alpha=0.3,
-                    lw=2,
-                    linestyle="-",
-                    color="red",
-                )
-
-                ax.add_artist(ellip)
-            ax.relim()
-            ax.autoscale()
-
-            if i[0] == 0:
-                ax.set_ylabel(f"{par_names[i[1]]}")
-
-            if i[1] == len(par_names) - 1:
-                ax.set_xlabel(f"{par_names[i[0]]}")
-
-            # ax.axvline(parameters_i[0] - marginal_conf_interval_95_i[0])
-            # ax.axvline(parameters_i[0] + marginal_conf_interval_95_i[0])
-            # ax.axhline(parameters_i[1] - marginal_conf_interval_95_i[1])
-            # ax.axhline(parameters_i[1] + marginal_conf_interval_95_i[1])
-
-        plt.show()
 
     def calculate_inference_bounds(
         self,
