@@ -561,10 +561,8 @@ class PE_base(Optimizer):
         residuals = self.calculate_objective_and_residual(
             parameters, objective_function="ols"
         )["residuals"]
-        measurement_variance_estimate = np.trace(residuals.T @ residuals) / (
-            len(self.list_simulators)
-            - len(self.varlist_decision) / len(self.names_of_measurements)
-        )
+        measurement_variance_estimate = np.trace(residuals.T @ residuals) / self.dof
+        print("OLS std: ", np.sqrt(measurement_variance_estimate))
 
         jacobian = {}
         jacobian_scaled = {}
@@ -792,7 +790,6 @@ class PE_base(Optimizer):
     def parameter_analysis(self, parameters: dict[str, float]):
         import scipy.stats
 
-        dof = self.array_data.shape[0] - len(self.varlist_decision)
         num_par = len(self.varlist_decision)
 
         self._setup_scaling(False)
@@ -805,7 +802,7 @@ class PE_base(Optimizer):
         parameter_variance = np.diag(parameter_covariance_matrix)
         parameter_std = np.sqrt(parameter_variance).flatten()
 
-        students_t_dist_95 = scipy.stats.t.ppf(0.975, dof)
+        students_t_dist_95 = scipy.stats.t.ppf(0.975, self.dof)
 
         for par, var_value in zip(selected_parameters, parameter_std):
             print(f"{par} +- {var_value} |  ({var_value * 100 / par}%)")
@@ -826,7 +823,7 @@ class PE_base(Optimizer):
         if isinstance(axes, Axes) == 1:
             axes = [axes]
 
-        fisher_f_dist_95 = scipy.stats.f.ppf(0.95, num_par, dof)
+        fisher_f_dist_95 = scipy.stats.f.ppf(0.95, num_par, self.dof)
 
         comb = list(combinations(range(num_par), 2))
         par_names = list(self.varlist_decision.keys())
@@ -891,6 +888,10 @@ class PE_base(Optimizer):
             # ax.axhline(parameters_i[1] + marginal_conf_interval_95_i[1])
 
         plt.show()
+
+    @property
+    def dof(self):
+        return np.count_nonzero(self.array_data_mask) - len(self.varlist_decision)
 
 
 class ParameterEstimation(PE_base):
@@ -1735,8 +1736,7 @@ class ParameterEstimationNLE(PE_base):
 
         len_exp = len(experimental_data)
         len_param = len(dict_of_params)
-        DOF = len_exp - len_param
-        fisher95 = scipy.stats.f(len_param, DOF).ppf(0.95)
+        fisher95 = scipy.stats.f(len_param, self.dof).ppf(0.95)
 
         inference_results = {}
         for control in dict_of_controls:
@@ -1744,7 +1744,7 @@ class ParameterEstimationNLE(PE_base):
 
         for response in dict_of_responses:
             inference_results[response] = {}
-            s = np.sqrt(OLS[response] / DOF)
+            s = np.sqrt(OLS[response] / self.dof)
             R = np.linalg.qr(jac[response], mode="reduced")[1]
             bound = (
                 s
