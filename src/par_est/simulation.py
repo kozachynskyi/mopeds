@@ -382,6 +382,14 @@ class Simulator(object):
             for index in range(len(self._independent_variables)):
                 self._independent_variables[index][index_var] = var_value
 
+    def debug_state(self, state_values):
+        values = np.asarray(state_values)
+        print(dict(zip(self.model.varlist_state.keys(), values)))
+
+    def debug_algebraic(self, algebraic_values):
+        values = np.asarray(algebraic_values)
+        print(dict(zip(self.model.varlist_algebraic.keys(), values)))
+
     def get_default_simulator_settings(self) -> None:
         """Sane default settings for integrators"""
         if self.__integrator_name == "idas":
