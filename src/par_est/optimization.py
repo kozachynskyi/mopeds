@@ -787,7 +787,7 @@ class PE_base(Optimizer):
 
         return result
 
-    def parameter_analysis(self, parameters: dict[str, float]):
+    def parameter_analysis(self, parameters: dict[str, float], plot=True):
         import scipy.stats
 
         num_par = len(self.varlist_decision)
@@ -809,85 +809,86 @@ class PE_base(Optimizer):
 
         marginal_conf_interval_95 = (parameter_std * students_t_dist_95).T
 
-        import matplotlib.pyplot as plt
-        from matplotlib.axes import Axes
-        from matplotlib.patches import Ellipse
+        if plot:
+            import matplotlib.pyplot as plt
+            from matplotlib.axes import Axes
+            from matplotlib.patches import Ellipse
 
-        def eigsorted(cov):
-            vals, vecs = np.linalg.eig(cov)
-            # vals, vecs = np.linalg.eigh(cov)
-            order = vals.argsort()[::-1]
-            return vals[order], vecs[:, order]
+            def eigsorted(cov):
+                vals, vecs = np.linalg.eig(cov)
+                # vals, vecs = np.linalg.eigh(cov)
+                order = vals.argsort()[::-1]
+                return vals[order], vecs[:, order]
 
-        fig, axes = plt.subplots(ncols=num_par - 1, nrows=num_par - 1)
-        if isinstance(axes, Axes) == 1:
-            axes = [axes]
+            fig, axes = plt.subplots(ncols=num_par - 1, nrows=num_par - 1)
+            if isinstance(axes, Axes) == 1:
+                axes = [axes]
 
-        fisher_f_dist_95 = scipy.stats.f.ppf(0.95, num_par, self.dof)
+            fisher_f_dist_95 = scipy.stats.f.ppf(0.95, num_par, self.dof)
 
-        comb = list(combinations(range(num_par), 2))
-        par_names = list(self.varlist_decision.keys())
+            comb = list(combinations(range(num_par), 2))
+            par_names = list(self.varlist_decision.keys())
 
-        title = ""
-        for par_value, var_variance_i, name in zip(
-            selected_parameters, parameter_std, par_names
-        ):
-            title = (
-                title
-                + f"{name}: {round(par_value,5)} ± {round(var_variance_i,5)} |  ({round((var_variance_i / par_value) * 100,1)}%)\n"
-            )
-
-        fig.suptitle(title)
-
-        for i in comb:
-            if len(axes) == 1:
-                ax = axes[0]
-            else:
-                ax = axes[i[1] - 1, i[0]]
-            index_subarray = np.ix_(i, i)
-            parameters_i = []
-            parameters_i.append(selected_parameters[i[0]])
-            parameters_i.append(selected_parameters[i[1]])
-
-            marginal_conf_interval_95_i = []
-            marginal_conf_interval_95_i.append(marginal_conf_interval_95[i[0]])
-            marginal_conf_interval_95_i.append(marginal_conf_interval_95[i[1]])
-            cov_m = parameter_covariance_matrix[index_subarray]
-            vals, vecs = eigsorted(cov_m)
-            theta = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
-
-            # Width and height are "full" widths, not radius
-            for fisher in [fisher_f_dist_95]:  # , fisher_f_dist_99]:
-                width, height = 2 * np.sqrt(num_par * fisher * vals)
-                height = height / parameters_i[0]
-                width = width / parameters_i[1]
-                ellip = Ellipse(
-                    xy=[1, 1],
-                    width=width,
-                    height=height,
-                    angle=theta,
-                    alpha=0.3,
-                    lw=2,
-                    linestyle="-",
-                    color="red",
+            title = ""
+            for par_value, var_variance_i, name in zip(
+                selected_parameters, parameter_std, par_names
+            ):
+                title = (
+                    title
+                    + f"{name}: {round(par_value,5)} ± {round(var_variance_i,5)} |  ({round((var_variance_i / par_value) * 100,1)}%)\n"
                 )
 
-                ax.add_artist(ellip)
-            ax.relim()
-            ax.autoscale()
+            fig.suptitle(title)
 
-            if i[0] == 0:
-                ax.set_ylabel(f"{par_names[i[1]]}")
+            for i in comb:
+                if len(axes) == 1:
+                    ax = axes[0]
+                else:
+                    ax = axes[i[1] - 1, i[0]]
+                index_subarray = np.ix_(i, i)
+                parameters_i = []
+                parameters_i.append(selected_parameters[i[0]])
+                parameters_i.append(selected_parameters[i[1]])
 
-            if i[1] == len(par_names) - 1:
-                ax.set_xlabel(f"{par_names[i[0]]}")
+                marginal_conf_interval_95_i = []
+                marginal_conf_interval_95_i.append(marginal_conf_interval_95[i[0]])
+                marginal_conf_interval_95_i.append(marginal_conf_interval_95[i[1]])
+                cov_m = parameter_covariance_matrix[index_subarray]
+                vals, vecs = eigsorted(cov_m)
+                theta = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
 
-            # ax.axvline(parameters_i[0] - marginal_conf_interval_95_i[0])
-            # ax.axvline(parameters_i[0] + marginal_conf_interval_95_i[0])
-            # ax.axhline(parameters_i[1] - marginal_conf_interval_95_i[1])
-            # ax.axhline(parameters_i[1] + marginal_conf_interval_95_i[1])
+                # Width and height are "full" widths, not radius
+                for fisher in [fisher_f_dist_95]:  # , fisher_f_dist_99]:
+                    width, height = 2 * np.sqrt(num_par * fisher * vals)
+                    height = height / parameters_i[0]
+                    width = width / parameters_i[1]
+                    ellip = Ellipse(
+                        xy=[1, 1],
+                        width=width,
+                        height=height,
+                        angle=theta,
+                        alpha=0.3,
+                        lw=2,
+                        linestyle="-",
+                        color="red",
+                    )
 
-        plt.show()
+                    ax.add_artist(ellip)
+                ax.relim()
+                ax.autoscale()
+
+                if i[0] == 0:
+                    ax.set_ylabel(f"{par_names[i[1]]}")
+
+                if i[1] == len(par_names) - 1:
+                    ax.set_xlabel(f"{par_names[i[0]]}")
+
+                # ax.axvline(parameters_i[0] - marginal_conf_interval_95_i[0])
+                # ax.axvline(parameters_i[0] + marginal_conf_interval_95_i[0])
+                # ax.axhline(parameters_i[1] - marginal_conf_interval_95_i[1])
+                # ax.axhline(parameters_i[1] + marginal_conf_interval_95_i[1])
+
+            plt.show()
 
     @property
     def dof(self):
