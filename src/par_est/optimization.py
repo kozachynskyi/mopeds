@@ -815,11 +815,12 @@ class PE_base(Optimizer):
         parameter_std = np.sqrt(parameter_variance).flatten()
 
         students_t_dist_95 = scipy.stats.t.ppf(0.975, self.dof)
+        marginal_conf_interval_95 = (parameter_std * students_t_dist_95).T
 
-        for par, var_value in zip(selected_parameters, parameter_std):
+        print(parameter_std)
+        for par, var_value in zip(selected_parameters, marginal_conf_interval_95):
             print(f"{par} +- {var_value} |  ({var_value * 100 / par}%)")
 
-        marginal_conf_interval_95 = (parameter_std * students_t_dist_95).T
 
         if plot:
             import matplotlib.pyplot as plt
@@ -832,7 +833,7 @@ class PE_base(Optimizer):
                 order = vals.argsort()[::-1]
                 return vals[order], vecs[:, order]
 
-            fig, axes = plt.subplots(ncols=num_par - 1, nrows=num_par - 1)
+            fig, axes = plt.subplots(ncols=num_par - 1, nrows=num_par - 1, layout="constrained")
             if isinstance(axes, Axes) == 1:
                 axes = [axes]
 
@@ -843,7 +844,7 @@ class PE_base(Optimizer):
 
             title = ""
             for par_value, var_variance_i, name in zip(
-                selected_parameters, parameter_std, par_names
+                selected_parameters, marginal_conf_interval_95, par_names
             ):
                 title = (
                     title
@@ -872,10 +873,8 @@ class PE_base(Optimizer):
                 # Width and height are "full" widths, not radius
                 for fisher in [fisher_f_dist_95]:  # , fisher_f_dist_99]:
                     width, height = 2 * np.sqrt(num_par * fisher * vals)
-                    height = height / parameters_i[0]
-                    width = width / parameters_i[1]
                     ellip = Ellipse(
-                        xy=[1, 1],
+                        xy=[parameters_i[0], parameters_i[1]],
                         width=width,
                         height=height,
                         angle=theta,
@@ -899,8 +898,8 @@ class PE_base(Optimizer):
                 # ax.axvline(parameters_i[0] + marginal_conf_interval_95_i[0])
                 # ax.axhline(parameters_i[1] - marginal_conf_interval_95_i[1])
                 # ax.axhline(parameters_i[1] + marginal_conf_interval_95_i[1])
+        return marginal_conf_interval_95
 
-            plt.show()
 
     @property
     def dof(self):
