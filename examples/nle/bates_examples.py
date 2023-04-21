@@ -53,6 +53,17 @@ def puromycin():
     res = pe.parameter_analysis(res_x)
 
 
+def spmma():
+    # Doesn't work as in book
+    varlist, model, data = par_est.examples.spmma()
+    pe = par_est.ParameterEstimationNLE(model, data)
+
+    # Puromycin 6 Bates Page 51
+    res_x = pe.optimize(objective_function="ols")["x_dict"]
+    a = pe.calculate_objective_and_residual(res_x)
+
+
 # bod()
+# spmma()
 # puromycin()
 isomerization()
