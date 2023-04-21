@@ -561,8 +561,16 @@ class PE_base(Optimizer):
         residuals = self.calculate_objective_and_residual(
             parameters, objective_function="ols"
         )["residuals"]
-        measurement_variance_estimate = np.trace(residuals.T @ residuals) / self.dof
+        measurement_variance_estimate = np.diag(residuals.T @ residuals) / (self.dof / len(self.names_of_measurements))
         print("OLS std: ", np.sqrt(measurement_variance_estimate))
+
+        backup_inverted_std = copy.deepcopy(self.array_inverted_std)
+
+        if isinstance(measurement_variance_estimate, float):
+            measurement_variance_estimate = [measurement_variance_estimate]
+
+        for index_meas, meas_std in enumerate(measurement_variance_estimate):
+            self.array_inverted_std[:, index_meas] = 1 / np.sqrt(meas_std)
 
         jacobian = {}
         jacobian_scaled = {}
@@ -611,12 +619,12 @@ class PE_base(Optimizer):
         jac_objective = ca.Function(
             "jf",
             [decision_variables],
-            [ca.jacobian(self._objective_ols()[0], decision_variables)],
+            [ca.jacobian(self._objective_wls()[0], decision_variables)],
         )(all_parameter_values)
         hessian_objective = ca.Function(
             "jf",
             [decision_variables],
-            [ca.hessian(self._objective_ols()[0], decision_variables)[0]],
+            [ca.hessian(self._objective_wls()[0], decision_variables)[0]],
         )(all_parameter_values)
         if parameter_names is not None:
             jac_objective = jac_objective[:, list_selected_parameters_index]
@@ -625,8 +633,11 @@ class PE_base(Optimizer):
             ]
 
         fim_matrix = jac_array.T @ jac_array
-        fim_matrix_scaled = jac_array_scaled.T @ jac_array_scaled
-        parameter_covariance_matrix = measurement_variance_estimate * np.linalg.inv(fim_matrix)  # type: ignore
+        fim_matrix_scaled = (jac_array_scaled.T @ jac_array_scaled)
+        parameter_covariance_matrix = np.linalg.inv(fim_matrix)  # type: ignore
+
+        self.array_inverted_std = backup_inverted_std
+
 
         result = {}
         result["jac_full"] = jac_array
@@ -640,6 +651,7 @@ class PE_base(Optimizer):
         result["cov_par"] = parameter_covariance_matrix
         result["jac_ols"] = jac_objective
         result["hess_ols"] = hessian_objective
+        result["s2"] = measurement_variance_estimate
 
         return result
 
