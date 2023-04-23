@@ -6,6 +6,10 @@ For a tutorial check https://www.user.tu-berlin.de/vovakozach/par_est/5min_tutor
 
 ## What's New?
 
+### 0.9.1
+
+- fix bugs in identifiability analysis
+
 ### 0.9.0
 
 - BREAKING: DAE simulators API change: from self.simulate() to self.simulate_sym()

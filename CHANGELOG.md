@@ -1,3 +1,9 @@
+## 0.9.1 (2023-04-23)
+
+### Fix
+
+- **PE**: identifiability use correct FIM, order of parameters irrelevant
+
 ## 0.9.0 (2023-04-23)
 
 ### Refactor
