@@ -561,7 +561,11 @@ class PE_base(Optimizer):
         residuals = self.calculate_objective_and_residual(
             parameters, objective_function="ols"
         )["residuals"]
-        measurement_variance_estimate = np.diag(residuals.T @ residuals) / (self.dof / len(self.names_of_measurements))
+
+        # Eq 7-13-22 Bard 1974
+        dof = np.count_nonzero(self.array_data_mask) - (len(self.varlist_decision) / len(self.names_of_measurements))
+
+        measurement_variance_estimate = np.diag(residuals.T @ residuals) / dof
         print("OLS std: ", np.sqrt(measurement_variance_estimate))
 
         backup_inverted_std = copy.deepcopy(self.array_inverted_std)
@@ -649,8 +653,8 @@ class PE_base(Optimizer):
         result["fim"] = fim_matrix
         result["fim_scaled"] = fim_matrix_scaled
         result["cov_par"] = parameter_covariance_matrix
-        result["jac_ols"] = jac_objective
-        result["hess_ols"] = hessian_objective
+        result["jac_wls"] = jac_objective
+        result["hess_wls"] = hessian_objective
         result["s2"] = measurement_variance_estimate
 
         return result
