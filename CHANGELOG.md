@@ -1,3 +1,58 @@
+## 0.9.0 (2023-04-23)
+
+### Refactor
+
+- reroll back example file changes
+- refactor the parameter analysis, return marginal CI
+- **PE**: move paramter_analysis and yao to PE_base
+- **SimDAE**: simplify simulate_t0
+- **SimDAE**: simplify simulate_dae_recalcluate_algebraic
+- **Sim**: reposition methods to set default similator settings
+- modify .gitignore file
+- **PE**: rearange some methods
+- add example for NLE cstr
+- move some methods around
+- **PENLE**: remove unused atribute
+- **PE**: move some methods
+- **PE**: remove redundancy
+- **PE**: use setup_simulator_mapping
+- **PE**: create PE_Base class and move methods around
+
+### Fix
+
+- **PE**: typo. how parameter covariance matrix is calculated
+- **PE**: fix WLS objective function , added 1/2
+- rework paramter variance for multiresponce data
+- acados import typo2
+- typo acados import
+- add fix to bug that happens on OptigodMarkI
+- remove typo
+- remove hessian-approximation option from ipopt
+- generalize experiments scaling for PE
+- **PENLE**: fix potential bug with sorting of variances
+
+### Feat
+
+- **PE**: add option to not show plot while doing parameter_analysis
+- add _debug functions
+- **PE**: add property DOF to calculate NumMeas-NumPar
+- add identifiability analysis to ODE/DAE
+- WIP fair function for PE
+- **PE**: acados simulator C code generated only for first simulator
+- add acados dae solver support
+- **Model**: add .name attribute
+- include casados_integrator with modifications
+- **Sim**: add simulate_unfixed method for ODE/DAE
+- add log scaling to sampling, andd tests
+- **Variables**: PiecewiceConstant.value setting is supported
+- **PE**: deprecate "use_idas_constraints"
+- add example time derivative
+- speed up VariableList.dataframe
+- **Sim**: add change_independent_variables()
+- **PE**: move to modern api of PENLE
+- **PEDAE**: remove objective_alg()
+- **SIM_ODE**: rename self.simulate() to self.simulate_sym()
+
 ## 0.8.3 (2022-12-09)
 
 ### Feat

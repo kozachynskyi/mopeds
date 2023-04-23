@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "par_est"
-version = "0.8.3"
+version = "0.9.0"
 description = "Simulate and Optimize ODE/DAE"
 authors = ["Volodymyr Kozachynskyi <vovakozach@gmail.com>"]
 repository = "https://git.tu-berlin.de/vovakozach/pe_oed_casadi"
