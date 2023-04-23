@@ -1,8 +1,10 @@
 .ipynb_checkpoints
 .vscode
 **/tmp.pkl
+par_est_code
 
 # Temporary and binary files
+.ccls-cache
 *~
 *.py[cod]
 *.so

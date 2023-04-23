@@ -32,7 +32,7 @@ if __name__ == "__main__":
         m, time_grid, var_list_fixed, use_idas_constraints=True, simulate_jac=True
     )
     # Run simulation and get simple results as array of numbers, but information about state variables and timestamp is lost
-    res_simple = sim_fixed.simulate()
+    res_simple = sim_fixed.simulate_sym()
     # Run simulation and connect results with actual state variables, which can be plotted based on available data
     res = sim_fixed.generate_exp_data(algebraic=True)
     print(res.dataframe)

@@ -671,3 +671,151 @@ def isomerization_model() -> tuple[
         exp_data.append(var_list)
 
     return variable_list, m, exp_data
+
+
+def free_fall_example() -> tuple[
+    par_est.VariableList, par_est.Model, list[par_est.VariableList]
+]:
+    # Isomerization data as used in Bates, Watts, Nonlinear regression analysis: Its applications
+    variable_list = par_est.variables.VariableList()  # Preallocate variable_list
+
+    variable_list.add_variable(par_est.VariableState("s", 0))
+    variable_list.add_variable(par_est.VariableState("v", 0))
+
+    variable_list.add_variable(par_est.VariableAlgebraic("a", 8.8))
+    variable_list.add_variable(par_est.VariableAlgebraic("d", 1))
+    variable_list.add_variable(par_est.VariableAlgebraic("a_i", 0))
+
+    variable_list.add_variable(par_est.VariableParameter("g", 9.8))
+    variable_list.add_variable(par_est.VariableParameter("k1", 1))
+    variable_list.add_variable(par_est.VariableParameter("k2", 1.1))
+    variable_list.add_variable(par_est.VariableParameter("k3", 1.0))
+
+    m = par_est.Model(variable_list)  # adding all variables to the model
+
+    s = m.varlist_all["s"].casadi_var  # noqa: E501
+    v = m.varlist_all["v"].casadi_var  # noqa: E501
+    a = m.varlist_all["a"].casadi_var  # noqa: E501
+    d = m.varlist_all["d"].casadi_var  # noqa: E501
+    a_i = m.varlist_all["a_i"].casadi_var  # noqa: E501
+    g = m.varlist_all["g"].casadi_var  # noqa: E501
+    k1 = m.varlist_all["k1"].casadi_var  # noqa: E501
+    k2 = m.varlist_all["k2"].casadi_var  # noqa: E501
+    k3 = m.varlist_all["k3"].casadi_var  # noqa: E501
+
+    eq1 = v
+    eq2 = a
+
+    eq3 = a - (g - d - a_i)
+    eq4 = d - k1
+    eq5 = a_i - s * (k2 - k3)
+
+    m.add_equations_differential([eq1, eq2])  # adding the equations to model
+    m.add_equations_algebraic([eq3, eq4, eq5])  # adding the equations to model
+    variable_list["a"].ignore_plotting = False
+    variable_list["a_i"].ignore_plotting = False
+
+    time = [0.0, 7.5, 15.0, 22.5, 30.0]
+    data = [
+        [0.0, 151.1831578, 85.26994645, 28.73744369, 175.83004085],
+    ]
+
+    exp_data = []
+    for s_v in data:
+        var_list = copy.deepcopy(variable_list)
+        var_list["s"].set_dataframe_from_value_and_time(s_v, time)
+        var_list["s"].variance = 0.1
+        var_list["g"].lower_bound = 1
+        var_list["g"].upper_bound = 100
+        var_list["g"].guess = 39
+        var_list["g"].fixed = False
+        exp_data.append(var_list)
+
+    return variable_list, m, exp_data
+
+def spmma() -> tuple[
+    par_est.VariableList, par_est.Model, list[par_est.VariableList]
+]:
+    # s-PMMA data as used in Bates, Watts, Nonlinear regression analysis: Its applications
+    variable_list = par_est.variables.VariableList()  # Preallocate variable_list
+
+    variable_list.add_variable(par_est.VariableAlgebraic("e1", 4.22))
+    variable_list.add_variable(par_est.VariableAlgebraic("e2", 0.136))
+
+    variable_list.add_variable(par_est.VariableControl("f", 30))
+
+    variable_list.add_variable(par_est.VariableParameter("eps0", 4.32))
+    variable_list.add_variable(par_est.VariableParameter("epsinf", 2.522))
+    variable_list.add_variable(par_est.VariableParameter("lnf0", 7.956))
+    variable_list.add_variable(par_est.VariableParameter("alpha", 0.531))
+    variable_list.add_variable(par_est.VariableParameter("beta", 0.554))
+
+    m = par_est.Model(variable_list)  # adding all variables to the model
+
+    e1 = m.varlist_all["e1"].casadi_var  # noqa: E501
+    e2 = m.varlist_all["e2"].casadi_var  # noqa: E501
+    f = m.varlist_all["f"].casadi_var  # noqa: E501
+    eps0 = m.varlist_all["eps0"].casadi_var  # noqa: E501
+    epsinf = m.varlist_all["epsinf"].casadi_var  # noqa: E501
+    lnf0 = m.varlist_all["lnf0"].casadi_var  # noqa: E501
+    alpha = m.varlist_all["alpha"].casadi_var  # noqa: E501
+    beta = m.varlist_all["beta"].casadi_var  # noqa: E501
+    f0 = ca.exp(lnf0)
+
+    pi = 3.14
+
+    zz = (2*pi*f/f0)**alpha
+
+    r = ca.sqrt((1+zz*ca.cos(pi*alpha/2))**2 + (zz*ca.sin(pi*alpha/2))**2)
+    fau = ca.arctan((zz*ca.sin(pi*alpha/2))/(1 + zz*ca.cos(pi*alpha/2)))
+
+    eq1 = e1 - (epsinf + (eps0 - epsinf) * r**-beta * ca.cos(beta*fau))
+    eq2 = e2 - ((eps0 - epsinf) * r**-beta * ca.sin(beta*fau))
+
+    # Equations
+    m.add_equations_algebraic([eq1, eq2])  # adding the equations to model
+
+    data = [
+        [30, 4.22, 0.136],
+        [50, 4.167, 0.167],
+        [70, 4.132, 0.188],
+        [100, 4.038, 0.212],
+        [150, 4.019, 0.236],
+        [200, 3.956, 0.257],
+        [300, 3.884, 0.276],
+        [500, 3.784, 0.297],
+        [700, 3.713, 0.309],
+        [1000, 3.633, 0.311],
+        [1500, 3.54, 0.314],
+        [2000, 3.433, 0.311],
+        [3000, 3.358, 0.305],
+        [5000, 3.258, 0.289],
+        [7000, 3.193, 0.277],
+        [10000, 3.128, 0.255],
+        [15000, 3.059, 0.24],
+        [20000, 2.984, 0.218],
+        [30000, 2.934, 0.202],
+        [50000, 2.876, 0.182],
+        [70000, 2.838, 0.168],
+        [100000, 2.798, 0.153],
+        [150000, 2.759, 0.139],
+    ]
+
+    exp_data = []
+
+    for f_i, e1_i, e2_i in data:
+        var_list = copy.deepcopy(variable_list)
+        var_list["f"].value = f_i
+        var_list["e1"].value = e1_i
+        var_list["e2"].value = e2_i
+
+        var_list["eps0"].fixed = False
+        var_list["epsinf"].fixed = False
+        var_list["lnf0"].fixed = False
+        var_list["alpha"].fixed = False
+        var_list["beta"].fixed = False
+
+        var_list.set_bounds()
+        exp_data.append(var_list)
+
+    return variable_list, m, exp_data

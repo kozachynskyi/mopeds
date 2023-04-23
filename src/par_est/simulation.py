@@ -18,7 +18,12 @@ from par_est import (
     VariableList,
     VariableParameter,
     VariableState,
+    _ACADOS_SUPPORT,
 )
+
+if _ACADOS_SUPPORT:
+    from acados_template import AcadosModel
+    from par_est import casados_integrator
 
 
 class Simulator(object):
@@ -27,6 +32,8 @@ class Simulator(object):
     """
 
     supported_integrators = ["idas", "cvodes", "collocation"]
+    if _ACADOS_SUPPORT:
+        supported_integrators.append("acados")
 
     def __init__(  # noqa: C901
         self,
@@ -96,35 +103,73 @@ class Simulator(object):
                 "DAE_zf_init", "newton", self.function_algebraic_equations
             )
 
-        self._set_integrator_settings(integrator_settings)
+        if integrator_settings is not None:
+            self.__integrator_settings = integrator_settings
+        else:
+            self.__integrator_settings = self.get_default_simulator_settings()
 
         self._setup_constraints_idas(use_idas_constraints)
 
         # TODO This integrator is not used so far...
-        self.integrator: ca.Function = ca.integrator(
-            "integrator",
-            self.__integrator_name,
-            self.ode_system,
-            {"grid": self.time_grid_relative, "output_t0": False, "print_stats": True},
-        )
+        if not self.__integrator_name == "acados":
+            self.integrator: ca.Function = ca.integrator(
+                "integrator",
+                self.__integrator_name,
+                self.ode_system,
+                {
+                    "grid": self.time_grid_relative,
+                    "output_t0": False,
+                    "print_stats": True,
+                },
+            )
 
-        self.integrator_tau: ca.Function = ca.integrator(
-            "integrator_tau",
-            self.__integrator_name,
-            self.ode_system_tau,
-            self.__integrator_settings,
-        )
+        if self.__integrator_name == "acados":
+            model_acados = AcadosModel()
+
+            xdot = []
+            for key in self.model.varlist_state.keys():
+                xdot.append(ca.MX.sym(f"{key}_dot"))
+            model_acados.xdot = ca.vcat(xdot)
+            model_acados.x = self.model.varlist_state.get_casadi_variables()
+            model_acados.name = self.model.name
+            model_acados.u = ca.vertcat(
+                self.tau, self.model.varlist_independent.get_casadi_variables()
+            )
+            if self.model.DAE:
+                model_acados.z = self.model.varlist_algebraic.get_casadi_variables()
+                model_acados.f_impl_expr = ca.vertcat(
+                    model_acados.xdot - self.model.equations_differential * self.tau,
+                    self.model.equations_algebraic,
+                )
+            else:
+                model_acados.f_impl_expr = (
+                    model_acados.xdot - self.model.equations_differential * self.tau
+                )
+            self.model_acados = model_acados
+            self.integrator_tau = casados_integrator.create_casados_integrator(
+                self.model_acados, self.__integrator_settings, self.model.DAE
+            )
+        else:
+            self.integrator_tau: ca.Function = ca.integrator(
+                "integrator_tau",
+                self.__integrator_name,
+                self.ode_system_tau,
+                self.__integrator_settings,
+            )
 
         # This integrator is used to output values of algebraic variables at time 0
         # and should be run first to get algebraic variables at time 0 for whole simulation
         integrator_settings_with_output_t0 = copy.deepcopy(self.__integrator_settings)
         integrator_settings_with_output_t0["output_t0"] = True
-        self.integrator_tau_with_t0: ca.Function = ca.integrator(
-            "integrator_tau_with_t0",
-            self.__integrator_name,
-            self.ode_system_tau,
-            integrator_settings_with_output_t0,
-        )
+        if self.__integrator_name == "acados":
+            self.integrator_tau_with_t0 = self.integrator_tau
+        else:
+            self.integrator_tau_with_t0: ca.Function = ca.integrator(
+                "integrator_tau_with_t0",
+                self.__integrator_name,
+                self.ode_system_tau,
+                integrator_settings_with_output_t0,
+            )
 
         # This list is used for utility functions, like finding steady state
         self._guess_or_value_of_independent_variables: list[float] = []
@@ -135,34 +180,64 @@ class Simulator(object):
         # .factory() method is very expensive so should be requested externally
         if simulate_jac:
             if self.model.DAE is True:
-                integrator_tau_jac = self.integrator_tau.factory(
-                    "integrator_tau_jacobian",
-                    self.integrator_tau.name_in(),
-                    ["xf", "qf", "zf", "rxf", "rqf", "rzf", "jac:xf:p"],
-                )
+                if self.__integrator_name == "acados":
+                    factory_names = ["xf", "zf", "jac:xf:p"]
+                else:
+                    factory_names = ["xf", "qf", "zf", "rxf", "rqf", "rzf", "jac:xf:p"]
             else:
-                integrator_tau_jac = self.integrator_tau.factory(
-                    "integrator_tau_jacobian",
-                    self.integrator_tau.name_in(),
-                    ["xf", "qf", "rxf", "rqf", "jac:xf:p"],
-                )
-            self.integrator_tau_jac: ca.Function = integrator_tau_jac
+                if self.__integrator_name == "acados":
+                    factory_names = ["xf", "jac:xf:p"]
+                else:
+                    factory_names = ["xf", "qf", "rxf", "rqf", "jac:xf:p"]
+
+            self.integrator_tau_jac = self.integrator_tau.factory(
+                "integrator_tau_jacobian",
+                self.integrator_tau.name_in(),
+                factory_names,
+            )
 
         self._reset_scaling()
 
         # This code is moved here, so this if statement shouldn't be called every simulation
         if self.model.DAE is True:
+            if self.__integrator_name == "acados":
+                self._simulate_dae = self._simulate_dae_acados
+                simulate = self._simulate_dae
+            else:
+                self._simulate_dae = self._simulate_dae_casadi
+                simulate = self._simulate_dae
             if recalculate_algebraic:
                 simulate = self._simulate_dae_calculate_algebraic
-            else:
-                simulate = self._simulate_dae
+
             simulate_jac_func = self._simulate_jac_dae
         else:
             simulate = self._simulate_ode
             simulate_jac_func = self._simulate_jac_ode
 
-        self.simulate: Callable[[], dict[str, ca.DM | ca.MX]] = simulate
+        self.simulate_sym: Callable[[], dict[str, ca.DM | ca.MX]] = simulate
         self.simulate_jac: Callable[[], dict[str, ca.DM | ca.MX]] = simulate_jac_func
+
+    def simulate_sym_unfixed(self, unfixed_variables: list[float] = None) -> ca.DM:
+        """This is slower version of simulate_sym but it allows user to supply values
+        for unfixed variables"""
+        res_array = self.simulate_sym()
+
+        if not isinstance(res_array, ca.DM):
+            if unfixed_variables is None:
+                raise ValueError("You need to supply values for unfixed variables")
+            else:
+                unfixed_symbols = ca.symvar(res_array["xf"])
+                return_values = [res_array["xf"]]
+                if self.model.DAE:
+                    return_values.append(res_array["zf"])
+                function = ca.Function("f", unfixed_symbols, return_values)
+                final_res = function(*unfixed_variables)
+
+        res_dict = {"xf": final_res[0]}
+        if self.model.DAE:
+            res_dict["zf"] = final_res[1]
+
+        return res_dict
 
     def _reset_scaling(self) -> None:
         self.scaling: ca.DM = ca.DM.ones(self._independent_variables[0].size())
@@ -286,15 +361,38 @@ class Simulator(object):
         self._initial_algebraic_original = copy.deepcopy(self._initial_algebraic)
 
         # Transforms nested lists in ca.MX or ca.DM array
+        self.contains_unfixed = False
         for index, column in enumerate(self._independent_variables):
             casadi_mx = ca.vcat(column)
+            if self.contains_unfixed is False:
+                if isinstance(casadi_mx, ca.MX):
+                    self.contains_unfixed = True
             self._independent_variables[index] = casadi_mx
 
-    def _set_integrator_settings(self, provided_settings: dict | None) -> None:
+    def change_independent_variables(self, ind_variables: dict[str, float]):
+        """Use this method to change either Controls or Parameters of the Simulation. ind_variables is a dictionary
+        with VariableNames as dict.keys(), and their respective values, as dict.values(). Example:
+        {"e0_T": 373, "e0_p": 1e5}"""
+        if self.contains_unfixed:
+            raise NotImplementedError(
+                "All variables should be fixed, to use this method"
+            )
+        for var_name, var_value in ind_variables.items():
+            index_var = self.mapping_independent_variables[var_name]
+            for index in range(len(self._independent_variables)):
+                self._independent_variables[index][index_var] = var_value
+
+    def debug_state(self, state_values):
+        values = np.asarray(state_values)
+        print(dict(zip(self.model.varlist_state.keys(), values)))
+
+    def debug_algebraic(self, algebraic_values):
+        values = np.asarray(algebraic_values)
+        print(dict(zip(self.model.varlist_algebraic.keys(), values)))
+
+    def get_default_simulator_settings(self) -> None:
         """Sane default settings for integrators"""
-        if provided_settings is not None:
-            integrator_settings = provided_settings
-        elif self.__integrator_name == "idas":
+        if self.__integrator_name == "idas":
             integrator_settings = {
                 "tf": 1,
                 "expand": True,
@@ -335,8 +433,19 @@ class Simulator(object):
                 # "verbose": True,
                 # "print_stats": True,
             }
+        elif self.__integrator_name == "acados":
+            integrator_settings = {}
+            integrator_settings["acados"] = {
+                "integrator_type": "IRK",
+                "collocation_type": "GAUSS_RADAU_IIA",
+                "num_stages": 3,
+                "num_steps": 10,
+                "newton_tol": 1e-8,
+                "newton_iter": 100,
+                "code_reuse": False,
+            }
 
-        self.__integrator_settings = integrator_settings
+        return integrator_settings
 
     def calculate_steady_state(self) -> dict[str, ca.DM]:
         if self.model.DAE:
@@ -613,49 +722,25 @@ class Simulator(object):
         """Return dictionary with results "xf" - state,
         "zf" - algebraic
         """
-        prev_time_step = 0
-        res_states = []
-        res_algebraic = []
-        x_init = self._initial_state
-
         alg_init = self.rootfinder(
             self._initial_algebraic_original,
             ca.vertcat(
-                x_init,
+                self._initial_state,
                 self._independent_variables[0] * self.scaling,
             ),
         )
+        self._initial_algebraic = alg_init
+        res = self._simulate_dae()
 
-        for time_step, independent_variables in zip(
-            self.time_grid_relative[1:], self._independent_variables
-        ):
-            res_integration = self.integrator_tau(
-                x0=x_init,
-                z0=alg_init,
-                p=ca.vertcat(
-                    time_step - prev_time_step, independent_variables * self.scaling
-                ),
-            )
-
-            prev_time_step = time_step
-            x_init = res_integration["xf"]
-            alg_init = res_integration["zf"]
-
-            res_states.append(res_integration["xf"])
-            res_algebraic.append(res_integration["zf"])
-
-        res_states = ca.hcat(res_states)
-        res_algebraic = ca.hcat(res_algebraic)
-
-        res = {"xf": res_states, "zf": res_algebraic}
         return res
 
     def _simulate_t0(self) -> dict[str, ca.DM | ca.MX]:
         """Return dictionary with results "xf0" and "zf0" for state and
         algebraic variables at time 0"""
-        prev_time_step = self.time_grid_relative[1]
+        res = {"xf0": self._initial_state}
 
         if self.model.DAE:
+            prev_time_step = self.time_grid_relative[1]
             res_integration = self.integrator_tau_with_t0(
                 x0=self._initial_state,
                 z0=self._initial_algebraic,
@@ -664,25 +749,33 @@ class Simulator(object):
                     self._independent_variables[0] * self.scaling,
                 ),
             )
-        else:
-            res_integration = self.integrator_tau_with_t0(
-                x0=self._initial_state,
-                p=ca.vertcat(
-                    prev_time_step,
-                    self._independent_variables[0] * self.scaling,
-                ),
-            )
-
-        init_states = res_integration["xf"][:, 0]
-
-        res = {"xf0": init_states}
-        if self.model.DAE:
             init_algebraic = res_integration["zf"][:, 0]
             res["zf0"] = init_algebraic
 
         return res
 
-    def _simulate_dae(self) -> dict[str, ca.DM | ca.MX]:
+    def _simulate_dae_acados(self) -> dict[str, ca.DM | ca.MX]:
+        """Return dictionary with results "xf" - state,
+        "zf" - algebraic
+        """
+        res = self._simulate_dae_casadi()
+        res_states = res["xf"]
+        res_algebraic = res["zf"]
+
+        alg_last_step = self.rootfinder(
+            res_algebraic[:, -1],
+            ca.vertcat(
+                res_states[:, -1],
+                self._independent_variables[0] * self.scaling,
+            ),
+        )
+
+        res_algebraic = ca.hcat([res_algebraic[:, 1:], alg_last_step])
+
+        res = {"xf": res_states, "zf": res_algebraic}
+        return res
+
+    def _simulate_dae_casadi(self) -> dict[str, ca.DM | ca.MX]:
         """Return dictionary with results "xf" - state,
         "zf" - algebraic
         """
@@ -756,7 +849,7 @@ class Simulator(object):
         if recalculate_algebraic and self.model.DAE:
             self.calculate_algebraic_initials(apply_intials=True)
 
-        result_simulation = self.simulate()
+        result_simulation = self.simulate_sym()
         result_initial = self._simulate_t0()
         if not algebraic or not self.model.DAE:
             result_varlist = [copy.deepcopy(self.model.varlist_state)]
@@ -852,7 +945,10 @@ class SimulatorNLE:
         self.__solver_name: str = solver_name
         self.__input_variable_list: VariableList = copy.deepcopy(variable_list)
 
-        self._set_solver_settings(solver_settings)
+        if solver_settings is not None:
+            self.solver_settings: dict = solver_settings
+        else:
+            self.solver_settings = self.get_default_simulator_settings()
 
         self._setup_variables()
         self._reset_scaling()
@@ -902,11 +998,9 @@ class SimulatorNLE:
 
         self.jacobian: ca.Function = self.simulator.jacobian()
 
-    def _set_solver_settings(self, provided_settings: dict | None) -> None:
+    def get_default_simulator_settings(self) -> None:
         """Set default settings, if None are provided"""
-        if provided_settings is not None:
-            solver_settings = provided_settings
-        elif self.__solver_name == "rootfinder":
+        if self.__solver_name == "rootfinder":
             solver_settings = {
                 "nlpsol": "ipopt",
                 "verbose": False,
@@ -934,7 +1028,7 @@ class SimulatorNLE:
                 },
             }
 
-        self.solver_settings: dict = solver_settings
+        return solver_settings
 
     def _setup_variables(self) -> None:
         mapping_independent_variables = {}

@@ -6,6 +6,13 @@ For a tutorial check https://www.user.tu-berlin.de/vovakozach/par_est/5min_tutor
 
 ## What's New?
 
+### 0.9.0
+
+- BREAKING: DAE simulators API change: from self.simulate() to self.simulate_sym()
+- Added support for ACADOS ODE / DAE simulator
+- Rework how PE for DAE and NLE works -> more simmilar code, easier to maintain
+- Rework how Confidence Intervals of Parameters are calculated for multivariate measurements with different variance
+
 ### 0.8.0
 
 NLE Simulator and Parameter Estimation were reworked, with focus on analysis of parameter variance-covariance matrix.

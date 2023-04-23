@@ -57,31 +57,28 @@ def test_pe_objective(piecewise):
         },
     }
 
-    weight = np.array([1.5, 1.5, 1.0, 1.0, 1.0, 1.0])
-    var = np.array([1.0, 0.1, 0.05, 0.025, 0.05, 0.025])
-    data = np.array([1.0, 0.0, 3.0, 0.0, 0.0, 4.0])
-    mask = np.array([1.0, 0.0, 1.0, 0.0, 0.0, 1.0])
+    weight = np.array([[1.5, 1.5], [1. , 1.], [1. , 1.]])
+    var = np.array([[1., 0.1], [0.05 , 0.025], [0.05 , 0.025]])
+    data = np.array([[1., 0], [3., 0], [0, 4.]])
+    mask = np.array([[1, 0], [1, 0], [0, 1]])
 
     assert_numpy = np.testing.assert_array_equal
-    assert_numpy(data, pe.experimental_data)
-    assert_numpy(var, pe.inverted_variances)
+    assert_numpy(data, pe.array_data)
+    assert_numpy(var, pe.array_inverted_variance)
     assert_numpy(weight, pe.experiments_weights)
-    assert_numpy(mask, pe.experimental_data_mask)
+    assert_numpy(mask, pe.array_data_mask)
 
-    obj = np.sum(var * (data * mask) ** 2)
-    obj_weight = np.sum(weight * var * (data * mask) ** 2)
+    obj = np.sum(var * (data * mask) ** 2) / 2
+    obj_weight = np.sum(weight * var * (data * mask) ** 2) / 2
     for switch in [True, False]:
         res = pe.optimize(switch)
         res_weight = pe.optimize(switch, scale_experiments=True)
         assert res["f"] == obj
-        assert res_weight["f"] == obj_weight
+        assert np.isclose(res_weight["f"], obj_weight)
 
 
-@pytest.mark.parametrize(
-    "piecewise, constraints_idas",
-    [(True, True), (True, False), (False, True), (False, False)],
-)
-def test_pe(piecewise, constraints_idas):
+@pytest.mark.parametrize("piecewise", [True, False])
+def test_pe(piecewise):
     """Test that ParameterEstimation on ODE and DAE always yields same result.
     Helpfull to see if any drastic changes in calculation were made
     """
@@ -121,15 +118,15 @@ def test_pe(piecewise, constraints_idas):
         var_list["e0_c_i1"].upper_bound = None
 
         pe = par_est.ParameterEstimation(
-            model, [var_list], use_idas_constraints=constraints_idas
+            model, [var_list]
         )
 
         if model.DAE:
             answer_scaled = 1.26485e-13
-            answer = 1.8412e-09
+            answer = 1.02115e-11
         else:
             answer_scaled = 2.04875e-18
-            answer = 1.74658e-09
+            answer = 6.48183e-12
 
         res = pe.optimize()
         logging.warning(
@@ -356,6 +353,6 @@ if __name__ == "__main__":
     # test_optimizer(True)
     # test_oed(True)
     # test_pe(True,True)
-    test_pe_objective(True)
+    test_pe_objective(False)
     # test_pe_intials_algebraic()
     # test_oed_piecewise()

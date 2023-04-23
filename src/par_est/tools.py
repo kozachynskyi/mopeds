@@ -97,7 +97,7 @@ def generate_varlist_with_data_NLE(
                 value = variable.value[0]
                 if perturbate:
                     value = rng.normal(value, np.sqrt(variable.variance))
-                variable.guess = value
+                variable_list_optimizer[variable_name].guess = value
                 variable_list_optimizer[variable_name].value = value
         for index, var_name in enumerate(control_bounds.keys()):
             variable_list_optimizer[var_name].value = grid_point[index]

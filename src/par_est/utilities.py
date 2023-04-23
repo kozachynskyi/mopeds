@@ -122,8 +122,13 @@ def make_startpoints(bound0, N, sampling="lhs"):
     N is the number of sampling points
     bound0 = np.array([[0, 10],[0, 100]])
     output = B[num_of_samples, num_of_variables], example B[0] would return an array of variables guesses for all variables
-    Taken from Erik, not tested"""
+    Will use log scaling, if both upper and lower bound have same sign. Otherwise normal sampling."""
     import pyDOE
+
+    if (bound0 == 0).any():
+        raise ValueError(
+            "Multistart sampling is not possible. Zero 0 as variable bound detected"
+        )
 
     D = len(
         bound0[
@@ -145,7 +150,29 @@ def make_startpoints(bound0, N, sampling="lhs"):
             ]
         )
     ):
-        B[:, i] = S[:, i] * (bound0[i, 1] - bound0[i, 0]) + bound0[i, 0]
+        if (bound0[i, :] > 0).all():
+            log_scale = True
+            invert = False
+        elif (bound0[i, :] < 0).all():
+            log_scale = True
+            invert = True
+        else:
+            log_scale = False
+
+        if log_scale:
+            lb_i = min(abs(bound0[i, :]))
+            ub_i = max(abs(bound0[i, :]))
+
+            log_lb = np.log10(lb_i)
+            log_ub = np.log10(ub_i)
+
+            log_range_i = log_ub - log_lb
+
+            B[:, i] = 10 ** (S[:, i] * log_range_i + log_lb)
+            if invert:
+                B[:, i] = np.flip(B[:, i], axis=0) * -1
+        else:
+            B[:, i] = S[:, i] * (bound0[i, 1] - bound0[i, 0]) + bound0[i, 0]
 
     return B
 

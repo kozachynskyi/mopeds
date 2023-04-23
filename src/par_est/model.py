@@ -18,7 +18,7 @@ class Model(object):
     create equations and determine if model is DAE or ODE.
     """
 
-    def __init__(self, variable_list: VariableList) -> None:
+    def __init__(self, variable_list: VariableList, name: str = "default") -> None:
         self.varlist_state: VariableList = VariableList()
         self.varlist_algebraic: VariableList = VariableList()
         # Includes Parameters and Controls
@@ -56,6 +56,8 @@ class Model(object):
         self.varlist_all.update(self.varlist_algebraic)
         self.varlist_all.update(self.varlist_independent)
         self.varlist_all.update(self._varlist_constant)
+
+        self.name = name
 
     def add_equations_differential(self, equations: list[ca.MX]) -> None:
         if self.equations_differential is None:

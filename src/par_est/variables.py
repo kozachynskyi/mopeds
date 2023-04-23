@@ -340,8 +340,10 @@ class VariableControlPiecewiseConstant(VariableControl):
         return values
 
     @value.setter
-    def value(self) -> None:
-        raise NotImplementedError
+    def value(self, value: int | float) -> None:
+        if isinstance(value, Iterable):
+            raise NotImplementedError("Method can only be used with scalars.")
+        self.variable_list.index(0).value = value
 
     @property
     def time_absolute(self) -> pd.Series:
@@ -519,9 +521,10 @@ class VariableList(OrderedDict[str, Union[Variable, VariableControlPiecewiseCons
 
     @property
     def dataframe(self) -> pd.DataFrame:
-        data_frame = pd.DataFrame()
+        list_df = []
         for var in self.values():
-            data_frame = data_frame.join(var.dataframe, how="outer")
+            list_df.append(var.dataframe)
+        data_frame = pd.concat(list_df, axis=1, join="outer")
         return data_frame
 
     def index(self, var_index: int) -> Variable:

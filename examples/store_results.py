@@ -25,7 +25,7 @@ if __name__ == "__main__":
         var.fixed = True
 
     sim_fixed = par_est.Simulator(m, time_grid, var_list_fixed)
-    res_simple = sim_fixed.simulate()
+    res_simple = sim_fixed.simulate_sym()
     res = sim_fixed.generate_exp_data(algebraic=True)
     variable = variable_list["e0_T"]
 

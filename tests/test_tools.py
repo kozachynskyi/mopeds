@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 import par_est
 
@@ -20,6 +21,15 @@ def test_artificial_data_generator_nle():
         assert np.isclose(varlist["e0_F_s2"].value[0], expected)
         assert np.isnan(varlist["e0_F_s4"].value[0])
 
+def test_startpoint_generation():
+    for method in ["lhs", "hammersley"]:
+        bound = np.array([[1e-3, 1e3]])
+        par_est.utilities.make_startpoints(bound, 10, method)
+        with pytest.raises(ValueError):
+            bound = np.array([[0, 1e3]])
+            par_est.utilities.make_startpoints(bound, 10)
+
 
 if __name__ == "__main__":
     test_artificial_data_generator_nle()
+    test_startpoint_generation()

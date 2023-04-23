@@ -47,7 +47,7 @@ def test_varlist_simulation_reusability(tmp_path, piecewise):
     time_grid = np.linspace(0, 1, 3)
     variable_list["g"].value = 12.0
     simulation = par_est.Simulator(model, time_grid, variable_list)
-    res_before_pickle = simulation.simulate()
+    res_before_pickle = simulation.simulate_sym()
 
     file_write = open(tmp_path / "tmp.pkl", "wb")
     pickler = par_est.MXPickler(file_write)
@@ -56,7 +56,7 @@ def test_varlist_simulation_reusability(tmp_path, piecewise):
     file_read = open(tmp_path / "tmp.pkl", "rb")
     variable_list_after = pickle.load(file_read)
     simulation = par_est.Simulator(model, time_grid, variable_list_after)
-    res_after_pickle = simulation.simulate()
+    res_after_pickle = simulation.simulate_sym()
 
     assert np.isclose(
         ca.vertcat(res_before_pickle["xf"], res_before_pickle["zf"]),
@@ -65,7 +65,7 @@ def test_varlist_simulation_reusability(tmp_path, piecewise):
 
     variable_list, model = par_est.examples.pendulum_dae_1(piecewise, variable_list)
     simulation = par_est.Simulator(model, time_grid, variable_list)
-    res_after_pickle = simulation.simulate()
+    res_after_pickle = simulation.simulate_sym()
 
     assert np.isclose(
         ca.vertcat(res_before_pickle["xf"], res_before_pickle["zf"]),
