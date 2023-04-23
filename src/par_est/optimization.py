@@ -419,7 +419,7 @@ class PE_base(Optimizer):
         scaled_residuals = (
             residuals * self.array_inverted_std * np.sqrt(self.experiments_scale)
         )
-        objective = ca.sumsqr(scaled_residuals)
+        objective = ca.sumsqr(scaled_residuals) / 2
         return objective, residuals
 
     def _objective_fair(self):
