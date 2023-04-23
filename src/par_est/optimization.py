@@ -634,7 +634,7 @@ class PE_base(Optimizer):
 
         fim_matrix = jac_array.T @ jac_array
         fim_matrix_scaled = (jac_array_scaled.T @ jac_array_scaled)
-        parameter_covariance_matrix = np.linalg.inv(fim_matrix)  # type: ignore
+        parameter_covariance_matrix = np.linalg.inv(fim_matrix_scaled)  # type: ignore
 
         self.array_inverted_std = backup_inverted_std
 
