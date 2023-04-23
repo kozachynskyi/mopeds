@@ -678,11 +678,16 @@ class PE_base(Optimizer):
         if parameters_not_identifiable is None:
             parameters_not_identifiable = []
 
+        sorted_unfixed_params = []
+        for par_name in self.varlist_decision.keys():
+            if par_name in unfixed_params:
+                sorted_unfixed_params.append(par_name)
+
         results_sensitivity = self.calculate_sensitivity_and_fim(
             parameters, unfixed_params
         )
 
-        fim_matrix = results_sensitivity["fim"]
+        fim_matrix = results_sensitivity["fim_scaled"]
 
         def eigsorted(cov):
             vals, vecs = np.linalg.eig(cov)
@@ -694,8 +699,8 @@ class PE_base(Optimizer):
         vals, vecs = eigsorted(fim_matrix)
 
         index_max = np.argmax(np.abs(vecs[:, -1]))
-        current_parameter_name = unfixed_params.pop(index_max)
-        # print(np.abs(vals[-1]))
+        current_parameter_name = sorted_unfixed_params.pop(index_max)
+        print(np.abs(vals[-1]))
         if np.abs(vals[-1]) > eigenvalue_threshold:
             parameters_identifiable.insert(0, current_parameter_name)
         else:
@@ -720,7 +725,7 @@ class PE_base(Optimizer):
         else:
             return self.parameter_identifiability_eigenvalue(
                 parameters,
-                unfixed_params,
+                sorted_unfixed_params,
                 parameters_identifiable,
                 parameters_not_identifiable,
                 eigenvalue_threshold,
