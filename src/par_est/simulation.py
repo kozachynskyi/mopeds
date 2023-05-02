@@ -910,7 +910,7 @@ class Simulator(object):
 
         # Values of provided time_grid are rounded to milisecconds
         # in order to avoid timestamps that are very close to each other
-        self.time_grid_relative: np.ndarray = np.unique(time_grid.round(decimals=1))
+        self.time_grid_relative: np.ndarray = np.unique(time_grid)
         self.origin_ts = self.__input_variable_list.get_common_origin()
         self.logger.debug(
             "Timegrid modified: \n self.timegrid \n {0} \n".format(
