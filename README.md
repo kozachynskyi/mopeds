@@ -6,6 +6,11 @@ For a tutorial check https://www.user.tu-berlin.de/vovakozach/par_est/5min_tutor
 
 ## What's New?
 
+### 0.9.2
+
+- fix WLS formulation  (remove division by 2)
+- feature -> remove rounding of time_grid in Simulator
+
 ### 0.9.1
 
 - fix bugs in identifiability analysis
