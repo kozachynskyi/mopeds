@@ -68,8 +68,8 @@ def test_pe_objective(piecewise):
     assert_numpy(weight, pe.experiments_weights)
     assert_numpy(mask, pe.array_data_mask)
 
-    obj = np.sum(var * (data * mask) ** 2) / 2
-    obj_weight = np.sum(weight * var * (data * mask) ** 2) / 2
+    obj = np.sum(var * (data * mask) ** 2)
+    obj_weight = np.sum(weight * var * (data * mask) ** 2)
     for switch in [True, False]:
         res = pe.optimize(switch)
         res_weight = pe.optimize(switch, scale_experiments=True)
