@@ -419,7 +419,7 @@ class PE_base(Optimizer):
         scaled_residuals = (
             residuals * self.array_inverted_std * np.sqrt(self.experiments_scale)
         )
-        objective = ca.sumsqr(scaled_residuals) / 2
+        objective = ca.sumsqr(scaled_residuals)
         return objective, residuals
 
     def _objective_fair(self):
@@ -625,6 +625,7 @@ class PE_base(Optimizer):
             [decision_variables],
             [ca.jacobian(self._objective_wls()[0], decision_variables)],
         )(all_parameter_values)
+        # Should be twice as big as fim_matrix_scaled
         hessian_objective = ca.Function(
             "jf",
             [decision_variables],

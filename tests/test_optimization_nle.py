@@ -129,7 +129,7 @@ def test_multivariate_pe():
     parameters = {"e0_F_s3": 4}
 
     ols_f = 661.7386240718675
-    wls_f = 6588.050781719137 / 2
+    wls_f = 6588.050781719137
     ols_residuals = np.array(
         [
             [-0.03975939, 9.04177523, -0.64042265],
@@ -223,8 +223,8 @@ def test_multivariate_pe():
     fim = 8.0
     fim_scaled = 766.31076722
     cov_par = 0.00130495
-    jac_wls = -47.9438
-    hess_wls = 766.311
+    jac_wls = -95.8876
+    hess_wls = 1532.62
 
     pe = par_est.ParameterEstimationNLE(model, variable_list_optimizer)
     assert pe.names_of_measurements == ["e0_F_s2", "e0_F_s4", "e0_F_s5"]
@@ -259,7 +259,7 @@ def test_multivariate_pe():
     assert pe.index_measurements_in_sim == [1, 2]
 
     ols_f = 660.5262816912779
-    wls_f = 6575.9273579132405 / 2
+    wls_f = 6575.9273579132405
     ols_residuals = np.array(
         [
             [9.04177523, -0.64042265],
