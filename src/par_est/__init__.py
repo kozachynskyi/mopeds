@@ -24,7 +24,8 @@ from .variables import (
 from .variables import BadVariableError
 from .variables import ORIGIN_TS
 from .model import Model
-from .simulation import Simulator, SimulatorNLE
+from .simulation_dynamic import Simulator
+from .simulation_nle import SimulatorNLE
 from .optimization import (
     Optimizer,
     ParameterEstimation,
