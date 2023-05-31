@@ -29,10 +29,10 @@ from .simulation_nle import SimulatorNLE
 from .optimization import (
     Optimizer,
     ParameterEstimation,
-    OptimalExperimentalDesign,
     ParameterEstimationNLE,
     ParameterEstimationNLE_control,
 )
+from .optimization_oed import OptimalExperimentalDesign
 from .mpc import ModelPredictiveControl
 
 import par_est.examples
