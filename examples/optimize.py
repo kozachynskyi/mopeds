@@ -43,12 +43,14 @@ if __name__ == "__main__":
     a = data2["e0_c_tot"].dataframe
     data2["e0_c_tot"].dataframe = data2["e0_c_tot"].dataframe * 1.05
 
-    pe_state = par_est.ParameterEstimation(m, [data1, data2])
+    # pe_state = par_est.ParameterEstimation(m, [data1, data2])
     # pe_state = par_est.ParameterEstimation(m, [data2])
     # print(pe_state.optimize(True))
 
     # pe_alg = par_est.ParameterEstimation(m, [data1, data2], use_algebraic_vars=True)
     # print(pe_alg.optimize(True))
 
+    data1["e0_T"].fixed = False
     oed = par_est.OptimalExperimentalDesign(m, [data1], time_grid1)
-    oed.optimize()
+    breakpoint()
+    # oed.optimize()

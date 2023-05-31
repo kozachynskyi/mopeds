@@ -30,7 +30,145 @@ if _ACADOS_SUPPORT:
     from par_est import casados_integrator
 
 
-class OptimalExperimentalDesign(Optimizer):
+class OED_base(Optimizer):
+    def _objective_A(self):
+        """A criteria"""
+        raise NotImplementedError
+
+    def optimize(self, scale=False, objective_function="A"):
+        """Function to select optimization function"""
+        # Scaling works unpredictably. It was shown during creation of VariableControlPiecewiseConstant
+        if scale:
+            raise NotImplementedError
+
+        if objective_function == "A":
+            self._objective = self._objective_A
+            raise NotImplementedError(
+                f"Objective function '{objective_function}' is not supported"
+            )
+
+        return self._optimize(scale)
+
+    def change_parameter_values(self):
+        """Change parameter values in simulator"""
+
+    def calculate_objective_and_fim(
+        self,
+        controls: dict[str, float],
+        objective_function: str = "A",
+    ) -> dict[str, float | np.ndarray]:
+        self._setup_scaling(False)
+        if objective_function == "A":
+            obj_f = self._objective_A()
+        else:
+            raise NotImplementedError
+
+        decision_variables = self.varlist_decision.get_casadi_variables()
+        casadi_function = ca.Function(
+            "objective",
+            [decision_variables],
+            [obj_f[0], obj_f[1], self.simulate_all_mx],
+            ["x"],
+            ["f", "residuals", "y"],
+        )
+
+        selected_parameters = self.parameters_dict_to_list(parameters)
+        res = casadi_function(x=selected_parameters)
+        result_np = {
+            "f": float(res["f"]),
+            "residuals": res["residuals"].toarray(),
+            "y": res["y"].toarray(),
+        }
+
+        return result_np
+
+    def _setup_varlist_decision(self):
+        parameter_values = []
+        inverted_variances = []
+        self.names_of_measurements = []
+
+        for variable_name in self.model.varlist_all.keys():
+            try:
+                var = self.list_input_varlist[0][variable_name]
+            except KeyError:
+                continue
+
+            if isinstance(var, VariableControl):
+                if not var.fixed:
+                    if isinstance(var, VariableControlPiecewiseConstant):
+                        for var_control in var.variable_list.values():
+                            if not var_control.fixed:
+                                self.varlist_decision.add_variable(var_control)
+                    else:
+                        self.varlist_decision.add_variable(var)
+            elif isinstance(var, VariableParameter):
+                if var.fixed is False:
+                    self.varlist_parameters.add_variable(var)
+                    parameter_values.append(var.value[0])
+
+            elif isinstance(var, VariableState):
+                if var.fixed is False:
+                    inverted_variances.append(1 / var.variance)
+                    self.names_of_measurements.append(var.name)
+
+        self.array_inverted_variances: np.ndarray = np.array(inverted_variances)
+
+        self.parameter_values: list[float] = parameter_values
+
+    def generate_fim_function(self) -> None:
+        """Combines simulate_sym() functions from simulator, and creates MX structure, that is used
+        further in objective_function calculation"""
+        parameter_variables = self.varlist_parameters.get_casadi_variables()
+
+        if isinstance(self.list_simulators[0], Simulator):
+            res_dict_name = "xf"
+        else:
+            raise NotImplementedError
+
+        list_simulation_T = []
+
+        for simulator in self.list_simulators:
+            res_simulation = simulator.simulate_sym()
+
+            list_simulation_T.append(res_simulation[res_dict_name].T)
+
+        free_variables = ca.vcat([
+                self.varlist_parameters.get_casadi_variables(),
+                self.varlist_decision.get_casadi_variables(),
+                ]
+                )
+
+        all_selected_measurements = ca.vcat(list_simulation_T).get(
+            False, ca.Slice(), self.index_measurements_in_sim
+        )
+        self.simulate_all_function = ca.Function(
+            "sim_all", [free_variables], [all_selected_measurements]
+        )
+        self.simulate_all_mx = self.simulate_all_function(free_variables)
+
+        jacobian = {}
+        jacobian_scaled = {}
+
+        for index_measurement, meas_name in enumerate(self.names_of_measurements):
+            jac_meas_mx = ca.jacobian(
+                self.simulate_all_mx[:, index_measurement], parameter_variables
+            )
+            jac_meas_function = ca.Function(
+                "jac_meas", [parameter_variables], [jac_meas_mx]
+            )
+            jac_meas_dm = jac_meas_function(self.parameter_values)
+            jac_meas_scaled_dm = (
+                jac_meas_dm * self.array_inverted_std[:, index_measurement]
+            )
+            jacobian[meas_name] = jac_meas_dm
+            jacobian_scaled[meas_name] = jac_meas_scaled_dm
+
+        jac_array = np.concatenate(list(jacobian.values()))
+        jac_array_scaled = np.concatenate(list(jacobian_scaled.values()))
+        raise NotImplementedError
+
+
+class OptimalExperimentalDesign(OED_base):
     def __init__(
         self,
         model: Model,
@@ -52,6 +190,8 @@ class OptimalExperimentalDesign(Optimizer):
         # User specified time grid might not include every time_stamp of VariableControlPiecewiseConstant
         # So the corrected time_grid of Simulator is used in optimization
         self.time_grid_modified = self.list_simulators[0].time_grid_relative
+        if not np.array_equal(self.time_grid_original, self.time_grid_modified):
+            raise NotImplementedError
 
         self.solver_name: str = "ipopt"
         self.solver_settings: dict = {
@@ -72,43 +212,9 @@ class OptimalExperimentalDesign(Optimizer):
         This list is used during the calculation of the objective, to ignore jacobian of fixed parameters.
         self.index_all_states is used additionaly to self.select_independent list to get required jacobian.
         """
-        parameter_values = []
-        select_independent = []
-        inverted_variances = []
+        self._setup_varlist_decision()
 
-        for variable_name in self.model.varlist_all.keys():
-            try:
-                var = self.list_input_varlist[0][variable_name]
-            except KeyError:
-                continue
-
-            if isinstance(var, VariableControl):
-                if not var.fixed:
-                    if isinstance(var, VariableControlPiecewiseConstant):
-                        for var_control in var.variable_list.values():
-                            if not var_control.fixed:
-                                self.varlist_decision.add_variable(var_control)
-                    else:
-                        self.varlist_decision.add_variable(var)
-            elif isinstance(var, VariableParameter):
-                if var.fixed is False:
-                    self.varlist_parameter.add_variable(var)
-                    parameter_values.append(var.value[0])
-                    var.fixed = True
-                    # index has + 1 to account for tau variable, that is a parameter of a simulation.
-                    index = list(self.model.varlist_independent).index(var.name) + 1
-                    select_independent.append(index)
-
-            elif isinstance(var, VariableState):
-                inverted_variances.append(1 / var.variance)
-
-        # [par_1, par_2, ... par_N]
-        self.parameter_values: list[float] = parameter_values
-        # Index of parameters, that are unfixed. It's used to select Jacobian for only this variables
-        self.select_independent: list[int] = select_independent
-
-        self.inverted_variances: np.ndarray = np.array(inverted_variances)
-        self.index_all_states = list(range(len(self.model.varlist_state)))
+        self.index_measurements_in_sim = []
 
         self.list_simulators: list[Simulator] = [
             Simulator(
@@ -117,9 +223,16 @@ class OptimalExperimentalDesign(Optimizer):
                 self.list_input_varlist[0],
                 self.simulator_name,
                 self.simulator_settings,
-                simulate_jac=True,
+                simulate_jac=False,
             )
         ]
+
+        for name in self.names_of_measurements:
+            index = self.list_simulators[0].mapping_state_variables[name]
+            self.index_measurements_in_sim.append(index)
+
+        self.mapping_simulator_decisions: list[dict[int, int]] = [self.list_simulators[0].mapping_independent_variables]
+        self.generate_fim_function()
 
     def _objective(
         self, analyze: bool = False, values: list[float] | None = None
@@ -215,102 +328,3 @@ class OptimalExperimentalDesign(Optimizer):
             return error, covariance_full, jacobian_full, covariance_all, objective_all  # type: ignore
 
         return error, covariance_full
-
-    def optimize(self, scale: bool = False) -> dict[str, ca.DM | ca.MX]:
-        """Run optimization.
-
-        Args:
-            scale: scaling should be used as default, allows for faster convergence
-        """
-
-        # Scaling works unpredictably. It was shown during creation of VariableControlPiecewiseConstant
-        if scale:
-            raise NotImplementedError
-        # Scaling decreases amount of iterations, but ipopt fails gradient check at big amount of timestamps
-
-        return self._optimize(scale)
-
-    def identifiability_analysis(self):
-        """Taken from Erik/Diana Subset0. Many questions arrise about how it works."""
-        (
-            error,
-            covariance_full,
-            jacobian,
-            covariance_all,
-            objective_all,
-        ) = self._objective(True)
-        cond_threshold = 1000
-        colin_threshold = 15
-
-        states, parameters = jacobian.shape
-        jacobian_original = jacobian
-        if states < parameters:
-            jacobian = np.pad(
-                jacobian,
-                ((0, parameters - states), (0, 0)),
-                mode="constant",
-                constant_values=0,
-            )
-
-        u, s, vh = np.linalg.svd(jacobian, False)
-
-        # 2. rank determination of J
-        values = abs(s)
-        dimSVal = len(values)
-        maxVal = np.max(values)
-        # minVal = np.min(values)
-
-        CondN_Sub = maxVal / values
-        ColIdx_Sub = 1 / values
-
-        smallval = []
-        for i in range(0, dimSVal):
-            if (
-                np.abs(CondN_Sub[i]) <= cond_threshold
-                and np.abs(ColIdx_Sub[i]) <= colin_threshold
-            ):
-                smallval.append(CondN_Sub[i])
-
-        rank = len(smallval)
-
-        # SummationSv = np.sum(values)
-        # NeglectSv = np.sum(values[rank:] / SummationSv)
-
-        # Determination of permutation matrix P by construction a RRQR of S
-        Q, R, P = linalg.qr(jacobian, pivoting=True)
-
-        # Use this for ranking
-        IdentifOrd = P
-        # Why
-        # IdentifOrd.append(P)
-
-        # Condition Number of J (Golub, 1996 & Hansen, 1998)
-        # CondN = maxVal / minVal
-
-        # Still to understand!!!
-        # collinIndex.Colind
-        # collinIndex.Sub
-
-        Jsqr = jacobian**2
-
-        ParNorm = np.empty(jacobian.shape[1])
-
-        for i in range(0, jacobian.shape[1]):
-            ParNorm[i] = np.sqrt(np.sum(Jsqr[:, i] / jacobian.shape[0]))
-
-        # SensitivityOrder = np.argsort(ParNorm)[::-1]
-        # B = np.sort(ParNorm)[::-1]
-
-        # SensityOrd = B, SensitivityOrder
-
-        # TotalVariance = np.sum(values ** 2)
-        # NeglectVariance = np.sum(values[rank:] ** 2 / TotalVariance)
-
-        unfix_parameters = []
-        for index in range(rank):
-            parameter_name = list(self.varlist_parameter.values())[
-                IdentifOrd[index]
-            ].name
-            unfix_parameters.append(parameter_name)
-
-        return unfix_parameters, error, covariance_full, jacobian_original
