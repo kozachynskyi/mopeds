@@ -569,15 +569,17 @@ class PE_base(Optimizer):
         print("OLS std: ", np.sqrt(measurement_variance_estimate))
 
         backup_inverted_std = copy.deepcopy(self.array_inverted_std)
+        estimated_inverted_std = copy.deepcopy(self.array_inverted_std)
 
         if isinstance(measurement_variance_estimate, float):
             measurement_variance_estimate = [measurement_variance_estimate]
 
         for index_meas, meas_std in enumerate(measurement_variance_estimate):
-            self.array_inverted_std[:, index_meas] = 1 / np.sqrt(meas_std)
+            estimated_inverted_std[:, index_meas] = 1 / np.sqrt(meas_std)
 
         jacobian = {}
         jacobian_scaled = {}
+        jacobian_scaled_estimated = {}
         jacobian_yao = {}
         res_simulation = ca.Function(
             "sim", [decision_variables], [self.simulate_all_mx]
@@ -597,12 +599,16 @@ class PE_base(Optimizer):
             jac_meas_selected_scaled_dm = (
                 jac_meas_selected_dm * self.array_inverted_std[:, index_measurement]
             )
+            jac_meas_selected_scaled_estimated_dm = (
+                jac_meas_selected_dm * estimated_inverted_std[:, index_measurement]
+            )
             jac_meas_selected_yao_dm = jac_meas_selected_dm * (
                 1 / res_simulation[:, index_measurement]
             )
             if parameter_names is None:
                 jacobian[meas_name] = jac_meas_selected_dm
                 jacobian_scaled[meas_name] = jac_meas_selected_scaled_dm
+                jacobian_scaled_estimated[meas_name] = jac_meas_selected_scaled_estimated_dm
                 jacobian_yao[meas_name] = jac_meas_selected_yao_dm
             else:
                 jacobian[meas_name] = jac_meas_selected_dm[
@@ -611,13 +617,20 @@ class PE_base(Optimizer):
                 jacobian_scaled[meas_name] = jac_meas_selected_scaled_dm[
                     :, list_selected_parameters_index
                 ]
+                jacobian_scaled_estimated[meas_name] = jac_meas_selected_scaled_estimated_dm[
+                    :, list_selected_parameters_index
+                ]
                 jacobian_yao[meas_name] = jac_meas_selected_yao_dm[
                     :, list_selected_parameters_index
                 ]
 
         jac_array = np.concatenate(list(jacobian.values()))
         jac_array_scaled = np.concatenate(list(jacobian_scaled.values()))
+        jac_array_scaled_estimated = np.concatenate(list(jacobian_scaled_estimated.values()))
         jac_array_yao = np.concatenate(list(jacobian_yao.values()))
+
+        for index_meas, meas_std in enumerate(measurement_variance_estimate):
+            self.array_inverted_std[:, index_meas] = 1 / np.sqrt(meas_std)
 
         # Generate jacobian and hessian on obj function
         jac_objective = ca.Function(
@@ -638,18 +651,14 @@ class PE_base(Optimizer):
             ]
 
         fim_matrix = jac_array.T @ jac_array
-        fim_matrix_scaled = (jac_array_scaled.T @ jac_array_scaled)
+        fim_matrix_scaled = (jac_array_scaled_estimated.T @ jac_array_scaled_estimated)
         parameter_covariance_matrix = np.linalg.inv(fim_matrix_scaled)  # type: ignore
 
         self.array_inverted_std = backup_inverted_std
-        # TODO
-        print(hessian_objective / (fim_matrix_scaled * 2)) 
-
-
         result = {}
         result["jac_full"] = jac_array
         result["jac_sorted"] = jacobian
-        result["jac_scaled_full"] = jac_array_scaled
+        result["jac_scaled_full"] = jac_array_scaled_estimated
         result["jac_scaled_sorted"] = jacobian_scaled
         result["jac_yao_full"] = jac_array_yao
         result["jac_yao_sorted"] = jacobian_yao
