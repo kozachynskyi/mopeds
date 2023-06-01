@@ -33,7 +33,10 @@ if _ACADOS_SUPPORT:
 class OED_base(Optimizer):
     def _objective_A(self):
         """A criteria"""
-        raise NotImplementedError
+        jac_scaled = self.jacobian_scaled_mx
+        obj = ca.trace(ca.inv(jac_scaled.T @ jac_scaled))
+
+        return obj, jac_scaled
 
     def optimize(self, scale=False, objective_function="A"):
         """Function to select optimization function"""
@@ -43,6 +46,7 @@ class OED_base(Optimizer):
 
         if objective_function == "A":
             self._objective = self._objective_A
+        else:
             raise NotImplementedError(
                 f"Objective function '{objective_function}' is not supported"
             )
@@ -52,7 +56,7 @@ class OED_base(Optimizer):
     def change_parameter_values(self):
         """Change parameter values in simulator"""
 
-    def calculate_objective_and_fim(
+    def calculate_objective_and_jacobian(
         self,
         controls: dict[str, float],
         objective_function: str = "A",
@@ -67,17 +71,16 @@ class OED_base(Optimizer):
         casadi_function = ca.Function(
             "objective",
             [decision_variables],
-            [obj_f[0], obj_f[1], self.simulate_all_mx],
+            [obj_f[0], obj_f[1]],
             ["x"],
-            ["f", "residuals", "y"],
+            ["f", "jac"],
         )
 
-        selected_parameters = self.parameters_dict_to_list(parameters)
+        selected_parameters = self.parameters_dict_to_list(controls)
         res = casadi_function(x=selected_parameters)
         result_np = {
             "f": float(res["f"]),
-            "residuals": res["residuals"].toarray(),
-            "y": res["y"].toarray(),
+            "jac": res["jac"].toarray(),
         }
 
         return result_np
@@ -103,48 +106,44 @@ class OED_base(Optimizer):
                         self.varlist_decision.add_variable(var)
             elif isinstance(var, VariableParameter):
                 if var.fixed is False:
-                    self.varlist_parameters.add_variable(var)
+                    self.varlist_parameter.add_variable(var)
                     parameter_values.append(var.value[0])
 
             elif isinstance(var, VariableState):
-                if var.fixed is False:
+                if var.name in self.list_measureable_variables:
                     inverted_variances.append(1 / var.variance)
                     self.names_of_measurements.append(var.name)
+                # if var.fixed is False:
+                #     inverted_variances.append(1 / var.variance)
+                #     self.names_of_measurements.append(var.name)
 
         self.array_inverted_variances: np.ndarray = np.array(inverted_variances)
+        self.array_inverted_std = np.sqrt(inverted_variances)
 
         self.parameter_values: list[float] = parameter_values
 
-    def generate_fim_function(self) -> None:
+    def generate_jacobian_function(self) -> None:
         """Combines simulate_sym() functions from simulator, and creates MX structure, that is used
         further in objective_function calculation"""
-        parameter_variables = self.varlist_parameters.get_casadi_variables()
+        parameter_variables = self.varlist_parameter.get_casadi_variables()
 
         if isinstance(self.list_simulators[0], Simulator):
             res_dict_name = "xf"
         else:
             raise NotImplementedError
 
-        list_simulation_T = []
+        res_simulation = self.list_simulators[0].simulate_sym()[res_dict_name].T
 
-        for simulator in self.list_simulators:
-            res_simulation = simulator.simulate_sym()
+        parameter_variables = self.varlist_parameter.get_casadi_variables()
+        decision_variables = self.varlist_decision.get_casadi_variables()
 
-            list_simulation_T.append(res_simulation[res_dict_name].T)
-
-        free_variables = ca.vcat([
-                self.varlist_parameters.get_casadi_variables(),
-                self.varlist_decision.get_casadi_variables(),
-                ]
-                )
-
-        all_selected_measurements = ca.vcat(list_simulation_T).get(
+        all_selected_measurements = res_simulation.get(
             False, ca.Slice(), self.index_measurements_in_sim
         )
         self.simulate_all_function = ca.Function(
-            "sim_all", [free_variables], [all_selected_measurements]
+            "sim_all", [self.varlist_parameter.get_casadi_variables(), self.varlist_decision.get_casadi_variables()], [all_selected_measurements]
         )
-        self.simulate_all_mx = self.simulate_all_function(free_variables)
+        self.simulate_all_mx = self.simulate_all_function(parameter_variables, decision_variables)
 
         jacobian = {}
         jacobian_scaled = {}
@@ -154,18 +153,21 @@ class OED_base(Optimizer):
                 self.simulate_all_mx[:, index_measurement], parameter_variables
             )
             jac_meas_function = ca.Function(
-                "jac_meas", [parameter_variables], [jac_meas_mx]
+                "jac_meas", [parameter_variables, decision_variables], [jac_meas_mx]
             )
-            jac_meas_dm = jac_meas_function(self.parameter_values)
-            jac_meas_scaled_dm = (
-                jac_meas_dm * self.array_inverted_std[:, index_measurement]
-            )
-            jacobian[meas_name] = jac_meas_dm
-            jacobian_scaled[meas_name] = jac_meas_scaled_dm
+            jac_meas_mx = jac_meas_function(self.parameter_values, decision_variables)
 
-        jac_array = np.concatenate(list(jacobian.values()))
-        jac_array_scaled = np.concatenate(list(jacobian_scaled.values()))
-        raise NotImplementedError
+            jac_meas_scaled_mx = (
+                jac_meas_mx * self.array_inverted_std[index_measurement]
+            )
+            jacobian[meas_name] = jac_meas_mx
+            jacobian_scaled[meas_name] = jac_meas_scaled_mx
+
+        jac_array = ca.vcat(list(jacobian.values()))
+        jac_array_scaled = ca.vcat(list(jacobian_scaled.values()))
+
+        self.jacobian_mx = jac_array
+        self.jacobian_scaled_mx = jac_array_scaled
 
 
 class OptimalExperimentalDesign(OED_base):
@@ -173,16 +175,27 @@ class OptimalExperimentalDesign(OED_base):
         self,
         model: Model,
         variable_list: list[VariableList],
-        time_grid_relative: np.ndarray,
+        time_grid_measurements: np.ndarray,
+        time_grid_control_switch: np.ndarray,
         simulator_name: str = "idas",
         simulator_settings: dict = None,
         *,
         reinitialize_algebraic: bool = False,
+        measurable_variables: list[str] | None = None,
     ) -> None:
         super().__init__(model, variable_list, simulator_name, simulator_settings)
 
         # User specified time_grid is used for initilizaiton of Simulators
-        self.time_grid_original: np.ndarray = time_grid_relative
+        self._setup_timegrid(time_grid_measurements, time_grid_control_switch)
+
+        if measurable_variables is None:
+            self.list_measureable_variables = list(self.model.varlist_state.keys())
+        else:
+            self.list_measureable_variables = []
+            # Do this so variable names are sorted as expected
+            for var_name in self.model.varlist_state.keys():
+                if var_name in measurable_variables:
+                    self.list_measureable_variables.append(var_name)
 
         self._setup_simulator()
         self._setup_initialization()
@@ -205,6 +218,11 @@ class OptimalExperimentalDesign(OED_base):
         if reinitialize_algebraic:
             for sim in self.list_simulators:
                 sim.calculate_algebraic_initials(apply_intials=True)
+
+    def _setup_timegrid(self, time_measurements, time_control_switch):
+        time_grid = np.unique(list(time_measurements) + list(time_control_switch))
+        self.time_grid_original: np.ndarray = time_grid
+
 
     def _setup_simulator(self, *, use_idas_constraints: bool = False) -> None:
         """Initializes simulator class. Parameter variables are fixed, and an index of an unfixed
@@ -232,7 +250,7 @@ class OptimalExperimentalDesign(OED_base):
             self.index_measurements_in_sim.append(index)
 
         self.mapping_simulator_decisions: list[dict[int, int]] = [self.list_simulators[0].mapping_independent_variables]
-        self.generate_fim_function()
+        self.generate_jacobian_function()
 
     def _objective(
         self, analyze: bool = False, values: list[float] | None = None

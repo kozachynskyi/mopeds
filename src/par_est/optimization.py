@@ -642,6 +642,8 @@ class PE_base(Optimizer):
         parameter_covariance_matrix = np.linalg.inv(fim_matrix_scaled)  # type: ignore
 
         self.array_inverted_std = backup_inverted_std
+        # TODO
+        print(hessian_objective / (fim_matrix_scaled * 2)) 
 
 
         result = {}
