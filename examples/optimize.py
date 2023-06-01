@@ -17,10 +17,10 @@ if __name__ == "__main__":
     variable_list["e0_c_p"].fixed = True
     # variable_list["e0_E_r1"].fixed = False
     variable_list["e0_T_in"].fixed = False
-    variable_list["e0_T"].variance = 0.1
+    variable_list["e0_T"].variance = 1
 
     # Create time-grid. Zero should be first
-    time_grid1 = np.linspace(0, 1000, 7)
+    time_grid1 = np.linspace(0, 1000, 4)
     time_grid2 = np.linspace(0, 1000, 8)
 
     e0_T_in = variable_list["e0_T_in"]
@@ -51,7 +51,9 @@ if __name__ == "__main__":
     a = pe_state.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_c_p": 3.5, "e0_E_r1": 9.6e4})
     print(pe_state.list_simulators[0]._independent_variables)
     print(pe_state.list_simulators[0].time_grid_relative)
-    print(a["jac_full"])
+    print(a["jac_scaled_full"])
+    print(a["fim"])
+    print(a["cov_par"])
     # print(pe_state.optimize(True))
 
     # pe_alg = par_est.ParameterEstimation(m, [data1, data2], use_algebraic_vars=True)
@@ -65,13 +67,12 @@ if __name__ == "__main__":
     # mes_names = ["e0_T", "e0_c_i1"]
     mes_names = ["e0_c_i1", "e0_T"]
     # mes_names = ["e0_T"]
-    # mes_names = None
+    mes_names = None
     oed = par_est.OptimalExperimentalDesign(m, [data1], time_grid1, time_grid1, measurable_variables=mes_names)
     oed.guess[0] = 373
-    breakpoint()
     print(oed.list_simulators[0]._independent_variables)
     print(oed.list_simulators[0].time_grid_relative)
-    print(oed.calculate_objective_and_jacobian({"e0_T_in": 373}))
+    print(oed.calculate_objective_and_jacobian({"e0_T_in": 373})["jac"])
     breakpoint()
 
     # print(oed.optimize())

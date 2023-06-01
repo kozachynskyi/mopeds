@@ -10,6 +10,38 @@ import pytest
 
 
 @pytest.mark.parametrize("piecewise", [True, False])
+def test_parameter_jacobian(piecewise):
+    for cstr_model in [
+        par_est.examples.cstr_ode,
+        par_est.examples.cstr_ode_constant,
+        par_est.examples.cstr_dae,
+        par_est.examples.cstr_dae_constant,
+    ]:
+        var_list, model = cstr_model(piecewise)
+        time_grid = np.linspace(0, 1000, 4)
+
+        if piecewise:
+            T_in = var_list["e0_T_in"]
+            T_in.expand_horizon([2000, 4000], [373, 373])
+
+        var_list_exp = par_est.Simulator(model, time_grid, var_list).generate_exp_data()
+
+        for key, var in var_list_exp.items():
+            var_list[key] = var
+
+        var_list["e0_U"].fixed = False
+        var_list["e0_E_r1"].fixed = False
+
+        pe = par_est.ParameterEstimation(
+            model, [var_list]
+        )
+        jac_pe = pe.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_E_r1": 9.6e4})["jac_scaled_full"]
+
+        oed = par_est.OptimalExperimentalDesign(model, [var_list], time_grid, time_grid)
+        jac_oed = oed.calculate_objective_and_jacobian({"e0_T_in": 373})["jac"]
+        assert np.all(np.isclose(jac_pe, jac_oed))
+
+@pytest.mark.parametrize("piecewise", [True, False])
 def test_pe_intials_algebraic(piecewise):
     variable_list1, model = par_est.examples.empy_dae(piecewise)
     variable_list1["X1"].set_dataframe_from_value_and_time([1, 0], [0, 1])
@@ -353,6 +385,7 @@ if __name__ == "__main__":
     # test_optimizer(True)
     # test_oed(True)
     # test_pe(True,True)
-    test_pe_objective(False)
+    # test_pe_objective(False)
+    test_parameter_jacobian(True)
     # test_pe_intials_algebraic()
     # test_oed_piecewise()
