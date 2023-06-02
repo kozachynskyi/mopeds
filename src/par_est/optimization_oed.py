@@ -64,8 +64,28 @@ class CriteriaA(OED_objective):
 
         return obj, jac_scaled
 
+class CriteriaD(OED_objective):
+    def eval(self, args):
+        jac_scaled = args[0]
+        obj = np.linalg.det(np.linalg.inv(jac_scaled.T @ jac_scaled))
+
+        return obj, jac_scaled
+
 
 class OED_base(Optimizer):
+    def select_objective_function(self, objective_function_name: str):
+        if objective_function_name == "A":
+            self._objective = self._objective_A
+        elif objective_function_name == "A_fd":
+            self._objective = self._objective_A_fd
+        elif objective_function_name == "D":
+            self._objective = self._objective_D_fd
+        else:
+            raise NotImplementedError(
+                f"Objective function '{objective_function_name}' is not supported"
+            )
+        return self._objective
+
     def _objective_A(self):
         """A criteria"""
         jac_scaled = self.jacobian_scaled_mx
@@ -79,20 +99,19 @@ class OED_base(Optimizer):
 
         return func_eval[0], func_eval[1]
 
+    def _objective_D_fd(self):
+        self._objective_func = CriteriaD("D", self.jacobian_scaled_mx)
+        func_eval = self._objective_func(self.jacobian_scaled_mx)
+
+        return func_eval[0], func_eval[1]
+
     def optimize(self, scale=False, objective_function="A"):
         """Function to select optimization function"""
         # Scaling works unpredictably. It was shown during creation of VariableControlPiecewiseConstant
         if scale:
             raise NotImplementedError
 
-        if objective_function == "A":
-            self._objective = self._objective_A
-        elif objective_function == "A_fd":
-            self._objective = self._objective_A_fd
-        else:
-            raise NotImplementedError(
-                f"Objective function '{objective_function}' is not supported"
-            )
+        self.select_objective_function(objective_function)
 
         return self._optimize(scale)
 
@@ -105,10 +124,8 @@ class OED_base(Optimizer):
         objective_function: str = "A",
     ) -> dict[str, float | np.ndarray]:
         self._setup_scaling(False)
-        if objective_function == "A":
-            obj_f = self._objective_A()
-        else:
-            raise NotImplementedError
+
+        obj_f = self.select_objective_function(objective_function)()
 
         decision_variables = self.varlist_decision.get_casadi_variables()
         casadi_function = ca.Function(
