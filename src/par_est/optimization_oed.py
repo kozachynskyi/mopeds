@@ -238,7 +238,7 @@ class OptimalExperimentalDesign(OED_base):
         model: Model,
         variable_list: list[VariableList],
         time_grid_measurements: np.ndarray,
-        time_grid_control_switch: np.ndarray,
+        time_grid_control_switch: np.ndarray | None = None,
         simulator_name: str = "idas",
         simulator_settings: dict = None,
         *,
@@ -287,6 +287,8 @@ class OptimalExperimentalDesign(OED_base):
                 sim.calculate_algebraic_initials(apply_intials=True)
 
     def _setup_timegrid(self, time_measurements, time_control_switch):
+        if time_control_switch is None:
+            time_control_switch = []
         time_grid = np.unique(list(time_measurements) + list(time_control_switch))
         self.time_grid_original: np.ndarray = time_grid
 
