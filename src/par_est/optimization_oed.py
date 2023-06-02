@@ -30,6 +30,41 @@ if _ACADOS_SUPPORT:
     from par_est import casados_integrator
 
 
+class OED_objective(ca.Callback):
+    def __init__(self, name, jac, opts={}):
+        opts["enable_jacobian"] = False
+        opts["enable_forward"] = False
+        opts["enable_reverse"] = False
+        opts["enable_fd"] = True
+
+        ca.Callback.__init__(self)
+        self.nin = jac.shape
+        self.construct(name, opts)
+
+    def get_n_in(self): return 1
+    def get_n_out(self): return 2
+
+    def eval(self, args):
+        raise NotImplementedError
+
+    def get_sparsity_in(self,i):
+        return ca.Sparsity.dense(*self.nin)
+
+    def get_sparsity_out(self,i):
+        if i == 0:
+            return ca.Sparsity.dense(1)
+        elif i == 1:
+            return ca.Sparsity.dense(*self.nin)
+
+
+class CriteriaA(OED_objective):
+    def eval(self, args):
+        jac_scaled = args[0]
+        obj = np.trace(np.linalg.inv(jac_scaled.T @ jac_scaled))
+
+        return obj, jac_scaled
+
+
 class OED_base(Optimizer):
     def _objective_A(self):
         """A criteria"""
@@ -37,6 +72,12 @@ class OED_base(Optimizer):
         obj = ca.trace(ca.inv(jac_scaled.T @ jac_scaled))
 
         return obj, jac_scaled
+
+    def _objective_A_fd(self):
+        self._objective_func = CriteriaA("A", self.jacobian_scaled_mx)
+        func_eval = self._objective_func(self.jacobian_scaled_mx)
+
+        return func_eval[0], func_eval[1]
 
     def optimize(self, scale=False, objective_function="A"):
         """Function to select optimization function"""
@@ -46,6 +87,8 @@ class OED_base(Optimizer):
 
         if objective_function == "A":
             self._objective = self._objective_A
+        elif objective_function == "A_fd":
+            self._objective = self._objective_A_fd
         else:
             raise NotImplementedError(
                 f"Objective function '{objective_function}' is not supported"

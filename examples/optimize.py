@@ -57,8 +57,8 @@ if __name__ == "__main__":
 
     data1["e0_T"].fixed = False
     data1["e0_U"].fixed = False
-    data1["e0_c_p"].fixed = False
-    data1["e0_E_r1"].fixed = False
+    data1["e0_c_p"].fixed = True
+    data1["e0_E_r1"].fixed = True
     data1["e0_F"].fixed = True
     data1["e0_c_i1"].fixed = False
     # mes_names = ["e0_T", "e0_c_i1"]
@@ -66,24 +66,12 @@ if __name__ == "__main__":
     # mes_names = ["e0_T"]
     # mes_names = None
 
-    integrator_settings = {
-                "tf": 1,
-                "expand": True,
-                "enable_fd": True,
-                # "calc_ic": False,
-                # 'abstol': 1,
-                # "reltol": 1,
-                # "monitor": "jacF",
-                # "print_in": True,
-                # "print_out": True,
-                # "verbose": True,
-                # "print_stats": True,
-                }
 
-    oed = par_est.OptimalExperimentalDesign(m, [data1], time_grid1, time_grid1, measurable_variables=mes_names, simulator_name="idas", simulator_settings=integrator_settings)
+    oed = par_est.OptimalExperimentalDesign(m, [data1], time_grid1, time_grid1, measurable_variables=mes_names, simulator_name="idas")
     oed.guess[0] = 373
     # print(oed.calculate_objective_and_jacobian({"e0_T_in": 373})["jac"])
 
+    print(oed.optimize(objective_function="A_fd"))
     print(oed.optimize())
     breakpoint()
     # oed.optimize()
