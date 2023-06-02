@@ -48,12 +48,8 @@ if __name__ == "__main__":
 
     # pe_state = par_est.ParameterEstimation(m, [data1, data2])
     pe_state = par_est.ParameterEstimation(m, [data1])
-    a = pe_state.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_c_p": 3.5, "e0_E_r1": 9.6e4})
-    print(pe_state.list_simulators[0]._independent_variables)
-    print(pe_state.list_simulators[0].time_grid_relative)
-    print(a["jac_scaled_full"])
-    print(a["fim"])
-    print(a["cov_par"])
+    # a = pe_state.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_c_p": 3.5, "e0_E_r1": 9.6e4})
+    print(a)
     # print(pe_state.optimize(True))
 
     # pe_alg = par_est.ParameterEstimation(m, [data1, data2], use_algebraic_vars=True)
@@ -61,20 +57,33 @@ if __name__ == "__main__":
 
     data1["e0_T"].fixed = False
     data1["e0_U"].fixed = False
-    data1["e0_c_p"].fixed = True
+    data1["e0_c_p"].fixed = False
+    data1["e0_E_r1"].fixed = False
     data1["e0_F"].fixed = True
     data1["e0_c_i1"].fixed = False
     # mes_names = ["e0_T", "e0_c_i1"]
     mes_names = ["e0_c_i1", "e0_T"]
     # mes_names = ["e0_T"]
-    mes_names = None
-    oed = par_est.OptimalExperimentalDesign(m, [data1], time_grid1, time_grid1, measurable_variables=mes_names)
-    oed.guess[0] = 373
-    print(oed.list_simulators[0]._independent_variables)
-    print(oed.list_simulators[0].time_grid_relative)
-    print(oed.calculate_objective_and_jacobian({"e0_T_in": 373})["jac"])
-    breakpoint()
+    # mes_names = None
 
-    # print(oed.optimize())
+    integrator_settings = {
+                "tf": 1,
+                "expand": True,
+                "enable_fd": True,
+                # "calc_ic": False,
+                # 'abstol': 1,
+                # "reltol": 1,
+                # "monitor": "jacF",
+                # "print_in": True,
+                # "print_out": True,
+                # "verbose": True,
+                # "print_stats": True,
+                }
+
+    oed = par_est.OptimalExperimentalDesign(m, [data1], time_grid1, time_grid1, measurable_variables=mes_names, simulator_name="idas", simulator_settings=integrator_settings)
+    oed.guess[0] = 373
+    # print(oed.calculate_objective_and_jacobian({"e0_T_in": 373})["jac"])
+
+    print(oed.optimize())
     breakpoint()
     # oed.optimize()
