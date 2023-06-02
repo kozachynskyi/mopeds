@@ -590,7 +590,7 @@ class PE_base(Optimizer):
                 self.simulate_all_mx[:, index_measurement], decision_variables
             )
             jac_meas_function = ca.Function(
-                    "jac_meas", [decision_variables], [jac_meas_mx], {"enable_fd": True}
+                    "jac_meas", [decision_variables], [jac_meas_mx]
             )
             jac_meas_dm = jac_meas_function(all_parameter_values)
             jac_meas_selected_dm = (
