@@ -16,11 +16,11 @@ def create_grid(bounds: list[list[float]]) -> list[list[float]]:
     linspace_list = []
     for bound in bounds:
         linspace_list.append(np.linspace(start=bound[0], stop=bound[1], num=bound[2]))
-    grids = np.meshgrid(*linspace_list)
+    meshgrid = np.meshgrid(*linspace_list)
 
-    grids = [n_grid.ravel() for n_grid in grids]
-    grid = np.array(grids).transpose().tolist()
-    return grid
+    grid = [n_grid.ravel() for n_grid in meshgrid]
+    grid = np.array(grid).transpose().tolist()
+    return grid, meshgrid
 
 
 def generate_varlist_with_data(
