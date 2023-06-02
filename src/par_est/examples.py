@@ -832,8 +832,8 @@ def yeast_growth(model_type="cantois") -> tuple[
 
     variable_list.add_variable(par_est.VariableAlgebraic("r", 1.7))
 
-    variable_list.add_variable(par_est.VariableControl("u1", 0.125))
-    variable_list.add_variable(par_est.VariableControl("u2", 35))
+    variable_list.add_variable(par_est.VariableControl("u1", 0.125, 0.05, 0.2))
+    variable_list.add_variable(par_est.VariableControl("u2", 35, 5, 35))
 
     variable_list.add_variable(par_est.VariableParameter("theta1", 0.310, 1e-2, 2))
     variable_list.add_variable(par_est.VariableParameter("theta2", 0.180, 1e-2, 20))
@@ -841,7 +841,7 @@ def yeast_growth(model_type="cantois") -> tuple[
     variable_list.add_variable(par_est.VariableParameter("theta4", 0.050, 1e-2, 2))
 
     variable_list["x1"].variance = 0.01
-    variable_list["x1"].variance = 0.05
+    variable_list["x2"].variance = 0.05
 
     m = par_est.Model(variable_list)  # adding all variables to the model
 
