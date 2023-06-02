@@ -69,6 +69,8 @@ if __name__ == "__main__":
     # print(pe.optimize(True, objective_function="ols"))
     # p_ols = {'theta1': 0.37625871088136736, 'theta2': 4.273832042202273, 'theta3': 0.46807664082825035, 'theta4': 0.017818492265246618}
 
+    # print(pe.parameter_analysis(p_preliminary))
+
     # plot_res(pe, p_wls)
     # plot_res(pe, p_preliminary)
 
@@ -83,6 +85,9 @@ if __name__ == "__main__":
     # plot_fig3(oed, "A")
     # plot_fig3(oed, "D")
 
-    # print(oed.optimize(objective_function="D"))
-    breakpoint()
+    # a = oed.calculate_objective_and_jacobian({"u1": 0.2, "u2": 35})
+    # j = a["jac"]
+    # 1.75e14
+    # print(np.linalg.det(j.T @ j) / 1e14)
 
+    # print(oed.optimize(objective_function="D"))
