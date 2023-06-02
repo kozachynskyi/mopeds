@@ -76,7 +76,7 @@ class OED_base(Optimizer):
             ["f", "jac"],
         )
 
-        selected_parameters = self.parameters_dict_to_list(controls)
+        selected_parameters = self.variables_dict_to_list(controls)
         res = casadi_function(x=selected_parameters)
         result_np = {
             "f": float(res["f"]),
@@ -117,6 +117,8 @@ class OED_base(Optimizer):
                 #     inverted_variances.append(1 / var.variance)
                 #     self.names_of_measurements.append(var.name)
 
+        if len(self.varlist_parameter) == 0:
+            raise ValueError("All parameters are fixed, OED is not possible")
         self.array_inverted_variances: np.ndarray = np.array(inverted_variances)
         self.array_inverted_std = np.sqrt(inverted_variances)
 
@@ -209,9 +211,14 @@ class OptimalExperimentalDesign(OED_base):
         self.solver_name: str = "ipopt"
         self.solver_settings: dict = {
             "verbose": False,
+            # "enable_fd": True,
+            # "enable_jacobian": False,
+            # "enable_forward": False,
+            # "enable_reverse": False,
             # "monitor": ["nlp_grad_f", "nlp_f"],
             "ipopt": {
-                "max_iter": 100,
+                "max_iter": 300,
+                "hessian_approximation": "limited-memory"
                 # "print_level": 6,
             },
         }

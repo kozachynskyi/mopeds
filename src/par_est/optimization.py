@@ -70,20 +70,20 @@ class Optimizer(object):
         # Runs optimization once
         raise (NotImplementedError)
 
-    def parameters_dict_to_list(self, parameters: dict[str, float]) -> list[float]:
-        """Takes a dictionary with {"par_name": par_value} and transforms to list
+    def variables_dict_to_list(self, variables_dict: dict[str, float]) -> list[float]:
+        """Takes a dictionary with {"var_name": var_value} and transforms to list
         corresponding to the order of self.varlist_decision variables"""
-        selected_parameters: list[float] = []
-        for var_name in parameters.keys():
+        selected_variables: list[float] = []
+        for var_name in variables_dict.keys():
             if var_name not in self.varlist_decision.keys():
-                print(f"Supplied value for parameter {var_name} is ignored!")
+                print(f"Supplied value for variables {var_name} is ignored!")
         for var_name in self.varlist_decision.keys():
             try:
-                selected_parameters.append(parameters[var_name])
+                selected_variables.append(variables_dict[var_name])
             except KeyError:
-                raise KeyError(f"Missing parameter value for {var_name}")
+                raise KeyError(f"Missing value for {var_name}")
 
-        return selected_parameters
+        return selected_variables
 
     def _setup_simulator_mapping(
         self, simulator: Simulator | SimulatorNLE
@@ -488,7 +488,7 @@ class PE_base(Optimizer):
             ["f", "residuals", "y"],
         )
 
-        selected_parameters = self.parameters_dict_to_list(parameters)
+        selected_parameters = self.variables_dict_to_list(parameters)
         res = casadi_function(x=selected_parameters)
         result_np = {
             "f": float(res["f"]),
@@ -556,7 +556,7 @@ class PE_base(Optimizer):
                 if par_name in parameter_names:
                     list_selected_parameters_index.append(par_index)
 
-        all_parameter_values = self.parameters_dict_to_list(parameters)
+        all_parameter_values = self.variables_dict_to_list(parameters)
 
         residuals = self.calculate_objective_and_residual(
             parameters, objective_function="ols"
@@ -590,7 +590,7 @@ class PE_base(Optimizer):
                 self.simulate_all_mx[:, index_measurement], decision_variables
             )
             jac_meas_function = ca.Function(
-                "jac_meas", [decision_variables], [jac_meas_mx]
+                    "jac_meas", [decision_variables], [jac_meas_mx], {"enable_fd": True}
             )
             jac_meas_dm = jac_meas_function(all_parameter_values)
             jac_meas_selected_dm = (
@@ -827,7 +827,7 @@ class PE_base(Optimizer):
 
         self._setup_scaling(False)
 
-        selected_parameters = self.parameters_dict_to_list(parameters)
+        selected_parameters = self.variables_dict_to_list(parameters)
         result_sens = self.calculate_sensitivity_and_fim(parameters)
 
         parameter_covariance_matrix = result_sens["cov_par"]
