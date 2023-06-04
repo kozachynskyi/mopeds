@@ -893,14 +893,17 @@ class Simulator(object):
     def setup_time_grid(self, time_grid: ArrayLike) -> None:
         """Time_grid provided by user may not take into account piecewise controls.
         Thus it might be needed to expand a time grid."""
-        time_grid = np.asfarray(time_grid)
-        for var in self.__input_variable_list.values():
-            if isinstance(var, VariableControlPiecewiseConstant):
-                time_grid = np.append(time_grid, var.time_relative)
+        if isinstance(time_grid, ca.MX):
+            self.time_grid_relative: np.ndarray = time_grid
+        else:
+            time_grid = np.asfarray(time_grid)
+            for var in self.__input_variable_list.values():
+                if isinstance(var, VariableControlPiecewiseConstant):
+                    time_grid = np.append(time_grid, var.time_relative)
 
-        # Values of provided time_grid are rounded to milisecconds
-        # in order to avoid timestamps that are very close to each other
-        self.time_grid_relative: np.ndarray = np.unique(time_grid)
+            # Values of provided time_grid are rounded to milisecconds
+            # in order to avoid timestamps that are very close to each other
+            self.time_grid_relative: np.ndarray = np.unique(time_grid)
         self.origin_ts = self.__input_variable_list.get_common_origin()
         self.logger.debug(
             "Timegrid modified: \n self.timegrid \n {0} \n".format(

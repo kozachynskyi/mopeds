@@ -179,6 +179,9 @@ class OED_base(Optimizer):
                 #     inverted_variances.append(1 / var.variance)
                 #     self.names_of_measurements.append(var.name)
 
+        for time_var in self.varlist_timegrid.values():
+            self.varlist_decision.add_variable(time_var)
+
         if len(self.varlist_parameter) == 0:
             raise ValueError("All parameters are fixed, OED is not possible")
         self.array_inverted_variances: np.ndarray = np.array(inverted_variances)
@@ -204,6 +207,11 @@ class OED_base(Optimizer):
         all_selected_measurements = res_simulation.get(
             False, ca.Slice(), self.index_measurements_in_sim
         )
+
+        all_selected_measurements = all_selected_measurements.get(
+            False, self.index_time_grid, ca.Slice()
+        )
+
         self.simulate_all_function = ca.Function(
             "sim_all", [self.varlist_parameter.get_casadi_variables(), self.varlist_decision.get_casadi_variables()], [all_selected_measurements]
         )
@@ -239,8 +247,7 @@ class OptimalExperimentalDesign(OED_base):
         self,
         model: Model,
         variable_list: list[VariableList],
-        time_grid_measurements: np.ndarray,
-        time_grid_control_switch: np.ndarray | None = None,
+        time_grid_measurements: np.ndarray | int,
         simulator_name: str = "idas",
         simulator_settings: dict = None,
         *,
@@ -248,9 +255,19 @@ class OptimalExperimentalDesign(OED_base):
         measurable_variables: list[str] | None = None,
     ) -> None:
         super().__init__(model, variable_list, simulator_name, simulator_settings)
+        self.varlist_timegrid = VariableList()
 
         # User specified time_grid is used for initilizaiton of Simulators
-        self._setup_timegrid(time_grid_measurements, time_grid_control_switch)
+        if isinstance(time_grid_measurements, (int, float)):
+            for i in range(time_grid_measurements):
+                new_var = VariableControl("time_t" + str(i), i*1, 1, 20)
+                self.varlist_timegrid.add_variable(new_var)
+            time_grid_measurements = self.varlist_timegrid.get_casadi_variables()
+            self.time_grid_measurements = ca.vcat([0, time_grid_measurements])
+        else:
+            if not time_grid_measurements[0] == 0:
+                raise ValueError("Time grid should start with 0")
+            self.time_grid_measurements = np.sort(time_grid_measurements)
 
         if measurable_variables is None:
             self.list_measureable_variables = list(self.model.varlist_state.keys())
@@ -263,12 +280,6 @@ class OptimalExperimentalDesign(OED_base):
 
         self._setup_simulator()
         self._setup_initialization()
-
-        # User specified time grid might not include every time_stamp of VariableControlPiecewiseConstant
-        # So the corrected time_grid of Simulator is used in optimization
-        self.time_grid_modified = self.list_simulators[0].time_grid_relative
-        if not np.array_equal(self.time_grid_original, self.time_grid_modified):
-            raise NotImplementedError
 
         self.solver_name: str = "ipopt"
         self.solver_settings: dict = {
@@ -288,12 +299,23 @@ class OptimalExperimentalDesign(OED_base):
             for sim in self.list_simulators:
                 sim.calculate_algebraic_initials(apply_intials=True)
 
-    def _setup_timegrid(self, time_measurements, time_control_switch):
-        if time_control_switch is None:
-            time_control_switch = []
-        time_grid = np.unique(list(time_measurements) + list(time_control_switch))
-        self.time_grid_original: np.ndarray = time_grid
+    def _setup_timegrid(self):
+        # Simulator time_grid might have time_steps, at which "measueremnt" is not done,
+        # and jacobian calculation for FIM is not needed. This selection is done via self.index_time_grid
+        time_grid_simulator = self.list_simulators[0].time_grid_relative
 
+        self.index_time_grid = []
+
+        if isinstance(time_grid_simulator, ca.MX):
+            if time_grid_simulator.shape == self.time_grid_measurements.shape:
+                self.index_time_grid = [time for time in range(time_grid_simulator.shape[0] - 1)]
+            else:
+                raise NotImplementedError
+        else:
+            # Starting from [1:] because 0 is always first element in time_grid
+            for time_index, time in enumerate(time_grid_simulator[1:]):
+                if time in self.time_grid_measurements:
+                    self.index_time_grid.append(time_index)
 
     def _setup_simulator(self, *, use_idas_constraints: bool = False) -> None:
         """Initializes simulator class. Parameter variables are fixed, and an index of an unfixed
@@ -308,7 +330,7 @@ class OptimalExperimentalDesign(OED_base):
         self.list_simulators: list[Simulator] = [
             Simulator(
                 self.model,
-                self.time_grid_original,
+                self.time_grid_measurements,
                 self.list_input_varlist[0],
                 self.simulator_name,
                 self.simulator_settings,
@@ -319,6 +341,8 @@ class OptimalExperimentalDesign(OED_base):
         for name in self.names_of_measurements:
             index = self.list_simulators[0].mapping_state_variables[name]
             self.index_measurements_in_sim.append(index)
+
+        self._setup_timegrid()
 
         self.mapping_simulator_decisions: list[dict[int, int]] = [self.list_simulators[0].mapping_independent_variables]
         self.generate_jacobian_function()
