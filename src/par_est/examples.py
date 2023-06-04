@@ -822,7 +822,7 @@ def spmma() -> tuple[
 
 
 # Baker yeast growth model Quaglio2018 10.1016/j.cherd.2018.04.041
-def yeast_growth(model_type="cantois") -> tuple[
+def yeast_growth(model_type="cantois", piecewise=False) -> tuple[
     par_est.VariableList, par_est.Model, list[par_est.VariableList]
 ]:
     variable_list = par_est.variables.VariableList()
@@ -832,8 +832,12 @@ def yeast_growth(model_type="cantois") -> tuple[
 
     variable_list.add_variable(par_est.VariableAlgebraic("r", 1.7))
 
-    variable_list.add_variable(par_est.VariableControl("u1", 0.125, 0.05, 0.2))
-    variable_list.add_variable(par_est.VariableControl("u2", 35, 5, 35))
+    if piecewise:
+        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("u1", 0.125, 0.05, 0.2))
+        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("u2", 35, 5, 35))
+    else:
+        variable_list.add_variable(par_est.VariableControl("u1", 0.125, 0.05, 0.2))
+        variable_list.add_variable(par_est.VariableControl("u2", 35, 5, 35))
 
     variable_list.add_variable(par_est.VariableParameter("theta1", 0.310, 1e-2, 2))
     variable_list.add_variable(par_est.VariableParameter("theta2", 0.180, 1e-2, 20))
