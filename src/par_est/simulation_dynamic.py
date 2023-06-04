@@ -110,19 +110,6 @@ class Simulator(object):
 
         self._setup_constraints_idas(use_idas_constraints)
 
-        # TODO This integrator is not used so far...
-        if not self.__integrator_name == "acados":
-            self.integrator: ca.Function = ca.integrator(
-                "integrator",
-                self.__integrator_name,
-                self.ode_system,
-                {
-                    "grid": self.time_grid_relative,
-                    "output_t0": False,
-                    "print_stats": True,
-                },
-            )
-
         if self.__integrator_name == "acados":
             model_acados = AcadosModel()
 
