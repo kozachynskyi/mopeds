@@ -48,7 +48,7 @@ if __name__ == "__main__":
     time_grid = np.array([0, 5, 10, 15, 20])
     sim_cantois = par_est.Simulator(m_cantois, time_grid, varlist)
 
-    varlist, m_monod, _ = par_est.examples.yeast_growth("monod")
+    varlist, m_monod, _ = par_est.examples.yeast_growth("monod", False)
 
     # sim_monod = par_est.Simulator(m_monod, time_grid, varlist)
     # sim_monod.generate_exp_data().plot(show=False)
@@ -80,8 +80,21 @@ if __name__ == "__main__":
         varlist[var_name].fixed = False
     varlist["u1"].fixed = False
     varlist["u2"].fixed = False
+    # varlist["u2"].value = 35
 
-    oed = par_est.OptimalExperimentalDesign(m_monod, [varlist], time_grid)
+    # varlist["u2"].expand_horizon([1], [35])
+
+    controls = {"u1": 0.12, "u2": 35}
+    # oed = par_est.OptimalExperimentalDesign(m_monod, [varlist], time_grid)
+    # print(oed.calculate_objective_and_jacobian(controls))
+
+    oed = par_est.OptimalExperimentalDesign(m_monod, [varlist], 5)
+    time_grid_dict = {}
+    for i, time in enumerate(time_grid):
+        time_grid_dict["time_t" + str(i)] = time
+
+    oed.solver_settings["ipopt"]["linear_solver"] = "ma57"
+    print(oed.calculate_objective_and_jacobian(controls | time_grid_dict))
     # plot_fig3(oed, "A")
     # plot_fig3(oed, "D")
 
@@ -90,4 +103,4 @@ if __name__ == "__main__":
     # 1.75e14
     # print(np.linalg.det(j.T @ j) / 1e14)
 
-    # print(oed.optimize(objective_function="D"))
+    print(oed.optimize(objective_function="A_fd"))
