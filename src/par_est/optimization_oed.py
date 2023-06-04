@@ -320,3 +320,63 @@ class OptimalExperimentalDesign(OED_base):
 
         self.mapping_simulator_decisions: list[dict[int, int]] = [self.list_simulators[0].mapping_independent_variables]
         self.generate_jacobian_function()
+
+    def _optimize(self, scale: bool) -> dict[str, ca.DM | ca.MX]:
+        """Runs optimizer, uses scaling if needed. Returned values is scaled back.
+        Scaling should be done before setting a solver and solver settings."""
+        self._setup_scaling(scale)
+
+        g = []
+        lbg = []
+        ubg = []
+
+        casadi_vars = self.varlist_timegrid.get_casadi_variables()
+        for i in range(len(self.varlist_timegrid) - 1):
+            g.append(casadi_vars[i+1] - casadi_vars[i])
+            lbg.append(0.5)
+            ubg.append(20)
+
+        g = ca.vcat(g)
+
+        self.solver: ca.Function = ca.nlpsol(
+            "solver",
+            self.solver_name,
+            {
+                "x": self.varlist_decision.get_casadi_variables(),
+                "f": self._objective()[0],
+                "g": g,
+            },
+            self.solver_settings,
+        )
+
+        lb_scaled = self.lower_bound / self.scaling
+        ub_scaled = self.upper_bound / self.scaling
+
+
+
+        # Scaling of negative numbers requires a switch bounds
+        for index, (lb, ub) in enumerate(zip(lb_scaled, ub_scaled)):
+            if lb > ub:
+                lb_scaled[index] = ub
+                ub_scaled[index] = lb
+
+        res_solver = self.solver(
+            x0=self.guess / self.scaling,
+            lbx=lb_scaled,
+            ubx=ub_scaled,
+            lbg=lbg,
+            ubg=ubg,
+        )
+
+        res_solver["x"] = res_solver["x"] * self.scaling
+
+        res_dict = {}
+        for solution, var_name in zip(
+            res_solver["x"].toarray(), list(self.varlist_decision.keys())
+        ):
+            res_dict[var_name] = float(solution[0])
+
+        res_solver["x_dict"] = res_dict
+        self.reset_acados()
+
+        return res_solver
