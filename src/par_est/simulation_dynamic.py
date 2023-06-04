@@ -263,7 +263,7 @@ class Simulator(object):
         index_algebraic = 0
         index_state = 0
         index_independent = 0
-        num_time_steps = len(self.time_grid_relative) - 1
+        num_time_steps = self.time_grid_relative.shape[0] - 1
         independent_variables = []
         initial_algebraic = []
         initial_state = []
@@ -773,9 +773,11 @@ class Simulator(object):
         x_init = self._initial_state
         alg_init = self._initial_algebraic
 
-        for time_step, independent_variables in zip(
-            self.time_grid_relative[1:], self._independent_variables
-        ):
+        num_steps = self.time_grid_relative[1:].shape[0] - 1
+
+        for time_index in range(num_steps + 1):
+            time_step = self.time_grid_relative[time_index + 1]
+            independent_variables = self._independent_variables[time_index]
             res_integration = self.integrator_tau(
                 x0=x_init,
                 z0=alg_init,
