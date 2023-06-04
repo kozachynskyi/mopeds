@@ -157,8 +157,10 @@ class OED_base(Optimizer):
                 continue
 
             if isinstance(var, VariableControl):
-                if not var.fixed:
+                if var.fixed is False:
                     if isinstance(var, VariableControlPiecewiseConstant):
+                        if not len(var.variable_list) == 1:
+                            raise NotImplementedError("Piecewise constant controls with time grid are not supported")
                         for var_control in var.variable_list.values():
                             if not var_control.fixed:
                                 self.varlist_decision.add_variable(var_control)
