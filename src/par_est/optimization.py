@@ -659,6 +659,7 @@ class PE_base(Optimizer):
         result["jac_full"] = jac_array
         result["jac_sorted"] = jacobian
         result["jac_scaled_full"] = jac_array_scaled_estimated
+        result["jac_scaled_full_theory"] = jac_array_scaled
         result["jac_scaled_sorted"] = jacobian_scaled
         result["jac_yao_full"] = jac_array_yao
         result["jac_yao_sorted"] = jacobian_yao

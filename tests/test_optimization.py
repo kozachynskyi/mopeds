@@ -19,6 +19,7 @@ def test_parameter_jacobian(piecewise):
     ]:
         var_list, model = cstr_model(piecewise)
         time_grid = np.linspace(0, 1000, 4)
+        time_grid_expanded = list(time_grid) + [2000, 4000]
 
         if piecewise:
             T_in = var_list["e0_T_in"]
@@ -35,11 +36,23 @@ def test_parameter_jacobian(piecewise):
         pe = par_est.ParameterEstimation(
             model, [var_list]
         )
-        jac_pe = pe.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_E_r1": 9.6e4})["jac_scaled_full"]
+        jac_pe = pe.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_E_r1": 9.6e4})["jac_scaled_full_theory"]
 
-        oed = par_est.OptimalExperimentalDesign(model, [var_list], time_grid, time_grid)
+        oed = par_est.OptimalExperimentalDesign(model, [var_list], time_grid)
+        oed_expanded = par_est.OptimalExperimentalDesign(model, [var_list], time_grid_expanded)
         jac_oed = oed.calculate_objective_and_jacobian({"e0_T_in": 373})["jac"]
-        assert np.all(np.isclose(jac_pe, jac_oed))
+        jac_oed_expanded = oed_expanded.calculate_objective_and_jacobian({"e0_T_in": 373})["jac"]
+
+        if piecewise:
+            with pytest.raises(ValueError):
+                assert np.all(np.isclose(jac_pe, jac_oed))
+            assert np.all(np.isclose(jac_pe, jac_oed_expanded))
+        else:
+            assert np.all(np.isclose(jac_pe, jac_oed))
+            with pytest.raises(ValueError):
+                assert np.all(np.isclose(jac_pe, jac_oed_expanded))
+
+
 
 @pytest.mark.parametrize("piecewise", [True, False])
 def test_pe_intials_algebraic(piecewise):
