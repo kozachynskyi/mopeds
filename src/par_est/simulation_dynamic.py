@@ -278,8 +278,7 @@ class Simulator(object):
                 mapping_state_variables[var.name] = index_state
                 index_state += 1
                 try:
-                    initial_state.append(var.value[0])
-                    # initial_state.append(var.get_value_or_casadi())
+                    initial_state.append(var.get_value_or_casadi())
                 except Exception as e:
                     raise (BadVariableError(var)) from e
 

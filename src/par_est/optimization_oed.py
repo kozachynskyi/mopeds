@@ -186,9 +186,10 @@ class OED_base(Optimizer):
                 if var.name in self.list_measureable_variables:
                     inverted_variances.append(1 / var.variance)
                     self.names_of_measurements.append(var.name)
-                # if var.fixed is False:
-                #     inverted_variances.append(1 / var.variance)
-                #     self.names_of_measurements.append(var.name)
+                if var.fixed is False:
+                    if np.isnan(var.guess):
+                        var.guess = var.value[0]
+                    self.varlist_decision.add_variable(var)
 
         for time_var in self.varlist_timegrid.values():
             self.varlist_decision.add_variable(time_var)

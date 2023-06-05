@@ -80,11 +80,12 @@ if __name__ == "__main__":
         varlist[var_name].fixed = False
     varlist["u1"].fixed = False
     varlist["u2"].fixed = True
+    varlist["x1"].fixed = False
     # varlist["u2"].value = 35
 
     # varlist["u2"].expand_horizon([1], [35])
 
-    controls = {"u1": 0.12, "u2": 35}
+    controls = {"u1": 0.12, "u2": 35, "x1": 5}
     oed = par_est.OptimalExperimentalDesign(m_monod, [varlist], time_grid)
     a = oed.calculate_objective_and_jacobian(controls)
     print(a)
