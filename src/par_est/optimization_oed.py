@@ -7,6 +7,7 @@ from collections.abc import Callable
 from itertools import combinations
 from typing import Sequence
 from warnings import warn
+from dataclasses import dataclass
 
 import casadi as ca
 import numpy as np
@@ -29,6 +30,12 @@ from par_est import (
 if _ACADOS_SUPPORT:
     from par_est import casados_integrator
 
+@dataclass
+class OEDsettings:
+    """Class to setup complex OED optimization problems"""
+    max_time_experiment: float = 1
+    min_sampling_delay: float = 0.1
+    num_sampling_times: int = 3
 
 class OED_objective(ca.Callback):
     def __init__(self, name, jac, opts={}):
@@ -105,12 +112,8 @@ class OED_base(Optimizer):
 
         return func_eval[0], func_eval[1]
 
-    def optimize(self, scale=False, objective_function="A"):
+    def optimize(self, scale:float = 1, objective_function="A"):
         """Function to select optimization function"""
-        # Scaling works unpredictably. It was shown during creation of VariableControlPiecewiseConstant
-        if scale:
-            raise NotImplementedError
-
         self.select_objective_function(objective_function)
 
         return self._optimize(scale)
@@ -247,7 +250,7 @@ class OptimalExperimentalDesign(OED_base):
         self,
         model: Model,
         variable_list: list[VariableList],
-        time_grid_measurements: np.ndarray | int,
+        time_grid_measurements: np.ndarray | OEDsettings,
         simulator_name: str = "idas",
         simulator_settings: dict = None,
         *,
@@ -258,12 +261,8 @@ class OptimalExperimentalDesign(OED_base):
         self.varlist_timegrid = VariableList()
 
         # User specified time_grid is used for initilizaiton of Simulators
-        if isinstance(time_grid_measurements, (int, float)):
-            for i in range(time_grid_measurements):
-                new_var = VariableControl("time_t" + str(i), i*1, 1, 20)
-                self.varlist_timegrid.add_variable(new_var)
-            time_grid_measurements = self.varlist_timegrid.get_casadi_variables()
-            self.time_grid_measurements = ca.vcat([0, time_grid_measurements])
+        if isinstance(time_grid_measurements, OEDsettings):
+            self._initialize_from_settings(time_grid_measurements)
         else:
             if not time_grid_measurements[0] == 0:
                 raise ValueError("Time grid should start with 0")
@@ -284,10 +283,6 @@ class OptimalExperimentalDesign(OED_base):
         self.solver_name: str = "ipopt"
         self.solver_settings: dict = {
             "verbose": False,
-            # "enable_fd": True,
-            # "enable_jacobian": False,
-            # "enable_forward": False,
-            # "enable_reverse": False,
             # "monitor": ["nlp_grad_f", "nlp_f"],
             "ipopt": {
                 "max_iter": 300,
@@ -298,6 +293,18 @@ class OptimalExperimentalDesign(OED_base):
         if reinitialize_algebraic:
             for sim in self.list_simulators:
                 sim.calculate_algebraic_initials(apply_intials=True)
+
+    def _initialize_from_settings(self, settings:OEDsettings):
+        self.max_time_experiment = settings.max_time_experiment
+        self.min_sampling_delay = settings.min_sampling_delay
+
+        initial_guess = np.linspace(settings.min_sampling_delay, settings.max_time_experiment, settings.num_sampling_times)
+
+        for i, guess in enumerate(initial_guess):
+            new_var = VariableControl("time_sp" + str(i), guess, self.min_sampling_delay, self.max_time_experiment)
+            self.varlist_timegrid.add_variable(new_var)
+        time_grid_measurements = self.varlist_timegrid.get_casadi_variables()
+        self.time_grid_measurements = ca.vcat([0, time_grid_measurements])
 
     def _setup_timegrid(self):
         # Simulator time_grid might have time_steps, at which "measueremnt" is not done,
@@ -347,54 +354,44 @@ class OptimalExperimentalDesign(OED_base):
         self.mapping_simulator_decisions: list[dict[int, int]] = [self.list_simulators[0].mapping_independent_variables]
         self.generate_jacobian_function()
 
-    def _optimize(self, scale: bool) -> dict[str, ca.DM | ca.MX]:
-        """Runs optimizer, uses scaling if needed. Returned values is scaled back.
-        Scaling should be done before setting a solver and solver settings."""
-        self._setup_scaling(scale)
-
-        g = []
-        lbg = []
-        ubg = []
-
+    def _setup_equality_constraints(self):
         casadi_vars = self.varlist_timegrid.get_casadi_variables()
+        g = []
+        self.lower_bound_g = []
+        self.upper_bound_g = []
+
         for i in range(len(self.varlist_timegrid) - 1):
             g.append(casadi_vars[i+1] - casadi_vars[i])
-            lbg.append(0.5)
-            ubg.append(20)
+            self.lower_bound_g.append(self.min_sampling_delay)
+            self.upper_bound_g.append(self.max_time_experiment)
 
-        g = ca.vcat(g)
+        self.equality_constraints = ca.vcat(g)
+
+    def _optimize(self, scale: float) -> dict[str, ca.DM | ca.MX]:
+        """Runs optimizer, uses scaling if needed. Returned values is scaled back.
+        Scaling should be done before setting a solver and solver settings."""
+        self._setup_equality_constraints()
 
         self.solver: ca.Function = ca.nlpsol(
             "solver",
             self.solver_name,
             {
                 "x": self.varlist_decision.get_casadi_variables(),
-                "f": self._objective()[0],
-                "g": g,
+                "f": self._objective()[0] * scale,
+                "g": self.equality_constraints,
             },
             self.solver_settings,
         )
 
-        lb_scaled = self.lower_bound / self.scaling
-        ub_scaled = self.upper_bound / self.scaling
-
-
-
-        # Scaling of negative numbers requires a switch bounds
-        for index, (lb, ub) in enumerate(zip(lb_scaled, ub_scaled)):
-            if lb > ub:
-                lb_scaled[index] = ub
-                ub_scaled[index] = lb
-
         res_solver = self.solver(
             x0=self.guess / self.scaling,
-            lbx=lb_scaled,
-            ubx=ub_scaled,
-            lbg=lbg,
-            ubg=ubg,
+            lbx=self.lower_bound,
+            ubx=self.upper_bound,
+            lbg=self.lower_bound_g,
+            ubg=self.upper_bound_g,
         )
 
-        res_solver["x"] = res_solver["x"] * self.scaling
+        res_solver["x"] = res_solver["x"]
 
         res_dict = {}
         for solution, var_name in zip(

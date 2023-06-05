@@ -79,7 +79,7 @@ if __name__ == "__main__":
         varlist[var_name].value = var_value
         varlist[var_name].fixed = False
     varlist["u1"].fixed = False
-    varlist["u2"].fixed = False
+    varlist["u2"].fixed = True
     # varlist["u2"].value = 35
 
     # varlist["u2"].expand_horizon([1], [35])
@@ -88,12 +88,18 @@ if __name__ == "__main__":
     # oed = par_est.OptimalExperimentalDesign(m_monod, [varlist], time_grid)
     # print(oed.calculate_objective_and_jacobian(controls))
 
-    oed = par_est.OptimalExperimentalDesign(m_monod, [varlist], 5)
+    oed_settings = par_est.OEDsettings(20, 0.1, 5)
+
+    oed = par_est.OptimalExperimentalDesign(m_monod, [varlist], oed_settings)
+
+    oed.max_time_experiment = 20
+    oed.min_sampling_delay = 0.5
+
     time_grid_dict = {}
     for i, time in enumerate(time_grid):
-        time_grid_dict["time_t" + str(i)] = time
+        time_grid_dict["time_sp" + str(i)] = time
 
-    oed.solver_settings["ipopt"]["linear_solver"] = "ma57"
+    # oed.solver_settings["ipopt"]["linear_solver"] = "ma57"
     print(oed.calculate_objective_and_jacobian(controls | time_grid_dict))
     # plot_fig3(oed, "A")
     # plot_fig3(oed, "D")
@@ -103,4 +109,4 @@ if __name__ == "__main__":
     # 1.75e14
     # print(np.linalg.det(j.T @ j) / 1e14)
 
-    print(oed.optimize(objective_function="A_fd"))
+    print(oed.optimize(1e-5, objective_function="A_fd"))
