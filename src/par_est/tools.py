@@ -80,7 +80,7 @@ def generate_varlist_with_data_NLE(
             var_varlist = variable_list_original[var.name]
             true_parameters[var_varlist.name] = var_varlist.value[0]
 
-    grid = create_grid(list(control_bounds.values()))
+    grid, meshgrid = create_grid(list(control_bounds.values()))
     sim_fixed = SimulatorNLE(model, variable_list)
 
     varlist_list = []
