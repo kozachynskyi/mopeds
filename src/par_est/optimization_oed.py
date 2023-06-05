@@ -66,18 +66,19 @@ class OED_objective(ca.Callback):
 
 class CriteriaA(OED_objective):
     def eval(self, args):
+        jac = args[0]
         jac_scaled = args[0] * self._parameter_scaling
         obj = np.trace(np.linalg.inv(jac_scaled.T @ jac_scaled))
 
-        return obj, jac_scaled
+        return obj, jac
 
 class CriteriaD(OED_objective):
     def eval(self, args):
+        jac = args[0]
         jac_scaled = args[0] * self._parameter_scaling
         obj = np.linalg.det(np.linalg.inv(jac_scaled.T @ jac_scaled))
 
-        return obj, jac_scaled
-
+        return obj, jac
 
 class OED_base(Optimizer):
     def select_objective_function(self, objective_function_name: str):
@@ -95,10 +96,11 @@ class OED_base(Optimizer):
 
     def _objective_A(self):
         """A criteria"""
-        jac_scaled = self.jacobian_scaled_mx * self._parameter_scaling
+        jac = self.jacobian_scaled_mx
+        jac_scaled = jac * self._parameter_scaling
         obj = ca.trace(ca.inv(jac_scaled.T @ jac_scaled))
 
-        return obj, jac_scaled
+        return obj, jac
 
     def _objective_A_fd(self):
         self._objective_func = CriteriaA("A", self.jacobian_scaled_mx)
