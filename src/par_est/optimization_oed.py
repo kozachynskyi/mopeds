@@ -38,7 +38,7 @@ class OEDsettings:
     num_sampling_times: int = 3
 
 class OED_objective(ca.Callback):
-    def __init__(self, name, jac, opts={}):
+    def __init__(self, name, jac, parameter_scaling, opts={}):
         opts["enable_jacobian"] = False
         opts["enable_forward"] = False
         opts["enable_reverse"] = False
@@ -47,6 +47,7 @@ class OED_objective(ca.Callback):
         ca.Callback.__init__(self)
         self.nin = jac.shape
         self.construct(name, opts)
+        self._parameter_scaling = parameter_scaling
 
     def get_n_in(self): return 1
     def get_n_out(self): return 2
@@ -103,13 +104,13 @@ class OED_base(Optimizer):
         return obj, jac
 
     def _objective_A_fd(self):
-        self._objective_func = CriteriaA("A", self.jacobian_scaled_mx)
+        self._objective_func = CriteriaA("A", self.jacobian_scaled_mx, self._parameter_scaling)
         func_eval = self._objective_func(self.jacobian_scaled_mx)
 
         return func_eval[0], func_eval[1]
 
     def _objective_D_fd(self):
-        self._objective_func = CriteriaD("D", self.jacobian_scaled_mx)
+        self._objective_func = CriteriaD("D", self.jacobian_scaled_mx, self.parameter_scaling)
         func_eval = self._objective_func(self.jacobian_scaled_mx)
 
         return func_eval[0], func_eval[1]
