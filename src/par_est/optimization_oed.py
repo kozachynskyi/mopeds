@@ -384,7 +384,7 @@ class OptimalExperimentalDesign(OED_base):
         )
 
         res_solver = self.solver(
-            x0=self.guess / self.scaling,
+            x0=self.guess,
             lbx=self.lower_bound,
             ubx=self.upper_bound,
             lbg=self.lower_bound_g,
