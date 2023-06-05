@@ -66,14 +66,14 @@ class OED_objective(ca.Callback):
 
 class CriteriaA(OED_objective):
     def eval(self, args):
-        jac_scaled = args[0]
+        jac_scaled = args[0] * self._parameter_scaling
         obj = np.trace(np.linalg.inv(jac_scaled.T @ jac_scaled))
 
         return obj, jac_scaled
 
 class CriteriaD(OED_objective):
     def eval(self, args):
-        jac_scaled = args[0]
+        jac_scaled = args[0] * self._parameter_scaling
         obj = np.linalg.det(np.linalg.inv(jac_scaled.T @ jac_scaled))
 
         return obj, jac_scaled
@@ -95,7 +95,7 @@ class OED_base(Optimizer):
 
     def _objective_A(self):
         """A criteria"""
-        jac_scaled = self.jacobian_scaled_mx
+        jac_scaled = self.jacobian_scaled_mx * self._parameter_scaling
         obj = ca.trace(ca.inv(jac_scaled.T @ jac_scaled))
 
         return obj, jac_scaled
@@ -117,6 +117,11 @@ class OED_base(Optimizer):
         self.select_objective_function(objective_function)
 
         return self._optimize(scale)
+
+    @property
+    def _parameter_scaling(self):
+        parameter_scaling = ca.repmat(self.parameter_values, 1, self.jacobian_scaled_mx.shape[0]).T
+        return parameter_scaling
 
     def change_parameter_values(self):
         """Change parameter values in simulator"""
@@ -190,7 +195,7 @@ class OED_base(Optimizer):
         self.array_inverted_variances: np.ndarray = np.array(inverted_variances)
         self.array_inverted_std = np.sqrt(inverted_variances)
 
-        self.parameter_values: list[float] = parameter_values
+        self.parameter_values = np.array(parameter_values)
 
     def generate_jacobian_function(self) -> None:
         """Combines simulate_sym() functions from simulator, and creates MX structure, that is used

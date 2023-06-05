@@ -85,10 +85,12 @@ if __name__ == "__main__":
     # varlist["u2"].expand_horizon([1], [35])
 
     controls = {"u1": 0.12, "u2": 35}
-    # oed = par_est.OptimalExperimentalDesign(m_monod, [varlist], time_grid)
-    # print(oed.calculate_objective_and_jacobian(controls))
+    oed = par_est.OptimalExperimentalDesign(m_monod, [varlist], time_grid)
+    a = oed.calculate_objective_and_jacobian(controls)
+    print(a)
+    print(a["jac"].shape)
 
-    oed_settings = par_est.OEDsettings(20, 0.1, 5)
+    oed_settings = par_est.OEDsettings(20, 0.1, 4)
 
     oed = par_est.OptimalExperimentalDesign(m_monod, [varlist], oed_settings)
 
@@ -96,11 +98,13 @@ if __name__ == "__main__":
     oed.min_sampling_delay = 0.5
 
     time_grid_dict = {}
-    for i, time in enumerate(time_grid):
+    for i, time in enumerate(time_grid[1:]):
         time_grid_dict["time_sp" + str(i)] = time
 
     # oed.solver_settings["ipopt"]["linear_solver"] = "ma57"
-    print(oed.calculate_objective_and_jacobian(controls | time_grid_dict))
+    a = oed.calculate_objective_and_jacobian(controls | time_grid_dict)
+    print(a)
+    breakpoint()
     # plot_fig3(oed, "A")
     # plot_fig3(oed, "D")
 
