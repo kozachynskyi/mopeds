@@ -157,6 +157,30 @@ class OED_base(Optimizer):
 
         return result_np
 
+    def simulate(
+        self,
+        controls: dict[str, float],
+    ) -> dict[str, float | np.ndarray]:
+        self._setup_scaling(False)
+
+        decision_variables = self.varlist_decision.get_casadi_variables()
+        casadi_function = ca.Function(
+            "objective",
+            [decision_variables, self.varlist_parameter.get_casadi_variables()],
+            [self.simulate_all_mx],
+            ["x", "p"],
+            ["y"],
+        )
+
+        selected_controls = self.variables_dict_to_list(controls)
+        res = casadi_function(x=selected_controls, p=self.parameter_values)
+        result_np = {
+            "y": res["y"].toarray(),
+        }
+
+        return result_np
+
+
     def _setup_piecewise_control(self, var):
         len_timegrid = len(self.time_grid_control_switch)
         if len_timegrid > 1:
