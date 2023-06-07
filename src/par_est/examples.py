@@ -827,7 +827,7 @@ def yeast_growth(model_type="cantois", piecewise=False) -> tuple[
 ]:
     variable_list = par_est.variables.VariableList()
 
-    variable_list.add_variable(par_est.VariableState("x1", 5, 4, 6))
+    variable_list.add_variable(par_est.VariableState("x1", 5, 0, 10))
     variable_list.add_variable(par_est.VariableState("x2", 0.01))
 
     variable_list.add_variable(par_est.VariableAlgebraic("r", 1.7))
