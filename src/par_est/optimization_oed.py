@@ -294,6 +294,8 @@ class OptimalExperimentalDesign(OED_base):
 
         if settings is not None:
             self._initialize_from_settings(settings)
+        else:
+            self.time_grid_control_switch = []
 
         if measurable_variables is None:
             self.list_measureable_variables = list(self.model.varlist_state.keys())
@@ -336,7 +338,7 @@ class OptimalExperimentalDesign(OED_base):
 
         if isinstance(self.time_grid_measurements, ca.MX):
             raise NotImplementedError
-        if settings.num_control_switches == 0:
+        elif settings.num_control_switches == 0:
             self.time_grid_control_switch = np.array([0])
         else:
             time_grid_sw = [0.0]
