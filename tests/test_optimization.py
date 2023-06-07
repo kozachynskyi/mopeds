@@ -219,6 +219,41 @@ def test_oed(piecewise):
         # logging.warning(f"{res['f']}")
         # assert np.isclose(res["f"], ca.DM(45.1675), rtol=0, atol=1.0e-4)
 
+def test_oed_piecewise():
+    """Test that OptimalExperimentalDesign on ODE and DAE always yields same result.
+    Helpfull to see if any drastic changes in calculation were made
+    """
+    for cstr_model in [
+        par_est.examples.cstr_ode,
+        par_est.examples.cstr_ode_constant,
+        par_est.examples.cstr_dae,
+        par_est.examples.cstr_dae_constant,
+    ]:
+        var_list_peicewise, model_piecewise = cstr_model(piecewise_control=True)
+        var_list, model = cstr_model(piecewise_control=False)
+        time_grid = np.linspace(10, 10000, 4)
+        time_grid = np.insert(time_grid, 0, 0)
+
+        var_list["e0_E_r1"].fixed = False
+        var_list["e0_T_in"].fixed = True
+        var_list["e0_c_in_i1"].fixed = False
+
+        var_list_peicewise["e0_E_r1"].fixed = False
+        var_list_peicewise["e0_T_in"].fixed = True
+        var_list_peicewise["e0_c_in_i1"].fixed = False
+
+        oed_settings = par_est.OEDsettings(4, num_control_switches=0)
+
+        oed_piecewise = par_est.OptimalExperimentalDesign(model_piecewise, [var_list_peicewise], time_grid, oed_settings)
+        res_piecewise = oed_piecewise.optimize()
+
+        oed = par_est.OptimalExperimentalDesign(model, [var_list], time_grid, oed_settings)
+        res = oed.optimize()
+
+        assert np.isclose(res["f"], res_piecewise["f"])
+        # logging.warning(f"{res['f']}")
+        # assert np.isclose(res["f"], ca.DM(39.499), rtol=0, atol=1.0e-4)
+
 
 @pytest.mark.parametrize("piecewise", [True, False])
 def test_optimizer(piecewise):  # noqa: C901
@@ -323,6 +358,7 @@ if __name__ == "__main__":
     # test_oed(True)
     # test_pe(True,True)
     # test_pe_objective(False)
-    test_parameter_jacobian(True)
+    # test_parameter_jacobian(True)
+    test_oed_piecewise()
     # test_pe_intials_algebraic()
     # test_oed_piecewise()
