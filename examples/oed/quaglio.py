@@ -48,7 +48,7 @@ if __name__ == "__main__":
     time_grid = np.array([0, 5, 10, 15, 20])
     sim_cantois = par_est.Simulator(m_cantois, time_grid, varlist)
 
-    varlist, m_monod, _ = par_est.examples.yeast_growth("monod", False)
+    varlist, m_monod, _ = par_est.examples.yeast_growth("monod", True)
 
     # sim_monod = par_est.Simulator(m_monod, time_grid, varlist)
     # sim_monod.generate_exp_data().plot(show=False)
@@ -85,15 +85,22 @@ if __name__ == "__main__":
 
     # varlist["u2"].expand_horizon([1], [35])
 
+
     controls = {"u1": 0.12, "u2": 35, "x1": 5}
-    oed = par_est.OptimalExperimentalDesign(m_monod, [varlist], time_grid)
-    a = oed.calculate_objective_and_jacobian(controls)
+    # oed = par_est.OptimalExperimentalDesign(m_monod, [varlist], time_grid)
+    # oed.optimize()
+    # a = oed.calculate_objective_and_jacobian(controls)
+    # print(a)
+    # print(a["jac"].shape)
+
+    oed_settings = par_est.OEDsettings(20, 0.1, 4, 2)
+
+    oed = par_est.OptimalExperimentalDesign(m_monod, [varlist], time_grid, oed_settings)
+    a = oed.optimize(1e-3)
     print(a)
-    print(a["jac"].shape)
 
-    oed_settings = par_est.OEDsettings(20, 0.1, 4)
 
-    oed = par_est.OptimalExperimentalDesign(m_monod, [varlist], oed_settings)
+    oed = par_est.OptimalExperimentalDesign(m_monod, [varlist], None, oed_settings)
 
     oed.max_time_experiment = 20
     oed.min_sampling_delay = 0.5
