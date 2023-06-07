@@ -36,6 +36,7 @@ class OEDsettings:
     max_time_experiment: float = 1
     min_sampling_delay: float = 0.1
     num_sampling_times: int = 3
+    num_control_switches: int = 1
 
 class OED_objective(ca.Callback):
     def __init__(self, name, jac, parameter_scaling, opts={}):
@@ -156,6 +157,13 @@ class OED_base(Optimizer):
 
         return result_np
 
+    def _setup_piecewise_control(self, var):
+        len_timegrid = len(self.time_grid_control_switch)
+        if len_timegrid > 1:
+            var.expand_horizon(self.time_grid_control_switch[1:], (len_timegrid - 1) * var.value)
+        var.fixed = False
+
+
     def _setup_varlist_decision(self):
         parameter_values = []
         inverted_variances = []
@@ -172,6 +180,8 @@ class OED_base(Optimizer):
                     if isinstance(var, VariableControlPiecewiseConstant):
                         if not len(var.variable_list) == 1:
                             raise NotImplementedError("Piecewise constant controls with time grid are not supported")
+                        else:
+                            self._setup_piecewise_control(var)
                         for var_control in var.variable_list.values():
                             if not var_control.fixed:
                                 self.varlist_decision.add_variable(var_control)
@@ -259,7 +269,8 @@ class OptimalExperimentalDesign(OED_base):
         self,
         model: Model,
         variable_list: list[VariableList],
-        time_grid_measurements: np.ndarray | OEDsettings,
+        time_grid_measurements: np.ndarray | None = None,
+        settings: OEDsettings | None = None,
         simulator_name: str = "idas",
         simulator_settings: dict = None,
         *,
@@ -270,12 +281,19 @@ class OptimalExperimentalDesign(OED_base):
         self.varlist_timegrid = VariableList()
 
         # User specified time_grid is used for initilizaiton of Simulators
-        if isinstance(time_grid_measurements, OEDsettings):
-            self._initialize_from_settings(time_grid_measurements)
-        else:
+
+        if time_grid_measurements is None and settings is None:
+            raise ValueError("Either time_grid_measurements or settings have to be provided")
+
+        if time_grid_measurements is not None:
             if not time_grid_measurements[0] == 0:
                 raise ValueError("Time grid should start with 0")
             self.time_grid_measurements = np.sort(time_grid_measurements)
+        else:
+            self.time_grid_measurements = None
+
+        if settings is not None:
+            self._initialize_from_settings(settings)
 
         if measurable_variables is None:
             self.list_measureable_variables = list(self.model.varlist_state.keys())
@@ -307,13 +325,30 @@ class OptimalExperimentalDesign(OED_base):
         self.max_time_experiment = settings.max_time_experiment
         self.min_sampling_delay = settings.min_sampling_delay
 
-        initial_guess = np.linspace(settings.min_sampling_delay, settings.max_time_experiment, settings.num_sampling_times)
+        if self.time_grid_measurements is None:
+            initial_guess = np.linspace(settings.min_sampling_delay, settings.max_time_experiment, settings.num_sampling_times)
 
-        for i, guess in enumerate(initial_guess):
-            new_var = VariableControl("time_sp" + str(i), guess, self.min_sampling_delay, self.max_time_experiment)
-            self.varlist_timegrid.add_variable(new_var)
-        time_grid_measurements = self.varlist_timegrid.get_casadi_variables()
-        self.time_grid_measurements = ca.vcat([0, time_grid_measurements])
+            for i, guess in enumerate(initial_guess):
+                new_var = VariableControl("time_sp" + str(i), guess, self.min_sampling_delay, self.max_time_experiment)
+                self.varlist_timegrid.add_variable(new_var)
+            time_grid_measurements = self.varlist_timegrid.get_casadi_variables()
+            self.time_grid_measurements = ca.vcat([0, time_grid_measurements])
+
+        if isinstance(self.time_grid_measurements, ca.MX):
+            raise NotImplementedError
+        if settings.num_control_switches == 0:
+            self.time_grid_control_switch = np.array([0])
+        else:
+            time_grid_sw = [0.0]
+            time_grid_sp = self.time_grid_measurements
+            linspace = np.linspace(0,1, settings.num_control_switches, endpoint=False)
+            for i in range(self.time_grid_measurements.shape[0]-1):
+                control_switches = time_grid_sp[i] + linspace * (time_grid_sp[i+1] - time_grid_sp[i])
+                for j in range(control_switches.shape[0]):
+                    time_grid_sw.append(control_switches[j])
+            time_grid_sw = np.unique(time_grid_sw)
+            self.time_grid_control_switch = time_grid_sw
+
 
     def _setup_timegrid(self):
         # Simulator time_grid might have time_steps, at which "measueremnt" is not done,
