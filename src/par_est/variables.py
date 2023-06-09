@@ -660,6 +660,9 @@ class VariableList(OrderedDict[str, Union[Variable, VariableControlPiecewiseCons
                 elif isinstance(var, VariableAlgebraic):
                     if algebraic is True:
                         plot_varlist.add_variable(var)
+                elif isinstance(var, VariableControlPiecewiseConstant):
+                    plot_varlist.add_variable(var)
+
         return plot_varlist
 
     def show(self) -> None:
