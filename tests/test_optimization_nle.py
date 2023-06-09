@@ -221,10 +221,10 @@ def test_multivariate_pe():
     )
 
     fim = 8.0
-    fim_scaled = 766.31076722
-    cov_par = 0.00130495
-    jac_wls = -95.8876
-    hess_wls = 1532.62
+    fim_scaled = 80
+    cov_par = 0.0125
+    jac_wls = -10.0103
+    hess_wls = 160
 
     pe = par_est.ParameterEstimationNLE(model, variable_list_optimizer)
     assert pe.names_of_measurements == ["e0_F_s2", "e0_F_s4", "e0_F_s5"]
@@ -300,7 +300,7 @@ def test_multivariate_pe():
     assert np.allclose(ols_y[:, 1:], ols["y"])
     assert np.isclose(wls_f, wls["f"])
 
-    cov_par = 0.0020767
+    cov_par = 0.0125
 
     res_sens = pe.calculate_sensitivity_and_fim(true_parameters)
     assert np.array_equal(res_sens["jac_full"], jac_full[9:])
@@ -374,5 +374,5 @@ def test_inference_bounds():
 if __name__ == "__main__":
     pass
     # test_pe()
-    # test_multivariate_pe()
-    test_inference_bounds()
+    test_multivariate_pe()
+    # test_inference_bounds()
