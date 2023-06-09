@@ -568,7 +568,6 @@ class PE_base(Optimizer):
         measurement_variance_estimate = np.diag(residuals.T @ residuals) / dof
         print("OLS std: ", np.sqrt(measurement_variance_estimate))
 
-        backup_inverted_std = copy.deepcopy(self.array_inverted_std)
         estimated_inverted_std = copy.deepcopy(self.array_inverted_std)
 
         if isinstance(measurement_variance_estimate, float):
@@ -629,9 +628,6 @@ class PE_base(Optimizer):
         jac_array_scaled_estimated = np.concatenate(list(jacobian_scaled_estimated.values()))
         jac_array_yao = np.concatenate(list(jacobian_yao.values()))
 
-        for index_meas, meas_std in enumerate(measurement_variance_estimate):
-            self.array_inverted_std[:, index_meas] = 1 / np.sqrt(meas_std)
-
         # Generate jacobian and hessian on obj function
         jac_objective = ca.Function(
             "jf",
@@ -651,10 +647,9 @@ class PE_base(Optimizer):
             ]
 
         fim_matrix = jac_array.T @ jac_array
-        fim_matrix_scaled = (jac_array_scaled_estimated.T @ jac_array_scaled_estimated)
+        fim_matrix_scaled = (jac_array_scaled.T @ jac_array_scaled)
         parameter_covariance_matrix = np.linalg.inv(fim_matrix_scaled)  # type: ignore
 
-        self.array_inverted_std = backup_inverted_std
         result = {}
         result["jac_full"] = jac_array
         result["jac_sorted"] = jacobian
