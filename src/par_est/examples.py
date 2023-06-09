@@ -903,3 +903,162 @@ def yeast_growth(model_type="cantois", piecewise=False) -> tuple[
     exp_data.append(var_list)
 
     return variable_list, m, exp_data
+
+# Baker yeast growth model Quaglio2018 10.1016/j.cherd.2018.04.041
+def yeast_growth_ode(model_type="cantois", piecewise=False) -> tuple[
+    par_est.VariableList, par_est.Model, list[par_est.VariableList]
+]:
+    variable_list = par_est.variables.VariableList()
+
+    variable_list.add_variable(par_est.VariableState("x1", 5, 0, 10))
+    variable_list.add_variable(par_est.VariableState("x2", 0.01))
+
+    # variable_list.add_variable(par_est.VariableAlgebraic("r", 1.7))
+
+    if piecewise:
+        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("u1", 0.125, 0.05, 0.2))
+        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("u2", 35, 5, 35))
+    else:
+        variable_list.add_variable(par_est.VariableControl("u1", 0.125, 0.05, 0.2))
+        variable_list.add_variable(par_est.VariableControl("u2", 35, 5, 35))
+
+    variable_list.add_variable(par_est.VariableParameter("theta1", 0.310, 1e-2, 2))
+    variable_list.add_variable(par_est.VariableParameter("theta2", 0.180, 1e-2, 20))
+    variable_list.add_variable(par_est.VariableParameter("theta3", 0.550, 1e-2, 2))
+    variable_list.add_variable(par_est.VariableParameter("theta4", 0.050, 1e-2, 2))
+
+    variable_list["x1"].variance = 0.01
+    variable_list["x2"].variance = 0.05
+
+    m = par_est.Model(variable_list)  # adding all variables to the model
+
+    x1 = m.varlist_all["x1"].casadi_var  # noqa: E501
+    x2 = m.varlist_all["x2"].casadi_var  # noqa: E501
+
+    u1 = m.varlist_all["u1"].casadi_var  # noqa: E501
+    u2 = m.varlist_all["u2"].casadi_var  # noqa: E501
+
+    theta1 = m.varlist_all["theta1"].casadi_var  # noqa: E501
+    theta2 = m.varlist_all["theta2"].casadi_var  # noqa: E501
+    theta3 = m.varlist_all["theta3"].casadi_var  # noqa: E501
+    theta4 = m.varlist_all["theta4"].casadi_var  # noqa0: E501
+
+    if model_type == "cantois":
+        r = ((theta1 * x2) / (theta2 * x1 + x2))
+    elif model_type == "monod":
+        r = (theta1 * x2 / (theta2 + x2))
+        variable_list["theta1"].value = 0.531
+        variable_list["theta2"].value = 7.854
+        variable_list["theta3"].value = 0.474
+        variable_list["theta4"].value = 0.019
+    else:
+        raise NotImplementedError
+
+    eq1 = (r - u1 - theta4)  * x1
+    eq2 = - (r * x1 / theta3) + u1 * (u2 - x2)
+
+    m.add_equations_differential([eq1, eq2])
+
+    data = [
+        [5, 7.098, 10.135, 12.108, 12.491],
+        [0.01, 6.683, 5.860, 3.209, 2.993]
+    ]
+
+    exp_data = []
+
+    x1_i, x2_i = data
+
+    time_grid = [0, 5, 10, 15, 20]
+
+    var_list = copy.deepcopy(variable_list)
+    var_list["x1"].set_dataframe_from_value_and_time(x1_i, time_grid)
+    var_list["x2"].set_dataframe_from_value_and_time(x2_i, time_grid)
+
+    var_list["theta1"].fixed = False
+    var_list["theta2"].fixed = False
+    var_list["theta3"].fixed = False
+    var_list["theta4"].fixed = False
+
+    exp_data.append(var_list)
+
+    return variable_list, m, exp_data
+
+def yeast_growth_ode_normalized(model_type="cantois", piecewise=False) -> tuple[
+    par_est.VariableList, par_est.Model, list[par_est.VariableList]
+]:
+    variable_list = par_est.variables.VariableList()
+
+    variable_list.add_variable(par_est.VariableState("x1", 5, 0, 10))
+    variable_list.add_variable(par_est.VariableState("x2", 0.01))
+
+    # variable_list.add_variable(par_est.VariableAlgebraic("r", 1.7))
+
+    if piecewise:
+        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("u1", 0.125, 0.05, 0.2))
+        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("u2", 35, 5, 35))
+    else:
+        variable_list.add_variable(par_est.VariableControl("u1", 0.125, 0.05, 0.2))
+        variable_list.add_variable(par_est.VariableControl("u2", 35, 5, 35))
+
+    variable_list.add_variable(par_est.VariableParameter("theta1", 1, 1e-2, 10))
+    variable_list.add_variable(par_est.VariableParameter("theta2", 1, 1e-2, 10))
+    variable_list.add_variable(par_est.VariableParameter("theta3", 1, 1e-2, 10))
+    variable_list.add_variable(par_est.VariableParameter("theta4", 1, 1e-2, 10))
+
+    variable_list["x1"].variance = 0.01
+    variable_list["x2"].variance = 0.05
+
+    m = par_est.Model(variable_list)  # adding all variables to the model
+
+    x1 = m.varlist_all["x1"].casadi_var  # noqa: E501
+    x2 = m.varlist_all["x2"].casadi_var  # noqa: E501
+
+    u1 = m.varlist_all["u1"].casadi_var  # noqa: E501
+    u2 = m.varlist_all["u2"].casadi_var  # noqa: E501
+
+    theta1 = m.varlist_all["theta1"].casadi_var  # noqa: E501
+    theta2 = m.varlist_all["theta2"].casadi_var  # noqa: E501
+    theta3 = m.varlist_all["theta3"].casadi_var  # noqa: E501
+    theta4 = m.varlist_all["theta4"].casadi_var  # noqa0: E501
+
+    theta1_norm = theta1 * 0.310
+    theta2_norm = theta2 * 0.180
+    theta3_norm = theta3 * 0.55
+    theta4_norm = theta4 * 0.05
+
+    if model_type == "cantois":
+        r = ((theta1_norm * x2) / (theta2_norm * x1 + x2))
+    elif model_type == "monod":
+        r = (theta1_norm * x2 / (theta2_norm + x2))
+    else:
+        raise NotImplementedError
+
+
+    eq1 = (r - u1 - theta4_norm)  * x1
+    eq2 = - (r * x1 / theta3_norm) + u1 * (u2 - x2)
+
+    m.add_equations_differential([eq1, eq2])
+
+    data = [
+        [5, 7.098, 10.135, 12.108, 12.491],
+        [0.01, 6.683, 5.860, 3.209, 2.993]
+    ]
+
+    exp_data = []
+
+    x1_i, x2_i = data
+
+    time_grid = [0, 5, 10, 15, 20]
+
+    var_list = copy.deepcopy(variable_list)
+    var_list["x1"].set_dataframe_from_value_and_time(x1_i, time_grid)
+    var_list["x2"].set_dataframe_from_value_and_time(x2_i, time_grid)
+
+    var_list["theta1"].fixed = False
+    var_list["theta2"].fixed = False
+    var_list["theta3"].fixed = False
+    var_list["theta4"].fixed = False
+
+    exp_data.append(var_list)
+
+    return variable_list, m, exp_data
