@@ -250,6 +250,11 @@ def test_oed_piecewise():
         oed = par_est.OptimalExperimentalDesign(model, [var_list], time_grid, oed_settings)
         res = oed.optimize()
 
+        exp_data = oed_piecewise.generate_experimental_data({"e0_c_in_i1_t0": 5})
+        pe = par_est.ParameterEstimation(model_piecewise, [exp_data])
+        res_pe = pe.optimize()
+        assert np.isclose(oed_piecewise.parameter_values, res_pe["x"])
+
         assert np.isclose(res["f"], res_piecewise["f"])
         # logging.warning(f"{res['f']}")
         # assert np.isclose(res["f"], ca.DM(39.499), rtol=0, atol=1.0e-4)
