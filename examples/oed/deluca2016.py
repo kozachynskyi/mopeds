@@ -5,12 +5,8 @@ import numpy as np
 
 import par_est
 
-def get_varlist_paper():
-    normalized = True
-    if normalized:
-        varlist, model, _ = par_est.examples.yeast_growth_ode_normalized("monod", True)
-    else:
-        varlist, model, _ = par_est.examples.yeast_growth_ode("monod", True)
+def get_varlist_paper(data_set=1, normalized=True):
+    varlist, model, _ = par_est.examples.yeast_growth("monod", True, ode=True, normalize=normalized)
 
     if normalized:
         p_true = {
@@ -27,13 +23,6 @@ def get_varlist_paper():
             "theta4": 0.05,
         }
 
-    p_preliminary = {
-        "theta1": 0.310 * 1.016,
-        "theta2": 0.18 * 0.544,
-        "theta3": 0.55 * 1.046,
-        "theta4": 0.05 * 1.188,
-    }
-
     for var_name, var_value in p_true.items():
         varlist[var_name].value = var_value
         varlist[var_name].fixed = False
@@ -48,7 +37,6 @@ def get_varlist_paper():
 
     oed_settings = par_est.OEDsettings(20, 0.1, 4, 4)
 
-    data_set = 3
     if data_set == 1:
         varlist["x1"].value = 2.5
         u1_paper = [
@@ -140,131 +128,14 @@ def get_varlist_paper():
 
     oed = par_est.OptimalExperimentalDesign(model, [varlist], time_grid, oed_settings)
     exp_varlist = oed.generate_experimental_data({}, p_true)
+    plot_controls(exp_varlist)
     exp_varlist.plot()
     plt.show()
     parameter_accuracy(model, exp_varlist)
     return varlist, time_grid, oed
 
-
-def plot_y():
-    import matplotlib.pyplot as plt
-    from matplotlib import cm, ticker
-
-    varlist, model, _ = par_est.examples.yeast_growth("monod", True)
-
-    p_true = {
-        "theta1": 0.310,
-        "theta2": 0.18,
-        "theta3": 0.55,
-        "theta4": 0.05,
-    }
-
-    for var_name, var_value in p_true.items():
-        varlist[var_name].value = var_value
-        varlist[var_name].fixed = False
-
-    time_grid = np.linspace(0, 48, 9)
-
-    varlist["x1"].fixed = True
-    varlist["u1"].fixed = True
-    varlist["u2"].fixed = True
-    varlist["x2"].value = 0
-    varlist["x1"].value = 2.5
-
-    oed_settings = par_est.OEDsettings(20, 0.1, 4, 4)
-
-    data_set = 3
-    if data_set == 1:
-        u1_paper = [
-            0.190,
-            0.197,
-            0.122,
-            0.103,
-            0.130,
-            0.189,
-        ]
-
-        u2_paper = [
-            34.86,
-            20.470,
-            8.880,
-            8.992,
-            6.976,
-            25.454,
-        ]
-        u2time = [
-            0,
-            7.589,
-            15.119,
-            23.675,
-            29.288,
-            39.144,
-        ]
-    elif data_set == 2:
-        u1_paper = [
-            0.129,
-            0.082,
-            0.075,
-            0.098,
-            0.073,
-            0.057,
-        ]
-
-        u2_paper = [
-            10.729,
-            6.857,
-            6.273,
-            8.130,
-            6.061,
-            4.788,
-        ]
-        u2time = [
-            0,
-            5.988,
-            14.880,
-            24.032,
-            30.978,
-            45.907,
-        ]
-    elif data_set == 3:
-
-        u1_paper = [
-            0.125,
-            0.125,
-            0.125,
-            0.125,
-            0.2,
-            0.061,
-        ]
-
-        u2_paper = [
-            5.000,
-            10.084,
-            5.000,
-            20.093,
-            35.026,
-            5.053,
-        ]
-        u2time = [
-            0,
-            7.385,
-            15.093,
-            22.478,
-            29.927,
-            42.105,
-        ]
-
-    varlist["u1"].expand_horizon(u2time[1:], u1_paper[1:])
-    varlist["u2"].expand_horizon(u2time[1:], u2_paper[1:])
-    varlist["u1"].value = u1_paper[0]
-    varlist["u2"].value = u2_paper[0]
-
-    oed = par_est.OptimalExperimentalDesign(model, [varlist], time_grid, oed_settings)
-    # print(oed.calculate_objective_and_jacobian({}))
-
+def plot_controls(varlist):
     fig, ax = plt.subplots(1, 1)
-    # print(varlist["u1"].dataframe)
-    # plt.show()
     df = varlist["u1"].dataframe
     ax.step(varlist["u1"].time_relative, df["u1"], where="post")
     ax.set_xlim([0, 48])
@@ -274,7 +145,6 @@ def plot_y():
     df = varlist["u2"].dataframe
     ax2.step(varlist["u2"].time_relative, df["u2"], where="post", c="r")
 
-    plot_from_parameters(oed, {})
     plt.show()
 
 def plot_from_parameters(oed, controls):
@@ -290,12 +160,8 @@ def plot_from_parameters(oed, controls):
     ax.set_xlim([0, 48])
     ax2.plot(oed.time_grid_measurements, data[:, 1], c="r")
 
-def get_varlist_solution():
-    normalized = True
-    if normalized:
-        varlist, model, _ = par_est.examples.yeast_growth_ode_normalized("monod", True)
-    else:
-        varlist, model, _ = par_est.examples.yeast_growth_ode("monod", True)
+def get_varlist_solution(normalized=True):
+    varlist, model, _ = par_est.examples.yeast_growth("monod", True, ode=True, normalize=normalized)
 
     if normalized:
         p_true = {
@@ -341,7 +207,7 @@ def get_varlist_solution():
     varlist["x1"].fixed = False
     varlist["u1"].fixed = False
     varlist["u2"].fixed = False
-    varlist["x2"].value = 1e-5
+    varlist["x2"].value = 0
 
     varlist["u1"].ignore_plotting = False
     varlist["u2"].ignore_plotting = False
@@ -350,6 +216,7 @@ def get_varlist_solution():
 
     oed = par_est.OptimalExperimentalDesign(model, [varlist], time_grid, oed_settings)
     exp_varlist = oed.generate_experimental_data(solution, p_true)
+    exp_varlist.plot()
     parameter_accuracy(model, exp_varlist)
 
     return oed, exp_varlist
@@ -375,7 +242,7 @@ def parameter_accuracy(model, exp_varlist):
 
 if __name__ == "__main__":
     # plot_y()
-    get_varlist_paper()
+    get_varlist_paper(3)
     # get_varlist_solution()
     varlist, model, _ = par_est.examples.yeast_growth_ode("monod", True)
     solution = {

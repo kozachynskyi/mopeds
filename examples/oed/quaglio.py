@@ -26,7 +26,7 @@ def plot_fig3(oed, obj_f_name):
     for var_name in ["u1", "u2"]:
         lb = varlist[var_name].lower_bound
         ub = varlist[var_name].upper_bound
-        num_p = 7
+        num_p = 15
         control_bounds[var_name] = [lb, ub, num_p]
 
     grid, meshgrid = par_est.tools.create_grid(control_bounds.values())
@@ -48,7 +48,11 @@ if __name__ == "__main__":
     time_grid = np.array([0, 5, 10, 15, 20])
     sim_cantois = par_est.Simulator(m_cantois, time_grid, varlist)
 
-    varlist, m_monod, _ = par_est.examples.yeast_growth("monod", True)
+    varlist, m_monod, _ = par_est.examples.yeast_growth("monod", False)
+    varlist["theta1"].value = 0.531
+    varlist["theta2"].value = 7.854
+    varlist["theta3"].value = 0.474
+    varlist["theta4"].value = 0.019
 
     # sim_monod = par_est.Simulator(m_monod, time_grid, varlist)
     # sim_monod.generate_exp_data().plot(show=False)
@@ -79,8 +83,8 @@ if __name__ == "__main__":
         varlist[var_name].value = var_value
         varlist[var_name].fixed = False
     varlist["u1"].fixed = False
-    varlist["u2"].fixed = True
-    varlist["x1"].fixed = False
+    varlist["u2"].fixed = False
+    varlist["x1"].fixed = True
     # varlist["u2"].value = 35
 
     # varlist["u2"].expand_horizon([1], [35])
@@ -96,24 +100,10 @@ if __name__ == "__main__":
     oed_settings = par_est.OEDsettings(20, 0.1, 4, 2)
 
     oed = par_est.OptimalExperimentalDesign(m_monod, [varlist], time_grid, oed_settings)
-    a = oed.optimize(1e-3)
-    print(a)
+    # a = oed.optimize(1e-3)
+    # print(a)
 
-
-    oed = par_est.OptimalExperimentalDesign(m_monod, [varlist], None, oed_settings)
-
-    oed.max_time_experiment = 20
-    oed.min_sampling_delay = 0.5
-
-    time_grid_dict = {}
-    for i, time in enumerate(time_grid[1:]):
-        time_grid_dict["time_sp" + str(i)] = time
-
-    # oed.solver_settings["ipopt"]["linear_solver"] = "ma57"
-    a = oed.calculate_objective_and_jacobian(controls | time_grid_dict)
-    print(a)
-    breakpoint()
-    # plot_fig3(oed, "A")
+    plot_fig3(oed, "A")
     # plot_fig3(oed, "D")
 
     # a = oed.calculate_objective_and_jacobian({"u1": 0.2, "u2": 35})
