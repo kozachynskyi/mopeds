@@ -191,7 +191,7 @@ class OED_base(Optimizer):
         self,
         controls: dict[str, float],
         parameters: dict[str, float] | None = None,
-    ) -> dict[str, float | np.ndarray]:
+    ) -> VariableList:
         res_sim = self.simulate(controls, parameters)["y"]
         exp_varlist = copy.deepcopy(self.list_input_varlist[0])
 
