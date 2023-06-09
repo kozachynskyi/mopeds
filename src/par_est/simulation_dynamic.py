@@ -861,7 +861,7 @@ class Simulator(object):
 
         if not isinstance(res_array, ca.DM):
             if unfixed_variables is None:
-                raise ValueError("You need to supply values for unfixed variables")
+                raise ValueError(f"You need to supply values for unfixed variables:\n{ca.symvar(res_array)}")
             else:
                 function = ca.Function("f", ca.symvar(res_array), [res_array])
                 res_array = function(*unfixed_variables)
