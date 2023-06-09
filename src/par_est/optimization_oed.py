@@ -212,16 +212,6 @@ class OED_base(Optimizer):
 
             if piecewise_name is not None:
                 exp_varlist[piecewise_name].variable_list[var_name].value = controls[var_name]
-                # names = []
-                # values = []
-
-                # for control_name, control_value in controls.items():
-                #     if piecewise_name in control_name:
-                #         names.append(control_name)
-                #         values.append(control_value)
-
-                # sorted_values = np.array(values)[np.argsort(names)]
-                # exp_varlist[piecewise_name].expand_horizon(self.time_grid_control_switch, sorted_values)
 
             else:
                 exp_varlist[var_name].fixed = True
@@ -229,7 +219,7 @@ class OED_base(Optimizer):
         
         if parameters is None:
             for index, par_name in enumerate(self.varlist_parameter.keys()):
-                exp_varlist[parameters].value =self.parameter_values[index]
+                exp_varlist[par_name].value =self.parameter_values[index]
         else:
             for par_name, par_value in parameters.items():
                 exp_varlist[par_name].value = par_value
