@@ -160,10 +160,17 @@ class OED_base(Optimizer):
     def simulate(
         self,
         controls: dict[str, float],
+        parameters: dict[str, float] | None = None,
     ) -> dict[str, float | np.ndarray]:
         self._setup_scaling(False)
 
         decision_variables = self.varlist_decision.get_casadi_variables()
+
+        if parameters is None:
+            parameter_values = self.parameter_values
+        else:
+            parameter_values = self.parameter_dict_to_list(parameters)
+
         casadi_function = ca.Function(
             "objective",
             [decision_variables, self.varlist_parameter.get_casadi_variables()],
@@ -173,13 +180,76 @@ class OED_base(Optimizer):
         )
 
         selected_controls = self.variables_dict_to_list(controls)
-        res = casadi_function(x=selected_controls, p=self.parameter_values)
+        res = casadi_function(x=selected_controls, p=parameter_values)
         result_np = {
             "y": res["y"].toarray(),
         }
 
         return result_np
 
+    def generate_experimental_data(
+        self,
+        controls: dict[str, float],
+        parameters: dict[str, float] | None = None,
+    ) -> dict[str, float | np.ndarray]:
+        res_sim = self.simulate(controls, parameters)["y"]
+        exp_varlist = copy.deepcopy(self.list_input_varlist[0])
+
+        for index, meas_name in enumerate(self.names_of_measurements):
+            sim_data = res_sim[:, index]
+            if meas_name in controls.keys():
+                sim_data = np.insert(sim_data, 0, controls[meas_name])
+            else:
+                sim_data = np.insert(sim_data, 0, self.list_simulators[0]._initial_state[index])
+
+            exp_varlist[meas_name].set_dataframe_from_value_and_time(sim_data, self.time_grid_measurements)
+
+        for var_name, var in self.varlist_decision.items():
+            try:
+                piecewise_name = var.piecewise_control_name
+            except AttributeError:
+                piecewise_name = None
+
+            if piecewise_name is not None:
+                exp_varlist[piecewise_name].variable_list[var_name].value = controls[var_name]
+                # names = []
+                # values = []
+
+                # for control_name, control_value in controls.items():
+                #     if piecewise_name in control_name:
+                #         names.append(control_name)
+                #         values.append(control_value)
+
+                # sorted_values = np.array(values)[np.argsort(names)]
+                # exp_varlist[piecewise_name].expand_horizon(self.time_grid_control_switch, sorted_values)
+
+            else:
+                exp_varlist[var_name].fixed = True
+                exp_varlist[var_name].value = controls[var_name]
+        
+        if parameters is None:
+            for index, par_name in enumerate(self.varlist_parameter.keys()):
+                exp_varlist[parameters].value =self.parameter_values[index]
+        else:
+            for par_name, par_value in parameters.items():
+                exp_varlist[par_name].value = par_value
+
+        return exp_varlist
+
+    def parameter_dict_to_list(self, parameters_dict: dict[str, float]) -> list[float]:
+        """Takes a dictionary with {"var_name": var_value} and transforms to list
+        corresponding to the order of self.varlist_parameter variables"""
+        selected_variables: list[float] = []
+        for var_name in parameters_dict.keys():
+            if var_name not in self.varlist_parameter.keys():
+                print(f"Supplied value for variables {var_name} is ignored!")
+        for var_name in self.varlist_parameter.keys():
+            try:
+                selected_variables.append(parameters_dict[var_name])
+            except KeyError:
+                raise KeyError(f"Missing value for {var_name}")
+
+        return selected_variables
 
     def _setup_piecewise_control(self, var):
         len_timegrid = len(self.time_grid_control_switch)
