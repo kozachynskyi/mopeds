@@ -111,7 +111,7 @@ class OED_base(Optimizer):
         return func_eval[0], func_eval[1]
 
     def _objective_D_fd(self):
-        self._objective_func = CriteriaD("D", self.jacobian_scaled_mx, self.parameter_scaling)
+        self._objective_func = CriteriaD("D", self.jacobian_scaled_mx, self._parameter_scaling)
         func_eval = self._objective_func(self.jacobian_scaled_mx)
 
         return func_eval[0], func_eval[1]
