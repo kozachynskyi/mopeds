@@ -200,7 +200,11 @@ class OED_base(Optimizer):
             if meas_name in controls.keys():
                 sim_data = np.insert(sim_data, 0, controls[meas_name])
             else:
-                sim_data = np.insert(sim_data, 0, self.list_simulators[0]._initial_state[index])
+                value_time0 = self.list_simulators[0]._initial_state[index]
+                # Set value to arbitraty 1, it will be overwritten afterwards in varlist_decision part
+                if isinstance(value_time0, ca.MX):
+                    value_time0 = 1
+                sim_data = np.insert(sim_data, 0, value_time0)
 
             exp_varlist[meas_name].set_dataframe_from_value_and_time(sim_data, self.time_grid_measurements)
 
