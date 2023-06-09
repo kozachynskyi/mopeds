@@ -313,6 +313,7 @@ class VariableControl(Variable):
             self.dataframe = self._dataframe_from_value(value)
         self.guess = value  # type: ignore
         self.opc_ua_id = opc_ua_id
+        self.piecewise_control_name = None
 
 
 class VariableControlPiecewiseConstant(VariableControl):
@@ -330,6 +331,7 @@ class VariableControlPiecewiseConstant(VariableControl):
         self.variable_list = VariableList()
         var_t0 = VariableControl(name + "_t0", value, lb, ub, opc_ua_id)
         var_t0.fixed = True
+        var_t0.piecewise_control_name = name
         self.variable_list.add_variable(var_t0)
 
     @property
@@ -427,6 +429,7 @@ class VariableControlPiecewiseConstant(VariableControl):
                 self.opc_ua_id,
             )
             var.fixed = True
+            var.piecewise_control_name = self.name
             var.dataframe = var._dataframe_from_value(
                 value, self.time_absolute[0] + timedelta(seconds=time)
             )
