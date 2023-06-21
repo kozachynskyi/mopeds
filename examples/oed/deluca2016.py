@@ -128,9 +128,9 @@ def get_varlist_paper(data_set=1, normalized=True):
 
     oed = par_est.OptimalExperimentalDesign(model, [varlist], time_grid, oed_settings)
     exp_varlist = oed.generate_experimental_data({}, p_true)
-    plot_controls(exp_varlist)
-    exp_varlist.plot()
-    plt.show()
+    # plot_controls(exp_varlist)
+    # exp_varlist.plot()
+    # plt.show()
     parameter_accuracy(model, exp_varlist)
     return varlist, time_grid, oed
 
@@ -232,7 +232,7 @@ def parameter_accuracy(model, exp_varlist):
             df[var_name][df[var_name] < 0] = 0
 
     pe = par_est.ParameterEstimation(model, [exp_varlist])
-    pe.solver_settings["ipopt"]["max_iter"] = 10
+    pe.solver_settings["ipopt"]["max_iter"] = 20
     res = pe.optimize()
     print(res)
     pe.parameter_analysis(res["x_dict"])
