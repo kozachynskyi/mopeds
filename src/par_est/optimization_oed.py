@@ -201,12 +201,23 @@ class OED_base(Optimizer):
                 sim_data = np.insert(sim_data, 0, controls[meas_name])
             else:
                 value_time0 = self.list_simulators[0]._initial_state[index]
+
                 # Set value to arbitraty 1, it will be overwritten afterwards in varlist_decision part
                 if isinstance(value_time0, ca.MX):
-                    value_time0 = 1
-                sim_data = np.insert(sim_data, 0, value_time0)
+                    sim_data = np.insert(sim_data, 0, 1)
 
-            exp_varlist[meas_name].set_dataframe_from_value_and_time(sim_data, self.time_grid_measurements)
+            if isinstance(self.time_grid_measurements, ca.MX):
+                time_variables = sorted([ i for i in controls if "time_" in i])
+
+                time_grid = [0]
+                for time_variable in time_variables:
+                    time_grid.append(controls[time_variable])
+                # ignore last timestamp, which is just final time of simulation
+                time_grid = time_grid[:-1]  
+            else:
+                time_grid = self.time_grid_measurements
+
+            exp_varlist[meas_name].set_dataframe_from_value_and_time(sim_data, time_grid)
 
         for var_name, var in self.varlist_decision.items():
             try:
@@ -218,8 +229,11 @@ class OED_base(Optimizer):
                 exp_varlist[piecewise_name].variable_list[var_name].value = controls[var_name]
 
             else:
-                exp_varlist[var_name].fixed = True
-                exp_varlist[var_name].value = controls[var_name]
+                if "time_" in var_name:
+                    pass
+                else:
+                    exp_varlist[var_name].fixed = True
+                    exp_varlist[var_name].value = controls[var_name]
         
         if parameters is None:
             for index, par_name in enumerate(self.varlist_parameter.keys()):
@@ -424,11 +438,11 @@ class OptimalExperimentalDesign(OED_base):
             time_grid_measurements = self.varlist_timegrid.get_casadi_variables()
             self.time_grid_measurements = ca.vcat([0, time_grid_measurements])
 
-        if isinstance(self.time_grid_measurements, ca.MX):
-            raise NotImplementedError
-        elif settings.num_control_switches == 0:
+        if settings.num_control_switches == 0:
             self.time_grid_control_switch = np.array([0])
         else:
+            if isinstance(self.time_grid_measurements, ca.MX):
+                raise NotImplementedError
             time_grid_sw = [0.0]
             time_grid_sp = self.time_grid_measurements
             linspace = np.linspace(0,1, settings.num_control_switches, endpoint=False)
