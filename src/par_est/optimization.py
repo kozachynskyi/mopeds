@@ -199,6 +199,35 @@ class Optimizer(object):
         Scaling should be done before setting a solver and solver settings."""
         self._setup_scaling(scale)
 
+        casadi_function = ca.Function(
+            "objective",
+            [self.varlist_decision.get_casadi_variables()],
+            [self._objective()[0]],
+            ["x"],
+            ["g"],
+        )
+        # self.gauss_hessian = casadi_function.factory("kkt", ["x", "lam:f", "lam:g"], ["jac:g:x", "hess:gamma:x:x"])
+        x = self.varlist_decision.get_casadi_variables()
+        F = self._objective()[1]
+        # F = self.simulate_all_mx
+        J = ca.jacobian(F, x)
+        f_casadi = 0.5*ca.dot(F,F)
+        # f = self._objective()[0]
+        # H = ca.Function("H",[x],[ca.hessian(f,x)[0]])
+        # H = H(0)
+        p = ca.MX.sym("x",0,1)
+        lam_f = ca.MX.sym("x")
+        lam_g = ca.MX.sym("x",0,1)
+        GN = ca.Function('GN',[x,p,lam_f,lam_g],[lam_f*ca.triu(2*ca.mtimes(J.T,J))])
+
+        self.solver_settings["hess_lag"] = GN
+        self.solver_settings["ipopt"]["hessian_approximation"] = "limited-memory"
+        # self.solver_settings["monitor"] = ["nlp_hess_l"]
+
+        # solver = nlpsol("solver","ipopt",nlp,options)
+        # res = solver()
+
+
         self.solver: ca.Function = ca.nlpsol(
             "solver",
             self.solver_name,

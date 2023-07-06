@@ -20,7 +20,7 @@ if __name__ == "__main__":
     variable_list["e0_T"].variance = 1
 
     # Create time-grid. Zero should be first
-    time_grid1 = np.linspace(0, 1000, 4)
+    time_grid1 = np.linspace(0, 100, 400)
     time_grid2 = np.linspace(0, 1000, 8)
 
     e0_T_in = variable_list["e0_T_in"]
@@ -49,8 +49,8 @@ if __name__ == "__main__":
     # pe_state = par_est.ParameterEstimation(m, [data1, data2])
     pe_state = par_est.ParameterEstimation(m, [data1])
     # a = pe_state.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_c_p": 3.5, "e0_E_r1": 9.6e4})
-    print(a)
-    # print(pe_state.optimize(True))
+    print(pe_state.optimize(True))
+    breakpoint()
 
     # pe_alg = par_est.ParameterEstimation(m, [data1, data2], use_algebraic_vars=True)
     # print(pe_alg.optimize(True))
