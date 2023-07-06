@@ -924,3 +924,45 @@ def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=
     exp_data.append(var_list)
 
     return variable_list, m, exp_data
+
+# Pankajakshan2019
+def esterification_BA() -> tuple[
+    par_est.VariableList, par_est.Model, list[par_est.VariableList]
+]:
+    variable_list = par_est.variables.VariableList()  # Preallocate variable_list
+
+    variable_list.add_variable(par_est.VariableState("Cba", 1, 0.9, 1.55))
+    variable_list.add_variable(par_est.VariableState("Ce", 4.22))
+    variable_list.add_variable(par_est.VariableState("Ce", 0))
+    variable_list.add_variable(par_est.VariableState("Cw", 0))
+
+    variable_list.add_variable(par_est.VariableControl("F", 10, 7.5, 30))
+    variable_list.add_variable(par_est.VariableControl("T", 350, 343, 413))
+
+    variable_list.add_variable(par_est.VariableParameter("theta1", 4.32))
+    variable_list.add_variable(par_est.VariableParameter("theta2", 2.522))
+
+    m = par_est.Model(variable_list)  # adding all variables to the model
+
+    D = 0.250  # micrometer
+
+    Cba = m.varlist_all["Cba"].casadi_var  # noqa: E501
+    F = m.varlist_all["F"].casadi_var  # noqa: E501
+    T = m.varlist_all["T"].casadi_var  # noqa: E501
+    theta1 = m.varlist_all["theta1"].casadi_var  # noqa: E501
+    theta2 = m.varlist_all["theta2"].casadi_var  # noqa: E501
+
+    R = 8.314
+    k = ca.exp(theta1 - 10e4 * theta2 / (R * T))
+    A_cs = 3.14 * (D * 1e-6) **2 / 4
+    v = F / A_cs
+
+    eq1 = (-1 * k * Cba) / v
+    eq2 = (-1 * k * Cba) / v
+    eq3 = (1 * k * Cba) / v
+    eq4 = (1 * k * Cba) / v
+
+    # Equations
+    m.add_equations_differential([eq1, eq2, eq3, eq4])  # adding the equations to model
+
+    return variable_list, m
