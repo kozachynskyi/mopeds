@@ -45,9 +45,9 @@ class SimulatorNLE:
                 f"Provided integrator name {solver_name} is not supported. Only theese are: {self.supported_solvers}."
             )
         if solver_name == "ipopt":
-            print(
-                "IPOPT option for SimulatorNLE is not fully supported, use only if you know what you're doing"
-            )
+            self._call_simulator = self.__call_simulator_ipopt
+        elif solver_name == "rootfinder":
+            self._call_simulator = self.__call_simulator_rootfinder
 
         self.__solver_name: str = solver_name
         self.__input_variable_list: VariableList = copy.deepcopy(variable_list)
@@ -240,11 +240,25 @@ class SimulatorNLE:
     def _reset_scaling(self) -> None:
         self.scaling: ca.DM = ca.DM.ones(self._independent_variables.size())
 
+    def __call_simulator_rootfinder(self) -> ca.DM:
+        """This method is needed to raise an error, if ipopt simulator fails to converge"""
+        res = self.simulator.call(self.call_arg)
+        return res
+
+    def __call_simulator_ipopt(self) -> ca.DM:
+        """This method is needed to raise an error, if ipopt simulator fails to converge"""
+        res = self.simulator.call(self.call_arg)
+
+        if isinstance(res["x"], ca.DM):
+            if self.simulator.stats()["success"]:
+                raise ValueError(f"IPOPT failed as NLE solver:\n{self.simulator.stats()}")
+        return res
+
     def simulate_sym_unfixed(self, unfixed_variables: list[float] = None) -> ca.DM:
         """This is slower version of simulate_sym but it allows user to supply values
         for unfixed variables"""
         self.call_arg["p"] = self._independent_variables * self.scaling
-        res_array = self.simulator.call(self.call_arg)["x"]
+        res_array = self._call_simulator()["x"]
 
         if not isinstance(res_array, ca.DM):
             if unfixed_variables is None:
@@ -275,7 +289,7 @@ class SimulatorNLE:
     def simulate_sym(self) -> dict[str, ca.MX | ca.DM]:
         self.call_arg["p"] = self._independent_variables * self.scaling
 
-        res = self.simulator.call(self.call_arg)
+        res = self._call_simulator()
         return res
 
     def calculate_jac(self) -> dict[str, ca.MX | ca.DM]:
