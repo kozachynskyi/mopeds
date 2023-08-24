@@ -37,6 +37,7 @@ class OEDsettings:
     min_sampling_delay: float = 0.1
     num_sampling_times: int = 3
     num_control_switches: int = 1
+    measurement_weights: bool = False
 
 class OED_objective(ca.Callback):
     def __init__(self, name, jac, parameter_scaling, opts={}):
@@ -231,7 +232,7 @@ class OED_base(Optimizer):
                 exp_varlist[piecewise_name].variable_list[var_name].value = controls[var_name]
 
             else:
-                if "time_" in var_name:
+                if "time_" in var_name or "weight_" in var_name:
                     pass
                 else:
                     exp_varlist[var_name].fixed = True
@@ -308,6 +309,9 @@ class OED_base(Optimizer):
         for time_var in self.varlist_timegrid.values():
             self.varlist_decision.add_variable(time_var)
 
+        for weight_var in self.varlist_weights.values():
+            self.varlist_decision.add_variable(weight_var)
+
         if len(self.varlist_parameter) == 0:
             raise ValueError("All parameters are fixed, OED is not possible")
         self.array_inverted_variances: np.ndarray = np.array(inverted_variances)
@@ -346,6 +350,12 @@ class OED_base(Optimizer):
         jacobian = {}
         jacobian_scaled = {}
 
+        if len(self.varlist_weights) == 0:
+            apply_weights = False
+        else:
+            apply_weights = True
+            weights_array = self.varlist_weights.get_casadi_variables()
+
         for index_measurement, meas_name in enumerate(self.names_of_measurements):
             jac_meas_mx = ca.jacobian(
                 self.simulate_all_mx[:, index_measurement], parameter_variables
@@ -358,6 +368,11 @@ class OED_base(Optimizer):
             jac_meas_scaled_mx = (
                 jac_meas_mx * self.array_inverted_std[index_measurement]
             )
+
+            if apply_weights:
+                jac_meas_mx = jac_meas_mx * weights_array
+                jac_meas_scaled_mx = jac_meas_scaled_mx * weights_array
+
             jacobian[meas_name] = jac_meas_mx
             jacobian_scaled[meas_name] = jac_meas_scaled_mx
 
@@ -383,6 +398,7 @@ class OptimalExperimentalDesign(OED_base):
     ) -> None:
         super().__init__(model, variable_list, simulator_name, simulator_settings)
         self.varlist_timegrid = VariableList()
+        self.varlist_weights = VariableList()
 
         # User specified time_grid is used for initilizaiton of Simulators
 
@@ -455,6 +471,11 @@ class OptimalExperimentalDesign(OED_base):
             time_grid_sw = np.unique(time_grid_sw)
             self.time_grid_control_switch = time_grid_sw
 
+        if settings.measurement_weights:
+            for i in range(len(self.time_grid_measurements) - 1):
+                new_var = VariableControl("weight_" + str(i), 0.5, 0, 1)
+                self.varlist_weights.add_variable(new_var)
+            self.max_number_measurements = settings.num_sampling_times
 
     def _setup_timegrid(self):
         # Simulator time_grid might have time_steps, at which "measueremnt" is not done,
@@ -514,6 +535,11 @@ class OptimalExperimentalDesign(OED_base):
             g.append(casadi_vars[i+1] - casadi_vars[i])
             self.lower_bound_g.append(self.min_sampling_delay)
             self.upper_bound_g.append(self.max_time_experiment)
+
+        if not len(self.varlist_weights) == 0:
+            g.append(ca.sum1(self.varlist_weights.get_casadi_variables()))
+            self.lower_bound_g.append(len(self.varlist_parameter))
+            self.upper_bound_g.append(self.max_number_measurements)
 
         self.equality_constraints = ca.vcat(g)
 
