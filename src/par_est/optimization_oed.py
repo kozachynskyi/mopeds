@@ -205,6 +205,8 @@ class OED_base(Optimizer):
                 # Set value to arbitraty 1, it will be overwritten afterwards in varlist_decision part
                 if isinstance(value_time0, ca.MX):
                     sim_data = np.insert(sim_data, 0, 1)
+                else:
+                    sim_data = np.insert(sim_data, 0, value_time0)
 
             if isinstance(self.time_grid_measurements, ca.MX):
                 time_variables = sorted([ i for i in controls if "time_" in i])
