@@ -10,47 +10,65 @@ import pytest
 
 
 @pytest.mark.parametrize("piecewise", [True, False])
-def test_parameter_jacobian(piecewise):
+def test_jacobian_weights(piecewise):
+    """Test if jacobian weights correctly implemented"""
     for cstr_model in [
         par_est.examples.cstr_ode,
         par_est.examples.cstr_ode_constant,
         par_est.examples.cstr_dae,
         par_est.examples.cstr_dae_constant,
     ]:
-        var_list, model = cstr_model(piecewise)
         time_grid = np.linspace(0, 1000, 4)
+        time_grid_modified = np.delete(time_grid, [2])
         time_grid_expanded = list(time_grid) + [2000, 4000]
 
-        if piecewise:
-            T_in = var_list["e0_T_in"]
-            T_in.expand_horizon([2000, 4000], [373, 373])
+        for weight_on in [True, False]:
+            var_list, model = cstr_model(piecewise)
+            if piecewise:
+                T_in = var_list["e0_T_in"]
+                T_in.expand_horizon([2000, 4000], [373, 373])
 
-        var_list_exp = par_est.Simulator(model, time_grid, var_list).generate_exp_data()
+            if weight_on:
+                var_list_exp = par_est.Simulator(model, time_grid, var_list).generate_exp_data()
+            else:
+                var_list_exp = par_est.Simulator(model, time_grid_modified, var_list).generate_exp_data()
 
-        for key, var in var_list_exp.items():
-            var_list[key] = var
+            for key, var in var_list_exp.items():
+                var_list[key] = var
 
-        var_list["e0_U"].fixed = False
-        var_list["e0_E_r1"].fixed = False
+            var_list["e0_U"].fixed = False
+            var_list["e0_E_r1"].fixed = False
 
-        pe = par_est.ParameterEstimation(
-            model, [var_list]
-        )
-        jac_pe = pe.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_E_r1": 9.6e4})["jac_scaled_full_theory"]
+            pe = par_est.ParameterEstimation(
+                model, [var_list]
+            )
+            jac_pe = pe.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_E_r1": 9.6e4})["jac_scaled_full_theory"].flatten()
 
-        oed = par_est.OptimalExperimentalDesign(model, [var_list], time_grid)
-        oed_expanded = par_est.OptimalExperimentalDesign(model, [var_list], time_grid_expanded)
-        jac_oed = oed.calculate_objective_and_jacobian({"e0_T_in": 373})["jac"]
-        jac_oed_expanded = oed_expanded.calculate_objective_and_jacobian({"e0_T_in": 373})["jac"]
+            controls_dict = {"e0_T_in": 373}
+            for i in range(len(time_grid_expanded)):
+                controls_dict[f"weight_{i}"] = 1
 
-        if piecewise:
-            with pytest.raises(ValueError):
-                assert np.all(np.isclose(jac_pe, jac_oed))
-            assert np.all(np.isclose(jac_pe, jac_oed_expanded))
-        else:
-            assert np.all(np.isclose(jac_pe, jac_oed))
-            with pytest.raises(ValueError):
+            if not weight_on:
+                controls_dict["weight_1"] = 0
+
+            oed_settings = par_est.OEDsettings(measurement_weights=True)
+            oed = par_est.OptimalExperimentalDesign(model, [var_list], time_grid, oed_settings)
+            oed_expanded = par_est.OptimalExperimentalDesign(model, [var_list], time_grid_expanded, oed_settings)
+
+            jac_oed = oed.calculate_objective_and_jacobian(controls_dict)["jac"]
+            jac_oed_expanded = oed_expanded.calculate_objective_and_jacobian(controls_dict)["jac"]
+
+            jac_oed = jac_oed[jac_oed != 0]
+            jac_oed_expanded = jac_oed_expanded[jac_oed_expanded != 0]
+
+            if piecewise:
+                with pytest.raises(ValueError):
+                    assert np.all(np.isclose(jac_pe, jac_oed))
                 assert np.all(np.isclose(jac_pe, jac_oed_expanded))
+            else:
+                assert np.all(np.isclose(jac_pe, jac_oed))
+                with pytest.raises(ValueError):
+                    assert np.all(np.isclose(jac_pe, jac_oed_expanded))
 
 
 @pytest.mark.parametrize("piecewise", [True, False])
@@ -129,6 +147,7 @@ def test_oed_piecewise():
 
 if __name__ == "__main__":
     pass
+    test_jacobian_weights(False)
     # test_oed(True)
     # test_parameter_jacobian(True)
     # test_oed_piecewise()
