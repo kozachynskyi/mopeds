@@ -32,7 +32,7 @@ from .optimization import (
     ParameterEstimationNLE,
     ParameterEstimationNLE_control,
 )
-from .optimization_oed import OptimalExperimentalDesign, OEDsettings
+from .optimization_oed import OptimalExperimentalDesign, OEDsettings, OED_objective
 from .mpc import ModelPredictiveControl
 
 import par_est.examples

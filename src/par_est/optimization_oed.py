@@ -91,11 +91,21 @@ class OED_base(Optimizer):
             self._objective = self._objective_A_fd
         elif objective_function_name == "D":
             self._objective = self._objective_D_fd
+        elif issubclass(objective_function_name, OED_objective):
+            self._objective_custom_criteria = objective_function_name
+            self._objective = self._objective_custom
         else:
             raise NotImplementedError(
                 f"Objective function '{objective_function_name}' is not supported"
             )
         return self._objective
+
+    def _objective_custom(self):
+        """User supplied criteria"""
+        self._objective_func = self._objective_custom_criteria("custom", self.jacobian_scaled_mx, self._parameter_scaling)
+        func_eval = self._objective_func(self.jacobian_scaled_mx)
+
+        return func_eval[0], func_eval[1]
 
     def _objective_A(self):
         """A criteria"""
@@ -117,7 +127,7 @@ class OED_base(Optimizer):
 
         return func_eval[0], func_eval[1]
 
-    def optimize(self, scale:float = 1, objective_function="A"):
+    def optimize(self, scale:float = 1, objective_function: str | OED_objective = "A"):
         """Function to select optimization function"""
         self.select_objective_function(objective_function)
 
@@ -134,7 +144,7 @@ class OED_base(Optimizer):
     def calculate_objective_and_jacobian(
         self,
         controls: dict[str, float],
-        objective_function: str = "A",
+        objective_function: str | OED_objective = "A",
     ) -> dict[str, float | np.ndarray]:
         self._setup_scaling(False)
 
