@@ -13,6 +13,12 @@ class CriteriaD_espie1989(par_est.OED_objective):
         obj = np.linalg.det(jac_scaled.T @ jac_scaled)
         return obj, jac
 
+class CriteriaD_asprey2002(par_est.OED_objective):
+    def eval(self, args):
+        jac = args[0]
+        jac_scaled = args[0] * self._parameter_scaling
+        obj = np.linalg.det(jac_scaled.T @ jac_scaled)
+        return obj, jac
 
 def espie1989():
     varlist, m_monod, exp_data = par_est.examples.yeast_growth("monod", piecewise=True)
@@ -24,8 +30,11 @@ def espie1989():
         "theta4": 0.02,
     }
 
-    varlist["x1"].variance = 0.2**2
-    varlist["x2"].variance = 0.2**2
+    for par_name, par_value in par_initial.items():
+        varlist[par_name].value = par_value
+
+    # varlist["x1"].variance = 0.2**2
+    # varlist["x2"].variance = 0.2**2
 
     varlist["x1"].variance = 1
     varlist["x2"].variance = 1
@@ -41,7 +50,7 @@ def espie1989():
     varlist["u2"].upper_bound = 35
 
     mode = "constant"
-    # mode = "determinant"
+    mode = "determinant"
     # mode = "eigenvalue"
     # mode = "optimize_solution"
     # mode = "optimize_dict"
@@ -80,11 +89,101 @@ def espie1989():
         raise NotImplementedError
     print(mode)
     print(obj / 1e13)
+    breakpoint()
+
+    if False:
+        sim = par_est.Simulator(m_monod, time_grid, varlist)
+        sim.generate_exp_data().plot()
+
+    unfix_variables = ["theta1", "theta2", "theta3","theta4", "u2"]
+    varlist_oed = copy.deepcopy(varlist)
+
+    for par_name in unfix_variables:
+        varlist_oed[par_name].fixed = False
+
+    oed = par_est.OptimalExperimentalDesign(m_monod, [varlist_oed], time_grid, oed_settings)
+    oed.solver_settings["ipopt"]["max_iter"] = 20
+    oed.solver_settings["ipopt"]["linear_solver"] = "ma57"
+    oed.optimize(1, "D")
+
+    print(oed.calculate_objective_and_jacobian(solution, "D")["f"])
+    a = oed.generate_experimental_data(solution, par_initial).plot()
+    breakpoint()
+
+def asprey2002():
+    varlist, m_monod, exp_data = par_est.examples.yeast_growth("monod", piecewise=True)
+
+    par_initial = {
+        "theta1": 0.5,
+        "theta2": 0.5,
+        "theta3": 0.5,
+        "theta4": 0.5,
+    }
+
+    # varlist["x1"].variance = 0.2**2
+    # varlist["x2"].variance = 0.2**2
+
+    varlist["x1"].variance = 1
+    varlist["x2"].variance = 1
+
+    varlist["x1"].lower_bound = 1.0
+    varlist["x1"].upper_bound = 10.0
+
+    varlist["x2"].value = 0.1
+    varlist["x2"].fixed = True
+
+    varlist["u1"].lower_bound = 0.05
+    varlist["u1"].upper_bound = 0.2
+    varlist["u1"].ignore_plotting = False
+
+    varlist["u2"].lower_bound = 5
+    varlist["u2"].upper_bound = 35
+    varlist["u2"].ignore_plotting = False
 
     for par_name, par_value in par_initial.items():
         varlist[par_name].value = par_value
 
-    if False:
+    mode = "initial"
+    # mode = "determinant"
+    # mode = "eigenvalue"
+    # mode = "optimize_solution"
+    # mode = "optimize_dict"
+
+
+    oed_settings = par_est.OEDsettings(num_control_switches=1)
+
+    if mode == "initial":
+        time_grid = [0,2,4,6,8,10,12,14,16,18,20]
+        varlist["x1"].value = 5.5
+
+        varlist["u1"].value = 0.12
+
+        varlist["u2"].value = 15
+        varlist_oed = unfix_parameters(varlist)
+        oed = par_est.OptimalExperimentalDesign(m_monod, [varlist_oed], time_grid)
+        obj = oed.calculate_objective_and_jacobian({}, CriteriaD_asprey2002)
+
+    elif mode == "determinant":
+        time_grid = [0, 21.2, 22.2, 23.2, 24.2, 25.2, 26.2, 27.2, 28.2, 29.2, 30.2]
+        varlist["x1"].value = 8.53
+
+        varlist["u1"].value = 0.2
+        varlist["u1"].expand_horizon([5.4], [0.05])
+
+        varlist["u2"].value = 35
+        varlist["u2"].expand_horizon([20, 25.2], [22.8, 15.])
+
+        varlist_oed = unfix_parameters(varlist)
+        oed = par_est.OptimalExperimentalDesign(m_monod, [varlist_oed], time_grid)
+        obj = oed.calculate_objective_and_jacobian({}, CriteriaD_asprey2002)
+    else:
+        raise NotImplementedError
+    print(mode)
+    print(obj["f"])
+    breakpoint()
+
+    if True:
+        time_grid = np.linspace(0, 32, 1000)
         sim = par_est.Simulator(m_monod, time_grid, varlist)
         sim.generate_exp_data().plot()
 
@@ -177,4 +276,5 @@ def quaglio():
 
 
 if __name__ == "__main__":
-    espie1989()
+    # espie1989()
+    asprey2002()
