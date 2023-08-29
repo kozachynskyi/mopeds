@@ -21,6 +21,13 @@ class CriteriaD_asprey2002(par_est.OED_objective):
         obj = np.linalg.det(jac_scaled.T @ jac_scaled)
         return obj, jac
 
+class CriteriaD_quaglio2018(par_est.OED_objective):
+    def eval(self, args):
+        jac = args[0]
+        jac_scaled = args[0]# * self._parameter_scaling
+        obj = np.linalg.det(jac_scaled.T @ jac_scaled)
+        return obj, jac
+
 class OED_magnusson2015(par_est.OptimalExperimentalDesign):
     def _objective_A(self):
         """A criteria"""
@@ -445,96 +452,56 @@ def magnusson2015():
         a = sim.generate_exp_data()
         a.plot()
 
-    unfix_variables = ["theta1", "theta2", "theta3","theta4", "u2"]
-    varlist_oed = copy.deepcopy(varlist)
+def quaglio2018():
+    varlist, m_monod, exp_data = par_est.examples.yeast_growth("monod", piecewise=True)
 
-    for par_name in unfix_variables:
-        varlist_oed[par_name].fixed = False
-
-    oed = par_est.OptimalExperimentalDesign(m_monod, [varlist_oed], time_grid, oed_settings)
-    oed.solver_settings["ipopt"]["max_iter"] = 20
-    oed.solver_settings["ipopt"]["linear_solver"] = "ma57"
-    oed.optimize(1, "D")
-
-    print(oed.calculate_objective_and_jacobian(solution, "D")["f"])
-    a = oed.generate_experimental_data(solution, par_initial).plot()
-    breakpoint()
-
-def quaglio():
-    varlist, m_cantois, exp_data = par_est.examples.yeast_growth("cantois")
-
-    time_grid = np.array([0, 5, 10, 15, 20])
-    sim_cantois = par_est.Simulator(m_cantois, time_grid, varlist)
-
-    varlist, m_monod, _ = par_est.examples.yeast_growth("monod", False)
-    varlist["theta1"].value = 0.531
-    varlist["theta2"].value = 7.854
-    varlist["theta3"].value = 0.474
-    varlist["theta4"].value = 0.019
-
-    # sim_monod = par_est.Simulator(m_monod, time_grid, varlist)
-    # sim_monod.generate_exp_data().plot(show=False)
-    # sim_cantois.generate_exp_data().plot(show=True)
-
-    pe = par_est.ParameterEstimation(m_monod, exp_data)
-    p_preliminary = {
+    par_initial = {
         "theta1": 0.531,
         "theta2": 7.854,
         "theta3": 0.474,
         "theta4": 0.019,
     }
 
-    # pe.solver_settings["ipopt"]["linear_solver"] = "ma57"
+    varlist["x1"].variance = 0.01
+    varlist["x2"].variance = 0.05
 
-    # print(pe.optimize(True, objective_function="wls"))
-    p_wls = {'theta1': 0.5490962817206284, 'theta2': 8.359345508729714, 'theta3': 0.47235866666073845, 'theta4': 0.018064211744886684}
-    # print(pe.optimize(True, objective_function="ols"))
-    # p_ols = {'theta1': 0.37625871088136736, 'theta2': 4.273832042202273, 'theta3': 0.46807664082825035, 'theta4': 0.017818492265246618}
+    varlist["u1"].ignore_plotting = False
 
-    # print(pe.parameter_analysis(p_preliminary))
+    varlist["u2"].ignore_plotting = False
 
-    # plot_res(pe, p_wls)
-    # plot_res(pe, p_preliminary)
+    for par_name, par_value in par_initial.items():
+        varlist[par_name].value = par_value
 
+    mode = "first_d"
 
-    for var_name, var_value in p_preliminary.items():
-        varlist[var_name].value = var_value
-        varlist[var_name].fixed = False
-    varlist["u1"].fixed = False
-    varlist["u2"].fixed = False
-    varlist["x1"].fixed = True
-    # varlist["u2"].value = 35
+    time_grid = np.array([0, 5, 10, 15, 20])
 
-    # varlist["u2"].expand_horizon([1], [35])
+    if mode == "first_d":
+        varlist["x1"].value = 5
+        varlist["x2"].value = 0.01
 
+        varlist["u1"].value = 0.2
+        varlist["u2"].value = 35
 
-    controls = {"u1": 0.12, "u2": 35, "x1": 5}
-    # oed = par_est.OptimalExperimentalDesign(m_monod, [varlist], time_grid)
-    # oed.optimize()
-    # a = oed.calculate_objective_and_jacobian(controls)
-    # print(a)
-    # print(a["jac"].shape)
+        varlist_oed = unfix_parameters(varlist)
+        oed = OED_magnusson2015(m_monod, [varlist_oed], time_grid)
+        obj = oed.calculate_objective_and_jacobian({}, CriteriaD_quaglio2018)
 
-    oed_settings = par_est.OEDsettings(20, 0.1, 4, 2)
+    else:
+        raise NotImplementedError
+    print(mode)
+    print(obj["f"]/1e16)
 
-    oed = par_est.OptimalExperimentalDesign(m_monod, [varlist], time_grid, oed_settings)
-    # a = oed.optimize(1e-3)
-    # print(a)
-
-    plot_fig3(oed, "A")
-    # plot_fig3(oed, "D")
-
-    # a = oed.calculate_objective_and_jacobian({"u1": 0.2, "u2": 35})
-    # j = a["jac"]
-    # 1.75e14
-    # print(np.linalg.det(j.T @ j) / 1e14)
-
-    print(oed.optimize(1e-5, objective_function="A_fd"))
+    if True:
+        time_grid = np.linspace(0, 20, 100)
+        sim = par_est.Simulator(m_monod, time_grid, varlist)
+        a = sim.generate_exp_data()
+        a.plot()
 
 
 if __name__ == "__main__":
     # espie1989()
     # asprey2002()
     # hoang2013()
-    magnusson2015()
-
+    # magnusson2015()
+    quaglio2018()
