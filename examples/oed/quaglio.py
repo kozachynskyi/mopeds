@@ -3,6 +3,7 @@ import copy
 import matplotlib.pyplot as plt
 from matplotlib import ticker, cm
 from tools import unfix_parameters
+import casadi as ca
 
 import par_est
 
@@ -19,6 +20,16 @@ class CriteriaD_asprey2002(par_est.OED_objective):
         jac_scaled = args[0] * self._parameter_scaling
         obj = np.linalg.det(jac_scaled.T @ jac_scaled)
         return obj, jac
+
+class OED_magnusson2015(par_est.OptimalExperimentalDesign):
+    def _objective_A(self):
+        """A criteria"""
+        jac = self.jacobian_mx
+        jac_scaled = jac
+        obj = ca.trace(ca.inv(jac_scaled.T @ jac_scaled))
+
+        return obj, jac
+
 
 def espie1989():
     varlist, m_monod, exp_data = par_est.examples.yeast_growth("monod", piecewise=True)
@@ -353,6 +364,101 @@ def hoang2013():
     a = oed.generate_experimental_data(solution, par_initial).plot()
     breakpoint()
 
+def magnusson2015():
+    varlist, m_monod, exp_data = par_est.examples.yeast_growth("monod", piecewise=True, ode=True)
+
+    par_initial = {
+        "theta1": 0.1,
+        "theta2": 0.1,
+        "theta3": 0.1,
+        "theta4": 0.1,
+    }
+
+    varlist["x1"].variance = 5**2
+    varlist["x2"].variance = 5**2
+
+    # varlist["x1"].variance = 1
+    # varlist["x2"].variance = 1
+
+    varlist["x1"].value = 7
+
+    varlist["x2"].value = 0
+
+    varlist["u1"].lower_bound = 0.05
+    varlist["u1"].upper_bound = 0.5
+    varlist["u1"].ignore_plotting = False
+
+    varlist["u2"].lower_bound = 0.2
+    varlist["u2"].upper_bound = 35
+    varlist["u2"].ignore_plotting = False
+
+    for par_name, par_value in par_initial.items():
+        varlist[par_name].value = par_value
+
+    mode = "trace_modelica"
+    # mode = "trace_matlab"
+    # mode = "trace_gproms"
+
+    time_grid = np.linspace(0, 20, 6)
+    varlist["x1"].value = 7
+    varlist["x2"].value = 0
+
+    if mode == "trace_modelica":
+        varlist["u1"].value = 0.05
+        varlist["u1"].expand_horizon([4,8,12], [0.08, 0.1, 0.05])
+
+        varlist["u2"].value = 5
+        varlist["u2"].expand_horizon([4,12,16], [35, 5, 20])
+
+        varlist_oed = unfix_parameters(varlist)
+        oed = OED_magnusson2015(m_monod, [varlist_oed], time_grid)
+        obj = oed.calculate_objective_and_jacobian({}, "A")
+
+    elif mode == "trace_matlab":
+        varlist["u1"].value = 0.05
+        varlist["u1"].expand_horizon([4,8,12,16], [0.08, 0.12, 0.05, 0.14])
+
+        varlist["u2"].value = 15
+
+        varlist_oed = unfix_parameters(varlist)
+        oed = OED_magnusson2015(m_monod, [varlist_oed], time_grid)
+        obj = oed.calculate_objective_and_jacobian({}, "A")
+
+    elif mode == "trace_gproms":
+        varlist["u1"].value = 0.05
+        varlist["u1"].expand_horizon([8,12,16], [0.06, 0.18, 0.05])
+
+        varlist["u2"].value = 5
+        varlist["u2"].expand_horizon([4,8,12,16], [23, 28,30,5])
+
+        varlist_oed = unfix_parameters(varlist)
+        oed = OED_magnusson2015(m_monod, [varlist_oed], time_grid)
+        obj = oed.calculate_objective_and_jacobian({}, "A")
+    else:
+        raise NotImplementedError
+    print(mode)
+    print(obj["f"])
+
+    if True:
+        time_grid = np.linspace(0, 20, 100)
+        sim = par_est.Simulator(m_monod, time_grid, varlist)
+        a = sim.generate_exp_data()
+        a.plot()
+
+    unfix_variables = ["theta1", "theta2", "theta3","theta4", "u2"]
+    varlist_oed = copy.deepcopy(varlist)
+
+    for par_name in unfix_variables:
+        varlist_oed[par_name].fixed = False
+
+    oed = par_est.OptimalExperimentalDesign(m_monod, [varlist_oed], time_grid, oed_settings)
+    oed.solver_settings["ipopt"]["max_iter"] = 20
+    oed.solver_settings["ipopt"]["linear_solver"] = "ma57"
+    oed.optimize(1, "D")
+
+    print(oed.calculate_objective_and_jacobian(solution, "D")["f"])
+    a = oed.generate_experimental_data(solution, par_initial).plot()
+    breakpoint()
 
 def quaglio():
     varlist, m_cantois, exp_data = par_est.examples.yeast_growth("cantois")
@@ -429,5 +535,6 @@ def quaglio():
 if __name__ == "__main__":
     # espie1989()
     # asprey2002()
-    hoang2013()
+    # hoang2013()
+    magnusson2015()
 
