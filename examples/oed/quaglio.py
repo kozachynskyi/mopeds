@@ -17,7 +17,7 @@ class CriteriaD_espie1989(par_est.OED_objective):
 class CriteriaD_asprey2002(par_est.OED_objective):
     def eval(self, args):
         jac = args[0]
-        jac_scaled = args[0] * self._parameter_scaling
+        jac_scaled = args[0]# * self._parameter_scaling
         obj = np.linalg.det(jac_scaled.T @ jac_scaled)
         return obj, jac
 
@@ -128,7 +128,7 @@ def espie1989():
     a = oed.generate_experimental_data(solution, par_initial).plot()
     breakpoint()
 
-def asprey2002():
+def asprey2002(plot=False):
     varlist, m_monod, exp_data = par_est.examples.yeast_growth("monod", piecewise=True)
 
     par_initial = {
@@ -169,6 +169,7 @@ def asprey2002():
 
 
     oed_settings = par_est.OEDsettings(num_control_switches=1)
+    expected = 1
 
     if mode == "initial":
         time_grid = [0,2,4,6,8,10,12,14,16,18,20]
@@ -180,6 +181,7 @@ def asprey2002():
         varlist_oed = unfix_parameters(varlist)
         oed = par_est.OptimalExperimentalDesign(m_monod, [varlist_oed], time_grid)
         obj = oed.calculate_objective_and_jacobian({}, CriteriaD_asprey2002)
+        expected = 2.4e8
 
     elif mode == "determinant":
         time_grid = [0, 21.2, 22.2, 23.2, 24.2, 25.2, 26.2, 27.2, 28.2, 29.2, 30.2]
@@ -198,27 +200,13 @@ def asprey2002():
         raise NotImplementedError
     print(mode)
     print(obj["f"])
-    breakpoint()
+    print(f"expected: {expected}")
+    print(f"difference obj/expected: {obj['f'] / expected}")
 
-    if True:
+    if plot:
         time_grid = np.linspace(0, 32, 1000)
         sim = par_est.Simulator(m_monod, time_grid, varlist)
         sim.generate_exp_data().plot()
-
-    unfix_variables = ["theta1", "theta2", "theta3","theta4", "u2"]
-    varlist_oed = copy.deepcopy(varlist)
-
-    for par_name in unfix_variables:
-        varlist_oed[par_name].fixed = False
-
-    oed = par_est.OptimalExperimentalDesign(m_monod, [varlist_oed], time_grid, oed_settings)
-    oed.solver_settings["ipopt"]["max_iter"] = 20
-    oed.solver_settings["ipopt"]["linear_solver"] = "ma57"
-    oed.optimize(1, "D")
-
-    print(oed.calculate_objective_and_jacobian(solution, "D")["f"])
-    a = oed.generate_experimental_data(solution, par_initial).plot()
-    breakpoint()
 
 def hoang2013():
     varlist, m_monod, exp_data = par_est.examples.yeast_growth("monod", piecewise=True, u1_piecewise_linear=True)
@@ -452,7 +440,7 @@ def magnusson2015():
         a = sim.generate_exp_data()
         a.plot()
 
-def quaglio2018():
+def quaglio2018(plot=False):
     varlist, m_monod, exp_data = par_est.examples.yeast_growth("monod", piecewise=True)
 
     par_initial = {
@@ -476,6 +464,7 @@ def quaglio2018():
 
     time_grid = np.array([0, 5, 10, 15, 20])
 
+    expected = 1
     if mode == "first_d":
         varlist["x1"].value = 5
         varlist["x2"].value = 0.01
@@ -483,17 +472,155 @@ def quaglio2018():
         varlist["u1"].value = 0.2
         varlist["u2"].value = 35
 
+        expected = 1.47e16
         varlist_oed = unfix_parameters(varlist)
-        oed = OED_magnusson2015(m_monod, [varlist_oed], time_grid)
+        oed = par_est.OptimalExperimentalDesign(m_monod, [varlist_oed], time_grid)
         obj = oed.calculate_objective_and_jacobian({}, CriteriaD_quaglio2018)
 
     else:
         raise NotImplementedError
     print(mode)
-    print(obj["f"]/1e16)
+    print(obj["f"])
+    print(f"expected: {expected}")
+    print(f"difference obj/expected: {obj['f'] / expected}")
 
-    if True:
+    if plot:
         time_grid = np.linspace(0, 20, 100)
+        sim = par_est.Simulator(m_monod, time_grid, varlist)
+        a = sim.generate_exp_data()
+        a.plot()
+
+def deluca2016(mode="A", plot=False, normalized=False):
+    varlist, m_monod, exp_data = par_est.examples.yeast_growth("monod", piecewise=True, normalize=normalized)
+
+    if normalized:
+        par_initial = {
+            "theta1": 1,
+            "theta2": 1,
+            "theta3": 1,
+            "theta4": 1,
+        }
+    else:
+        par_initial = {
+            "theta1": 0.310,
+            "theta2": 0.18,
+            "theta3": 0.55,
+            "theta4": 0.05,
+        }
+
+    varlist["x1"].variance = 0.01
+    varlist["x2"].variance = 0.05
+
+    varlist["u1"].ignore_plotting = False
+    varlist["u2"].ignore_plotting = False
+
+    for par_name, par_value in par_initial.items():
+        varlist[par_name].value = par_value
+
+    time_grid = np.linspace(0, 48, 9)
+
+    expected = 1
+    if mode == "A":
+        varlist["x1"].value = 2.5
+        u1_paper = [
+            0.190,
+            0.197,
+            0.122,
+            0.103,
+            0.130,
+            0.189,
+        ]
+
+        u2_paper = [
+            34.86,
+            20.470,
+            8.880,
+            8.992,
+            6.976,
+            25.454,
+        ]
+        u2time = [
+            0,
+            7.589,
+            15.119,
+            23.675,
+            29.288,
+            39.144,
+        ]
+    elif mode == "OMBRE":
+        varlist["x1"].value = 5.24
+        u1_paper = [
+            0.129,
+            0.082,
+            0.075,
+            0.098,
+            0.073,
+            0.057,
+        ]
+
+        u2_paper = [
+            19.960,
+            22.613,
+            5.106,
+            4.947,
+            4.947,
+            4.947,
+        ]
+        u2time = [
+            0,
+            5.988,
+            14.880,
+            24.032,
+            30.978,
+            45.907,
+        ]
+
+    elif mode == "IDRO":
+        varlist["x1"].value = 5.5
+        u1_paper = [
+            0.125,
+            0.125,
+            0.125,
+            0.125,
+            0.2,
+            0.061,
+        ]
+
+        u2_paper = [
+            5.000,
+            10.084,
+            5.000,
+            20.093,
+            35.026,
+            5.053,
+        ]
+        u2time = [
+            0,
+            7.385,
+            15.093,
+            22.478,
+            29.927,
+            42.105,
+        ]
+    else:
+        raise NotImplementedError
+
+    varlist["u1"].expand_horizon(u2time[1:], u1_paper[1:])
+    varlist["u2"].expand_horizon(u2time[1:], u2_paper[1:])
+    varlist["u1"].value = u1_paper[0]
+    varlist["u2"].value = u2_paper[0]
+    varlist_oed = unfix_parameters(varlist)
+
+    oed = par_est.OptimalExperimentalDesign(m_monod, [varlist_oed], time_grid)
+    obj = oed.calculate_objective_and_jacobian({}, "A")
+
+    print(mode)
+    print(obj["f"])
+    print(f"expected: {expected}")
+    print(f"difference obj/expected: {obj['f'] / expected}")
+
+    if plot:
+        time_grid = np.linspace(0, 48, 270)
         sim = par_est.Simulator(m_monod, time_grid, varlist)
         a = sim.generate_exp_data()
         a.plot()
@@ -504,4 +631,7 @@ if __name__ == "__main__":
     # asprey2002()
     # hoang2013()
     # magnusson2015()
-    quaglio2018()
+    # quaglio2018()
+    # deluca2016("A", False)
+    deluca2016("OMBRE", False)
+    # deluca2016("IDRO", False)
