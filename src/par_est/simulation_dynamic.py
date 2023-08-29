@@ -887,6 +887,11 @@ class Simulator(object):
                 variables.add_variable(new_var)
             shift_by = count + 1
 
+        for var in self.model.varlist_independent.values():
+            if isinstance(var, VariableControlPiecewiseConstant):
+                new_var = copy.deepcopy(self.__input_variable_list[var.name])
+                variables.add_variable(new_var)
+
         return variables
 
     def setup_time_grid(self, time_grid: ArrayLike) -> None:
