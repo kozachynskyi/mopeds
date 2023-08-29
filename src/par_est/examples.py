@@ -822,13 +822,16 @@ def spmma() -> tuple[
 
 
 # Baker yeast growth model Quaglio2018 10.1016/j.cherd.2018.04.041
-def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=False) -> tuple[
+def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=False, u1_piecewise_linear=False) -> tuple[
     par_est.VariableList, par_est.Model, list[par_est.VariableList]
 ]:
     variable_list = par_est.variables.VariableList()
 
     variable_list.add_variable(par_est.VariableState("x1", 5, 0, 10))
     variable_list.add_variable(par_est.VariableState("x2", 0.01))
+
+    if u1_piecewise_linear:
+        variable_list.add_variable(par_est.VariableState("u1_dot", 0))
 
     if ode is False:
         variable_list.add_variable(par_est.VariableAlgebraic("r", 1.7))
@@ -862,7 +865,12 @@ def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=
     if ode is False:
         r = m.varlist_all["r"].casadi_var  # noqa: E501
 
-    u1 = m.varlist_all["u1"].casadi_var  # noqa: E501
+    if u1_piecewise_linear:
+        u1 = m.varlist_all["u1_dot"].casadi_var  # noqa: E501
+        u1_gradient = m.varlist_all["u1"].casadi_var  # noqa: E501
+    else:
+        u1 = m.varlist_all["u1"].casadi_var  # noqa: E501
+
     u2 = m.varlist_all["u2"].casadi_var  # noqa: E501
 
     theta1 = m.varlist_all["theta1"].casadi_var  # noqa: E501
@@ -896,7 +904,12 @@ def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=
     eq1 = (r - u1 - theta4_norm)  * x1
     eq2 = - (r * x1 / theta3_norm) + u1 * (u2 - x2)
 
-    m.add_equations_differential([eq1, eq2])
+    diff_eq = [eq1, eq2]
+
+    if u1_piecewise_linear:
+        diff_eq.append(u1_gradient)
+
+    m.add_equations_differential(diff_eq)
 
     if ode is False:
         m.add_equations_algebraic([eq_alg1])

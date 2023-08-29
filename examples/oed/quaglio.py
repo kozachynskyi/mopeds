@@ -202,6 +202,157 @@ def asprey2002():
     a = oed.generate_experimental_data(solution, par_initial).plot()
     breakpoint()
 
+def hoang2013():
+    varlist, m_monod, exp_data = par_est.examples.yeast_growth("monod", piecewise=True, u1_piecewise_linear=True)
+
+    # par_initial = {
+    #     "theta1": 0.5,
+    #     "theta2": 0.5,
+    #     "theta3": 0.5,
+    #     "theta4": 0.5,
+    # }
+    par_initial = {'theta1': 0.5,
+                 'theta2': 0.06,
+                 'theta3': 0.5,
+                 'theta4': 0.25}
+
+    # varlist["x1"].variance = 0.2**2
+    # varlist["x2"].variance = 0.2**2
+
+    # varlist["x1"].variance = 1
+    # varlist["x2"].variance = 1
+
+    varlist["x1"].lower_bound = 1.0
+    varlist["x1"].upper_bound = 10.0
+
+    varlist["x2"].value = 0.1
+    varlist["x2"].fixed = True
+
+    varlist["u1"].lower_bound = 0.05
+    varlist["u1"].upper_bound = 0.5
+    varlist["u1"].ignore_plotting = False
+
+    varlist["u2"].lower_bound = 0.2
+    varlist["u2"].upper_bound = 35
+    varlist["u2"].ignore_plotting = False
+
+    for par_name, par_value in par_initial.items():
+        varlist[par_name].value = par_value
+
+    # mode = "initial"
+    mode = "determinant1"
+    # mode = "eigenvalue"
+    # mode = "optimize_solution"
+    # mode = "optimize_dict"
+    # mode = "pe"
+
+
+    oed_settings = par_est.OEDsettings(num_control_switches=1)
+
+    if mode == "initial":
+        time_grid = [0,3,6,9,12]
+        varlist["x1"].value = 2
+        varlist["x2"].value = 0.1
+
+        varlist["u1_dot"].value = 0.1
+        varlist["u1"].value = 0
+
+        varlist["u2"].value = 15
+
+        varlist_oed = unfix_parameters(varlist)
+        oed = par_est.OptimalExperimentalDesign(m_monod, [varlist_oed], time_grid)
+        obj = oed.calculate_objective_and_jacobian({}, CriteriaD_asprey2002)
+
+    elif mode == "determinant1":
+        time_grid = [0,3,6,9,12]
+        varlist["x1"].value = 2
+        varlist["x2"].value = 0.1
+
+        varlist["u1_dot"].value = 0.1
+        varlist["u1"].value = -0.005
+        varlist["u1"].expand_horizon([1,2,3,6,11], [0.0623683249324275, -0.0430126378844328, 0.000762496762496763, 0.000459587089724076, -0.0167749287749288])
+
+        varlist["u2"].value = 15
+        # varlist["u2"].expand_horizon([11], [20])
+
+        varlist_oed = unfix_parameters(varlist)
+        oed = par_est.OptimalExperimentalDesign(m_monod, [varlist_oed], time_grid)
+        obj = oed.calculate_objective_and_jacobian({}, CriteriaD_asprey2002)
+    elif mode == "pe":
+        varlist["x1"].value = 2
+        varlist["x2"].value = 0.1
+
+        varlist["u1_dot"].value = 0.1
+        varlist["u1"].value = 0
+
+        varlist["u2"].value = 15
+
+        result_pe = {'theta1': 0.5,
+                     'theta2': 0.06,
+                     'theta3': 0.5,
+                     'theta4': 0.25}
+
+        x1_data = [
+                    [0,2],
+                    [0.630508474576271,2.009977827051],
+                    [2.61016949152542,2.06984478935698],
+                    [4.35932203389831,2.09977827050998],
+                    [5.9728813559322,2.12305986696231],
+                    [8.4135593220339,2.13968957871397],
+                    [10.4474576271186,2.12638580931264],
+                    [11.9796610169492,2.12971175166297]
+                ]
+        x2_data = [
+                [0,0.1], 
+                [0.942372881355932,0.157427937915743],
+                [2.09491525423729,0.144124168514412],
+                [3.5864406779661,0.144124168514412],
+                [4.98305084745763,0.137472283813747],
+                [6.52881355932203,0.127494456762749],
+                [7.84406779661017,0.130820399113082],
+                [9.66101694915254,0.14079822616408],
+                [11.9932203389831,0.137472283813747]
+                ]
+
+        varlist["theta2"].fixed = False
+        varlist["theta4"].fixed = False
+
+        for var, data in zip([varlist["x1"], varlist["x2"]], [x1_data, x2_data]):
+            data_numpy = np.array(data)
+            var.set_dataframe_from_value_and_time(data_numpy[:,1], data_numpy[:,0])
+
+        pe = par_est.ParameterEstimation(m_monod, [varlist])
+        print(pe.calculate_objective_and_residual(result_pe))
+        # a = pe.optimize()
+        breakpoint()
+
+    else:
+        raise NotImplementedError
+    print(mode)
+    print(obj["f"])
+
+    if True:
+        time_grid = np.linspace(0, 12, 100)
+        sim = par_est.Simulator(m_monod, time_grid, varlist)
+        a = sim.generate_exp_data()
+        breakpoint()
+        a.plot()
+
+    unfix_variables = ["theta1", "theta2", "theta3","theta4", "u2"]
+    varlist_oed = copy.deepcopy(varlist)
+
+    for par_name in unfix_variables:
+        varlist_oed[par_name].fixed = False
+
+    oed = par_est.OptimalExperimentalDesign(m_monod, [varlist_oed], time_grid, oed_settings)
+    oed.solver_settings["ipopt"]["max_iter"] = 20
+    oed.solver_settings["ipopt"]["linear_solver"] = "ma57"
+    oed.optimize(1, "D")
+
+    print(oed.calculate_objective_and_jacobian(solution, "D")["f"])
+    a = oed.generate_experimental_data(solution, par_initial).plot()
+    breakpoint()
+
 
 def quaglio():
     varlist, m_cantois, exp_data = par_est.examples.yeast_growth("cantois")
@@ -277,4 +428,6 @@ def quaglio():
 
 if __name__ == "__main__":
     # espie1989()
-    asprey2002()
+    # asprey2002()
+    hoang2013()
+
