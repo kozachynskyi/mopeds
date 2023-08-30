@@ -32,12 +32,40 @@ if _ACADOS_SUPPORT:
 
 @dataclass
 class OEDsettings:
-    """Class to setup complex OED optimization problems"""
-    max_time_experiment: float = 1
-    min_sampling_delay: float = 0.1
-    num_sampling_times: int = 3
+    """Class to setup complex OED optimization problems
+    num_control_switches - how many control switches intervals are added for each time grid"""
+    end_time_fixed: bool = True
     num_control_switches: int = 1
-    measurement_weights: bool = False
+    num_sampling_times: int = 3
+
+    @property
+    def measurement_weights(self) -> bool:
+        return True
+
+@dataclass
+class OptimalSampling(OEDsettings):
+    """Grids are fixed, sampling weights are used"""
+    @property
+    def measurement_weights(self) -> bool:
+        return True
+
+@dataclass
+class AdaptiveSampling(OEDsettings):
+    """Measurement grid is a decision variable, time grid depends on num_sampling_times and max_time_experiment"""
+    min_sampling_delay: float = 1
+    max_time_experiment: float = 1
+
+    @property
+    def measurement_weights(self) -> bool:
+        return False
+
+@dataclass
+class AdaptiveOptimalSampling(AdaptiveSampling):
+    """Measurement grid is a decision variable, time grid depends on num_sampling_times and max_time_experiment"""
+    @property
+    def measurement_weights(self) -> bool:
+        return True
+
 
 class OED_objective(ca.Callback):
     def __init__(self, name, jac, parameter_scaling, opts={}):
@@ -409,6 +437,7 @@ class OptimalExperimentalDesign(OED_base):
         super().__init__(model, variable_list, simulator_name, simulator_settings)
         self.varlist_timegrid = VariableList()
         self.varlist_weights = VariableList()
+        self._oed_settings = copy.deepcopy(settings)
 
         # User specified time_grid is used for initilizaiton of Simulators
 
@@ -423,7 +452,7 @@ class OptimalExperimentalDesign(OED_base):
             self.time_grid_measurements = None
 
         if settings is not None:
-            self._initialize_from_settings(settings)
+            self._initialize_from_settings()
         else:
             self.time_grid_control_switch = []
 
@@ -453,23 +482,31 @@ class OptimalExperimentalDesign(OED_base):
             for sim in self.list_simulators:
                 sim.calculate_algebraic_initials(apply_intials=True)
 
-    def _initialize_from_settings(self, settings:OEDsettings):
-        self.max_time_experiment = settings.max_time_experiment
-        self.min_sampling_delay = settings.min_sampling_delay
+    def _initialize_from_settings(self):
+        settings = self._oed_settings
 
-        if self.time_grid_measurements is None:
-            initial_guess = np.linspace(settings.min_sampling_delay, settings.max_time_experiment, settings.num_sampling_times)
+        if isinstance(self._oed_settings, OptimalSampling):
+            if self.time_grid_measurements is None:
+                raise ValueError("For Optimal Sampling strategy sampling time_grid should be provided")
+
+        elif isinstance(self._oed_settings, (AdaptiveSampling, AdaptiveOptimalSampling)):
+            if self.time_grid_measurements is not None:
+                print("Time grid provided for OED optimizer is ignored")
+
+            initial_guess = np.linspace(self._oed_settings.min_sampling_delay, self._oed_settings.max_time_experiment, self._oed_settings.num_sampling_times)
 
             for i, guess in enumerate(initial_guess):
-                new_var = VariableControl("time_sp" + str(i), guess, self.min_sampling_delay, self.max_time_experiment)
+                new_var = VariableControl("time_sp" + str(i), guess, self._oed_settings.min_sampling_delay, self._oed_settings.max_time_experiment)
                 self.varlist_timegrid.add_variable(new_var)
             time_grid_measurements = self.varlist_timegrid.get_casadi_variables()
             self.time_grid_measurements = ca.vcat([0, time_grid_measurements])
+        else:
+            raise NotImplementedError
 
-        if settings.num_control_switches == 0:
+        if self._oed_settings.num_control_switches == 0:
             self.time_grid_control_switch = np.array([0])
         else:
-            if isinstance(self.time_grid_measurements, ca.MX):
+            if isinstance(self._oed_settings, (AdaptiveSampling, AdaptiveOptimalSampling)):
                 raise NotImplementedError
             time_grid_sw = [0.0]
             time_grid_sp = self.time_grid_measurements
@@ -481,7 +518,7 @@ class OptimalExperimentalDesign(OED_base):
             time_grid_sw = np.unique(time_grid_sw)
             self.time_grid_control_switch = time_grid_sw
 
-        if settings.measurement_weights:
+        if self._oed_settings.measurement_weights:
             for i in range(len(self.time_grid_measurements) - 1):
                 new_var = VariableControl("weight_" + str(i), 0.5, 0, 1)
                 self.varlist_weights.add_variable(new_var)
@@ -543,8 +580,8 @@ class OptimalExperimentalDesign(OED_base):
 
         for i in range(len(self.varlist_timegrid) - 1):
             g.append(casadi_vars[i+1] - casadi_vars[i])
-            self.lower_bound_g.append(self.min_sampling_delay)
-            self.upper_bound_g.append(self.max_time_experiment)
+            self.lower_bound_g.append(self._oed_settings.min_sampling_delay)
+            self.upper_bound_g.append(self._oed_settings.max_time_experiment)
 
         if not len(self.varlist_weights) == 0:
             g.append(ca.sum1(self.varlist_weights.get_casadi_variables()))
