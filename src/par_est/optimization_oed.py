@@ -248,13 +248,13 @@ class OED_base(Optimizer):
                     sim_data = np.insert(sim_data, 0, value_time0)
 
             if isinstance(self.time_grid_measurements, ca.MX):
-                time_variables = sorted([ i for i in controls if "time_" in i])
+                time_variables = [i for i in controls if "time_" in i]
 
                 time_grid = [0]
                 for time_variable in time_variables:
-                    time_grid.append(controls[time_variable])
-                # ignore last timestamp, which is just final time of simulation
-                time_grid = time_grid[:-1]  
+                    if time_variable in self.varlist_decision.keys():
+                        time_grid.append(controls[time_variable])
+                time_grid.sort()
             else:
                 time_grid = self.time_grid_measurements
 
