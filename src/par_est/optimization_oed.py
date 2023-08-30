@@ -442,7 +442,7 @@ class OptimalExperimentalDesign(OED_base):
         # User specified time_grid is used for initilizaiton of Simulators
 
         if time_grid_measurements is None and settings is None:
-            raise ValueError("Either time_grid_measurements or settings have to be provided")
+            raise ValueError("At least time_grid_measurements or settings have to be provided")
 
         if time_grid_measurements is not None:
             if not time_grid_measurements[0] == 0:
