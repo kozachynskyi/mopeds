@@ -35,7 +35,7 @@ def get_varlist_paper(data_set=1, normalized=True):
     varlist["x2"].value = 0
 
 
-    oed_settings = par_est.AdaptiveSampling(True, num_control_switches=4, 20, 0.1, 4, 4)
+    oed_settings = par_est.OEDsettings(20, 0.1, 4, 4)
 
     if data_set == 1:
         varlist["x1"].value = 2.5

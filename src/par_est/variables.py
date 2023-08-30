@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import sys
-import math
 from collections.abc import Generator, Iterable
 from datetime import datetime, timedelta
 from typing import Any, Union
@@ -21,19 +20,6 @@ ORIGIN_TS: pd.Timestamp = pd.Timestamp(year=1970, month=1, day=1)
 """ Indicats a default zero timestamp for data, if date is irrelevant.
 Chosen DateTime is the same, that is used by pd.to_datetime() by default.
 """
-
-# Source: https://stackoverflow.com/a/31702461
-def convertToNumber(s):
-    if s == "0":
-        return 0
-    else:
-        return int.from_bytes(s.encode(), 'little')
-
-def convertFromNumber(n):
-    if n == 0:
-        return "0"
-    else:
-        return n.to_bytes(math.ceil(n.bit_length() / 8), 'little').decode()
 
 # Ignored type errors come from mypy issue https://github.com/python/mypy/issues/3004
 
@@ -389,8 +375,6 @@ class VariableControlPiecewiseConstant(VariableControl):
     def get_variable_at_time_relative(
         self, time_stamp_relative: float
     ) -> VariableControl:
-        if isinstance(time_stamp_relative, ca.MX):
-            time_stamp_relative = convertToNumber(str(time_stamp_relative))
         index = pd.Index(self.time_relative).get_indexer(
             [time_stamp_relative], method="ffill"
         )[0]
@@ -411,8 +395,7 @@ class VariableControlPiecewiseConstant(VariableControl):
         independent_variable = []
         last_unfixed_variable = None
 
-        for time_index in range(time_grid_relative.shape[0]):
-            time_stamp = time_grid_relative[time_index]
+        for time_stamp in time_grid_relative:
             var_at_timestamp = self.get_variable_at_time_relative(time_stamp)
             # This if statement is required for OED in order to use casadi_var from previous step, if it was already used. Without it, control variable will be fixed to some value for given timestep
             if var_at_timestamp.fixed:
@@ -447,10 +430,6 @@ class VariableControlPiecewiseConstant(VariableControl):
             )
             var.fixed = True
             var.piecewise_control_name = self.name
-
-            if isinstance(time, ca.MX):
-                time = convertToNumber(str(time))
-
             var.dataframe = var._dataframe_from_value(
                 value, self.time_absolute[0] + timedelta(seconds=time)
             )
