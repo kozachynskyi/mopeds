@@ -8,80 +8,6 @@ import casadi as ca
 import par_est
 from quaglio import CriteriaD_asprey2002
 
-def asprey2002(plot=False):
-    varlist, m_monod, exp_data = par_est.examples.yeast_growth("monod", piecewise=True)
-
-    par_initial = {
-        "theta1": 0.5,
-        "theta2": 0.5,
-        "theta3": 0.5,
-        "theta4": 0.5,
-    }
-
-    # varlist["x1"].variance = 0.2**2
-    # varlist["x2"].variance = 0.2**2
-
-    varlist["x1"].variance = 1
-    varlist["x2"].variance = 1
-
-    varlist["x1"].lower_bound = 1.0
-    varlist["x1"].upper_bound = 10.0
-
-    varlist["x2"].value = 0.1
-    varlist["x2"].fixed = True
-
-    varlist["u1"].lower_bound = 0.05
-    varlist["u1"].upper_bound = 0.2
-    varlist["u1"].ignore_plotting = False
-
-    varlist["u2"].lower_bound = 5
-    varlist["u2"].upper_bound = 35
-    varlist["u2"].ignore_plotting = False
-
-    for par_name, par_value in par_initial.items():
-        varlist[par_name].value = par_value
-
-    mode = "initial"
-
-    expected = 1
-
-    if mode == "initial":
-        time_grid = [0,2,4,6,8,10,12,14,16,18,20]
-        varlist["x1"].value = 5.5
-
-        varlist["u1"].value = 0.12
-
-        varlist["u2"].value = 15
-        varlist_oed = unfix_parameters(varlist)
-        oed = par_est.OptimalExperimentalDesign(m_monod, [varlist_oed], time_grid)
-        obj = oed.calculate_objective_and_jacobian({}, CriteriaD_asprey2002)
-        expected = 2.4e8
-
-    elif mode == "determinant":
-        time_grid = [0, 21.2, 22.2, 23.2, 24.2, 25.2, 26.2, 27.2, 28.2, 29.2, 30.2]
-        varlist["x1"].value = 8.53
-
-        varlist["u1"].value = 0.2
-        varlist["u1"].expand_horizon([5.4], [0.05])
-
-        varlist["u2"].value = 35
-        varlist["u2"].expand_horizon([20, 25.2], [22.8, 15.])
-
-        varlist_oed = unfix_parameters(varlist)
-        oed = par_est.OptimalExperimentalDesign(m_monod, [varlist_oed], time_grid)
-        obj = oed.calculate_objective_and_jacobian({}, CriteriaD_asprey2002)
-    else:
-        raise NotImplementedError
-    print(mode)
-    print(obj["f"])
-    print(f"expected: {expected}")
-    print(f"difference obj/expected: {obj['f'] / expected}")
-
-    if plot:
-        time_grid = np.linspace(0, 32, 1000)
-        sim = par_est.Simulator(m_monod, time_grid, varlist)
-        sim.generate_exp_data().plot()
-
 def yeast_oed(mode="initial", estimate=False, plot=False):
     if mode in ["initial", "x_time_zero", "adaptive"]:
         varlist, m_monod, exp_data = par_est.examples.yeast_growth("monod", piecewise=True)
@@ -196,7 +122,7 @@ def yeast_oed(mode="initial", estimate=False, plot=False):
 
         varlist_oed = unfix_parameters(varlist)
 
-        oed_setttings = par_est.AdaptiveSampling(num_control_switches=0, num_sampling_times=len(time_grid), max_time_experiment=time_grid[-1], min_sampling_delay=0.2)
+        oed_setttings = par_est.AdaptiveSampling(num_control_switches=0, num_sampling_times=len(time_grid)-1, max_time_experiment=time_grid[-1], min_sampling_delay=0.2)
 
         oed = par_est.OptimalExperimentalDesign(m_monod, [varlist_oed], time_grid, oed_setttings)
         oed.solver_settings["ipopt"]["linear_solver"] = "ma57"
@@ -211,7 +137,7 @@ def yeast_oed(mode="initial", estimate=False, plot=False):
 
         print(res)
         if plot:
-            sim_res.plot()
+            sim_res.plot(marker="o")
         obj = oed.calculate_objective_and_jacobian(res, "A")
         print(obj)
         # expected = 2.4e8
@@ -252,7 +178,7 @@ if __name__ == "__main__":
 
     mode = "initial"
     # mode = "x_time_zero"
-    # mode = "adaptive"
+    mode = "adaptive"
     # mode = "optimal"
 
     yeast_oed(mode, estimate=False, plot=True)
