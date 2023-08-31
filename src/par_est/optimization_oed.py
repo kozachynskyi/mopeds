@@ -226,6 +226,32 @@ class OED_base(Optimizer):
 
         return result_np
 
+    def _separate_and_check_controls(self, controls: dict):
+        """Takes a controls dictionary and separates in weights, time_sp, and others"""
+        # Check if supplied weights and times variables are correct
+        self.variables_dict_to_list(controls)
+
+        res_dict = {"times": {}, "weights": {}, "others": {}}
+
+        times = {}
+        weights = {}
+
+        for var_name, var_value in controls.items():
+            if "time_sp" in var_name:
+                times[var_name] = var_value
+            elif "weight_" in var_name:
+                weights[var_name] = var_value
+            else:
+                res_dict["others"][var_name] = var_value
+
+        for var_name in self.varlist_timegrid.keys():
+            res_dict["times"][var_name] = times[var_name]
+
+        for var_name in self.varlist_weights.keys():
+            res_dict["weights"][var_name] = weights[var_name]
+
+        return res_dict
+
     def generate_experimental_data(
         self,
         controls: dict[str, float],
@@ -236,6 +262,7 @@ class OED_base(Optimizer):
 
         for index, meas_name in enumerate(self.names_of_measurements):
             sim_data = res_sim[:, index]
+
             if meas_name in controls.keys():
                 sim_data = np.insert(sim_data, 0, controls[meas_name])
             else:
