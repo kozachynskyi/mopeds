@@ -43,6 +43,13 @@ class OEDsettings:
         return False
 
 @dataclass
+class FixedGridSampling(OEDsettings):
+    """Grid is fixed, controls not changing with time, no weights"""
+    @property
+    def measurement_weights(self) -> bool:
+        return False
+
+@dataclass
 class OptimalSampling(OEDsettings):
     """Grids are fixed, sampling weights are used"""
     @property
@@ -489,7 +496,7 @@ class OptimalExperimentalDesign(OED_base):
             self.time_grid_measurements = None
 
         if settings is None:
-            self._oed_settings = OEDsettings(end_time_fixed=True, num_control_switches=0, num_sampling_times=len(self.time_grid_measurements)+1)
+            self._oed_settings = FixedGridSampling(end_time_fixed=True, num_control_switches=0, num_sampling_times=len(self.time_grid_measurements)+1)
             self.time_grid_control_switch = []
         self._initialize_from_settings()
 
@@ -524,7 +531,7 @@ class OptimalExperimentalDesign(OED_base):
     def _initialize_from_settings(self):
         settings = self._oed_settings
 
-        if isinstance(self._oed_settings, (OptimalSampling, OEDsettings)):
+        if isinstance(self._oed_settings, (OptimalSampling, FixedGridSampling)):
             if self.time_grid_measurements is None:
                 raise ValueError("For Optimal Sampling strategy sampling time_grid should be provided")
 
