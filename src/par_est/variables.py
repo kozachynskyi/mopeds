@@ -22,18 +22,19 @@ ORIGIN_TS: pd.Timestamp = pd.Timestamp(year=1970, month=1, day=1)
 Chosen DateTime is the same, that is used by pd.to_datetime() by default.
 """
 
-# Source: https://stackoverflow.com/a/31702461
-def convertToNumber(s):
-    if s == "0":
-        return 0
-    else:
-        return int.from_bytes(s.encode(), 'little')
+def _check_mx_conversion_compitablity(mx: ca.MX):
+    if "time_sp" not in str(mx):
+        raise NotImplementedError
 
-def convertFromNumber(n):
-    if n == 0:
-        return "0"
+def convert_mx_to_number(mx: ca.MX):
+    if mx.is_symbolic():
+        _check_mx_conversion_compitablity(mx)
+        return int(str(mx).strip("time_sp")) + 1
     else:
-        return n.to_bytes(math.ceil(n.bit_length() / 8), 'little').decode()
+        if mx == 0:
+            return 0
+        else:
+            raise NotImplementedError
 
 # Ignored type errors come from mypy issue https://github.com/python/mypy/issues/3004
 
@@ -390,7 +391,7 @@ class VariableControlPiecewiseConstant(VariableControl):
         self, time_stamp_relative: float
     ) -> VariableControl:
         if isinstance(time_stamp_relative, ca.MX):
-            time_stamp_relative = convertToNumber(str(time_stamp_relative))
+            time_stamp_relative = convert_mx_to_number(time_stamp_relative)
         index = pd.Index(self.time_relative).get_indexer(
             [time_stamp_relative], method="ffill"
         )[0]
@@ -449,7 +450,7 @@ class VariableControlPiecewiseConstant(VariableControl):
             var.piecewise_control_name = self.name
 
             if isinstance(time, ca.MX):
-                time = convertToNumber(str(time))
+                time = convert_mx_to_number(time)
 
             var.dataframe = var._dataframe_from_value(
                 value, self.time_absolute[0] + timedelta(seconds=time)
