@@ -537,6 +537,10 @@ class OptimalExperimentalDesign(OED_base):
             for i, guess in enumerate(initial_guess):
                 new_var = VariableControl("time_sp" + str(i), guess, self._oed_settings.min_sampling_delay, self._oed_settings.max_time_experiment)
                 self.varlist_timegrid.add_variable(new_var)
+
+            if self._oed_settings.end_time_fixed:
+                self.varlist_timegrid[new_var.name].lower_bound = self._oed_settings.max_time_experiment
+
             time_grid_measurements = self.varlist_timegrid.get_casadi_variables()
             self.time_grid_measurements = ca.vcat([0, time_grid_measurements])
         else:
@@ -546,22 +550,26 @@ class OptimalExperimentalDesign(OED_base):
             self.time_grid_control_switch = np.array([0])
         else:
             if isinstance(self._oed_settings, (AdaptiveSampling, AdaptiveOptimalSampling)):
-                raise NotImplementedError
-            time_grid_sw = [0.0]
+                time_grid_sw = []
+            else:
+                time_grid_sw = [0.0]
             time_grid_sp = self.time_grid_measurements
             linspace = np.linspace(0,1, settings.num_control_switches, endpoint=False)
             for i in range(self.time_grid_measurements.shape[0]-1):
                 control_switches = time_grid_sp[i] + linspace * (time_grid_sp[i+1] - time_grid_sp[i])
                 for j in range(control_switches.shape[0]):
                     time_grid_sw.append(control_switches[j])
-            time_grid_sw = np.unique(time_grid_sw)
+
+            if not isinstance(self._oed_settings, (AdaptiveSampling, AdaptiveOptimalSampling)):
+                time_grid_sw = np.unique(time_grid_sw)
             self.time_grid_control_switch = time_grid_sw
 
         if self._oed_settings.measurement_weights:
-            for i in range(len(self.time_grid_measurements) - 1):
+            for i in range(self.time_grid_measurements.shape[0] - 1):
                 new_var = VariableControl("weight_" + str(i), 0.5, 0, 1)
                 self.varlist_weights.add_variable(new_var)
-            self.max_number_measurements = settings.num_sampling_times
+            if self._oed_settings.end_time_fixed:
+                self.varlist_weights[new_var.name].lower_bound = 1
 
     def _setup_timegrid(self):
         # Simulator time_grid might have time_steps, at which "measueremnt" is not done,
@@ -622,10 +630,10 @@ class OptimalExperimentalDesign(OED_base):
             self.lower_bound_g.append(self._oed_settings.min_sampling_delay)
             self.upper_bound_g.append(self._oed_settings.max_time_experiment)
 
-        if not len(self.varlist_weights) == 0:
+        if self._oed_settings.measurement_weights:
             g.append(ca.sum1(self.varlist_weights.get_casadi_variables()))
             self.lower_bound_g.append(len(self.varlist_parameter))
-            self.upper_bound_g.append(self.max_number_measurements)
+            self.upper_bound_g.append(self._oed_settings.num_sampling_times)
 
         self.equality_constraints = ca.vcat(g)
 
