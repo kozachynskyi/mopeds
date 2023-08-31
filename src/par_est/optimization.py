@@ -76,6 +76,8 @@ class Optimizer(object):
         selected_variables: list[float] = []
         for var_name in variables_dict.keys():
             if var_name not in self.varlist_decision.keys():
+                if "time_sp" in var_name or "weight_" in var_name:
+                    raise ValueError(f"Variable {var_name} is not a decision variable!")
                 print(f"Supplied value for variables {var_name} is ignored!")
         for var_name in self.varlist_decision.keys():
             try:
