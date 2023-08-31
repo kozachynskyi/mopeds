@@ -40,7 +40,7 @@ class OEDsettings:
 
     @property
     def measurement_weights(self) -> bool:
-        return True
+        return False
 
 @dataclass
 class OptimalSampling(OEDsettings):
@@ -488,10 +488,10 @@ class OptimalExperimentalDesign(OED_base):
         else:
             self.time_grid_measurements = None
 
-        if settings is not None:
-            self._initialize_from_settings()
-        else:
+        if settings is None:
+            self._oed_settings = OEDsettings(end_time_fixed=True, num_control_switches=0, num_sampling_times=len(self.time_grid_measurements)+1)
             self.time_grid_control_switch = []
+        self._initialize_from_settings()
 
         if measurable_variables is None:
             self.list_measureable_variables = list(self.model.varlist_state.keys())
@@ -524,7 +524,7 @@ class OptimalExperimentalDesign(OED_base):
     def _initialize_from_settings(self):
         settings = self._oed_settings
 
-        if isinstance(self._oed_settings, OptimalSampling):
+        if isinstance(self._oed_settings, (OptimalSampling, OEDsettings)):
             if self.time_grid_measurements is None:
                 raise ValueError("For Optimal Sampling strategy sampling time_grid should be provided")
 
