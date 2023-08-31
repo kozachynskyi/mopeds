@@ -82,10 +82,16 @@ def test_cstr(piecewise):
 
                 if i == 4:
                     res = sim.generate_exp_data()
-                    assert len(res) == 5
+                    if piecewise:
+                        assert len(res) == 7
+                    else:
+                        assert len(res) == 5
                     if sim.model.DAE:
                         res = sim.generate_exp_data(algebraic=True)
-                        assert len(res) == 6
+                        if piecewise:
+                            assert len(res) == 8
+                        else:
+                            assert len(res) == 6
                 else:
                     with pytest.raises(ValueError):
                         res = sim.generate_exp_data()

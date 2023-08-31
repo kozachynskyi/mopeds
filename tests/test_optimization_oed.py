@@ -44,19 +44,23 @@ def test_jacobian_weights(piecewise):
             )
             jac_pe = pe.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_E_r1": 9.6e4})["jac_scaled_full_theory"].flatten()
 
-            controls_dict = {"e0_T_in": 373}
-            for i in range(len(time_grid_expanded)):
-                controls_dict[f"weight_{i}"] = 1
+            controls_dict = {"e0_T_in": 373, "weight_0": 1, "weight_1": 1, "weight_2": 1}
 
+            controls_dict_expanded = copy.deepcopy(controls_dict)
+            controls_dict_expanded["weight_3"] = 1
+            controls_dict_expanded["weight_4"] = 1
+
+            oed_settings = par_est.OptimalSampling(num_sampling_times=3)
             if not weight_on:
                 controls_dict["weight_1"] = 0
+                controls_dict_expanded["weight_1"] = 0
 
-            oed_settings = par_est.OEDsettings(measurement_weights=True)
+            oed_settings = par_est.OptimalSampling(num_sampling_times=3)
             oed = par_est.OptimalExperimentalDesign(model, [var_list], time_grid, oed_settings)
             oed_expanded = par_est.OptimalExperimentalDesign(model, [var_list], time_grid_expanded, oed_settings)
 
             jac_oed = oed.calculate_objective_and_jacobian(controls_dict)["jac"]
-            jac_oed_expanded = oed_expanded.calculate_objective_and_jacobian(controls_dict)["jac"]
+            jac_oed_expanded = oed_expanded.calculate_objective_and_jacobian(controls_dict_expanded)["jac"]
 
             jac_oed = jac_oed[jac_oed != 0]
             jac_oed_expanded = jac_oed_expanded[jac_oed_expanded != 0]
@@ -127,7 +131,7 @@ def test_oed_piecewise():
         var_list_peicewise["e0_T_in"].fixed = True
         var_list_peicewise["e0_c_in_i1"].fixed = False
 
-        oed_settings = par_est.OEDsettings(4, num_control_switches=0)
+        oed_settings = None
 
         oed_piecewise = par_est.OptimalExperimentalDesign(model_piecewise, [var_list_peicewise], time_grid, oed_settings)
         res_piecewise = oed_piecewise.optimize()

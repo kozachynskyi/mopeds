@@ -83,7 +83,8 @@ def test_optimizer(piecewise):  # noqa: C901
 
     # Replace empty state variables with results from simulation
     for key, var in var_list_exp.items():
-        variable_list[key] = var
+        if isinstance(var, par_est.VariableState):
+            variable_list[key] = var
 
     for i in range(5):
         if i == 1:
