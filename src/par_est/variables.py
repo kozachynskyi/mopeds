@@ -54,9 +54,9 @@ class Variable(object):
         self.opc_ua_id: None | int = None
         if not isinstance(self, VariableControlPiecewiseConstant):
             self.dataframe: pd.DataFrame = None
-        self.guess: float = np.nan
-        self.lower_bound: float = lb  # type: ignore
-        self.upper_bound: float = ub  # type: ignore
+            self.guess: float = np.nan
+            self.lower_bound: float = lb  # type: ignore
+            self.upper_bound: float = ub  # type: ignore
         self.variance: float = 1.0
         # attibute used to decide if variable should be plotted
         self.ignore_plotting: bool = True
@@ -326,7 +326,7 @@ class VariableControl(Variable):
         super().__init__(name, lb, ub)
         if not isinstance(self, VariableControlPiecewiseConstant):
             self.dataframe = self._dataframe_from_value(value)
-        self.guess = value  # type: ignore
+            self.guess = value  # type: ignore
         self.opc_ua_id = opc_ua_id
         self.piecewise_control_name = None
 
@@ -369,6 +369,42 @@ class VariableControlPiecewiseConstant(VariableControl):
             time_list.append(variable.time_absolute[0])
         time_series = pd.Series(time_list)
         return time_series
+
+    @property
+    def lower_bound(self) -> np.ndarray:
+        values = []
+        for var in self.variable_list.values():
+            values.append(var.lower_bound)
+        return values
+
+    @lower_bound.setter
+    def lower_bound(self, lower_bound: float | None) -> None:
+        for var in self.variable_list.values():
+            var.lower_bound = lower_bound
+
+    @property
+    def upper_bound(self) -> np.ndarray:
+        values = []
+        for var in self.variable_list.values():
+            values.append(var.upper_bound)
+        return values
+
+    @upper_bound.setter
+    def upper_bound(self, upper_bound: float | None) -> None:
+        for var in self.variable_list.values():
+            var.upper_bound = upper_bound
+
+    @property
+    def guess(self) -> np.ndarray:
+        values = []
+        for var in self.variable_list.values():
+            values.append(var.guess)
+        return values
+
+    @guess.setter
+    def guess(self, guess: float | None) -> None:
+        for var in self.variable_list.values():
+            var.guess = guess
 
     @property
     def time_relative(self) -> list[float]:
