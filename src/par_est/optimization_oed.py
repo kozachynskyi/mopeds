@@ -519,6 +519,8 @@ class OptimalExperimentalDesign(OED_base):
             for sim in self.list_simulators:
                 sim.calculate_algebraic_initials(apply_intials=True)
 
+        self._setup_equality_constraints()
+
     def _initialize_from_settings(self):
         settings = self._oed_settings
 
