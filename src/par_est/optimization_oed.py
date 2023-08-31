@@ -263,6 +263,17 @@ class OED_base(Optimizer):
         for index, meas_name in enumerate(self.names_of_measurements):
             sim_data = res_sim[:, index]
 
+            if self._oed_settings.measurement_weights:
+                index_measurements = []
+                index_time_grid = [0]
+                for meas_index, weight in enumerate(self.varlist_weights.keys()):
+                    include_meas = controls[weight] >= 0.99
+                    if include_meas:
+                        index_measurements.append(meas_index)
+                        index_time_grid.append(meas_index+1)
+
+                sim_data = sim_data[index_measurements]
+
             if meas_name in controls.keys():
                 sim_data = np.insert(sim_data, 0, controls[meas_name])
             else:
@@ -275,15 +286,14 @@ class OED_base(Optimizer):
                     sim_data = np.insert(sim_data, 0, value_time0)
 
             if isinstance(self.time_grid_measurements, ca.MX):
-                time_variables = [i for i in controls if "time_" in i]
-
                 time_grid = [0]
-                for time_variable in time_variables:
-                    if time_variable in self.varlist_decision.keys():
-                        time_grid.append(controls[time_variable])
-                time_grid.sort()
+                for time_variable in self.varlist_timegrid.keys():
+                    time_grid.append(controls[time_variable])
             else:
                 time_grid = self.time_grid_measurements
+
+            if self._oed_settings.measurement_weights:
+                time_grid = np.array(time_grid)[index_time_grid]
 
             exp_varlist[meas_name].set_dataframe_from_value_and_time(sim_data, time_grid)
 
