@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import sys
-import math
 from collections.abc import Generator, Iterable
 from datetime import datetime, timedelta
 from typing import Any, Union
