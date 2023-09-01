@@ -637,16 +637,23 @@ class PE_base(Optimizer):
             [ca.jacobian(self._objective_wls()[0], decision_variables)],
         )(all_parameter_values)
         # Should be twice as big as fim_matrix_scaled
-        hessian_objective = ca.Function(
-            "jf",
-            [decision_variables],
-            [ca.hessian(self._objective_wls()[0], decision_variables)[0]],
-        )(all_parameter_values)
+        try:
+            hessian_objective = ca.Function(
+                "jf",
+                [decision_variables],
+                [ca.hessian(self._objective_wls()[0], decision_variables)[0]],
+            )
+            hessian_objective = hessian_objective(all_parameter_values)
+        except RuntimeError:
+            print("Failed to calculate hessian")
+            hessian_objective = None
+
         if parameter_names is not None:
             jac_objective = jac_objective[:, list_selected_parameters_index]
-            hessian_objective = hessian_objective[
-                list_selected_parameters_index, list_selected_parameters_index
-            ]
+            if hessian_objective is not None:
+                hessian_objective = hessian_objective[
+                    list_selected_parameters_index, list_selected_parameters_index
+                ]
 
         fim_matrix = jac_array.T @ jac_array
         fim_matrix_scaled = (jac_array_scaled.T @ jac_array_scaled)
