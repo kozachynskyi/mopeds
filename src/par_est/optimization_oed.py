@@ -24,7 +24,8 @@ from par_est import (
     VariableParameter,
     VariableState,
     _ACADOS_SUPPORT,
-    Optimizer
+    Optimizer,
+    ORIGIN_TS,
 )
 
 if _ACADOS_SUPPORT:
@@ -288,9 +289,11 @@ class OED_base(Optimizer):
 
                 # Set value to arbitraty 1, it will be overwritten afterwards in varlist_decision part
                 if isinstance(value_time0, ca.MX):
-                    sim_data = np.insert(sim_data, 0, 1)
-                else:
-                    sim_data = np.insert(sim_data, 0, value_time0)
+                    if value_time0.is_symbolic():
+                        value_time0 = 1
+                    else:
+                        value_time0 = float(value_time0)
+                sim_data = np.insert(sim_data, 0, value_time0)
 
             if isinstance(self.time_grid_measurements, ca.MX):
                 time_grid = [0]
@@ -300,9 +303,13 @@ class OED_base(Optimizer):
                 time_grid = self.time_grid_measurements
 
             if self._oed_settings.measurement_weights:
-                time_grid = np.array(time_grid)[index_time_grid]
+                time_grid_measurements = np.array(time_grid)[index_time_grid]
+            else:
+                time_grid_measurements = time_grid
 
-            exp_varlist[meas_name].set_dataframe_from_value_and_time(sim_data, time_grid)
+            exp_varlist[meas_name].set_dataframe_from_value_and_time(sim_data, time_grid_measurements)
+
+        time_series = pd.to_datetime(time_grid, unit="s", origin=ORIGIN_TS)
 
         for var_name, var in self.varlist_decision.items():
             try:
@@ -311,7 +318,12 @@ class OED_base(Optimizer):
                 piecewise_name = None
 
             if piecewise_name is not None:
-                exp_varlist[piecewise_name].variable_list[var_name].value = controls[var_name]
+                variable_index = list(exp_varlist[piecewise_name].variable_list.keys()).index(var_name)
+                df = pd.DataFrame(
+                    controls[var_name], index=[time_series[variable_index]], columns=[var_name], dtype="float64"
+                )
+
+                exp_varlist[piecewise_name].variable_list[var_name].dataframe = df
 
             else:
                 if "time_" in var_name or "weight_" in var_name:
