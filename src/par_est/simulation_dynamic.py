@@ -806,9 +806,11 @@ class Simulator(object):
         res_states = []
         x_init = self._initial_state
 
-        for time_step, independent_variables in zip(
-            self.time_grid_relative[1:], self._independent_variables
-        ):
+        num_steps = self.time_grid_relative[1:].shape[0] - 1
+
+        for time_index in range(num_steps + 1):
+            time_step = self.time_grid_relative[time_index + 1]
+            independent_variables = self._independent_variables[time_index]
             res_integration = self.integrator_tau(
                 x0=x_init,
                 p=ca.vertcat(
