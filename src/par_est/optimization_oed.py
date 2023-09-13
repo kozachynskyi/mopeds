@@ -698,3 +698,150 @@ class OptimalExperimentalDesign(OED_base):
         self._setup_equality_constraints()
         res_solver = super()._optimize(scale)
         return res_solver
+
+
+class OED_NLE_base(OED_base):
+    def _setup_varlist_decision(self):
+        parameter_values = []
+        inverted_variances = []
+        self.names_of_measurements = []
+
+        for variable_name in self.model.varlist_all.keys():
+            try:
+                var = self.list_input_varlist[0][variable_name]
+            except KeyError:
+                continue
+
+            if isinstance(var, VariableControl):
+                if var.fixed is False:
+                    self.varlist_decision.add_variable(var)
+            elif isinstance(var, VariableParameter):
+                if var.fixed is False:
+                    self.varlist_parameter.add_variable(var)
+                    parameter_values.append(var.value[0])
+
+            elif isinstance(var, VariableAlgebraic):
+                if var.name in self.list_measureable_variables:
+                    inverted_variances.append(1 / var.variance)
+                    self.names_of_measurements.append(var.name)
+                if var.fixed is False:
+                    if np.isnan(var.guess):
+                        var.guess = var.value[0]
+                    self.varlist_decision.add_variable(var)
+
+        if len(self.varlist_parameter) == 0:
+            raise ValueError("All parameters are fixed, OED is not possible")
+        self.array_inverted_variances: np.ndarray = np.array(inverted_variances)
+        self.array_inverted_std = np.sqrt(inverted_variances)
+
+        self.parameter_values = np.array(parameter_values)
+
+    def generate_jacobian_function(self) -> None:
+        parameter_variables = self.varlist_parameter.get_casadi_variables()
+
+        if isinstance(self.list_simulators[0], SimulatorNLE):
+            res_dict_name = "x"
+        else:
+            raise NotImplementedError
+
+        res_simulation = self.list_simulators[0].simulate_sym()[res_dict_name].T
+
+        parameter_variables = self.varlist_parameter.get_casadi_variables()
+        decision_variables = self.varlist_decision.get_casadi_variables()
+
+        all_selected_measurements = res_simulation.get(
+            False, ca.Slice(), self.index_measurements_in_sim
+        )
+
+        self.simulate_all_function = ca.Function(
+            "sim_all", [self.varlist_parameter.get_casadi_variables(), self.varlist_decision.get_casadi_variables()], [all_selected_measurements]
+        )
+        self.simulate_all_mx = self.simulate_all_function(parameter_variables, decision_variables)
+
+        jacobian = {}
+        jacobian_scaled = {}
+
+        for index_measurement, meas_name in enumerate(self.names_of_measurements):
+            jac_meas_mx = ca.jacobian(
+                self.simulate_all_mx[:, index_measurement], parameter_variables
+            )
+            jac_meas_function = ca.Function(
+                "jac_meas", [parameter_variables, decision_variables], [jac_meas_mx]
+            )
+            jac_meas_mx = jac_meas_function(self.parameter_values, decision_variables)
+
+            jac_meas_scaled_mx = (
+                jac_meas_mx * self.array_inverted_std[index_measurement]
+            )
+
+            jacobian[meas_name] = jac_meas_mx
+            jacobian_scaled[meas_name] = jac_meas_scaled_mx
+
+        jac_array = ca.vcat(list(jacobian.values()))
+        jac_array_scaled = ca.vcat(list(jacobian_scaled.values()))
+
+        self.jacobian_mx = jac_array
+        self.jacobian_scaled_mx = jac_array_scaled
+
+
+class OptimalExperimentalDesign_NLE(OED_NLE_base):
+    def __init__(
+        self,
+        model: Model,
+        variable_list: list[VariableList],
+        simulator_name: str = "rootfinder",
+        simulator_settings: dict = None,
+        *,
+        use_simulator_bounds=True,
+        measurable_variables: list[str] | None = None,
+        SimulatorClass=SimulatorNLE,
+    ) -> None:
+        super().__init__(model, variable_list, simulator_name, simulator_settings)
+        self.equality_constraints = []
+        self.lower_bound_g = []
+        self.upper_bound_g = []
+
+
+        if measurable_variables is None:
+            self.list_measureable_variables = list(self.model.varlist_algebraic.keys())
+        else:
+            self.list_measureable_variables = []
+            # Do this so variable names are sorted as expected
+            for var_name in self.model.varlist_algebraic.keys():
+                if var_name in measurable_variables:
+                    self.list_measureable_variables.append(var_name)
+
+        self._setup_simulator()
+        self._setup_initialization()
+
+        self.solver_name: str = "ipopt"
+        self.solver_settings: dict = {
+            "verbose": False,
+            # "monitor": ["nlp_grad_f", "nlp_f"],
+            "ipopt": {
+                "max_iter": 300,
+                "hessian_approximation": "limited-memory"
+                # "print_level": 6,
+            },
+        }
+
+    def _setup_simulator(self) -> None:
+        self._setup_varlist_decision()
+
+        self.index_measurements_in_sim = []
+
+        self.list_simulators: list[SimulatorNLE] = [
+            SimulatorNLE(
+                self.model,
+                self.list_input_varlist[0],
+                self.simulator_settings,
+                self.simulator_name,
+            )
+        ]
+
+        for name in self.names_of_measurements:
+            index = self.list_simulators[0].mapping_algebraic_variables[name]
+            self.index_measurements_in_sim.append(index)
+
+        self.mapping_simulator_decisions: list[dict[int, int]] = [self.list_simulators[0].mapping_independent_variables]
+        self.generate_jacobian_function()
