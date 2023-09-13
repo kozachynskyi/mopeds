@@ -18,11 +18,13 @@ from tqdm import tqdm
 from par_est import (
     Model,
     Simulator,
+    SimulatorNLE,
     VariableControl,
     VariableControlPiecewiseConstant,
     VariableList,
     VariableParameter,
     VariableState,
+    VariableAlgebraic,
     _ACADOS_SUPPORT,
     Optimizer,
     ORIGIN_TS,
@@ -476,6 +478,40 @@ class OED_base(Optimizer):
         self.jacobian_mx = jac_array
         self.jacobian_scaled_mx = jac_array_scaled
 
+    def _optimize(self, scale: float) -> dict[str, ca.DM | ca.MX]:
+        """Runs optimizer, uses scaling if needed. Returned values is scaled back.
+        Scaling should be done before setting a solver and solver settings."""
+        self.solver: ca.Function = ca.nlpsol(
+            "solver",
+            self.solver_name,
+            {
+                "x": self.varlist_decision.get_casadi_variables(),
+                "f": self._objective()[0] * scale,
+                "g": self.equality_constraints,
+            },
+            self.solver_settings,
+        )
+
+        res_solver = self.solver(
+            x0=self.guess,
+            lbx=self.lower_bound,
+            ubx=self.upper_bound,
+            lbg=self.lower_bound_g,
+            ubg=self.upper_bound_g,
+        )
+
+        res_solver["x"] = res_solver["x"]
+
+        res_dict = {}
+        for solution, var_name in zip(
+            res_solver["x"].toarray(), list(self.varlist_decision.keys())
+        ):
+            res_dict[var_name] = float(solution[0])
+
+        res_solver["x_dict"] = res_dict
+        self.reset_acados()
+
+        return res_solver
 
 class OptimalExperimentalDesign(OED_base):
     def __init__(
@@ -660,35 +696,5 @@ class OptimalExperimentalDesign(OED_base):
         """Runs optimizer, uses scaling if needed. Returned values is scaled back.
         Scaling should be done before setting a solver and solver settings."""
         self._setup_equality_constraints()
-
-        self.solver: ca.Function = ca.nlpsol(
-            "solver",
-            self.solver_name,
-            {
-                "x": self.varlist_decision.get_casadi_variables(),
-                "f": self._objective()[0] * scale,
-                "g": self.equality_constraints,
-            },
-            self.solver_settings,
-        )
-
-        res_solver = self.solver(
-            x0=self.guess,
-            lbx=self.lower_bound,
-            ubx=self.upper_bound,
-            lbg=self.lower_bound_g,
-            ubg=self.upper_bound_g,
-        )
-
-        res_solver["x"] = res_solver["x"]
-
-        res_dict = {}
-        for solution, var_name in zip(
-            res_solver["x"].toarray(), list(self.varlist_decision.keys())
-        ):
-            res_dict[var_name] = float(solution[0])
-
-        res_solver["x_dict"] = res_dict
-        self.reset_acados()
-
+        res_solver = super()._optimize(scale)
         return res_solver
