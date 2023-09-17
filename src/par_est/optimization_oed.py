@@ -761,21 +761,40 @@ class OED_NLE_base(OED_base):
         jacobian = {}
         jacobian_scaled = {}
 
+
+        decision_variables_casadi = self.varlist_decision.get_casadi_variables()
+
+        list_decision_variables = []
+        if self._previous_measurements is not None:
+            for controls in self._previous_measurements:
+                list_decision_variables.append(self.variables_dict_to_list(controls))
+
+        list_decision_variables.append(decision_variables_casadi)
+
+        for decision_variables in list_decision_variables:
+            for index_measurement, meas_name in enumerate(self.names_of_measurements):
+                if jacobian.get(meas_name, None) is None:
+                    jacobian[meas_name] = []
+                    jacobian_scaled[meas_name] = []
+
+                jac_meas_mx = ca.jacobian(
+                    self.simulate_all_mx[:, index_measurement], parameter_variables
+                )
+                jac_meas_function = ca.Function(
+                    "jac_meas", [parameter_variables, decision_variables_casadi], [jac_meas_mx]
+                )
+                jac_meas_mx = jac_meas_function(self.parameter_values, decision_variables)
+
+                jac_meas_scaled_mx = (
+                    jac_meas_mx * self.array_inverted_std[index_measurement]
+                )
+
+                jacobian[meas_name].append(jac_meas_mx)
+                jacobian_scaled[meas_name].append(jac_meas_scaled_mx)
+
         for index_measurement, meas_name in enumerate(self.names_of_measurements):
-            jac_meas_mx = ca.jacobian(
-                self.simulate_all_mx[:, index_measurement], parameter_variables
-            )
-            jac_meas_function = ca.Function(
-                "jac_meas", [parameter_variables, decision_variables], [jac_meas_mx]
-            )
-            jac_meas_mx = jac_meas_function(self.parameter_values, decision_variables)
-
-            jac_meas_scaled_mx = (
-                jac_meas_mx * self.array_inverted_std[index_measurement]
-            )
-
-            jacobian[meas_name] = jac_meas_mx
-            jacobian_scaled[meas_name] = jac_meas_scaled_mx
+            jacobian[meas_name] = ca.vcat(jacobian[meas_name])
+            jacobian_scaled[meas_name] = ca.vcat(jacobian_scaled[meas_name])
 
         jac_array = ca.vcat(list(jacobian.values()))
         jac_array_scaled = ca.vcat(list(jacobian_scaled.values()))
@@ -795,8 +814,12 @@ class OptimalExperimentalDesign_NLE(OED_NLE_base):
         use_simulator_bounds=True,
         measurable_variables: list[str] | None = None,
         SimulatorClass=SimulatorNLE,
+        previous_measurements: list[dict] | None = None,
     ) -> None:
         super().__init__(model, variable_list, simulator_name, simulator_settings)
+
+        self._previous_measurements = previous_measurements
+
         self.equality_constraints = []
         self.lower_bound_g = []
         self.upper_bound_g = []
