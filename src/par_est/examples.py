@@ -979,3 +979,60 @@ def esterification_BA() -> tuple[
     m.add_equations_differential([eq1, eq2, eq3, eq4])  # adding the equations to model
 
     return variable_list, m
+
+def cstr_nle():
+    variable_list = par_est.VariableList()
+    # fmt:off
+
+
+    variable_list.add_variable(par_est.VariableAlgebraic("e0_X_c1", 0.8866276885, 0.0, 1.0E9))  # noqa: E501
+    variable_list.add_variable(par_est.VariableAlgebraic("e0_c_c1", 1.376664E-4, 0.0, 1.0E9))  # noqa: E501
+    variable_list.add_variable(par_est.VariableAlgebraic("e0_k", 11.7307437323, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(par_est.VariableAlgebraic("e0_T", 704.755540977, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(par_est.VariableAlgebraic("e0_c_Feed_c1", 0.0012142857, 0.0, 1.0E9))  # noqa: E501
+
+    variable_list.add_variable(par_est.VariableControl("e0_Q_Feed", 30.0, 28, 32))  # noqa: E501
+    variable_list.add_variable(par_est.VariableControl("e0_x_Feed_c1", 0.3, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(par_est.VariableControl("e0_m_Cat", 20.0, 18, 22))  # noqa: E501
+    variable_list.add_variable(par_est.VariableControl("e0_T_Feed", 560.0, -1.0E9, 1.0E9))  # noqa: E501
+
+    variable_list.add_variable(par_est.VariableParameter("e0_cp", 1.75, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(par_est.VariableParameter("e0_E", 135518.2, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(par_est.VariableParameter("e0_greek_DeltaHR", -200000.0, -1.0E9, 1.0E9))  # noqa: E501
+
+    variable_list.add_variable(par_est.VariableConstant("e0_M_c1", 210.0))  # noqa: E501
+    variable_list.add_variable(par_est.VariableConstant("e0_greek_rho", 0.85))  # noqa: E501
+    variable_list.add_variable(par_est.VariableConstant("e0_R", 8.314))  # noqa: E501
+
+
+    m = par_est.Model(variable_list)
+
+    e0_Q_Feed = m.varlist_all["e0_Q_Feed"].casadi_var  # noqa: E501
+    e0_M_c1 = m.varlist_all["e0_M_c1"].casadi_var  # noqa: E501
+    e0_x_Feed_c1 = m.varlist_all["e0_x_Feed_c1"].casadi_var  # noqa: E501
+    e0_E = m.varlist_all["e0_E"].casadi_var  # noqa: E501
+    e0_R = m.varlist_all["e0_R"].casadi_var  # noqa: E501
+    e0_m_Cat = m.varlist_all["e0_m_Cat"].casadi_var  # noqa: E501
+    e0_greek_DeltaHR = m.varlist_all["e0_greek_DeltaHR"].casadi_var  # noqa: E501
+    e0_greek_rho = m.varlist_all["e0_greek_rho"].casadi_var  # noqa: E501
+    e0_T_Feed = m.varlist_all["e0_T_Feed"].casadi_var  # noqa: E501
+    e0_cp = m.varlist_all["e0_cp"].casadi_var  # noqa: E501
+    e0_X_c1 = m.varlist_all["e0_X_c1"].casadi_var  # noqa: E501
+    e0_c_c1 = m.varlist_all["e0_c_c1"].casadi_var  # noqa: E501
+    e0_k = m.varlist_all["e0_k"].casadi_var  # noqa: E501
+    e0_T = m.varlist_all["e0_T"].casadi_var  # noqa: E501
+    e0_c_Feed_c1 = m.varlist_all["e0_c_Feed_c1"].casadi_var  # noqa: E501
+
+    EQ_alg1 = (e0_Q_Feed-(((((1.0/e0_X_c1)-1.0))*(e0_m_Cat*e0_k))))  # noqa: E501,E226
+    EQ_alg2 = (((e0_T-e0_T_Feed)/e0_X_c1)-(((-(e0_greek_DeltaHR*e0_c_Feed_c1))/(e0_greek_rho*e0_cp))))  # noqa: E501,E226
+    EQ_alg3 = (e0_c_Feed_c1-((e0_x_Feed_c1*(e0_greek_rho/e0_M_c1))))  # noqa: E501,E226
+    EQ_alg4 = (e0_X_c1-(((e0_c_Feed_c1-e0_c_c1)/e0_c_Feed_c1)))  # noqa: E501,E226
+    EQ_alg5 = (e0_k-((1.3*(((10.0))**(1.0*11.0)*ca.exp(((-e0_E)/(e0_R*e0_T)))))))  # noqa: E501,E226
+
+    list_algebraic_equations = [EQ_alg1, EQ_alg2, EQ_alg3, EQ_alg4, EQ_alg5, ]  # noqa: E501
+
+    # fmt:on
+
+    m.add_equations_algebraic(list_algebraic_equations)
+
+    return variable_list, m
