@@ -13,6 +13,7 @@ def test_parameter_jacobian():
     var_list, model = par_est.examples.cstr_nle()
 
     list_var_list = []
+    measurement_names = ["e0_k", "e0_T", "e0_c_c1"]
     for m_cat in [22, 18, 20]:
         var_list_i = copy.deepcopy(var_list)
         var_list_i["e0_m_Cat"].value = m_cat
@@ -22,7 +23,8 @@ def test_parameter_jacobian():
 
         for key, var in var_list_exp.items():
             if isinstance(var, par_est.VariableAlgebraic):
-                var_list_i[key].value = var.value[0]
+                if key in measurement_names:
+                    var_list_i[key].value = var.value[0]
         list_var_list.append(var_list_i)
 
     pe = par_est.ParameterEstimationNLE(model, list_var_list)
@@ -31,7 +33,7 @@ def test_parameter_jacobian():
     list_var_list[0]["e0_m_Cat"].fixed = False
     list_var_list[0]["e0_Q_Feed"].fixed = False
 
-    oed = par_est.OptimalExperimentalDesign_NLE(model, [list_var_list[0]], previous_measurements=[{"e0_m_Cat": 22, "e0_Q_Feed":30}, {"e0_m_Cat": 18, "e0_Q_Feed":30}])
+    oed = par_est.OptimalExperimentalDesign_NLE(model, [list_var_list[0]], previous_measurements=[{"e0_m_Cat": 22, "e0_Q_Feed":30}, {"e0_m_Cat": 18, "e0_Q_Feed":30}], measurable_variables=measurement_names)
 
     jac_oed = oed.calculate_objective_and_jacobian({"e0_m_Cat": 20, "e0_Q_Feed":30})["jac"]
 
