@@ -834,7 +834,7 @@ class OptimalExperimentalDesign_NLE(OED_NLE_base):
                 if var_name in measurable_variables:
                     self.list_measureable_variables.append(var_name)
 
-        self._setup_simulator()
+        self._setup_simulator(use_simulator_bounds, SimulatorClass)
         self._setup_initialization()
 
         self.solver_name: str = "ipopt"
@@ -848,17 +848,22 @@ class OptimalExperimentalDesign_NLE(OED_NLE_base):
             },
         }
 
-    def _setup_simulator(self) -> None:
+    def _setup_simulator(
+        self, use_simulator_bounds: bool, SimulatorClass: SimulatorNLE
+    ) -> None:
+        if not issubclass(SimulatorClass, SimulatorNLE):
+            raise NotImplementedError("Provided simulator_class is not supported")
         self._setup_varlist_decision()
 
         self.index_measurements_in_sim = []
 
         self.list_simulators: list[SimulatorNLE] = [
-            SimulatorNLE(
+            SimulatorClass(
                 self.model,
                 self.list_input_varlist[0],
                 self.simulator_settings,
                 self.simulator_name,
+                use_bounds=use_simulator_bounds,
             )
         ]
 
