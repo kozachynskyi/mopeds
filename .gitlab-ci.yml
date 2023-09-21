@@ -1,30 +1,23 @@
-stages:
-  - build
-  - deploy
-
-.template_linux_podman: &linux-podman
-  tags:
-    - linux
-    - podman
-  image: python:3.9-slim-buster
-  before_script:
-    - pip install poetry
-
-linux-build_parameter-estimation:
-  <<: *linux-podman
+build-job:
   stage: build
   script:
-    - poetry install
-    - poetry run pytest
+    - echo "Hello, $GITLAB_USER_LOGIN!"
 
-linux-deploy_parameter-estimation:
-  <<: *linux-podman
-  stage: deploy
-  needs: [linux-build_parameter-estimation]
-  only:
-    - tags
+test-job1:
+  stage: test
   script:
-    - poetry install
-    - poetry build
-    - poetry config repositories.itwm-gitlab https://gitlab.itwm.fraunhofer.de/api/v4/projects/${CI_PROJECT_ID}/packages/pypi
-    - poetry publish -r itwm-gitlab -u gitlab-ci-token -p ${CI_JOB_TOKEN}
+    - echo "This job tests something"
+
+test-job2:
+  stage: test
+  script:
+    - echo "This job tests something, but takes more time than test-job1."
+    - echo "After the echo commands complete, it runs the sleep command for 20 seconds"
+    - echo "which simulates a test that runs 20 seconds longer than test-job1"
+    - sleep 20
+
+deploy-prod:
+  stage: deploy
+  script:
+    - echo "This job deploys something from the $CI_COMMIT_BRANCH branch."
+  environment: production
