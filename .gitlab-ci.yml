@@ -1,6 +1,38 @@
 build-job:
   stage: build
   script:
+<<<<<<< Updated upstream
     - echo "Hello, $GITLAB_USER_LOGIN!"
   tags:
     - python
+||||||| Stash base
+    - poetry install
+    - poetry run pytest
+
+linux-deploy_parameter-estimation:
+  <<: *linux-podman
+  stage: deploy
+  needs: [linux-build_parameter-estimation]
+  only:
+    - tags
+  script:
+    - poetry install
+    - poetry build
+    - poetry config repositories.itwm-gitlab https://gitlab.itwm.fraunhofer.de/api/v4/projects/${CI_PROJECT_ID}/packages/pypi
+    - poetry publish -r itwm-gitlab -u gitlab-ci-token -p ${CI_JOB_TOKEN}
+=======
+    - poetry install
+    - poetry run pytest
+
+linux-deploy_parameter-estimation:
+  <<: *linux-podman
+  stage: deploy
+  needs: [linux-build_parameter-estimation]
+  only:
+    - tags
+  script:
+    - poetry install
+    - poetry build
+    - poetry config repositories.par_est https://git.tu-berlin.de/api/v4/projects/1237/packages/pypi
+    - poetry publish -r itwm-gitlab -u gitlab-ci-token -p ${CI_JOB_TOKEN}
+>>>>>>> Stashed changes
