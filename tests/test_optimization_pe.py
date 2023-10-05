@@ -141,8 +141,68 @@ def test_pe(piecewise):
         assert np.isclose(res["f"], ca.DM(answer), rtol=0, atol=1.0e-9)
 
 
+@pytest.mark.parametrize("piecewise", [True, False])
+def test_pe_regularization(piecewise):
+    """Test that ParameterEstimation on ODE and DAE always yields same result.
+    Helpfull to see if any drastic changes in calculation were made
+    """
+
+    """ ODE and DAE """
+    cstr_model = par_est.examples.cstr_dae
+    var_list, model = cstr_model(piecewise)
+    true_parameters = {}
+    for n, v in var_list.items():
+        if isinstance(v, par_est.VariableParameter):
+            true_parameters[n] = v.value[0]
+            v.fixed = False
+        elif isinstance(v, par_est.VariableState):
+            v.variance = 0.001**2
+
+    time_grid = np.linspace(10, 100, 3)
+    time_grid = np.insert(time_grid, 0, 0)
+
+    var_list_fixed = copy.deepcopy(var_list)
+    for var in var_list_fixed.values():
+        var.fixed = True
+    var_list_exp = par_est.Simulator(
+        model, time_grid, var_list_fixed
+    ).generate_exp_data()
+
+    for key, var in var_list_exp.items():
+        if isinstance(var, par_est.VariableControlPiecewiseConstant):
+            var_list[key].variable_list = var.variable_list
+        else:
+            var_list[key].dataframe = var.dataframe
+
+    pe = par_est.ParameterEstimation(
+        model, [var_list]
+    )
+    a = pe.parameter_identifiability_chu2012(true_parameters, true_parameters.keys())
+    b = pe.parameter_identifiability_yao2003(true_parameters, true_parameters.keys())
+    c = pe.parameter_identifiability_lopez2013(true_parameters, true_parameters.keys())
+    d = pe.parameter_identifiability_quaiser2009(true_parameters, true_parameters.keys())
+    e = pe.parameter_identifiability_brun2001(true_parameters, true_parameters.keys())
+
+    identifiable_a_d = ['e0_U']
+    ranked_c = ['e0_U', 'e0_E_r2', 'e0_greek_Deltah_r2', 'e0_E_r3', 'e0_E_r1', 'e0_greek_Deltah_r3', 'e0_k_pre_r3', 'e0_k_pre_r2', 'e0_k_pre_r1', 'e0_c_p', 'e0_greek_Deltah_r1']
+    ranked_d = ['e0_U', 'e0_E_r2', 'e0_greek_Deltah_r2', 'e0_E_r3', 'e0_E_r1', 'e0_greek_Deltah_r3', 'e0_k_pre_r3', 'e0_k_pre_r1', 'e0_greek_Deltah_r1', 'e0_c_p', 'e0_k_pre_r2']
+    ranked_e = ['e0_greek_Deltah_r1', 'e0_greek_Deltah_r3', 'e0_greek_Deltah_r2', 'e0_k_pre_r1', 'e0_E_r1', 'e0_k_pre_r3', 'e0_k_pre_r2', 'e0_E_r3', 'e0_E_r2', 'e0_U', 'e0_c_p']
+    identifiable_e = ['e0_E_r1', 'e0_E_r3', 'e0_k_pre_r2', 'e0_U', 'e0_greek_Deltah_r1']
+
+    assert a["estimable"] == identifiable_a_d
+    assert b["estimable"] == identifiable_a_d
+    assert c["estimable"] == identifiable_a_d
+    assert d["estimable"] == identifiable_a_d
+    assert e["estimable"] == identifiable_e
+
+    assert c["ranked"] == ranked_c
+    assert d["ranked"] == ranked_d
+    assert e["ranked"] == ranked_e
+
+
 if __name__ == "__main__":
     pass
     test_pe(True,True)
     test_pe_objective(False)
     test_pe_intials_algebraic()
+    test_pe_regularization(True)
