@@ -7,6 +7,7 @@ from collections.abc import Callable
 from itertools import combinations
 from typing import Sequence
 from warnings import warn
+import itertools
 
 import casadi as ca
 import numpy as np
@@ -31,6 +32,12 @@ from par_est import (
 
 if _ACADOS_SUPPORT:
     from par_est import casados_integrator
+
+
+def eigsorted(cov):
+    vals, vecs = np.linalg.eig(cov)
+    order = np.flip(vals.argsort())
+    return vals[order], vecs[:, order]
 
 
 class Optimizer(object):
@@ -676,7 +683,210 @@ class PE_base(Optimizer):
 
         return result
 
-    def parameter_identifiability_eigenvalue(
+    def parameter_identifiability_chu2012(
+        self,
+        parameters: dict[str, float],
+        unfixed_params: list[str],
+        parameters_identifiable: list[str] | None = None,
+        parameters_not_identifiable: list[str] | None = None,
+        eigenvalue_threshold: float = 10e-4,
+    ):
+        self._setup_scaling(False)
+        if parameters_identifiable is None:
+            parameters_identifiable = []
+
+        if parameters_not_identifiable is None:
+            parameters_not_identifiable = []
+
+        sorted_unfixed_params = []
+        for par_name in self.varlist_decision.keys():
+            if par_name in unfixed_params:
+                sorted_unfixed_params.append(par_name)
+
+        parameters_index = list(range(len(sorted_unfixed_params)))
+
+        results_sensitivity = self.calculate_sensitivity_and_fim(
+            parameters, unfixed_params
+        )
+
+        S = results_sensitivity["jac_scaled_full_theory"]
+
+        info = []
+        best_set = None
+        max_det = 0
+
+        for subset_size in range(1, len(unfixed_params) + 1):
+            for subset_index in itertools.combinations(parameters_index, subset_size):
+                S_selected = S[:, subset_index]
+                FIM_selected = S_selected.T @ S_selected
+                if subset_size == 1:
+                    max_det_i = float(FIM_selected)
+                else:
+                    max_det_i = np.linalg.det(FIM_selected)
+                if max_det_i > max_det:
+                    max_det = max_det_i
+                    best_set = subset_index
+                subset_names = np.array(sorted_unfixed_params)[list(subset_index)]
+                info_i = [subset_size, subset_names, max_det_i]
+                info.append(info_i)
+
+        df = pd.DataFrame(info, columns=["subset_size", "subset_names", "det"])
+        parameters_identifiable = np.array(sorted_unfixed_params)[list(best_set)]
+
+        parameters_not_identifiable = list(set(sorted_unfixed_params) - set(parameters_identifiable))
+
+        parameters_identifiable_sorted = []
+        parameters_not_identifiable_sorted = []
+        for par_name in sorted_unfixed_params:
+            if par_name in parameters_identifiable:
+                parameters_identifiable_sorted.append(par_name)
+            else:
+                parameters_not_identifiable_sorted.append(par_name)
+
+        print(f"Estimable parameters: {parameters_identifiable_sorted}")
+        print(f"Non identifiable parameters: {parameters_not_identifiable_sorted}")
+
+        result = {}
+        result["estimable"] = parameters_identifiable_sorted
+        result["fixed"] = parameters_not_identifiable_sorted
+
+        return result
+
+    def parameter_identifiability_brun2001(
+        self,
+        parameters: dict[str, float],
+        unfixed_params: list[str],
+        parameters_identifiable: list[str] | None = None,
+        parameters_not_identifiable: list[str] | None = None,
+        eigenvalue_threshold: float = 10e-4,
+    ):
+        self._setup_scaling(False)
+        if parameters_identifiable is None:
+            parameters_identifiable = []
+
+        if parameters_not_identifiable is None:
+            parameters_not_identifiable = []
+
+        sorted_unfixed_params = []
+        for par_name in self.varlist_decision.keys():
+            if par_name in unfixed_params:
+                sorted_unfixed_params.append(par_name)
+
+        parameters_index = list(range(len(sorted_unfixed_params)))
+
+        results_sensitivity = self.calculate_sensitivity_and_fim(
+            parameters, unfixed_params
+        )
+
+        S = results_sensitivity["jac_scaled_full_theory"]
+        S = S * np.array(self.variables_dict_to_list(parameters))
+        S_norm = S / np.linalg.norm(S, axis=0)
+
+        beta_msqr = np.sqrt(np.sum(S**2, axis=0) / S.shape[0])
+        parameters_ranked = list(np.array(sorted_unfixed_params)[beta_msqr.argsort()])
+
+        info = []
+        identifiable_subset_size = None
+
+        for subset_size in range(2, len(unfixed_params) + 1):
+            min_gamma = 20
+            for subset_index in itertools.combinations(parameters_index, subset_size):
+                S_norm_subset = S_norm[:, subset_index]
+                FIM = S_norm_subset.T @ S_norm_subset
+                gamma_k = 1 / np.sqrt(eigsorted(FIM)[0][-1])
+                rho_k = np.linalg.det(FIM) ** (1/(2*S.shape[1]))
+                subset_names = np.array(sorted_unfixed_params)[list(subset_index)]
+                if min_gamma > gamma_k:
+                    min_gamma = gamma_k
+                info_i = [subset_size, subset_names, rho_k, gamma_k]
+                info.append(info_i)
+
+            if min_gamma > 10:
+                break
+            else:
+                identifiable_subset_size = subset_size
+
+        df = pd.DataFrame(info, columns=["subset_size", "subset_names", "rho", "gamma"])
+        df_identifiable = df.groupby("subset_size").get_group(identifiable_subset_size)
+        parameters_identifiable = list(df.loc[df_identifiable.idxmin(numeric_only=True).gamma].subset_names)
+
+        parameters_not_identifiable = list(set(parameters_ranked) - set(parameters_identifiable))
+
+        parameters_identifiable_sorted = []
+        parameters_not_identifiable_sorted = []
+        for par_name in sorted_unfixed_params:
+            if par_name in parameters_identifiable:
+                parameters_identifiable_sorted.append(par_name)
+            else:
+                parameters_not_identifiable_sorted.append(par_name)
+
+        print(f"Ranked parameters: {parameters_ranked}")
+        print(f"Estimable parameters: {parameters_identifiable_sorted}")
+        print(f"Non identifiable parameters: {parameters_not_identifiable_sorted}")
+
+        result = {}
+        result["ranked"] = parameters_ranked
+        result["estimable"] = parameters_identifiable_sorted
+        result["fixed"] = parameters_not_identifiable_sorted
+
+        return result
+
+    def parameter_identifiability_lopez2013(
+        self,
+        parameters: dict[str, float],
+        unfixed_params: list[str],
+        parameters_identifiable: list[str] | None = None,
+        parameters_not_identifiable: list[str] | None = None,
+        eigenvalue_threshold: float = 10e-4,
+    ):
+        self._setup_scaling(False)
+        if parameters_identifiable is None:
+            parameters_identifiable = []
+
+        if parameters_not_identifiable is None:
+            parameters_not_identifiable = []
+
+        sorted_unfixed_params = []
+        for par_name in self.varlist_decision.keys():
+            if par_name in unfixed_params:
+                sorted_unfixed_params.append(par_name)
+
+        results_sensitivity = self.calculate_sensitivity_and_fim(
+            parameters, unfixed_params
+        )
+
+        S = results_sensitivity["jac_scaled_full_theory"]
+
+        # S = S * np.array(self.variables_dict_to_list(parameters))
+
+        svd = np.linalg.svd(S, full_matrices=True)
+        Q, R, P = linalg.qr(S, pivoting=True)
+
+        num_identifiable = list((svd.S[0] / svd.S) > 1000).index(True)
+        parameters_ranked = np.array(sorted_unfixed_params)[P]
+        parameters_identifiable = parameters_ranked[:num_identifiable]
+        parameters_not_identifiable = parameters_ranked[num_identifiable:]
+
+        parameters_identifiable_sorted = []
+        parameters_not_identifiable_sorted = []
+        for par_name in sorted_unfixed_params:
+            if par_name in parameters_identifiable:
+                parameters_identifiable_sorted.append(par_name)
+            else:
+                parameters_not_identifiable_sorted.append(par_name)
+
+        print(f"Ranked parameters: {parameters_ranked}")
+        print(f"Estimable parameters: {parameters_identifiable_sorted}")
+        print(f"Non identifiable parameters: {parameters_not_identifiable_sorted}")
+
+        result = {}
+        result["ranked"] = parameters_ranked
+        result["estimable"] = parameters_identifiable_sorted
+        result["fixed"] = parameters_not_identifiable_sorted
+
+        return result
+
+    def parameter_identifiability_quaiser2009(
         self,
         parameters: dict[str, float],
         unfixed_params: list[str],
@@ -706,49 +916,34 @@ class PE_base(Optimizer):
 
         fim_matrix = results_sensitivity["fim_scaled"]
 
-        def eigsorted(cov):
-            vals, vecs = np.linalg.eig(cov)
-            # vals, vecs = np.linalg.eigh(cov)
-            order = np.flip(vals.argsort())
-            return vals[order], vecs[:, order]
+        for i in range(fim_matrix.shape[0]):
+            vals, vecs = eigsorted(fim_matrix)
 
-        # vals, vecs = eigsorted(results_sensitivity["fim"])
-        vals, vecs = eigsorted(fim_matrix)
+            index_max = np.argmax(np.abs(vecs[:, -1]))
+            current_parameter_name = sorted_unfixed_params.pop(index_max)
+            if np.abs(vals[-1]) > eigenvalue_threshold:
+                parameters_identifiable.insert(0, current_parameter_name)
+            else:
+                parameters_not_identifiable.insert(0, current_parameter_name)
+            fim_matrix = np.delete(fim_matrix, index_max, axis=0)
+            fim_matrix = np.delete(fim_matrix, index_max, axis=1)
 
-        index_max = np.argmax(np.abs(vecs[:, -1]))
-        current_parameter_name = sorted_unfixed_params.pop(index_max)
-        print(np.abs(vals[-1]))
-        if np.abs(vals[-1]) > eigenvalue_threshold:
-            parameters_identifiable.insert(0, current_parameter_name)
-        else:
-            parameters_not_identifiable.insert(0, current_parameter_name)
+        parameters_ranked = []
+        for parameter_name in parameters_identifiable + parameters_not_identifiable:
+            parameters_ranked.append(parameter_name)
 
-        if len(vals) == 1:
-            parameters_ranked = []
-            for parameter_name in parameters_identifiable + parameters_not_identifiable:
-                parameters_ranked.append(parameter_name)
+        print(f"Ranked parameters: {parameters_ranked}")
+        print(f"Estimable parameters: {parameters_identifiable}")
+        print(f"Non identifiable parameters: {parameters_not_identifiable}")
 
-            print(f"Ranked parameters: {parameters_ranked}")
-            print(f"Estimable parameters: {parameters_identifiable}")
-            print(f"Non identifiable parameters: {parameters_not_identifiable}")
+        result = {}
+        result["ranked"] = parameters_ranked
+        result["estimable"] = parameters_identifiable
+        result["fixed"] = parameters_not_identifiable
 
-            result = {}
-            result["ranked"] = parameters_ranked
-            result["estimable"] = parameters_identifiable
-            result["fixed"] = parameters_not_identifiable
+        return result
 
-            return result
-
-        else:
-            return self.parameter_identifiability_eigenvalue(
-                parameters,
-                sorted_unfixed_params,
-                parameters_identifiable,
-                parameters_not_identifiable,
-                eigenvalue_threshold,
-            )
-
-    def parameter_identifiability_yao(
+    def parameter_identifiability_yao2003(
         self,
         parameters: dict[str, float],
         unfixed_params: list[str],
@@ -760,6 +955,11 @@ class PE_base(Optimizer):
         parameter_values_all: list[float] = []
         selected_parameters: list[float] = []
         unranked_parameters: list[str] = []
+
+        sorted_unfixed_params = []
+        for par_name in self.varlist_decision.keys():
+            if par_name in unfixed_params:
+                sorted_unfixed_params.append(par_name)
 
         for var_name in parameters.keys():
             if var_name in self.varlist_decision.keys():
@@ -776,7 +976,6 @@ class PE_base(Optimizer):
 
         XK = np.zeros(jacobian_yao.shape)
 
-        parameters_ranked = []
         parameters_identifiable = []
         parameters_not_identifiable = []
 
@@ -790,11 +989,10 @@ class PE_base(Optimizer):
             most_identifiable_parameter = unranked_parameters[
                 index_most_identifiable_par
             ]
-            parameters_ranked.append(most_identifiable_parameter)
 
-            # print(eucnorm[-1])
-            if eucnorm[-1] < threshold:
+            if max(eucnorm) < threshold:
                 parameters_not_identifiable.append(most_identifiable_parameter)
+                break
             else:
                 parameters_identifiable.append(most_identifiable_parameter)
 
@@ -814,12 +1012,18 @@ class PE_base(Optimizer):
             Z_hat = XK.dot(np.linalg.inv(XK.T.dot(XK))).dot(XK.T).dot(jacobian_yao)
             R = jacobian_yao - Z_hat
 
-        print(f"Ranked parameters: {parameters_ranked}")
-        print(f"Estimable parameters: {parameters_identifiable}")
-        print(f"Non identifiable parameters: {parameters_not_identifiable}")
+        parameters_identifiable_sorted = []
+        parameters_not_identifiable_sorted = []
+        for par_name in sorted_unfixed_params:
+            if par_name in parameters_identifiable:
+                parameters_identifiable_sorted.append(par_name)
+            else:
+                parameters_not_identifiable_sorted.append(par_name)
+
+        print(f"Estimable parameters: {parameters_identifiable_sorted}")
+        print(f"Non identifiable parameters: {parameters_not_identifiable_sorted}")
 
         result = {}
-        result["ranked"] = parameters_ranked
         result["estimable"] = parameters_identifiable
         result["fixed"] = parameters_not_identifiable
 
@@ -852,12 +1056,6 @@ class PE_base(Optimizer):
             import matplotlib.pyplot as plt
             from matplotlib.axes import Axes
             from matplotlib.patches import Ellipse
-
-            def eigsorted(cov):
-                vals, vecs = np.linalg.eig(cov)
-                # vals, vecs = np.linalg.eigh(cov)
-                order = vals.argsort()[::-1]
-                return vals[order], vecs[:, order]
 
             fig, axes = plt.subplots(ncols=num_par - 1, nrows=num_par - 1, layout="constrained")
             if isinstance(axes, Axes) == 1:
