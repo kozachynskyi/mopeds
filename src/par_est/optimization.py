@@ -710,6 +710,7 @@ class PE_base(Optimizer):
         )
 
         S = results_sensitivity["jac_scaled_full_theory"]
+        S = S * np.array(self.variables_dict_to_list(parameters))
 
         info = []
         best_set = None
@@ -856,6 +857,8 @@ class PE_base(Optimizer):
         )
 
         S = results_sensitivity["jac_scaled_full_theory"]
+        S = S * np.array(self.variables_dict_to_list(parameters))
+
 
         # S = S * np.array(self.variables_dict_to_list(parameters))
 
@@ -914,7 +917,9 @@ class PE_base(Optimizer):
             parameters, unfixed_params
         )
 
-        fim_matrix = results_sensitivity["fim_scaled"]
+        S = results_sensitivity["jac_scaled_full_theory"]
+        S = S * np.array(self.variables_dict_to_list(parameters))
+        fim_matrix = (S.T @ S)
 
         for i in range(fim_matrix.shape[0]):
             vals, vecs = eigsorted(fim_matrix)
@@ -973,6 +978,7 @@ class PE_base(Optimizer):
         results_sensitivity = self.calculate_sensitivity_and_fim(parameters)
 
         jacobian_yao = results_sensitivity["jac_yao_full"]
+        jacobian_yao = jacobian_yao * np.array(self.variables_dict_to_list(parameters))
 
         XK = np.zeros(jacobian_yao.shape)
 
