@@ -120,6 +120,7 @@ def test_pe(piecewise):
         pe = par_est.ParameterEstimation(
             model, [var_list]
         )
+        pe.setup_regularization(0, np.array([95000]))
 
         if model.DAE:
             answer_scaled = 1.26485e-13
@@ -129,16 +130,20 @@ def test_pe(piecewise):
             answer = 6.48183e-12
 
         res = pe.optimize()
+        res_tikh = pe.optimize(objective_function="tikh")
         logging.warning(
             f"Model.DAE: {model.DAE}, Result: {res['f']}, Expecting: {answer_scaled}"
         )
         assert np.isclose(res["f"], ca.DM(answer_scaled), rtol=0, atol=1.0e-9)
+        assert np.isclose(res_tikh["f"], ca.DM(answer_scaled), rtol=0, atol=1.0e-9)
 
         res = pe.optimize(False)
+        res_tikh = pe.optimize(False, objective_function="tikh")
         logging.warning(
             f"Model.DAE: {model.DAE}, Result: {res['f']}, Expecting: {answer}"
         )
         assert np.isclose(res["f"], ca.DM(answer), rtol=0, atol=1.0e-9)
+        assert np.isclose(res_tikh["f"], ca.DM(answer), rtol=0, atol=1.0e-9)
 
 
 @pytest.mark.parametrize("piecewise", [True, False])
