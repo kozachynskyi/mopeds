@@ -28,7 +28,11 @@ def generate_varlist_with_data(
     model: Model,
     time_grid: np.ndarray,
     algebraic: bool = False,
+    perturbate: bool = False,
+    rng: np.random.Generator | None = None
 ) -> VariableList:
+    if rng is None:
+        rng = np.random.default_rng()
     # Simulated ODE/DAE and replaces StateVariable values with simulated data
     var_list_fixed = copy.deepcopy(variable_list)
     for var in var_list_fixed.values():
@@ -39,7 +43,13 @@ def generate_varlist_with_data(
     # Replace empty state variables with results from simulation
     variable_list_with_data = copy.deepcopy(variable_list)
     for key, var in var_list_exp.items():
-        variable_list_with_data[key].dataframe = var.dataframe
+        df = var.dataframe
+        if perturbate:
+            std = var_list_fixed[key].variance ** 0.5
+            value = rng.normal(var.dataframe, std)
+            df[key] = value
+
+        variable_list_with_data[key].dataframe = df
 
     return variable_list_with_data
 
