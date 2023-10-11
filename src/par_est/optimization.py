@@ -444,6 +444,25 @@ class PE_base(Optimizer):
         # objective = ca.sumsqr(scaled_residuals)
         return objective, residuals
 
+    def setup_regularization(self, contribution: None | float = None, reference_parameters: None | np.ndarray = None):
+        if contribution is not None:
+            self.regularization_contribution = contribution
+        if reference_parameters is not None:
+            if reference_parameters.shape[0] != len(self.varlist_decision):
+                raise ValueError("Shape of supplied reference_parameters is incorrect")
+            else:
+                self.reference_parameters = reference_parameters
+
+    def _objective_tikhonov(self):
+        objective, residuals = self._objective_wls()
+
+        penalty = ca.sqrt(ca.sumsqr(self.varlist_decision.get_casadi_variables() - self.reference_parameters / self.scaling))
+        regularization_part = 0.5 * (self.regularization_contribution ** 2) * penalty
+
+        objective = objective + regularization_part
+
+        return objective, residuals
+
     def optimize(self, scale=True, objective_function="wls"):
         if objective_function == "wls":
             self._objective = self._objective_wls
@@ -451,6 +470,8 @@ class PE_base(Optimizer):
             self._objective = self._objective_ols
         elif objective_function == "fair":
             self._objective = self._objective_fair
+        elif objective_function == "tikh":
+            self._objective = self._objective_tikhonov
         else:
             raise NotImplementedError(
                 f"Objective function '{objective_function}' is not supported"
@@ -645,20 +666,35 @@ class PE_base(Optimizer):
         )(all_parameter_values)
         # Should be twice as big as fim_matrix_scaled
         try:
-            hessian_objective = ca.Function(
+            hessian_objective_wls = ca.Function(
                 "jf",
                 [decision_variables],
                 [ca.hessian(self._objective_wls()[0], decision_variables)[0]],
             )
-            hessian_objective = hessian_objective(all_parameter_values)
+            hessian_objective_wls = hessian_objective_wls(all_parameter_values)
         except RuntimeError:
             print("Failed to calculate hessian")
-            hessian_objective = None
+            hessian_objective_wls = None
+
+        try:
+            hessian_objective_tikhonov = ca.Function(
+                "jf",
+                [decision_variables],
+                [ca.hessian(self._objective_tikhonov()[0], decision_variables)[0]],
+            )
+            hessian_objective_tikhonov = hessian_objective_tikhonov(all_parameter_values)
+        except RuntimeError:
+            print("Failed to calculate hessian")
+            hessian_objective_tikhonov = None
 
         if parameter_names is not None:
             jac_objective = jac_objective[:, list_selected_parameters_index]
-            if hessian_objective is not None:
-                hessian_objective = hessian_objective[
+            if hessian_objective_wls is not None:
+                hessian_objective_wls = hessian_objective_wls[
+                    list_selected_parameters_index, list_selected_parameters_index
+                ]
+            if hessian_objective_tikhonov is not None:
+                hessian_objective_tikhonov = hessian_objective_tikhonov[
                     list_selected_parameters_index, list_selected_parameters_index
                 ]
 
@@ -678,7 +714,8 @@ class PE_base(Optimizer):
         result["fim_scaled"] = fim_matrix_scaled
         result["cov_par"] = parameter_covariance_matrix
         result["jac_wls"] = jac_objective
-        result["hess_wls"] = hessian_objective
+        result["hess_wls"] = hessian_objective_wls
+        result["hess_tikh"] = hessian_objective_tikhonov
         result["s2"] = measurement_variance_estimate
 
         return result
@@ -689,7 +726,6 @@ class PE_base(Optimizer):
         unfixed_params: list[str],
         parameters_identifiable: list[str] | None = None,
         parameters_not_identifiable: list[str] | None = None,
-        eigenvalue_threshold: float = 10e-4,
     ):
         self._setup_scaling(False)
         if parameters_identifiable is None:
@@ -1463,6 +1499,7 @@ class ParameterEstimationNLE(PE_base):
         ] = self._objective_ols
 
         self._setup_experiments_scale(False)
+        self.setup_regularization(0, np.zeros((len(self.varlist_decision),1)))
 
     def _setup_simulator(
         self, use_simulator_bounds: bool, SimulatorClass: SimulatorNLE
