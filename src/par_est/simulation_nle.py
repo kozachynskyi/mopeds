@@ -250,7 +250,7 @@ class SimulatorNLE:
         res = self.simulator.call(self.call_arg)
 
         if isinstance(res["x"], ca.DM):
-            if self.simulator.stats()["success"]:
+            if not self.simulator.stats()["success"]:
                 raise ValueError(f"IPOPT failed as NLE solver:\n{self.simulator.stats()}")
         return res
 
