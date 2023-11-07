@@ -14,7 +14,7 @@ if __name__ == "__main__":
         var.fixed = True
 
     variable_list["e0_U"].fixed = False
-    variable_list["e0_c_p"].fixed = True
+    variable_list["e0_c_p"].fixed = False
     # variable_list["e0_E_r1"].fixed = False
     variable_list["e0_T_in"].fixed = False
     variable_list["e0_T"].variance = 1
@@ -47,7 +47,10 @@ if __name__ == "__main__":
     data2["e0_c_tot"].dataframe = data2["e0_c_tot"].dataframe * 1.05
 
     # pe_state = par_est.ParameterEstimation(m, [data1, data2])
-    pe_state = par_est.ParameterEstimation(m, [data1])
+    pe = par_est.ParameterEstimation(m, [data1])
+    a = pe.optimize()
+    p = {'e0_U': 1.3734686546834818, 'e0_c_p': 3.433671637489987}
+    pe.parameter_analysis(p, plot=False)
     # a = pe_state.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_c_p": 3.5, "e0_E_r1": 9.6e4})
     print(a)
     # print(pe_state.optimize(True))

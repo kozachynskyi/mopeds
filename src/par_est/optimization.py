@@ -612,18 +612,26 @@ class PE_base(Optimizer):
         jacobian_scaled = {}
         jacobian_scaled_estimated = {}
         jacobian_yao = {}
-        res_simulation = ca.Function(
-            "sim", [decision_variables], [self.simulate_all_mx]
-        )(all_parameter_values)
+
+        # res_simulation = ca.Function(
+        #     "sim", [decision_variables], [self.simulate_all_mx]
+        # )(all_parameter_values)
+
+        jac_meas_mx = ca.jacobian(
+            self.simulate_all_mx[:, list(range(len(self.names_of_measurements)))], decision_variables
+        )
+        jac_meas_function = ca.Function(
+                "jac_meas", [decision_variables], [jac_meas_mx]
+        )
+        jac_all_dm = jac_meas_function(all_parameter_values)
+        jacobian_index = [0, self.simulate_all_mx.shape[0]]
 
         for index_measurement, meas_name in enumerate(self.names_of_measurements):
-            jac_meas_mx = ca.jacobian(
-                self.simulate_all_mx[:, index_measurement], decision_variables
-            )
-            jac_meas_function = ca.Function(
-                    "jac_meas", [decision_variables], [jac_meas_mx]
-            )
-            jac_meas_dm = jac_meas_function(all_parameter_values)
+            jacobian_slice = ca.Slice(jacobian_index[0], jacobian_index[1])
+            jac_meas_dm = jac_all_dm[jacobian_slice,:]
+            jacobian_index[0] += self.simulate_all_mx.shape[0]
+            jacobian_index[1] += self.simulate_all_mx.shape[0]
+
             jac_meas_selected_dm = (
                 jac_meas_dm * self.array_data_mask[:, index_measurement]
             )
@@ -633,14 +641,23 @@ class PE_base(Optimizer):
             jac_meas_selected_scaled_estimated_dm = (
                 jac_meas_selected_dm * estimated_inverted_std[:, index_measurement]
             )
-            jac_meas_selected_yao_dm = jac_meas_selected_dm * (
-                1 / res_simulation[:, index_measurement]
+            jac_meas_selected_dm = (
+                jac_meas_dm * self.array_data_mask[:, index_measurement]
             )
+            jac_meas_selected_scaled_dm = (
+                jac_meas_selected_dm * self.array_inverted_std[:, index_measurement]
+            )
+            jac_meas_selected_scaled_estimated_dm = (
+                jac_meas_selected_dm * estimated_inverted_std[:, index_measurement]
+            )
+            # # jac_meas_selected_yao_dm = jac_meas_selected_dm * (
+            # #     1 / res_simulation[:, index_measurement]
+            # # )
             if parameter_names is None:
                 jacobian[meas_name] = jac_meas_selected_dm
                 jacobian_scaled[meas_name] = jac_meas_selected_scaled_dm
                 jacobian_scaled_estimated[meas_name] = jac_meas_selected_scaled_estimated_dm
-                jacobian_yao[meas_name] = jac_meas_selected_yao_dm
+                # jacobian_yao[meas_name] = jac_meas_selected_yao_dm
             else:
                 jacobian[meas_name] = jac_meas_selected_dm[
                     :, list_selected_parameters_index
@@ -651,54 +668,60 @@ class PE_base(Optimizer):
                 jacobian_scaled_estimated[meas_name] = jac_meas_selected_scaled_estimated_dm[
                     :, list_selected_parameters_index
                 ]
-                jacobian_yao[meas_name] = jac_meas_selected_yao_dm[
-                    :, list_selected_parameters_index
-                ]
+                # jacobian_yao[meas_name] = jac_meas_selected_yao_dm[
+                #     :, list_selected_parameters_index
+                # ]
 
         jac_array = np.concatenate(list(jacobian.values()))
         jac_array_scaled = np.concatenate(list(jacobian_scaled.values()))
         jac_array_scaled_estimated = np.concatenate(list(jacobian_scaled_estimated.values()))
-        jac_array_yao = np.concatenate(list(jacobian_yao.values()))
+        # jac_array_yao = np.concatenate(list(jacobian_yao.values()))
+        jac_array_yao = None
 
-        # Generate jacobian and hessian on obj function
-        jac_objective = ca.Function(
-            "jf",
-            [decision_variables],
-            [ca.jacobian(self._objective_wls()[0], decision_variables)],
-        )(all_parameter_values)
-        # Should be twice as big as fim_matrix_scaled
-        try:
-            hessian_objective_wls = ca.Function(
+        if False:
+            # Generate jacobian and hessian on obj function
+            jac_objective = ca.Function(
                 "jf",
                 [decision_variables],
-                [ca.hessian(self._objective_wls()[0], decision_variables)[0]],
-            )
-            hessian_objective_wls = hessian_objective_wls(all_parameter_values)
-        except RuntimeError:
-            print("Failed to calculate hessian")
-            hessian_objective_wls = None
+                [ca.jacobian(self._objective_wls()[0], decision_variables)],
+            )(all_parameter_values)
+            # Should be twice as big as fim_matrix_scaled
+            try:
+                hessian_objective_wls = ca.Function(
+                    "jf",
+                    [decision_variables],
+                    [ca.hessian(self._objective_wls()[0], decision_variables)[0]],
+                )
+                hessian_objective_wls = hessian_objective_wls(all_parameter_values)
+            except RuntimeError:
+                print("Failed to calculate hessian")
+                hessian_objective_wls = None
 
-        try:
-            hessian_objective_tikhonov = ca.Function(
-                "jf",
-                [decision_variables],
-                [ca.hessian(self._objective_tikhonov()[0], decision_variables)[0]],
-            )
-            hessian_objective_tikhonov = hessian_objective_tikhonov(all_parameter_values)
-        except RuntimeError:
-            print("Failed to calculate hessian")
+            try:
+                hessian_objective_tikhonov = ca.Function(
+                    "jf",
+                    [decision_variables],
+                    [ca.hessian(self._objective_tikhonov()[0], decision_variables)[0]],
+                )
+                hessian_objective_tikhonov = hessian_objective_tikhonov(all_parameter_values)
+            except RuntimeError:
+                print("Failed to calculate hessian")
+                hessian_objective_tikhonov = None
+
+            if parameter_names is not None:
+                jac_objective = jac_objective[:, list_selected_parameters_index]
+                if hessian_objective_wls is not None:
+                    hessian_objective_wls = hessian_objective_wls[
+                        list_selected_parameters_index, list_selected_parameters_index
+                    ]
+                if hessian_objective_tikhonov is not None:
+                    hessian_objective_tikhonov = hessian_objective_tikhonov[
+                        list_selected_parameters_index, list_selected_parameters_index
+                    ]
+        else:
             hessian_objective_tikhonov = None
-
-        if parameter_names is not None:
-            jac_objective = jac_objective[:, list_selected_parameters_index]
-            if hessian_objective_wls is not None:
-                hessian_objective_wls = hessian_objective_wls[
-                    list_selected_parameters_index, list_selected_parameters_index
-                ]
-            if hessian_objective_tikhonov is not None:
-                hessian_objective_tikhonov = hessian_objective_tikhonov[
-                    list_selected_parameters_index, list_selected_parameters_index
-                ]
+            hessian_objective_wls = None
+            jac_objective = None
 
         fim_matrix = jac_array.T @ jac_array
         fim_matrix_scaled = (jac_array_scaled.T @ jac_array_scaled)
