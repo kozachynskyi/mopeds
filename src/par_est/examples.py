@@ -232,7 +232,7 @@ def cstr_dae(
     c3dot = ((m.varlist_all["e0_F"].casadi_var / e0_V) * ((m.varlist_all["e0_c_in_i3"].casadi_var - m.varlist_all["e0_c_i3"].casadi_var))) + (e0_greek_nu_i3_r1 * (m.varlist_all["e0_k_pre_r1"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r1"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))
     c4dot = ((m.varlist_all["e0_F"].casadi_var / e0_V) * ((m.varlist_all["e0_c_in_i4"].casadi_var - m.varlist_all["e0_c_i4"].casadi_var))) + (e0_greek_nu_i4_r3 * (m.varlist_all["e0_k_pre_r3"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r3"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))
 
-    ctot = m.varlist_all["e0_c_tot"].casadi_var - m.varlist_all["e0_c_i1"].casadi_var - m.varlist_all["e0_c_i2"].casadi_var - m.varlist_all["e0_c_i3"].casadi_var - m.varlist_all["e0_c_i4"].casadi_var
+    ctot = m.varlist_all["e0_c_tot"].casadi_var * m.varlist_all["e0_E_r1"].casadi_var / 1e4 - m.varlist_all["e0_c_i1"].casadi_var - m.varlist_all["e0_c_i2"].casadi_var - m.varlist_all["e0_c_i3"].casadi_var - m.varlist_all["e0_c_i4"].casadi_var 
     # fmt: on
 
     m.add_equations_differential([tdot, c1dot, c2dot, c3dot, c4dot])
