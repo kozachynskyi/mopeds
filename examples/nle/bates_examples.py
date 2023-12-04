@@ -5,11 +5,6 @@ import par_est
 
 def isomerization():
     VAR_LIST, MODEL, EXP_DATA = par_est.examples.isomerization_model()
-    simip = par_est.SimulatorNLE(MODEL, VAR_LIST, solver_name="ipopt")
-    a = simip.simulate()
-    simr = par_est.SimulatorNLE(MODEL, VAR_LIST, solver_name="ipopt")
-    b = simr.simulate()
-    breakpoint()
     pe = par_est.ParameterEstimationNLE(MODEL, EXP_DATA)
 
     # Example isomerization 1 Bates Page 56 Table 2.2

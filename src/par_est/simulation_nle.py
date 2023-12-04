@@ -49,7 +49,7 @@ class SimulatorNLE:
         elif solver_name == "rootfinder":
             self._call_simulator = self.__call_simulator_rootfinder
 
-        self.__solver_name: str = solver_name
+        self._solver_name: str = solver_name
         self.__input_variable_list: VariableList = copy.deepcopy(variable_list)
 
         if solver_settings is not None:
@@ -60,7 +60,7 @@ class SimulatorNLE:
         self._setup_variables()
         self._reset_scaling()
 
-        if self.__solver_name == "rootfinder":
+        if self._solver_name == "rootfinder":
             if use_bounds:
                 self.solver_settings["constraints"] = self._rootfinder_bounds
 
@@ -81,7 +81,7 @@ class SimulatorNLE:
                 "x0": ca.DM(self._guess),
                 "p": self._independent_variables * self.scaling,
             }
-        elif self.__solver_name == "ipopt":
+        elif self._solver_name == "ipopt":
             self.simulator = ca.nlpsol(
                 "solver",
                 "ipopt",
@@ -107,7 +107,7 @@ class SimulatorNLE:
 
     def get_default_simulator_settings(self) -> None:
         """Set default settings, if None are provided"""
-        if self.__solver_name == "rootfinder":
+        if self._solver_name == "rootfinder":
             solver_settings = {
                 "nlpsol": "ipopt",
                 "verbose": False,
@@ -121,7 +121,7 @@ class SimulatorNLE:
                     "print_time": False,
                 },
             }
-        elif self.__solver_name == "ipopt":
+        elif self._solver_name == "ipopt":
             solver_settings = {
                 "verbose": False,
                 "print_in": False,

@@ -542,6 +542,8 @@ class PE_base(Optimizer):
         if isinstance(self.list_simulators[0], Simulator):
             res_dict_name = "xf"
         elif isinstance(self.list_simulators[0], SimulatorNLE):
+            if self.list_simulators[0]._solver_name == "ipopt":
+                print("\nSimulators of PE optimizer use IPOPT nlpsol. Results can be incosistent\n")
             res_dict_name = "x"
 
         list_simulation_T = []
