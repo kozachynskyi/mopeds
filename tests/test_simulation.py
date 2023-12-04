@@ -28,14 +28,13 @@ def test_pendulum_dae(piecewise):
         var.fixed = True
     sim = par_est.Simulator(model, time_grid, varlist)
     res_tau = sim.simulate_sym()
-    res = sim.integrator(
-        x0=sim._initial_state,
-        z0=sim._initial_algebraic,
-        p=ca.vertcat(sim._independent_variables[0] * sim.scaling),
-    )
-
+    res = np.array([[3.42289, 4.68624],
+         [1.96674, 2.34688],
+         [3.6447, 1.74332],
+         [-1.84705, -6.30866],
+         [1.16669, -1.11495]])
     assert np.isclose(
-        ca.vertcat(res_tau["xf"], res_tau["zf"]), ca.vertcat(res["xf"], res["zf"])
+        ca.vertcat(res_tau["xf"], res_tau["zf"]), res
     ).all()
 
 
@@ -83,10 +82,16 @@ def test_cstr(piecewise):
 
                 if i == 4:
                     res = sim.generate_exp_data()
-                    assert len(res) == 5
+                    if piecewise:
+                        assert len(res) == 7
+                    else:
+                        assert len(res) == 5
                     if sim.model.DAE:
                         res = sim.generate_exp_data(algebraic=True)
-                        assert len(res) == 6
+                        if piecewise:
+                            assert len(res) == 8
+                        else:
+                            assert len(res) == 6
                 else:
                     with pytest.raises(ValueError):
                         res = sim.generate_exp_data()

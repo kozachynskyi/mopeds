@@ -7,6 +7,7 @@ from collections.abc import Callable
 from itertools import combinations
 from typing import Sequence
 from warnings import warn
+import itertools
 
 import casadi as ca
 import numpy as np
@@ -31,6 +32,12 @@ from par_est import (
 
 if _ACADOS_SUPPORT:
     from par_est import casados_integrator
+
+
+def eigsorted(cov):
+    vals, vecs = np.linalg.eig(cov)
+    order = np.flip(vals.argsort())
+    return vals[order], vecs[:, order]
 
 
 class Optimizer(object):
@@ -70,20 +77,22 @@ class Optimizer(object):
         # Runs optimization once
         raise (NotImplementedError)
 
-    def parameters_dict_to_list(self, parameters: dict[str, float]) -> list[float]:
-        """Takes a dictionary with {"par_name": par_value} and transforms to list
+    def variables_dict_to_list(self, variables_dict: dict[str, float]) -> list[float]:
+        """Takes a dictionary with {"var_name": var_value} and transforms to list
         corresponding to the order of self.varlist_decision variables"""
-        selected_parameters: list[float] = []
-        for var_name in parameters.keys():
+        selected_variables: list[float] = []
+        for var_name in variables_dict.keys():
             if var_name not in self.varlist_decision.keys():
-                print(f"Supplied value for parameter {var_name} is ignored!")
+                if "time_sp" in var_name or "weight_" in var_name:
+                    raise ValueError(f"Variable {var_name} is not a decision variable!")
+                print(f"Supplied value for variables {var_name} is ignored!")
         for var_name in self.varlist_decision.keys():
             try:
-                selected_parameters.append(parameters[var_name])
+                selected_variables.append(variables_dict[var_name])
             except KeyError:
-                raise KeyError(f"Missing parameter value for {var_name}")
+                raise KeyError(f"Missing value for {var_name}")
 
-        return selected_parameters
+        return selected_variables
 
     def _setup_simulator_mapping(
         self, simulator: Simulator | SimulatorNLE
@@ -435,6 +444,25 @@ class PE_base(Optimizer):
         # objective = ca.sumsqr(scaled_residuals)
         return objective, residuals
 
+    def setup_regularization(self, contribution: None | float = None, reference_parameters: None | np.ndarray = None):
+        if contribution is not None:
+            self.regularization_contribution = contribution
+        if reference_parameters is not None:
+            if reference_parameters.shape[0] != len(self.varlist_decision):
+                raise ValueError("Shape of supplied reference_parameters is incorrect")
+            else:
+                self.reference_parameters = reference_parameters
+
+    def _objective_tikhonov(self):
+        objective, residuals = self._objective_wls()
+
+        penalty = ca.sqrt(ca.sumsqr(self.varlist_decision.get_casadi_variables() - self.reference_parameters / self.scaling))
+        regularization_part = 0.5 * (self.regularization_contribution ** 2) * penalty
+
+        objective = objective + regularization_part
+
+        return objective, residuals
+
     def optimize(self, scale=True, objective_function="wls"):
         if objective_function == "wls":
             self._objective = self._objective_wls
@@ -442,6 +470,8 @@ class PE_base(Optimizer):
             self._objective = self._objective_ols
         elif objective_function == "fair":
             self._objective = self._objective_fair
+        elif objective_function == "tikh":
+            self._objective = self._objective_tikhonov
         else:
             raise NotImplementedError(
                 f"Objective function '{objective_function}' is not supported"
@@ -488,7 +518,7 @@ class PE_base(Optimizer):
             ["f", "residuals", "y"],
         )
 
-        selected_parameters = self.parameters_dict_to_list(parameters)
+        selected_parameters = self.variables_dict_to_list(parameters)
         res = casadi_function(x=selected_parameters)
         result_np = {
             "f": float(res["f"]),
@@ -556,7 +586,7 @@ class PE_base(Optimizer):
                 if par_name in parameter_names:
                     list_selected_parameters_index.append(par_index)
 
-        all_parameter_values = self.parameters_dict_to_list(parameters)
+        all_parameter_values = self.variables_dict_to_list(parameters)
 
         residuals = self.calculate_objective_and_residual(
             parameters, objective_function="ols"
@@ -568,16 +598,17 @@ class PE_base(Optimizer):
         measurement_variance_estimate = np.diag(residuals.T @ residuals) / dof
         print("OLS std: ", np.sqrt(measurement_variance_estimate))
 
-        backup_inverted_std = copy.deepcopy(self.array_inverted_std)
+        estimated_inverted_std = copy.deepcopy(self.array_inverted_std)
 
         if isinstance(measurement_variance_estimate, float):
             measurement_variance_estimate = [measurement_variance_estimate]
 
         for index_meas, meas_std in enumerate(measurement_variance_estimate):
-            self.array_inverted_std[:, index_meas] = 1 / np.sqrt(meas_std)
+            estimated_inverted_std[:, index_meas] = 1 / np.sqrt(meas_std)
 
         jacobian = {}
         jacobian_scaled = {}
+        jacobian_scaled_estimated = {}
         jacobian_yao = {}
         res_simulation = ca.Function(
             "sim", [decision_variables], [self.simulate_all_mx]
@@ -588,7 +619,7 @@ class PE_base(Optimizer):
                 self.simulate_all_mx[:, index_measurement], decision_variables
             )
             jac_meas_function = ca.Function(
-                "jac_meas", [decision_variables], [jac_meas_mx]
+                    "jac_meas", [decision_variables], [jac_meas_mx]
             )
             jac_meas_dm = jac_meas_function(all_parameter_values)
             jac_meas_selected_dm = (
@@ -597,12 +628,16 @@ class PE_base(Optimizer):
             jac_meas_selected_scaled_dm = (
                 jac_meas_selected_dm * self.array_inverted_std[:, index_measurement]
             )
+            jac_meas_selected_scaled_estimated_dm = (
+                jac_meas_selected_dm * estimated_inverted_std[:, index_measurement]
+            )
             jac_meas_selected_yao_dm = jac_meas_selected_dm * (
                 1 / res_simulation[:, index_measurement]
             )
             if parameter_names is None:
                 jacobian[meas_name] = jac_meas_selected_dm
                 jacobian_scaled[meas_name] = jac_meas_selected_scaled_dm
+                jacobian_scaled_estimated[meas_name] = jac_meas_selected_scaled_estimated_dm
                 jacobian_yao[meas_name] = jac_meas_selected_yao_dm
             else:
                 jacobian[meas_name] = jac_meas_selected_dm[
@@ -611,12 +646,16 @@ class PE_base(Optimizer):
                 jacobian_scaled[meas_name] = jac_meas_selected_scaled_dm[
                     :, list_selected_parameters_index
                 ]
+                jacobian_scaled_estimated[meas_name] = jac_meas_selected_scaled_estimated_dm[
+                    :, list_selected_parameters_index
+                ]
                 jacobian_yao[meas_name] = jac_meas_selected_yao_dm[
                     :, list_selected_parameters_index
                 ]
 
         jac_array = np.concatenate(list(jacobian.values()))
         jac_array_scaled = np.concatenate(list(jacobian_scaled.values()))
+        jac_array_scaled_estimated = np.concatenate(list(jacobian_scaled_estimated.values()))
         jac_array_yao = np.concatenate(list(jacobian_yao.values()))
 
         # Generate jacobian and hessian on obj function
@@ -626,28 +665,48 @@ class PE_base(Optimizer):
             [ca.jacobian(self._objective_wls()[0], decision_variables)],
         )(all_parameter_values)
         # Should be twice as big as fim_matrix_scaled
-        hessian_objective = ca.Function(
-            "jf",
-            [decision_variables],
-            [ca.hessian(self._objective_wls()[0], decision_variables)[0]],
-        )(all_parameter_values)
+        try:
+            hessian_objective_wls = ca.Function(
+                "jf",
+                [decision_variables],
+                [ca.hessian(self._objective_wls()[0], decision_variables)[0]],
+            )
+            hessian_objective_wls = hessian_objective_wls(all_parameter_values)
+        except RuntimeError:
+            print("Failed to calculate hessian")
+            hessian_objective_wls = None
+
+        try:
+            hessian_objective_tikhonov = ca.Function(
+                "jf",
+                [decision_variables],
+                [ca.hessian(self._objective_tikhonov()[0], decision_variables)[0]],
+            )
+            hessian_objective_tikhonov = hessian_objective_tikhonov(all_parameter_values)
+        except RuntimeError:
+            print("Failed to calculate hessian")
+            hessian_objective_tikhonov = None
+
         if parameter_names is not None:
             jac_objective = jac_objective[:, list_selected_parameters_index]
-            hessian_objective = hessian_objective[
-                list_selected_parameters_index, list_selected_parameters_index
-            ]
+            if hessian_objective_wls is not None:
+                hessian_objective_wls = hessian_objective_wls[
+                    list_selected_parameters_index, list_selected_parameters_index
+                ]
+            if hessian_objective_tikhonov is not None:
+                hessian_objective_tikhonov = hessian_objective_tikhonov[
+                    list_selected_parameters_index, list_selected_parameters_index
+                ]
 
         fim_matrix = jac_array.T @ jac_array
         fim_matrix_scaled = (jac_array_scaled.T @ jac_array_scaled)
         parameter_covariance_matrix = np.linalg.inv(fim_matrix_scaled)  # type: ignore
 
-        self.array_inverted_std = backup_inverted_std
-
-
         result = {}
         result["jac_full"] = jac_array
         result["jac_sorted"] = jacobian
-        result["jac_scaled_full"] = jac_array_scaled
+        result["jac_scaled_full"] = jac_array_scaled_estimated
+        result["jac_scaled_full_theory"] = jac_array_scaled
         result["jac_scaled_sorted"] = jacobian_scaled
         result["jac_yao_full"] = jac_array_yao
         result["jac_yao_sorted"] = jacobian_yao
@@ -655,12 +714,218 @@ class PE_base(Optimizer):
         result["fim_scaled"] = fim_matrix_scaled
         result["cov_par"] = parameter_covariance_matrix
         result["jac_wls"] = jac_objective
-        result["hess_wls"] = hessian_objective
+        result["hess_wls"] = hessian_objective_wls
+        result["hess_tikh"] = hessian_objective_tikhonov
         result["s2"] = measurement_variance_estimate
 
         return result
 
-    def parameter_identifiability_eigenvalue(
+    def parameter_identifiability_chu2012(
+        self,
+        parameters: dict[str, float],
+        unfixed_params: list[str],
+        parameters_identifiable: list[str] | None = None,
+        parameters_not_identifiable: list[str] | None = None,
+    ):
+        self._setup_scaling(False)
+        if parameters_identifiable is None:
+            parameters_identifiable = []
+
+        if parameters_not_identifiable is None:
+            parameters_not_identifiable = []
+
+        sorted_unfixed_params = []
+        for par_name in self.varlist_decision.keys():
+            if par_name in unfixed_params:
+                sorted_unfixed_params.append(par_name)
+
+        parameters_index = list(range(len(sorted_unfixed_params)))
+
+        results_sensitivity = self.calculate_sensitivity_and_fim(
+            parameters, unfixed_params
+        )
+
+        S = results_sensitivity["jac_scaled_full_theory"]
+        S = S * np.array(self.variables_dict_to_list(parameters))
+
+        info = []
+        best_set = None
+        max_det = 0
+
+        for subset_size in range(1, len(unfixed_params) + 1):
+            for subset_index in itertools.combinations(parameters_index, subset_size):
+                S_selected = S[:, subset_index]
+                FIM_selected = S_selected.T @ S_selected
+                if subset_size == 1:
+                    max_det_i = float(FIM_selected)
+                else:
+                    max_det_i = np.linalg.det(FIM_selected)
+                if max_det_i > max_det:
+                    max_det = max_det_i
+                    best_set = subset_index
+                subset_names = np.array(sorted_unfixed_params)[list(subset_index)]
+                info_i = [subset_size, subset_names, max_det_i]
+                info.append(info_i)
+
+        df = pd.DataFrame(info, columns=["subset_size", "subset_names", "det"])
+        parameters_identifiable = np.array(sorted_unfixed_params)[list(best_set)]
+
+        parameters_not_identifiable = list(set(sorted_unfixed_params) - set(parameters_identifiable))
+
+        parameters_identifiable_sorted = []
+        parameters_not_identifiable_sorted = []
+        for par_name in sorted_unfixed_params:
+            if par_name in parameters_identifiable:
+                parameters_identifiable_sorted.append(par_name)
+            else:
+                parameters_not_identifiable_sorted.append(par_name)
+
+        print(f"Estimable parameters: {parameters_identifiable_sorted}")
+        print(f"Non identifiable parameters: {parameters_not_identifiable_sorted}")
+
+        result = {}
+        result["estimable"] = parameters_identifiable_sorted
+        result["fixed"] = parameters_not_identifiable_sorted
+
+        return result
+
+    def parameter_identifiability_brun2001(
+        self,
+        parameters: dict[str, float],
+        unfixed_params: list[str],
+        parameters_identifiable: list[str] | None = None,
+        parameters_not_identifiable: list[str] | None = None,
+        eigenvalue_threshold: float = 10e-4,
+    ):
+        self._setup_scaling(False)
+        if parameters_identifiable is None:
+            parameters_identifiable = []
+
+        if parameters_not_identifiable is None:
+            parameters_not_identifiable = []
+
+        sorted_unfixed_params = []
+        for par_name in self.varlist_decision.keys():
+            if par_name in unfixed_params:
+                sorted_unfixed_params.append(par_name)
+
+        parameters_index = list(range(len(sorted_unfixed_params)))
+
+        results_sensitivity = self.calculate_sensitivity_and_fim(
+            parameters, unfixed_params
+        )
+
+        S = results_sensitivity["jac_scaled_full_theory"]
+        S = S * np.array(self.variables_dict_to_list(parameters))
+        S_norm = S / np.linalg.norm(S, axis=0)
+
+        beta_msqr = np.sqrt(np.sum(S**2, axis=0) / S.shape[0])
+        parameters_ranked = list(np.array(sorted_unfixed_params)[beta_msqr.argsort()])
+
+        info = []
+        identifiable_subset_size = None
+
+        for subset_size in range(2, len(unfixed_params) + 1):
+            min_gamma = 20
+            for subset_index in itertools.combinations(parameters_index, subset_size):
+                S_norm_subset = S_norm[:, subset_index]
+                FIM = S_norm_subset.T @ S_norm_subset
+                gamma_k = 1 / np.sqrt(eigsorted(FIM)[0][-1])
+                rho_k = np.linalg.det(FIM) ** (1/(2*S.shape[1]))
+                subset_names = np.array(sorted_unfixed_params)[list(subset_index)]
+                if min_gamma > gamma_k:
+                    min_gamma = gamma_k
+                info_i = [subset_size, subset_names, rho_k, gamma_k]
+                info.append(info_i)
+
+            if min_gamma > 10:
+                break
+            else:
+                identifiable_subset_size = subset_size
+
+        df = pd.DataFrame(info, columns=["subset_size", "subset_names", "rho", "gamma"])
+        df_identifiable = df.groupby("subset_size").get_group(identifiable_subset_size)
+        parameters_identifiable = list(df.loc[df_identifiable.idxmin(numeric_only=True).gamma].subset_names)
+
+        parameters_not_identifiable = list(set(parameters_ranked) - set(parameters_identifiable))
+
+        parameters_identifiable_sorted = []
+        parameters_not_identifiable_sorted = []
+        for par_name in sorted_unfixed_params:
+            if par_name in parameters_identifiable:
+                parameters_identifiable_sorted.append(par_name)
+            else:
+                parameters_not_identifiable_sorted.append(par_name)
+
+        print(f"Ranked parameters: {parameters_ranked}")
+        print(f"Estimable parameters: {parameters_identifiable_sorted}")
+        print(f"Non identifiable parameters: {parameters_not_identifiable_sorted}")
+
+        result = {}
+        result["ranked"] = parameters_ranked
+        result["estimable"] = parameters_identifiable_sorted
+        result["fixed"] = parameters_not_identifiable_sorted
+
+        return result
+
+    def parameter_identifiability_lopez2013(
+        self,
+        parameters: dict[str, float],
+        unfixed_params: list[str],
+        parameters_identifiable: list[str] | None = None,
+        parameters_not_identifiable: list[str] | None = None,
+        eigenvalue_threshold: float = 10e-4,
+    ):
+        self._setup_scaling(False)
+        if parameters_identifiable is None:
+            parameters_identifiable = []
+
+        if parameters_not_identifiable is None:
+            parameters_not_identifiable = []
+
+        sorted_unfixed_params = []
+        for par_name in self.varlist_decision.keys():
+            if par_name in unfixed_params:
+                sorted_unfixed_params.append(par_name)
+
+        results_sensitivity = self.calculate_sensitivity_and_fim(
+            parameters, unfixed_params
+        )
+
+        S = results_sensitivity["jac_scaled_full_theory"]
+        S = S * np.array(self.variables_dict_to_list(parameters))
+
+
+        # S = S * np.array(self.variables_dict_to_list(parameters))
+
+        svd = np.linalg.svd(S, full_matrices=True)
+        Q, R, P = linalg.qr(S, pivoting=True)
+
+        num_identifiable = list((svd[1][0] / svd[1]) > 1000).index(True)
+        parameters_ranked = np.array(sorted_unfixed_params)[P]
+        parameters_identifiable = parameters_ranked[:num_identifiable]
+        parameters_not_identifiable = parameters_ranked[num_identifiable:]
+
+        parameters_identifiable_sorted = []
+        parameters_not_identifiable_sorted = []
+        for par_name in sorted_unfixed_params:
+            if par_name in parameters_identifiable:
+                parameters_identifiable_sorted.append(par_name)
+            else:
+                parameters_not_identifiable_sorted.append(par_name)
+
+        print(f"Ranked parameters: {list(parameters_ranked)}")
+        print(f"Estimable parameters: {parameters_identifiable_sorted}")
+        print(f"Non identifiable parameters: {parameters_not_identifiable_sorted}")
+
+        result = {}
+        result["ranked"] = list(parameters_ranked)
+        result["estimable"] = parameters_identifiable_sorted
+        result["fixed"] = parameters_not_identifiable_sorted
+
+        return result
+
+    def parameter_identifiability_quaiser2009(
         self,
         parameters: dict[str, float],
         unfixed_params: list[str],
@@ -688,51 +953,38 @@ class PE_base(Optimizer):
             parameters, unfixed_params
         )
 
-        fim_matrix = results_sensitivity["fim_scaled"]
+        S = results_sensitivity["jac_scaled_full_theory"]
+        S = S * np.array(self.variables_dict_to_list(parameters))
+        fim_matrix = (S.T @ S)
 
-        def eigsorted(cov):
-            vals, vecs = np.linalg.eig(cov)
-            # vals, vecs = np.linalg.eigh(cov)
-            order = np.flip(vals.argsort())
-            return vals[order], vecs[:, order]
+        for i in range(fim_matrix.shape[0]):
+            vals, vecs = eigsorted(fim_matrix)
 
-        # vals, vecs = eigsorted(results_sensitivity["fim"])
-        vals, vecs = eigsorted(fim_matrix)
+            index_max = np.argmax(np.abs(vecs[:, -1]))
+            current_parameter_name = sorted_unfixed_params.pop(index_max)
+            if np.abs(vals[-1]) > eigenvalue_threshold:
+                parameters_identifiable.insert(0, current_parameter_name)
+            else:
+                parameters_not_identifiable.insert(0, current_parameter_name)
+            fim_matrix = np.delete(fim_matrix, index_max, axis=0)
+            fim_matrix = np.delete(fim_matrix, index_max, axis=1)
 
-        index_max = np.argmax(np.abs(vecs[:, -1]))
-        current_parameter_name = sorted_unfixed_params.pop(index_max)
-        print(np.abs(vals[-1]))
-        if np.abs(vals[-1]) > eigenvalue_threshold:
-            parameters_identifiable.insert(0, current_parameter_name)
-        else:
-            parameters_not_identifiable.insert(0, current_parameter_name)
+        parameters_ranked = []
+        for parameter_name in parameters_identifiable + parameters_not_identifiable:
+            parameters_ranked.append(parameter_name)
 
-        if len(vals) == 1:
-            parameters_ranked = []
-            for parameter_name in parameters_identifiable + parameters_not_identifiable:
-                parameters_ranked.append(parameter_name)
+        print(f"Ranked parameters: {parameters_ranked}")
+        print(f"Estimable parameters: {parameters_identifiable}")
+        print(f"Non identifiable parameters: {parameters_not_identifiable}")
 
-            print(f"Ranked parameters: {parameters_ranked}")
-            print(f"Estimable parameters: {parameters_identifiable}")
-            print(f"Non identifiable parameters: {parameters_not_identifiable}")
+        result = {}
+        result["ranked"] = parameters_ranked
+        result["estimable"] = parameters_identifiable
+        result["fixed"] = parameters_not_identifiable
 
-            result = {}
-            result["ranked"] = parameters_ranked
-            result["estimable"] = parameters_identifiable
-            result["fixed"] = parameters_not_identifiable
+        return result
 
-            return result
-
-        else:
-            return self.parameter_identifiability_eigenvalue(
-                parameters,
-                sorted_unfixed_params,
-                parameters_identifiable,
-                parameters_not_identifiable,
-                eigenvalue_threshold,
-            )
-
-    def parameter_identifiability_yao(
+    def parameter_identifiability_yao2003(
         self,
         parameters: dict[str, float],
         unfixed_params: list[str],
@@ -744,6 +996,11 @@ class PE_base(Optimizer):
         parameter_values_all: list[float] = []
         selected_parameters: list[float] = []
         unranked_parameters: list[str] = []
+
+        sorted_unfixed_params = []
+        for par_name in self.varlist_decision.keys():
+            if par_name in unfixed_params:
+                sorted_unfixed_params.append(par_name)
 
         for var_name in parameters.keys():
             if var_name in self.varlist_decision.keys():
@@ -757,10 +1014,10 @@ class PE_base(Optimizer):
         results_sensitivity = self.calculate_sensitivity_and_fim(parameters)
 
         jacobian_yao = results_sensitivity["jac_yao_full"]
+        jacobian_yao = jacobian_yao * np.array(self.variables_dict_to_list(parameters))
 
         XK = np.zeros(jacobian_yao.shape)
 
-        parameters_ranked = []
         parameters_identifiable = []
         parameters_not_identifiable = []
 
@@ -774,11 +1031,10 @@ class PE_base(Optimizer):
             most_identifiable_parameter = unranked_parameters[
                 index_most_identifiable_par
             ]
-            parameters_ranked.append(most_identifiable_parameter)
 
-            # print(eucnorm[-1])
-            if eucnorm[-1] < threshold:
+            if max(eucnorm) < threshold:
                 parameters_not_identifiable.append(most_identifiable_parameter)
+                break
             else:
                 parameters_identifiable.append(most_identifiable_parameter)
 
@@ -798,12 +1054,18 @@ class PE_base(Optimizer):
             Z_hat = XK.dot(np.linalg.inv(XK.T.dot(XK))).dot(XK.T).dot(jacobian_yao)
             R = jacobian_yao - Z_hat
 
-        print(f"Ranked parameters: {parameters_ranked}")
-        print(f"Estimable parameters: {parameters_identifiable}")
-        print(f"Non identifiable parameters: {parameters_not_identifiable}")
+        parameters_identifiable_sorted = []
+        parameters_not_identifiable_sorted = []
+        for par_name in sorted_unfixed_params:
+            if par_name in parameters_identifiable:
+                parameters_identifiable_sorted.append(par_name)
+            else:
+                parameters_not_identifiable_sorted.append(par_name)
+
+        print(f"Estimable parameters: {parameters_identifiable_sorted}")
+        print(f"Non identifiable parameters: {parameters_not_identifiable_sorted}")
 
         result = {}
-        result["ranked"] = parameters_ranked
         result["estimable"] = parameters_identifiable
         result["fixed"] = parameters_not_identifiable
 
@@ -816,7 +1078,7 @@ class PE_base(Optimizer):
 
         self._setup_scaling(False)
 
-        selected_parameters = self.parameters_dict_to_list(parameters)
+        selected_parameters = self.variables_dict_to_list(parameters)
         result_sens = self.calculate_sensitivity_and_fim(parameters)
 
         parameter_covariance_matrix = result_sens["cov_par"]
@@ -836,12 +1098,6 @@ class PE_base(Optimizer):
             import matplotlib.pyplot as plt
             from matplotlib.axes import Axes
             from matplotlib.patches import Ellipse
-
-            def eigsorted(cov):
-                vals, vecs = np.linalg.eig(cov)
-                # vals, vecs = np.linalg.eigh(cov)
-                order = vals.argsort()[::-1]
-                return vals[order], vecs[:, order]
 
             fig, axes = plt.subplots(ncols=num_par - 1, nrows=num_par - 1, layout="constrained")
             if isinstance(axes, Axes) == 1:
@@ -1211,292 +1467,6 @@ class ParameterEstimation(PE_base):
             return [res_guess, res_supplied]
 
 
-class OptimalExperimentalDesign(Optimizer):
-    def __init__(
-        self,
-        model: Model,
-        variable_list: list[VariableList],
-        time_grid_relative: np.ndarray,
-        simulator_name: str = "idas",
-        simulator_settings: dict = None,
-        *,
-        reinitialize_algebraic: bool = False,
-    ) -> None:
-        super().__init__(model, variable_list, simulator_name, simulator_settings)
-
-        # User specified time_grid is used for initilizaiton of Simulators
-        self.time_grid_original: np.ndarray = time_grid_relative
-
-        self._setup_simulator()
-        self._setup_initialization()
-
-        # User specified time grid might not include every time_stamp of VariableControlPiecewiseConstant
-        # So the corrected time_grid of Simulator is used in optimization
-        self.time_grid_modified = self.list_simulators[0].time_grid_relative
-
-        self.solver_name: str = "ipopt"
-        self.solver_settings: dict = {
-            "verbose": False,
-            # "monitor": ["nlp_grad_f", "nlp_f"],
-            "ipopt": {
-                "max_iter": 100,
-                # "print_level": 6,
-            },
-        }
-        if reinitialize_algebraic:
-            for sim in self.list_simulators:
-                sim.calculate_algebraic_initials(apply_intials=True)
-
-    def _setup_simulator(self, *, use_idas_constraints: bool = False) -> None:
-        """Initializes simulator class. Parameter variables are fixed, and an index of an unfixed
-        parameter is saved in self.select_independent list.
-        This list is used during the calculation of the objective, to ignore jacobian of fixed parameters.
-        self.index_all_states is used additionaly to self.select_independent list to get required jacobian.
-        """
-        parameter_values = []
-        select_independent = []
-        inverted_variances = []
-
-        for variable_name in self.model.varlist_all.keys():
-            try:
-                var = self.list_input_varlist[0][variable_name]
-            except KeyError:
-                continue
-
-            if isinstance(var, VariableControl):
-                if not var.fixed:
-                    if isinstance(var, VariableControlPiecewiseConstant):
-                        for var_control in var.variable_list.values():
-                            if not var_control.fixed:
-                                self.varlist_decision.add_variable(var_control)
-                    else:
-                        self.varlist_decision.add_variable(var)
-            elif isinstance(var, VariableParameter):
-                if var.fixed is False:
-                    self.varlist_parameter.add_variable(var)
-                    parameter_values.append(var.value[0])
-                    var.fixed = True
-                    # index has + 1 to account for tau variable, that is a parameter of a simulation.
-                    index = list(self.model.varlist_independent).index(var.name) + 1
-                    select_independent.append(index)
-
-            elif isinstance(var, VariableState):
-                inverted_variances.append(1 / var.variance)
-
-        # [par_1, par_2, ... par_N]
-        self.parameter_values: list[float] = parameter_values
-        # Index of parameters, that are unfixed. It's used to select Jacobian for only this variables
-        self.select_independent: list[int] = select_independent
-
-        self.inverted_variances: np.ndarray = np.array(inverted_variances)
-        self.index_all_states = list(range(len(self.model.varlist_state)))
-
-        self.list_simulators: list[Simulator] = [
-            Simulator(
-                self.model,
-                self.time_grid_original,
-                self.list_input_varlist[0],
-                self.simulator_name,
-                self.simulator_settings,
-                simulate_jac=True,
-            )
-        ]
-
-    def _objective(
-        self, analyze: bool = False, values: list[float] | None = None
-    ) -> tuple[ca.MX | ca.DM, ca.MX | ca.DM]:
-        """Calculates an A OED criteria, beacuse casadi cannot do other.
-        "analyze" Flag and values are used for debugging.
-
-        Args:
-            analyze: used for debugging, calculates objective and covariance.
-            values: this values are used as desicionb variables for calculating of the objective.
-        """
-        covariance_full = None
-        # -1 ignores time point zero in self.time_grid
-        num_time = len(self.time_grid_modified) - 1
-        # +1 account for tau variable in Simulator class
-        num_param = len(self.model.varlist_independent) + 1
-        num_state = len(self.model.varlist_state)
-
-        result_simulation = self.list_simulators[0].simulate_jac()
-        result_jacobian = result_simulation["jac_xf_p"]
-
-        # Used only for debugging
-        if analyze is True:
-            jacobian_full = None
-            covariance_all = []
-            objective_all = []
-
-            self._setup_scaling(False)
-            evaluate = ca.Function(
-                "eval_fim",
-                [self.varlist_decision.get_casadi_variables()],
-                [result_jacobian],
-            )
-            evaluate_sim = ca.Function(
-                "eval_fim",
-                [self.varlist_decision.get_casadi_variables()],
-                [result_simulation["xf"]],
-            )
-            if values is None:
-                result_jacobian = evaluate(self.guess)
-                result_sim = evaluate_sim(self.guess)
-            else:
-                result_jacobian = evaluate(values)
-                result_sim = evaluate_sim(values)  # noqa: F841
-
-        # Simulation returns jacobian that has to be split, to get jac at each time point.
-        # list_jacobian_at_timepoint contains a list of that jacobians.
-        split_vector = np.linspace(0, num_time, num_time + 1, dtype=int) * num_param
-        list_jacobian_at_timepoint = ca.horzsplit(result_jacobian, split_vector)
-
-        # Jacobian is also scaled based on parameter values.
-        parameter_scaling = ca.repmat(ca.DM(self.parameter_values).T, num_state, 1)
-
-        # For jacobian at each timepoint, select only unfixed parameters.
-        # Afterwards scale the jacobiand and calculate a parameter covariabce matrix.
-        # Finally, sum covariances at every time point.
-        for jacobian in list_jacobian_at_timepoint:
-            jacobian_selected = jacobian.get(
-                False, self.index_all_states, self.select_independent
-            )
-            jacobian_selected = jacobian_selected * parameter_scaling
-
-            cov_at_timepoint = (
-                jacobian_selected.T
-                @ np.diag(self.inverted_variances)
-                @ jacobian_selected
-            )
-
-            if analyze:
-                covariance_all.append(cov_at_timepoint)
-                objective_all.append(ca.trace(ca.inv(cov_at_timepoint)))
-
-            if covariance_full is None:
-                covariance_full = cov_at_timepoint
-            else:
-                covariance_full = covariance_full + cov_at_timepoint
-
-        if analyze:
-            for jacobian in list_jacobian_at_timepoint:
-                jacobian_selected = jacobian.get(
-                    False, self.index_all_states, self.select_independent
-                )
-                jacobian_selected = jacobian_selected * parameter_scaling
-
-                if jacobian_full is None:
-                    jacobian_full = jacobian_selected
-                else:
-                    jacobian_full = ca.vertcat(jacobian_full, jacobian_selected)
-
-        error = ca.trace(ca.inv(covariance_full))
-
-        if analyze:
-            return error, covariance_full, jacobian_full, covariance_all, objective_all  # type: ignore
-
-        return error, covariance_full
-
-    def optimize(self, scale: bool = False) -> dict[str, ca.DM | ca.MX]:
-        """Run optimization.
-
-        Args:
-            scale: scaling should be used as default, allows for faster convergence
-        """
-
-        # Scaling works unpredictably. It was shown during creation of VariableControlPiecewiseConstant
-        if scale:
-            raise NotImplementedError
-        # Scaling decreases amount of iterations, but ipopt fails gradient check at big amount of timestamps
-
-        return self._optimize(scale)
-
-    def identifiability_analysis(self):
-        """Taken from Erik/Diana Subset0. Many questions arrise about how it works."""
-        (
-            error,
-            covariance_full,
-            jacobian,
-            covariance_all,
-            objective_all,
-        ) = self._objective(True)
-        cond_threshold = 1000
-        colin_threshold = 15
-
-        states, parameters = jacobian.shape
-        jacobian_original = jacobian
-        if states < parameters:
-            jacobian = np.pad(
-                jacobian,
-                ((0, parameters - states), (0, 0)),
-                mode="constant",
-                constant_values=0,
-            )
-
-        u, s, vh = np.linalg.svd(jacobian, False)
-
-        # 2. rank determination of J
-        values = abs(s)
-        dimSVal = len(values)
-        maxVal = np.max(values)
-        # minVal = np.min(values)
-
-        CondN_Sub = maxVal / values
-        ColIdx_Sub = 1 / values
-
-        smallval = []
-        for i in range(0, dimSVal):
-            if (
-                np.abs(CondN_Sub[i]) <= cond_threshold
-                and np.abs(ColIdx_Sub[i]) <= colin_threshold
-            ):
-                smallval.append(CondN_Sub[i])
-
-        rank = len(smallval)
-
-        # SummationSv = np.sum(values)
-        # NeglectSv = np.sum(values[rank:] / SummationSv)
-
-        # Determination of permutation matrix P by construction a RRQR of S
-        Q, R, P = linalg.qr(jacobian, pivoting=True)
-
-        # Use this for ranking
-        IdentifOrd = P
-        # Why
-        # IdentifOrd.append(P)
-
-        # Condition Number of J (Golub, 1996 & Hansen, 1998)
-        # CondN = maxVal / minVal
-
-        # Still to understand!!!
-        # collinIndex.Colind
-        # collinIndex.Sub
-
-        Jsqr = jacobian**2
-
-        ParNorm = np.empty(jacobian.shape[1])
-
-        for i in range(0, jacobian.shape[1]):
-            ParNorm[i] = np.sqrt(np.sum(Jsqr[:, i] / jacobian.shape[0]))
-
-        # SensitivityOrder = np.argsort(ParNorm)[::-1]
-        # B = np.sort(ParNorm)[::-1]
-
-        # SensityOrd = B, SensitivityOrder
-
-        # TotalVariance = np.sum(values ** 2)
-        # NeglectVariance = np.sum(values[rank:] ** 2 / TotalVariance)
-
-        unfix_parameters = []
-        for index in range(rank):
-            parameter_name = list(self.varlist_parameter.values())[
-                IdentifOrd[index]
-            ].name
-            unfix_parameters.append(parameter_name)
-
-        return unfix_parameters, error, covariance_full, jacobian_original
-
-
 class ParameterEstimationNLE(PE_base):
     def __init__(
         self,
@@ -1529,6 +1499,7 @@ class ParameterEstimationNLE(PE_base):
         ] = self._objective_ols
 
         self._setup_experiments_scale(False)
+        self.setup_regularization(0, np.zeros((len(self.varlist_decision),1)))
 
     def _setup_simulator(
         self, use_simulator_bounds: bool, SimulatorClass: SimulatorNLE

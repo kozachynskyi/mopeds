@@ -11,9 +11,9 @@ def test_vle_nle():
     variable_list["x"].value = 0.5
     for i in range(2):
         if i == 0:
-            sim = par_est.simulation.SimulatorNLE(model, variable_list)
+            sim = par_est.SimulatorNLE(model, variable_list)
         else:
-            sim = par_est.simulation.SimulatorNLE(model, variable_list)
+            sim = par_est.SimulatorNLE(model, variable_list)
         res = sim.simulate_sym()
         true_answer_T = 359.451
 

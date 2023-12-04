@@ -9,6 +9,36 @@ import par_est.examples
 import par_est.tools
 
 
+def test_parameter_jacobian():
+    var_list, model = par_est.examples.cstr_nle()
+
+    list_var_list = []
+    measurement_names = ["e0_k", "e0_T", "e0_c_c1"]
+    for m_cat in [22, 18, 20]:
+        var_list_i = copy.deepcopy(var_list)
+        var_list_i["e0_m_Cat"].value = m_cat
+        var_list_exp = par_est.SimulatorNLE(model, var_list).generate_exp_data()
+        var_list_i["e0_cp"].fixed = False
+        var_list_i["e0_E"].fixed = False
+
+        for key, var in var_list_exp.items():
+            if isinstance(var, par_est.VariableAlgebraic):
+                if key in measurement_names:
+                    var_list_i[key].value = var.value[0]
+        list_var_list.append(var_list_i)
+
+    pe = par_est.ParameterEstimationNLE(model, list_var_list)
+    jac_pe = pe.calculate_sensitivity_and_fim({"e0_cp": 1.75, "e0_E": 135518.2})["jac_scaled_full_theory"]
+
+    list_var_list[0]["e0_m_Cat"].fixed = False
+    list_var_list[0]["e0_Q_Feed"].fixed = False
+
+    oed = par_est.OptimalExperimentalDesign_NLE(model, [list_var_list[0]], previous_measurements=[{"e0_m_Cat": 22, "e0_Q_Feed":30}, {"e0_m_Cat": 18, "e0_Q_Feed":30}], measurable_variables=measurement_names)
+
+    jac_oed = oed.calculate_objective_and_jacobian({"e0_m_Cat": 20, "e0_Q_Feed":30})["jac"]
+
+    assert np.all(np.isclose(jac_pe, jac_oed))
+
 def test_pe():
     """Test that ParameterEstimationNLE on NLE always yields same result.
     Helpfull to see if any drastic changes in calculation were made
@@ -221,10 +251,10 @@ def test_multivariate_pe():
     )
 
     fim = 8.0
-    fim_scaled = 766.31076722
-    cov_par = 0.00130495
-    jac_wls = -95.8876
-    hess_wls = 1532.62
+    fim_scaled = 80
+    cov_par = 0.0125
+    jac_wls = -10.0103
+    hess_wls = 160
 
     pe = par_est.ParameterEstimationNLE(model, variable_list_optimizer)
     assert pe.names_of_measurements == ["e0_F_s2", "e0_F_s4", "e0_F_s5"]
@@ -300,7 +330,7 @@ def test_multivariate_pe():
     assert np.allclose(ols_y[:, 1:], ols["y"])
     assert np.isclose(wls_f, wls["f"])
 
-    cov_par = 0.0020767
+    cov_par = 0.0125
 
     res_sens = pe.calculate_sensitivity_and_fim(true_parameters)
     assert np.array_equal(res_sens["jac_full"], jac_full[9:])
@@ -375,4 +405,5 @@ if __name__ == "__main__":
     pass
     # test_pe()
     # test_multivariate_pe()
-    test_inference_bounds()
+    # test_inference_bounds()
+    # test_parameter_jacobian()

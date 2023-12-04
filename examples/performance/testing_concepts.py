@@ -33,5 +33,22 @@ def jacobian_manipulation():
         par_est.utilities.plot_arrays([jacobian, selected])
 
 
+def covariance_matrix_summation():
+    for i in range(10):
+        A_1 = np.random.rand(25,2)
+        # A_2 = np.random.rand(5,2)
+        A_2 = np.zeros((5,2))
+        A = np.vstack([A_1, A_2])
+
+        COV_1 = A_1.T @ A_1
+        COV_2 = A_2.T @ A_2
+        COV = A.T @ A
+        COV_ALL = COV_1 + COV_2
+
+        print("COV_1:\n", COV_1 / COV)
+        # print(COV_2 / COV)
+
+
 if __name__ == "__main__":
-    jacobian_manipulation()
+    # jacobian_manipulation()
+    covariance_matrix_summation()

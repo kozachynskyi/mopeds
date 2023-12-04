@@ -16,11 +16,11 @@ def create_grid(bounds: list[list[float]]) -> list[list[float]]:
     linspace_list = []
     for bound in bounds:
         linspace_list.append(np.linspace(start=bound[0], stop=bound[1], num=bound[2]))
-    grids = np.meshgrid(*linspace_list)
+    meshgrid = np.meshgrid(*linspace_list)
 
-    grids = [n_grid.ravel() for n_grid in grids]
-    grid = np.array(grids).transpose().tolist()
-    return grid
+    grid = [n_grid.ravel() for n_grid in meshgrid]
+    grid = np.array(grid).transpose().tolist()
+    return grid, meshgrid
 
 
 def generate_varlist_with_data(
@@ -28,7 +28,11 @@ def generate_varlist_with_data(
     model: Model,
     time_grid: np.ndarray,
     algebraic: bool = False,
+    perturbate: bool = False,
+    rng: np.random.Generator | None = None
 ) -> VariableList:
+    if rng is None:
+        rng = np.random.default_rng()
     # Simulated ODE/DAE and replaces StateVariable values with simulated data
     var_list_fixed = copy.deepcopy(variable_list)
     for var in var_list_fixed.values():
@@ -39,7 +43,13 @@ def generate_varlist_with_data(
     # Replace empty state variables with results from simulation
     variable_list_with_data = copy.deepcopy(variable_list)
     for key, var in var_list_exp.items():
-        variable_list_with_data[key].dataframe = var.dataframe
+        df = var.dataframe
+        if perturbate:
+            std = var_list_fixed[key].variance ** 0.5
+            value = rng.normal(var.dataframe, std)
+            df[key] = value
+
+        variable_list_with_data[key].dataframe = df
 
     return variable_list_with_data
 
@@ -80,7 +90,7 @@ def generate_varlist_with_data_NLE(
             var_varlist = variable_list_original[var.name]
             true_parameters[var_varlist.name] = var_varlist.value[0]
 
-    grid = create_grid(list(control_bounds.values()))
+    grid, meshgrid = create_grid(list(control_bounds.values()))
     sim_fixed = SimulatorNLE(model, variable_list)
 
     varlist_list = []

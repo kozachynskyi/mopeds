@@ -819,3 +819,220 @@ def spmma() -> tuple[
         exp_data.append(var_list)
 
     return variable_list, m, exp_data
+
+
+# Baker yeast growth model Quaglio2018 10.1016/j.cherd.2018.04.041
+def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=False, u1_piecewise_linear=False) -> tuple[
+    par_est.VariableList, par_est.Model, list[par_est.VariableList]
+]:
+    variable_list = par_est.variables.VariableList()
+
+    variable_list.add_variable(par_est.VariableState("x1", 5, 0, 10))
+    variable_list.add_variable(par_est.VariableState("x2", 0.01))
+
+    if u1_piecewise_linear:
+        variable_list.add_variable(par_est.VariableState("u1_dot", 0))
+
+    if ode is False:
+        variable_list.add_variable(par_est.VariableAlgebraic("r", 1.7))
+
+    if piecewise:
+        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("u1", 0.125, 0.05, 0.2))
+        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("u2", 35, 5, 35))
+    else:
+        variable_list.add_variable(par_est.VariableControl("u1", 0.125, 0.05, 0.2))
+        variable_list.add_variable(par_est.VariableControl("u2", 35, 5, 35))
+
+    variable_list.add_variable(par_est.VariableParameter("theta1", 0.310, 1e-2, 2))
+    variable_list.add_variable(par_est.VariableParameter("theta2", 0.180, 1e-2, 20))
+    variable_list.add_variable(par_est.VariableParameter("theta3", 0.550, 1e-2, 2))
+    variable_list.add_variable(par_est.VariableParameter("theta4", 0.050, 1e-2, 2))
+
+    if normalize:
+        for varname in ["theta1", "theta2", "theta3", "theta4"]:
+            variable_list[varname].value = 1
+            variable_list[varname].lower_bound = 1e-2
+            variable_list[varname].upper_bound = 10
+
+    variable_list["x1"].variance = 0.01
+    variable_list["x2"].variance = 0.05
+
+    m = par_est.Model(variable_list)  # adding all variables to the model
+
+    x1 = m.varlist_all["x1"].casadi_var  # noqa: E501
+    x2 = m.varlist_all["x2"].casadi_var  # noqa: E501
+
+    if ode is False:
+        r = m.varlist_all["r"].casadi_var  # noqa: E501
+
+    if u1_piecewise_linear:
+        u1 = m.varlist_all["u1_dot"].casadi_var  # noqa: E501
+        u1_gradient = m.varlist_all["u1"].casadi_var  # noqa: E501
+    else:
+        u1 = m.varlist_all["u1"].casadi_var  # noqa: E501
+
+    u2 = m.varlist_all["u2"].casadi_var  # noqa: E501
+
+    theta1 = m.varlist_all["theta1"].casadi_var  # noqa: E501
+    theta2 = m.varlist_all["theta2"].casadi_var  # noqa: E501
+    theta3 = m.varlist_all["theta3"].casadi_var  # noqa: E501
+    theta4 = m.varlist_all["theta4"].casadi_var  # noqa0: E501
+
+    if normalize:
+        theta1_norm = theta1 * 0.310
+        theta2_norm = theta2 * 0.180
+        theta3_norm = theta3 * 0.55
+        theta4_norm = theta4 * 0.05
+    else:
+        theta1_norm = theta1
+        theta2_norm = theta2
+        theta3_norm = theta3
+        theta4_norm = theta4
+
+    if model_type == "cantois":
+        r_eq = ((theta1_norm * x2) / (theta2_norm * x1 + x2))
+    elif model_type == "monod":
+        r_eq = (theta1_norm * x2 / (theta2_norm + x2))
+    else:
+        raise NotImplementedError
+
+    if ode is False:
+        eq_alg1 = r - r_eq
+    else:
+        r = r_eq
+
+    eq1 = (r - u1 - theta4_norm)  * x1
+    eq2 = - (r * x1 / theta3_norm) + u1 * (u2 - x2)
+
+    diff_eq = [eq1, eq2]
+
+    if u1_piecewise_linear:
+        diff_eq.append(u1_gradient)
+
+    m.add_equations_differential(diff_eq)
+
+    if ode is False:
+        m.add_equations_algebraic([eq_alg1])
+
+    data = [
+        [5, 7.098, 10.135, 12.108, 12.491],
+        [0.01, 6.683, 5.860, 3.209, 2.993]
+    ]
+
+    exp_data = []
+
+    x1_i, x2_i = data
+
+    time_grid = [0, 5, 10, 15, 20]
+
+    var_list = copy.deepcopy(variable_list)
+    var_list["x1"].set_dataframe_from_value_and_time(x1_i, time_grid)
+    var_list["x2"].set_dataframe_from_value_and_time(x2_i, time_grid)
+
+    var_list["theta1"].fixed = False
+    var_list["theta2"].fixed = False
+    var_list["theta3"].fixed = False
+    var_list["theta4"].fixed = False
+
+    exp_data.append(var_list)
+
+    return variable_list, m, exp_data
+
+# Pankajakshan2019
+def esterification_BA() -> tuple[
+    par_est.VariableList, par_est.Model, list[par_est.VariableList]
+]:
+    variable_list = par_est.variables.VariableList()  # Preallocate variable_list
+
+    variable_list.add_variable(par_est.VariableState("Cba", 1, 0.9, 1.55))
+    variable_list.add_variable(par_est.VariableState("Ce", 4.22))
+    variable_list.add_variable(par_est.VariableState("Ce", 0))
+    variable_list.add_variable(par_est.VariableState("Cw", 0))
+
+    variable_list.add_variable(par_est.VariableControl("F", 10, 7.5, 30))
+    variable_list.add_variable(par_est.VariableControl("T", 350, 343, 413))
+
+    variable_list.add_variable(par_est.VariableParameter("theta1", 4.32))
+    variable_list.add_variable(par_est.VariableParameter("theta2", 2.522))
+
+    m = par_est.Model(variable_list)  # adding all variables to the model
+
+    D = 0.250  # micrometer
+
+    Cba = m.varlist_all["Cba"].casadi_var  # noqa: E501
+    F = m.varlist_all["F"].casadi_var  # noqa: E501
+    T = m.varlist_all["T"].casadi_var  # noqa: E501
+    theta1 = m.varlist_all["theta1"].casadi_var  # noqa: E501
+    theta2 = m.varlist_all["theta2"].casadi_var  # noqa: E501
+
+    R = 8.314
+    k = ca.exp(theta1 - 10e4 * theta2 / (R * T))
+    A_cs = 3.14 * (D * 1e-6) **2 / 4
+    v = F / A_cs
+
+    eq1 = (-1 * k * Cba) / v
+    eq2 = (-1 * k * Cba) / v
+    eq3 = (1 * k * Cba) / v
+    eq4 = (1 * k * Cba) / v
+
+    # Equations
+    m.add_equations_differential([eq1, eq2, eq3, eq4])  # adding the equations to model
+
+    return variable_list, m
+
+def cstr_nle():
+    variable_list = par_est.VariableList()
+    # fmt:off
+
+
+    variable_list.add_variable(par_est.VariableAlgebraic("e0_X_c1", 0.8866276885, 0.0, 1.0E9))  # noqa: E501
+    variable_list.add_variable(par_est.VariableAlgebraic("e0_c_c1", 1.376664E-4, 0.0, 1.0E9))  # noqa: E501
+    variable_list.add_variable(par_est.VariableAlgebraic("e0_k", 11.7307437323, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(par_est.VariableAlgebraic("e0_T", 704.755540977, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(par_est.VariableAlgebraic("e0_c_Feed_c1", 0.0012142857, 0.0, 1.0E9))  # noqa: E501
+
+    variable_list.add_variable(par_est.VariableControl("e0_Q_Feed", 30.0, 28, 32))  # noqa: E501
+    variable_list.add_variable(par_est.VariableControl("e0_x_Feed_c1", 0.3, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(par_est.VariableControl("e0_m_Cat", 20.0, 18, 22))  # noqa: E501
+    variable_list.add_variable(par_est.VariableControl("e0_T_Feed", 560.0, -1.0E9, 1.0E9))  # noqa: E501
+
+    variable_list.add_variable(par_est.VariableParameter("e0_cp", 1.75, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(par_est.VariableParameter("e0_E", 135518.2, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(par_est.VariableParameter("e0_greek_DeltaHR", -200000.0, -1.0E9, 1.0E9))  # noqa: E501
+
+    variable_list.add_variable(par_est.VariableConstant("e0_M_c1", 210.0))  # noqa: E501
+    variable_list.add_variable(par_est.VariableConstant("e0_greek_rho", 0.85))  # noqa: E501
+    variable_list.add_variable(par_est.VariableConstant("e0_R", 8.314))  # noqa: E501
+
+
+    m = par_est.Model(variable_list)
+
+    e0_Q_Feed = m.varlist_all["e0_Q_Feed"].casadi_var  # noqa: E501
+    e0_M_c1 = m.varlist_all["e0_M_c1"].casadi_var  # noqa: E501
+    e0_x_Feed_c1 = m.varlist_all["e0_x_Feed_c1"].casadi_var  # noqa: E501
+    e0_E = m.varlist_all["e0_E"].casadi_var  # noqa: E501
+    e0_R = m.varlist_all["e0_R"].casadi_var  # noqa: E501
+    e0_m_Cat = m.varlist_all["e0_m_Cat"].casadi_var  # noqa: E501
+    e0_greek_DeltaHR = m.varlist_all["e0_greek_DeltaHR"].casadi_var  # noqa: E501
+    e0_greek_rho = m.varlist_all["e0_greek_rho"].casadi_var  # noqa: E501
+    e0_T_Feed = m.varlist_all["e0_T_Feed"].casadi_var  # noqa: E501
+    e0_cp = m.varlist_all["e0_cp"].casadi_var  # noqa: E501
+    e0_X_c1 = m.varlist_all["e0_X_c1"].casadi_var  # noqa: E501
+    e0_c_c1 = m.varlist_all["e0_c_c1"].casadi_var  # noqa: E501
+    e0_k = m.varlist_all["e0_k"].casadi_var  # noqa: E501
+    e0_T = m.varlist_all["e0_T"].casadi_var  # noqa: E501
+    e0_c_Feed_c1 = m.varlist_all["e0_c_Feed_c1"].casadi_var  # noqa: E501
+
+    EQ_alg1 = (e0_Q_Feed-(((((1.0/e0_X_c1)-1.0))*(e0_m_Cat*e0_k))))  # noqa: E501,E226
+    EQ_alg2 = (((e0_T-e0_T_Feed)/e0_X_c1)-(((-(e0_greek_DeltaHR*e0_c_Feed_c1))/(e0_greek_rho*e0_cp))))  # noqa: E501,E226
+    EQ_alg3 = (e0_c_Feed_c1-((e0_x_Feed_c1*(e0_greek_rho/e0_M_c1))))  # noqa: E501,E226
+    EQ_alg4 = (e0_X_c1-(((e0_c_Feed_c1-e0_c_c1)/e0_c_Feed_c1)))  # noqa: E501,E226
+    EQ_alg5 = (e0_k-((1.3*(((10.0))**(1.0*11.0)*ca.exp(((-e0_E)/(e0_R*e0_T)))))))  # noqa: E501,E226
+
+    list_algebraic_equations = [EQ_alg1, EQ_alg2, EQ_alg3, EQ_alg4, EQ_alg5, ]  # noqa: E501
+
+    # fmt:on
+
+    m.add_equations_algebraic(list_algebraic_equations)
+
+    return variable_list, m

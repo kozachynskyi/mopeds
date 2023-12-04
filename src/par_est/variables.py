@@ -21,6 +21,20 @@ ORIGIN_TS: pd.Timestamp = pd.Timestamp(year=1970, month=1, day=1)
 Chosen DateTime is the same, that is used by pd.to_datetime() by default.
 """
 
+def _check_mx_conversion_compitablity(mx: ca.MX):
+    if "time_sp" not in str(mx):
+        raise NotImplementedError
+
+def convert_mx_to_number(mx: ca.MX):
+    if mx.is_symbolic():
+        _check_mx_conversion_compitablity(mx)
+        return int(str(mx).strip("time_sp")) + 1
+    else:
+        if mx == 0:
+            return 0
+        else:
+            raise NotImplementedError
+
 # Ignored type errors come from mypy issue https://github.com/python/mypy/issues/3004
 
 
@@ -39,9 +53,9 @@ class Variable(object):
         self.opc_ua_id: None | int = None
         if not isinstance(self, VariableControlPiecewiseConstant):
             self.dataframe: pd.DataFrame = None
-        self.guess: float = np.nan
-        self.lower_bound: float = lb  # type: ignore
-        self.upper_bound: float = ub  # type: ignore
+            self.guess: float = np.nan
+            self.lower_bound: float = lb  # type: ignore
+            self.upper_bound: float = ub  # type: ignore
         self.variance: float = 1.0
         # attibute used to decide if variable should be plotted
         self.ignore_plotting: bool = True
@@ -311,8 +325,9 @@ class VariableControl(Variable):
         super().__init__(name, lb, ub)
         if not isinstance(self, VariableControlPiecewiseConstant):
             self.dataframe = self._dataframe_from_value(value)
-        self.guess = value  # type: ignore
+            self.guess = value  # type: ignore
         self.opc_ua_id = opc_ua_id
+        self.piecewise_control_name = None
 
 
 class VariableControlPiecewiseConstant(VariableControl):
@@ -330,6 +345,7 @@ class VariableControlPiecewiseConstant(VariableControl):
         self.variable_list = VariableList()
         var_t0 = VariableControl(name + "_t0", value, lb, ub, opc_ua_id)
         var_t0.fixed = True
+        var_t0.piecewise_control_name = name
         self.variable_list.add_variable(var_t0)
 
     @property
@@ -354,6 +370,42 @@ class VariableControlPiecewiseConstant(VariableControl):
         return time_series
 
     @property
+    def lower_bound(self) -> np.ndarray:
+        values = []
+        for var in self.variable_list.values():
+            values.append(var.lower_bound)
+        return values
+
+    @lower_bound.setter
+    def lower_bound(self, lower_bound: float | None) -> None:
+        for var in self.variable_list.values():
+            var.lower_bound = lower_bound
+
+    @property
+    def upper_bound(self) -> np.ndarray:
+        values = []
+        for var in self.variable_list.values():
+            values.append(var.upper_bound)
+        return values
+
+    @upper_bound.setter
+    def upper_bound(self, upper_bound: float | None) -> None:
+        for var in self.variable_list.values():
+            var.upper_bound = upper_bound
+
+    @property
+    def guess(self) -> np.ndarray:
+        values = []
+        for var in self.variable_list.values():
+            values.append(var.guess)
+        return values
+
+    @guess.setter
+    def guess(self, guess: float | None) -> None:
+        for var in self.variable_list.values():
+            var.guess = guess
+
+    @property
     def time_relative(self) -> list[float]:
         time_series = self.time_absolute
         return (time_series - time_series.iloc[0]).dt.total_seconds().tolist()
@@ -373,6 +425,8 @@ class VariableControlPiecewiseConstant(VariableControl):
     def get_variable_at_time_relative(
         self, time_stamp_relative: float
     ) -> VariableControl:
+        if isinstance(time_stamp_relative, ca.MX):
+            time_stamp_relative = convert_mx_to_number(time_stamp_relative)
         index = pd.Index(self.time_relative).get_indexer(
             [time_stamp_relative], method="ffill"
         )[0]
@@ -393,7 +447,8 @@ class VariableControlPiecewiseConstant(VariableControl):
         independent_variable = []
         last_unfixed_variable = None
 
-        for time_stamp in time_grid_relative:
+        for time_index in range(time_grid_relative.shape[0]):
+            time_stamp = time_grid_relative[time_index]
             var_at_timestamp = self.get_variable_at_time_relative(time_stamp)
             # This if statement is required for OED in order to use casadi_var from previous step, if it was already used. Without it, control variable will be fixed to some value for given timestep
             if var_at_timestamp.fixed:
@@ -427,6 +482,11 @@ class VariableControlPiecewiseConstant(VariableControl):
                 self.opc_ua_id,
             )
             var.fixed = True
+            var.piecewise_control_name = self.name
+
+            if isinstance(time, ca.MX):
+                time = convert_mx_to_number(time)
+
             var.dataframe = var._dataframe_from_value(
                 value, self.time_absolute[0] + timedelta(seconds=time)
             )
@@ -641,7 +701,7 @@ class VariableList(OrderedDict[str, Union[Variable, VariableControlPiecewiseCons
             dataframe = plot_varlist.dataframe
             if prefix is not None:
                 dataframe = dataframe.add_prefix(prefix)
-            axes = dataframe.plot(**kwargs)
+            axes = dataframe.fillna(method="ffill").plot(**kwargs)
 
         from matplotlib import pyplot as plt
 
@@ -660,6 +720,9 @@ class VariableList(OrderedDict[str, Union[Variable, VariableControlPiecewiseCons
                 elif isinstance(var, VariableAlgebraic):
                     if algebraic is True:
                         plot_varlist.add_variable(var)
+                elif isinstance(var, VariableControlPiecewiseConstant):
+                    plot_varlist.add_variable(var)
+
         return plot_varlist
 
     def show(self) -> None:
