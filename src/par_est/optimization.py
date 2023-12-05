@@ -445,9 +445,14 @@ class PE_base(Optimizer):
         return objective, residuals
 
     def setup_regularization(self, contribution: None | float = None, reference_parameters: None | np.ndarray = None):
-        if contribution is not None:
+        if contribution is None:
+            self.regularization_contribution = 0
+        else:
             self.regularization_contribution = contribution
-        if reference_parameters is not None:
+
+        if reference_parameters is None:
+            self.reference_parameters = np.zeros((len(self.varlist_decision),1))
+        else:
             if reference_parameters.shape[0] != len(self.varlist_decision):
                 raise ValueError("Shape of supplied reference_parameters is incorrect")
             else:
@@ -535,6 +540,7 @@ class PE_base(Optimizer):
             if isinstance(var, VariableParameter):
                 if var.fixed is False:
                     self.varlist_decision.add_variable(var)
+        self.setup_regularization()
 
     def generate_simulate_all_functions(self) -> None:
         """Combines simulate_sym() functions from simulator, and creates MX structure, that is used
