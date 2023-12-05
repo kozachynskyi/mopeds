@@ -12,16 +12,15 @@ if __name__ == "__main__":
     variable_list, m = par_est.examples.cstr_dae(piecewiseswitch)
     for var in variable_list.values():
         var.fixed = True
-        var.variance = 0.1**2
 
     variable_list["e0_U"].fixed = False
-    # variable_list["e0_c_p"].fixed = False
-    variable_list["e0_E_r1"].fixed = False
+    variable_list["e0_c_p"].fixed = True
+    # variable_list["e0_E_r1"].fixed = False
     variable_list["e0_T_in"].fixed = False
     variable_list["e0_T"].variance = 1
 
     # Create time-grid. Zero should be first
-    time_grid1 = np.linspace(0, 1000, 50)
+    time_grid1 = np.linspace(0, 1000, 4)
     time_grid2 = np.linspace(0, 1000, 8)
 
     e0_T_in = variable_list["e0_T_in"]
@@ -32,8 +31,7 @@ if __name__ == "__main__":
         e0_T_in.variable_list.index(1).fixed = True
         e0_T_in.variable_list.index(2).fixed = False
 
-    rng = np.random.default_rng(0)
-    data1 = par_est.tools.generate_varlist_with_data(variable_list, m, time_grid1, True, perturbate=True, rng=rng)
+    data1 = par_est.tools.generate_varlist_with_data(variable_list, m, time_grid1, True)
     data2 = par_est.tools.generate_varlist_with_data(variable_list, m, time_grid2, True)
     # data1.show()
 
@@ -41,28 +39,15 @@ if __name__ == "__main__":
     e0_T = data2["e0_T"]
     e0_T.dataframe = e0_T._dataframe_from_value(e0_T.value[0])
 
-    if False:
-        for state in m.varlist_state.keys():
-            df = data1[state].dataframe
-            df.drop(df.index[1:], inplace=True)
+    e0_c_i1_df = data2["e0_c_i1"].dataframe
+    e0_c_i1_df.drop(e0_c_i1_df.index[2:], inplace=True)
 
     # Perturbate alg variable from "ideal solution" to see its affect on PE
-    # a = data2["e0_c_tot"].dataframe
-    # data2["e0_c_tot"].dataframe = data2["e0_c_tot"].dataframe * 1.05
+    a = data2["e0_c_tot"].dataframe
+    data2["e0_c_tot"].dataframe = data2["e0_c_tot"].dataframe * 1.05
 
     # pe_state = par_est.ParameterEstimation(m, [data1, data2])
-    pe = par_est.ParameterEstimation(m, [data1], use_algebraic_vars=True)
-    # pe.guess[0] = pe.guess[0] * 1.2
-    p = {'e0_U': 1.3734686546834818, 'e0_c_p': 3.433671637489987, "e0_E_r1":9.6e4}
-    pe.generate_simulate_all_functions()
-    b = pe.calculate_sensitivity_and_fim(p)
-    print(b["jac_sorted"]["e0_c_tot"])
-    breakpoint()
-    a = pe.optimize(objective_function="ols")
-    print(b["f"])
-    print(a)
-    pe.parameter_analysis(p, plot=False)
-    breakpoint()
+    pe_state = par_est.ParameterEstimation(m, [data1])
     # a = pe_state.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_c_p": 3.5, "e0_E_r1": 9.6e4})
     print(a)
     # print(pe_state.optimize(True))
@@ -82,11 +67,11 @@ if __name__ == "__main__":
     # mes_names = None
 
 
-    # oed = par_est.OptimalExperimentalDesign(m, [data1], time_grid1, time_grid1, measurable_variables=mes_names, simulator_name="idas")
-    # oed.guess[0] = 373
+    oed = par_est.OptimalExperimentalDesign(m, [data1], time_grid1, time_grid1, measurable_variables=mes_names, simulator_name="idas")
+    oed.guess[0] = 373
     # print(oed.calculate_objective_and_jacobian({"e0_T_in": 373})["jac"])
 
-    # print(oed.optimize(objective_function="A_fd"))
-    # print(oed.optimize())
-    # breakpoint()
+    print(oed.optimize(objective_function="A_fd"))
+    print(oed.optimize())
+    breakpoint()
     # oed.optimize()
