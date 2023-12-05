@@ -551,7 +551,11 @@ class PE_base(Optimizer):
         for simulator in self.list_simulators:
             res_simulation = simulator.simulate_sym()
 
-            list_simulation_T.append(res_simulation[res_dict_name].T)
+            if getattr(self, "_use_algebraic_variables", False):
+                data = ca.vcat([res_simulation[res_dict_name], res_simulation["zf"]])
+                list_simulation_T.append(data.T)
+            else:
+                list_simulation_T.append(res_simulation[res_dict_name].T)
 
         free_variables = self.varlist_decision.get_casadi_variables()
         all_selected_measurements = ca.vcat(list_simulation_T).get(
@@ -616,14 +620,21 @@ class PE_base(Optimizer):
             "sim", [decision_variables], [self.simulate_all_mx]
         )(all_parameter_values)
 
+        jac_meas_mx = ca.jacobian(
+            self.simulate_all_mx[:, list(range(len(self.names_of_measurements)))], decision_variables
+        )
+        jac_meas_function = ca.Function(
+                "jac_meas", [decision_variables], [jac_meas_mx]
+        )
+        jac_all_dm = jac_meas_function(all_parameter_values)
+        jacobian_index = [0, self.simulate_all_mx.shape[0]]
+
         for index_measurement, meas_name in enumerate(self.names_of_measurements):
-            jac_meas_mx = ca.jacobian(
-                self.simulate_all_mx[:, index_measurement], decision_variables
-            )
-            jac_meas_function = ca.Function(
-                    "jac_meas", [decision_variables], [jac_meas_mx]
-            )
-            jac_meas_dm = jac_meas_function(all_parameter_values)
+            jacobian_slice = ca.Slice(jacobian_index[0], jacobian_index[1])
+            jac_meas_dm = jac_all_dm[jacobian_slice,:]
+            jacobian_index[0] += self.simulate_all_mx.shape[0]
+            jacobian_index[1] += self.simulate_all_mx.shape[0]
+
             jac_meas_selected_dm = (
                 jac_meas_dm * self.array_data_mask[:, index_measurement]
             )
@@ -1210,8 +1221,8 @@ class ParameterEstimation(PE_base):
             warn("idas constraints option is ignored", DeprecationWarning)
             use_idas_constraints = False
 
-        if use_algebraic_vars:
-            raise NotImplementedError()
+        self._use_algebraic_variables = use_algebraic_vars
+
         self._objective: Callable[
             [], tuple[ca.MX | ca.DM, ca.MX | ca.DM]
         ] = self._objective_ols
@@ -1330,6 +1341,8 @@ class ParameterEstimation(PE_base):
 
             # Generate inverted_variances
             variable_name_list = list(self.model.varlist_state.keys())
+            if self._use_algebraic_variables:
+                variable_name_list.extend(list(self.model.varlist_algebraic.keys()))
             inverted_variances_varlist = []
             for var_name in variable_name_list:
                 var = varlist_input[var_name]
@@ -1345,7 +1358,11 @@ class ParameterEstimation(PE_base):
         self.list_simulators: Sequence[Simulator] = list_simulators
 
         array_data = np.concatenate(experimental_data)
-        all_measurements_names = np.array(list(self.model.varlist_state.keys()))
+        all_measurements_names_list = list(self.model.varlist_state.keys())
+        if self._use_algebraic_variables:
+            all_measurements_names_list.extend(list(self.model.varlist_algebraic.keys()))
+
+        all_measurements_names = np.array(all_measurements_names_list)
 
         index_columns_with_all_nans = np.isnan(array_data).all(axis=0)
 
@@ -1373,7 +1390,10 @@ class ParameterEstimation(PE_base):
 
         self.index_measurements_in_sim = []
         for name in self.names_of_measurements:
-            index = self.list_simulators[0].mapping_state_variables[name]
+            try:
+                index = self.list_simulators[0].mapping_state_variables[name]
+            except KeyError:
+                index = len(self.list_simulators[0].mapping_state_variables) + self.list_simulators[0].mapping_algebraic_variables[name]
             self.index_measurements_in_sim.append(index)
 
         # Inverted variances provided weightning matrix for PE problem
