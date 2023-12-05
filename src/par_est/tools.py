@@ -6,7 +6,7 @@ import copy
 
 import numpy as np
 
-from par_est import Model, Simulator, SimulatorNLE, VariableList, VariableParameter
+from par_est import Model, Simulator, SimulatorNLE, VariableList, VariableParameter, VariableControl
 
 
 def create_grid(bounds: list[list[float]]) -> list[list[float]]:
@@ -43,13 +43,14 @@ def generate_varlist_with_data(
     # Replace empty state variables with results from simulation
     variable_list_with_data = copy.deepcopy(variable_list)
     for key, var in var_list_exp.items():
-        df = var.dataframe
-        if perturbate:
-            std = var_list_fixed[key].variance ** 0.5
-            value = rng.normal(var.dataframe, std)
-            df[key] = value
+        if not isinstance(var, VariableControl):
+            df = var.dataframe
+            if perturbate:
+                std = var_list_fixed[key].variance ** 0.5
+                value = rng.normal(var.dataframe, std)
+                df[key] = value
 
-        variable_list_with_data[key].dataframe = df
+            variable_list_with_data[key].dataframe = df
 
     return variable_list_with_data
 
