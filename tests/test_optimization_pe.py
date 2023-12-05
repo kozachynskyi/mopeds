@@ -188,16 +188,18 @@ def test_pe_regularization(piecewise):
     d = pe.parameter_identifiability_quaiser2009(true_parameters, true_parameters.keys())
     e = pe.parameter_identifiability_brun2001(true_parameters, true_parameters.keys())
 
-    identifiable_a_d = ['e0_U']
-    ranked_c = ['e0_U', 'e0_E_r2', 'e0_greek_Deltah_r2', 'e0_E_r3', 'e0_E_r1', 'e0_greek_Deltah_r3', 'e0_k_pre_r3', 'e0_k_pre_r2', 'e0_k_pre_r1', 'e0_c_p', 'e0_greek_Deltah_r1']
-    ranked_d = ['e0_U', 'e0_E_r2', 'e0_greek_Deltah_r2', 'e0_E_r3', 'e0_E_r1', 'e0_greek_Deltah_r3', 'e0_k_pre_r3', 'e0_k_pre_r1', 'e0_greek_Deltah_r1', 'e0_c_p', 'e0_k_pre_r2']
+    identifiable_a = ['e0_E_r2', 'e0_c_p']
+    identifiable_b = ['e0_E_r1', 'e0_E_r3', 'e0_c_p']
+    identifiable_d = ['e0_c_p', 'e0_E_r2', 'e0_E_r3']
+    ranked_c = ['e0_c_p', 'e0_E_r2', 'e0_E_r3', 'e0_k_pre_r2', 'e0_k_pre_r3', 'e0_E_r1', 'e0_greek_Deltah_r2', 'e0_k_pre_r1', 'e0_U', 'e0_greek_Deltah_r3', 'e0_greek_Deltah_r1']
+    ranked_d = ['e0_c_p', 'e0_E_r2', 'e0_E_r3', 'e0_k_pre_r2', 'e0_k_pre_r3', 'e0_E_r1', 'e0_U', 'e0_greek_Deltah_r2', 'e0_k_pre_r1', 'e0_greek_Deltah_r3', 'e0_greek_Deltah_r1']
     ranked_e = ['e0_greek_Deltah_r1', 'e0_greek_Deltah_r3', 'e0_greek_Deltah_r2', 'e0_k_pre_r1', 'e0_E_r1', 'e0_k_pre_r3', 'e0_k_pre_r2', 'e0_E_r3', 'e0_E_r2', 'e0_U', 'e0_c_p']
     identifiable_e = ['e0_E_r1', 'e0_E_r3', 'e0_k_pre_r2', 'e0_U', 'e0_greek_Deltah_r1']
 
-    assert a["estimable"] == identifiable_a_d
-    assert b["estimable"] == identifiable_a_d
-    assert c["estimable"] == identifiable_a_d
-    assert d["estimable"] == identifiable_a_d
+    assert a["estimable"] == identifiable_a
+    assert b["estimable"] == identifiable_b
+    assert c["estimable"] == identifiable_a
+    assert d["estimable"] == identifiable_d
     assert e["estimable"] == identifiable_e
 
     assert c["ranked"] == ranked_c
