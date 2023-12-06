@@ -615,6 +615,9 @@ class PE_base(Optimizer):
         if isinstance(measurement_variance_estimate, float):
             measurement_variance_estimate = [measurement_variance_estimate]
 
+        # Avoid division by 0 later
+        measurement_variance_estimate[measurement_variance_estimate  == 0] = 1e-24
+
         for index_meas, meas_std in enumerate(measurement_variance_estimate):
             estimated_inverted_std[:, index_meas] = 1 / np.sqrt(meas_std)
 
@@ -776,7 +779,7 @@ class PE_base(Optimizer):
                 S_selected = S[:, subset_index]
                 FIM_selected = S_selected.T @ S_selected
                 if subset_size == 1:
-                    max_det_i = float(FIM_selected)
+                    max_det_i = FIM_selected.item(0)
                 else:
                     max_det_i = np.linalg.det(FIM_selected)
                 if max_det_i > max_det:
