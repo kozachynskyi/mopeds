@@ -6,7 +6,8 @@ try:
     import acados_template
     import par_est.casados_integrator
 
-    _ACADOS_SUPPORT = True
+    # casados_integrator doesn't support new API of casadi 3.6
+    _ACADOS_SUPPORT = False
 except ImportError:
     _ACADOS_SUPPORT = False
 

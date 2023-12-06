@@ -439,44 +439,40 @@ class OED_base(Optimizer):
         )
 
         self.simulate_all_function = ca.Function(
-            "sim_all", [self.varlist_parameter.get_casadi_variables(), self.varlist_decision.get_casadi_variables()], [all_selected_measurements]
+                "sim_all", [self.varlist_parameter.get_casadi_variables(), self.varlist_decision.get_casadi_variables()], [all_selected_measurements], {"cse": True}
         )
         self.simulate_all_mx = self.simulate_all_function(parameter_variables, decision_variables)
 
-        jacobian = {}
-        jacobian_scaled = {}
+        num_meas = len(self.names_of_measurements)
+        num_par = len(self.varlist_parameter)
 
         if len(self.varlist_weights) == 0:
             apply_weights = False
         else:
             apply_weights = True
             weights_array = self.varlist_weights.get_casadi_variables()
+            weights_array = ca.repmat(weights_array, 1,num_meas)[:]
+            weights_array = ca.repmat(weights_array, 1,num_par)
 
-        for index_measurement, meas_name in enumerate(self.names_of_measurements):
-            jac_meas_mx = ca.jacobian(
-                self.simulate_all_mx[:, index_measurement], parameter_variables
-            )
-            jac_meas_function = ca.Function(
-                "jac_meas", [parameter_variables, decision_variables], [jac_meas_mx]
-            )
-            jac_meas_mx = jac_meas_function(self.parameter_values, decision_variables)
 
-            jac_meas_scaled_mx = (
-                jac_meas_mx * self.array_inverted_std[index_measurement]
-            )
+        jac_meas_mx_all = ca.jacobian(self.simulate_all_mx, parameter_variables)
+        jac_meas_function = ca.Function(
+            "jac_meas", [parameter_variables, decision_variables], [jac_meas_mx_all]
+        )
+        jac_meas_mx = jac_meas_function(self.parameter_values, decision_variables)
 
-            if apply_weights:
-                jac_meas_mx = jac_meas_mx * weights_array
-                jac_meas_scaled_mx = jac_meas_scaled_mx * weights_array
+        num_time_stamps = self.simulate_all_mx.shape[0]
+        meas_std = ca.repmat(self.array_inverted_std,1,num_time_stamps).T[:]
+        meas_std = ca.repmat(meas_std,1,num_par)
 
-            jacobian[meas_name] = jac_meas_mx
-            jacobian_scaled[meas_name] = jac_meas_scaled_mx
+        jac_meas_scaled_mx = jac_meas_mx * meas_std
 
-        jac_array = ca.vcat(list(jacobian.values()))
-        jac_array_scaled = ca.vcat(list(jacobian_scaled.values()))
+        if apply_weights:
+            jac_meas_mx = jac_meas_mx * weights_array
+            jac_meas_scaled_mx = jac_meas_scaled_mx * weights_array
 
-        self.jacobian_mx = jac_array
-        self.jacobian_scaled_mx = jac_array_scaled
+        self.jacobian_mx = jac_meas_mx
+        self.jacobian_scaled_mx = jac_meas_scaled_mx
 
     def _optimize(self, scale: float) -> dict[str, ca.DM | ca.MX]:
         """Runs optimizer, uses scaling if needed. Returned values is scaled back.

@@ -7,6 +7,7 @@ import webbrowser
 import casadi as ca
 import numpy as np
 import pandas as pd
+from scipy.stats import qmc
 
 
 def reduce_MX(mx_object):
@@ -26,15 +27,8 @@ class MXPickler(pickle.Pickler):
 
 def show_html_from_dataframe(dataframe: pd.DataFrame):
     tmp_file = tempfile.NamedTemporaryFile("w", delete=False)
-    min_max_html = (
-        dataframe.style.highlight_max(color="green")
-        .highlight_min(color="red")
-        .highlight_null(null_color="yellow")
-        .to_html()
-    )
-    tmp_file.writelines(min_max_html)
-    descibe_html = dataframe.describe().style.to_html()
-    tmp_file.writelines(descibe_html)
+    tmp_file.writelines(dataframe.to_html())
+    tmp_file.writelines(dataframe.describe().to_html())
     tmp_file.seek(0)
     tmp_file.close()
     webbrowser.open("file://" + tmp_file.name)
@@ -123,8 +117,6 @@ def make_startpoints(bound0, N, sampling="lhs"):
     bound0 = np.array([[0, 10],[0, 100]])
     output = B[num_of_samples, num_of_variables], example B[0] would return an array of variables guesses for all variables
     Will use log scaling, if both upper and lower bound have same sign. Otherwise normal sampling."""
-    import pyDOE
-
     if (bound0 == 0).any():
         raise ValueError(
             "Multistart sampling is not possible. Zero 0 as variable bound detected"
@@ -137,7 +129,8 @@ def make_startpoints(bound0, N, sampling="lhs"):
     )
 
     if sampling == "lhs":
-        S = pyDOE.lhs(D, N)
+        sampler = qmc.LatinHypercube(d=D)
+        S = sampler.random(n=N)
     elif sampling == "hammersley":
         S = generate_hammersley(D, N)
 

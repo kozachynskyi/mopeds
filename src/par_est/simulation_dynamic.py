@@ -141,13 +141,13 @@ class Simulator(object):
                 "integrator_tau",
                 self.__integrator_name,
                 self.ode_system_tau,
+                0,
+                1,
                 self.__integrator_settings,
             )
 
         # This integrator is used to output values of algebraic variables at time 0
         # and should be run first to get algebraic variables at time 0 for whole simulation
-        integrator_settings_with_output_t0 = copy.deepcopy(self.__integrator_settings)
-        integrator_settings_with_output_t0["output_t0"] = True
         if self.__integrator_name == "acados":
             self.integrator_tau_with_t0 = self.integrator_tau
         else:
@@ -155,7 +155,9 @@ class Simulator(object):
                 "integrator_tau_with_t0",
                 self.__integrator_name,
                 self.ode_system_tau,
-                integrator_settings_with_output_t0,
+                0,
+                [0, 1],
+                self.__integrator_settings,
             )
 
         # This list is used for utility functions, like finding steady state
@@ -170,12 +172,12 @@ class Simulator(object):
                 if self.__integrator_name == "acados":
                     factory_names = ["xf", "zf", "jac:xf:p"]
                 else:
-                    factory_names = ["xf", "qf", "zf", "rxf", "rqf", "rzf", "jac:xf:p"]
+                    factory_names = ["xf", "qf", "zf", "adj_x0", "adj_p", "adj_z0", "jac:xf:p"]
             else:
                 if self.__integrator_name == "acados":
                     factory_names = ["xf", "jac:xf:p"]
                 else:
-                    factory_names = ["xf", "qf", "rxf", "rqf", "jac:xf:p"]
+                    factory_names = ["xf", "qf", "adj_x0", "adj_p", "jac:xf:p"]
 
             self.integrator_tau_jac = self.integrator_tau.factory(
                 "integrator_tau_jacobian",
@@ -381,7 +383,6 @@ class Simulator(object):
         """Sane default settings for integrators"""
         if self.__integrator_name == "idas":
             integrator_settings = {
-                "tf": 1,
                 "expand": True,
                 # "calc_ic": False,
                 # 'abstol': 1,
@@ -394,7 +395,6 @@ class Simulator(object):
             }
         elif self.__integrator_name == "cvodes":
             integrator_settings = {
-                "tf": 1,
                 "expand": True,
                 # "linear_multistep_method": "adams",# was used for CVODES
                 # "output_t0": False,
