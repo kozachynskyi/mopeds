@@ -170,12 +170,12 @@ class Simulator(object):
                 if self.__integrator_name == "acados":
                     factory_names = ["xf", "zf", "jac:xf:p"]
                 else:
-                    factory_names = ["xf", "qf", "zf", "rxf", "rqf", "rzf", "jac:xf:p"]
+                    factory_names = ["xf", "qf", "zf", "adj_x0", "adj_p", "adj_z0", "jac:xf:p"]
             else:
                 if self.__integrator_name == "acados":
                     factory_names = ["xf", "jac:xf:p"]
                 else:
-                    factory_names = ["xf", "qf", "rxf", "rqf", "jac:xf:p"]
+                    factory_names = ["xf", "qf", "adj_x0", "adj_p", "jac:xf:p"]
 
             self.integrator_tau_jac = self.integrator_tau.factory(
                 "integrator_tau_jacobian",
