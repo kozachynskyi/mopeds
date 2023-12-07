@@ -7,7 +7,7 @@ from typing import Any, Union
 
 if sys.version_info[1] == 8:
     from typing import OrderedDict
-elif sys.version_info[1] == 9:
+elif sys.version_info[1] >= 9:
     from collections import OrderedDict
 
 import casadi as ca
