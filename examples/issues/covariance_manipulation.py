@@ -1,8 +1,8 @@
 import casadi as ca
 import numpy as np
 
-import par_est
-import par_est.examples
+import mopeds
+import mopeds.examples
 
 """ Jacobian returned by simulation has a size (NumState X NumOfParam * NumOfTimepoints). Once can get a covariance matrix of the parameters in different ways, and this example shows that something that works on paper (simple linear algebra) doesn't work with casadi.
 
@@ -11,12 +11,12 @@ Now it's close to zero, but not zero. This tells something about precision of ma
 """
 
 num_time = 10
-varlist, model = par_est.examples.cstr_ode()
+varlist, model = mopeds.examples.cstr_ode()
 
 time_grid = np.linspace(0, 1000, num_time + 1)
 for var in varlist.values():
     var.fixed = True
-sim = par_est.Simulator(model, time_grid, varlist, simulate_jac=True)
+sim = mopeds.Simulator(model, time_grid, varlist, simulate_jac=True)
 res = sim.simulate_jac()
 
 num_param = 19

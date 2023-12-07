@@ -1,4 +1,4 @@
-# par_est
+# mopeds
 
 A library wrapped around casadi to solve Simulation / Optimization problems based on ODE and DAE models. Currently Parameter Estimation (PE) and Optimal Experimental Design (OED) are supported out of the box.
 

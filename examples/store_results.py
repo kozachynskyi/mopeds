@@ -3,8 +3,8 @@ import pickle
 
 import numpy as np
 
-import par_est
-import par_est.examples
+import mopeds
+import mopeds.examples
 
 if __name__ == "__main__":
     """This example shows how one can store Data in pickle files and
@@ -16,7 +16,7 @@ if __name__ == "__main__":
     are gone.
     """
 
-    variable_list, m = par_est.examples.cstr_dae()
+    variable_list, m = mopeds.examples.cstr_dae()
     time_grid = np.linspace(10, 10000, 40)
     time_grid = np.insert(time_grid, 0, 0)
 
@@ -24,7 +24,7 @@ if __name__ == "__main__":
     for var in var_list_fixed.values():
         var.fixed = True
 
-    sim_fixed = par_est.Simulator(m, time_grid, var_list_fixed)
+    sim_fixed = mopeds.Simulator(m, time_grid, var_list_fixed)
     res_simple = sim_fixed.simulate_sym()
     res = sim_fixed.generate_exp_data(algebraic=True)
     variable = variable_list["e0_T"]
@@ -43,7 +43,7 @@ if __name__ == "__main__":
 
     # Create pickle file were data is stored and "dump" dict
     file_write = open("tmp.pkl", "wb")
-    pickler = par_est.MXPickler(file_write)
+    pickler = mopeds.MXPickler(file_write)
     pickler.dump(objects_to_store_dict)
     file_write.close()
 

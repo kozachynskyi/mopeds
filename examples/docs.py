@@ -1,19 +1,19 @@
-import par_est
+import mopeds
 
-y = par_est.VariableAlgebraic("y", 8.3)
-x = par_est.VariableControl("x", 1)
-C = par_est.VariableConstant("C", 1)
-theta1 = par_est.VariableParameter("theta1", 20)
-theta2 = par_est.VariableParameter("theta2", 0.24)
+y = mopeds.VariableAlgebraic("y", 8.3)
+x = mopeds.VariableControl("x", 1)
+C = mopeds.VariableConstant("C", 1)
+theta1 = mopeds.VariableParameter("theta1", 20)
+theta2 = mopeds.VariableParameter("theta2", 0.24)
 
-variable_list = par_est.VariableList()
+variable_list = mopeds.VariableList()
 variable_list.add_variable(y)
 variable_list.add_variable(x)
 variable_list.add_variable(C)
 variable_list.add_variable(theta1)
 variable_list.add_variable(theta2)
 
-model = par_est.Model(variable_list)
+model = mopeds.Model(variable_list)
 
 y = model.varlist_all["y"].casadi_var
 x = model.varlist_all["x"].casadi_var
@@ -27,7 +27,7 @@ equation = y - (theta1 * (C - ca.exp(-theta2 * x)))
 
 model.add_equations_algebraic([equation])
 
-simulator = par_est.SimulatorNLE(model, variable_list)
+simulator = mopeds.SimulatorNLE(model, variable_list)
 result = simulator.generate_exp_data()
 
 print(result["y"].value)
@@ -37,7 +37,7 @@ print(result["y"].dataframe)
 # >>>1970-01-01  4.267443
 
 variable_list["x"].value = 20
-simulator = par_est.SimulatorNLE(model, variable_list)
+simulator = mopeds.SimulatorNLE(model, variable_list)
 result = simulator.generate_exp_data()
 
 print(result["y"].value)
@@ -61,12 +61,12 @@ for var_list in experimental_data:
     var_list["theta1"].lower_bound = 0
     var_list["theta1"].upper_bound = 40
 
-pe = par_est.ParameterEstimationNLE(model, experimental_data)
+pe = mopeds.ParameterEstimationNLE(model, experimental_data)
 result = pe.optimize()
 print(result["x"])
 # >>> 25.2727
 
-simulator = par_est.SimulatorNLE(model, variable_list)
+simulator = mopeds.SimulatorNLE(model, variable_list)
 
 solver_settings = {
     "nlpsol": "ipopt",
@@ -82,7 +82,7 @@ solver_settings = {
     },
 }
 
-simulator = par_est.SimulatorNLE(
+simulator = mopeds.SimulatorNLE(
     model,
     variable_list,
     solver_settings=solver_settings,
@@ -106,7 +106,7 @@ solver_settings = {
     },
 }
 
-simulator = par_est.SimulatorNLE(
+simulator = mopeds.SimulatorNLE(
     model,
     variable_list,
     solver_settings=solver_settings,
@@ -126,7 +126,7 @@ solver_settings = {
     },
 }
 
-simulator = par_est.SimulatorNLE(
+simulator = mopeds.SimulatorNLE(
     model,
     variable_list,
     solver_settings=solver_settings,
@@ -149,7 +149,7 @@ solver_settings = {
     },
 }
 
-pe = par_est.ParameterEstimationNLE(
+pe = mopeds.ParameterEstimationNLE(
     model,
     experimental_data,
     simulator_settings=solver_settings,
@@ -163,7 +163,7 @@ pe.solver_settings = {
     "ipopt": {"max_iter": 300},
 }
 
-pe = par_est.ParameterEstimationNLE(model, experimental_data)
+pe = mopeds.ParameterEstimationNLE(model, experimental_data)
 pe.solver_name = "qrsqp"
 pe.solver_settings = {
     "verbose": False,

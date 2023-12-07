@@ -2,7 +2,7 @@
 model uncertainty that is caused by parameter uncertainty"""
 import matplotlib.pyplot as plt
 
-import par_est
+import mopeds
 import numpy as np
 
 
@@ -42,7 +42,7 @@ def set_plot_legend(x_bounds, y_bounds, x_label, y_label):
 
 
 def bod():
-    VAR_LIST, MODEL, EXP_DATA = par_est.examples.bod_model()
+    VAR_LIST, MODEL, EXP_DATA = mopeds.examples.bod_model()
 
     dict_of_params = {
         "theta1": 19.143,
@@ -59,7 +59,7 @@ def bod():
         "f": 1e1,
     }
 
-    pe = par_est.ParameterEstimationNLE(MODEL, EXP_DATA)
+    pe = mopeds.ParameterEstimationNLE(MODEL, EXP_DATA)
     exp_inference_results, exp_data, sim_data = pe.calculate_inference_bounds(
         dict_of_params, dict_of_responses, dict_of_controls
     )
@@ -88,7 +88,7 @@ def bod():
 
 
 def puromycin():
-    VAR_LIST, MODEL, EXP_DATA = par_est.examples.puromycin_model()
+    VAR_LIST, MODEL, EXP_DATA = mopeds.examples.puromycin_model()
 
     data = EXP_DATA["Treated"]
     list_of_params = list(["theta1", "theta2"])
@@ -108,7 +108,7 @@ def puromycin():
         "f": 5e1,
     }
 
-    pe = par_est.ParameterEstimationNLE(MODEL, data)
+    pe = mopeds.ParameterEstimationNLE(MODEL, data)
     exp_inference_results, exp_data, sim_data = pe.calculate_inference_bounds(
         dict_of_params, dict_of_responses, dict_of_controls
     )

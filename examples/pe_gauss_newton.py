@@ -1,13 +1,13 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
-import par_est
-import par_est.examples
+import mopeds
+import mopeds.examples
 import casadi as ca
 
 plt.ion()
 
-class PE_GN(par_est.ParameterEstimation):
+class PE_GN(mopeds.ParameterEstimation):
     def _optimize(self, scale):
         """Runs optimizer, uses scaling if needed. Returned values is scaled back.
         Scaling should be done before setting a solver and solver settings."""
@@ -67,7 +67,7 @@ class PE_GN(par_est.ParameterEstimation):
 if __name__ == "__main__":
 
     piecewiseswitch = False
-    variable_list, m = par_est.examples.cstr_dae(piecewiseswitch)
+    variable_list, m = mopeds.examples.cstr_dae(piecewiseswitch)
     for var in variable_list.values():
         var.fixed = True
 
@@ -83,14 +83,14 @@ if __name__ == "__main__":
 
     e0_T_in = variable_list["e0_T_in"]
     variable_list["e0_F"].fixed = False
-    if isinstance(e0_T_in, par_est.VariableControlPiecewiseConstant):
+    if isinstance(e0_T_in, mopeds.VariableControlPiecewiseConstant):
         e0_T_in.expand_horizon([10, 723], [363, 453])
         e0_T_in.variable_list.index(0).fixed = False
         e0_T_in.variable_list.index(1).fixed = True
         e0_T_in.variable_list.index(2).fixed = False
 
-    data1 = par_est.tools.generate_varlist_with_data(variable_list, m, time_grid1, True)
-    data2 = par_est.tools.generate_varlist_with_data(variable_list, m, time_grid2, True)
+    data1 = mopeds.tools.generate_varlist_with_data(variable_list, m, time_grid1, True)
+    data2 = mopeds.tools.generate_varlist_with_data(variable_list, m, time_grid2, True)
     # data1.show()
 
     # If data is not available for all simulated points, PE works
@@ -104,8 +104,8 @@ if __name__ == "__main__":
     a = data2["e0_c_tot"].dataframe
     data2["e0_c_tot"].dataframe = data2["e0_c_tot"].dataframe * 1.05
 
-    # pe_state = par_est.ParameterEstimation(m, [data1, data2])
-    pe = par_est.ParameterEstimation(m, [data1])
+    # pe_state = mopeds.ParameterEstimation(m, [data1, data2])
+    pe = mopeds.ParameterEstimation(m, [data1])
     pegn = PE_GN(m, [data1])
     # a = pe_state.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_c_p": 3.5, "e0_E_r1": 9.6e4})
     pe.solver_settings["ipopt"]["hessian_approximation"] = "exact"

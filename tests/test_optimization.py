@@ -3,19 +3,19 @@ import casadi as ca
 import numpy as np
 
 import copy
-import par_est.examples
-import par_est
-import par_est.tools
+import mopeds.examples
+import mopeds
+import mopeds.tools
 import pytest
 
 
 @pytest.mark.parametrize("piecewise", [True, False])
 def test_parameter_jacobian(piecewise):
     for cstr_model in [
-        par_est.examples.cstr_ode,
-        par_est.examples.cstr_ode_constant,
-        par_est.examples.cstr_dae,
-        par_est.examples.cstr_dae_constant,
+        mopeds.examples.cstr_ode,
+        mopeds.examples.cstr_ode_constant,
+        mopeds.examples.cstr_dae,
+        mopeds.examples.cstr_dae_constant,
     ]:
         var_list, model = cstr_model(piecewise)
         time_grid = np.linspace(0, 1000, 4)
@@ -25,7 +25,7 @@ def test_parameter_jacobian(piecewise):
             T_in = var_list["e0_T_in"]
             T_in.expand_horizon([2000, 4000], [373, 373])
 
-        var_list_exp = par_est.Simulator(model, time_grid, var_list).generate_exp_data()
+        var_list_exp = mopeds.Simulator(model, time_grid, var_list).generate_exp_data()
 
         for key, var in var_list_exp.items():
             var_list[key] = var
@@ -33,13 +33,13 @@ def test_parameter_jacobian(piecewise):
         var_list["e0_U"].fixed = False
         var_list["e0_E_r1"].fixed = False
 
-        pe = par_est.ParameterEstimation(
+        pe = mopeds.ParameterEstimation(
             model, [var_list]
         )
         jac_pe = pe.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_E_r1": 9.6e4})["jac_scaled_full_theory"]
 
-        oed = par_est.OptimalExperimentalDesign(model, [var_list], time_grid)
-        oed_expanded = par_est.OptimalExperimentalDesign(model, [var_list], time_grid_expanded)
+        oed = mopeds.OptimalExperimentalDesign(model, [var_list], time_grid)
+        oed_expanded = mopeds.OptimalExperimentalDesign(model, [var_list], time_grid_expanded)
         jac_oed = oed.calculate_objective_and_jacobian({"e0_T_in": 373})["jac"]
         jac_oed_expanded = oed_expanded.calculate_objective_and_jacobian({"e0_T_in": 373})["jac"]
 
@@ -58,15 +58,15 @@ def test_optimizer(piecewise):  # noqa: C901
     """Tests if optimizer can deal with variable list of fixed and unfixed parameters.
     Not well designed, and may yield false positives, but let it be.
     """
-    variable_list, m = par_est.examples.cstr_ode(piecewise)
+    variable_list, m = mopeds.examples.cstr_ode(piecewise)
 
     for var in variable_list.values():
         if isinstance(
             var,
             (
-                par_est.VariableControl,
-                par_est.VariableParameter,
-                par_est.VariableControlPiecewiseConstant,
+                mopeds.VariableControl,
+                mopeds.VariableParameter,
+                mopeds.VariableControlPiecewiseConstant,
             ),
         ):
             var.fixed = False
@@ -79,11 +79,11 @@ def test_optimizer(piecewise):  # noqa: C901
     var_list_fixed = copy.deepcopy(variable_list)
     for var in var_list_fixed.values():
         var.fixed = True
-    var_list_exp = par_est.Simulator(m, time_grid, var_list_fixed).generate_exp_data()
+    var_list_exp = mopeds.Simulator(m, time_grid, var_list_fixed).generate_exp_data()
 
     # Replace empty state variables with results from simulation
     for key, var in var_list_exp.items():
-        if isinstance(var, par_est.VariableState):
+        if isinstance(var, mopeds.VariableState):
             variable_list[key] = var
 
     for i in range(5):
@@ -101,9 +101,9 @@ def test_optimizer(piecewise):  # noqa: C901
 
         for j in range(2):
             if j == 0:
-                pe = par_est.ParameterEstimation(m, [variable_list])
+                pe = mopeds.ParameterEstimation(m, [variable_list])
             else:
-                pe = par_est.ParameterEstimation(m, [variable_list, variable_list])
+                pe = mopeds.ParameterEstimation(m, [variable_list, variable_list])
 
             pe.solver_settings = {
                 "verbose": False,
@@ -114,7 +114,7 @@ def test_optimizer(piecewise):  # noqa: C901
                 },
             }
 
-            oed = par_est.OptimalExperimentalDesign(m, [variable_list], time_grid)
+            oed = mopeds.OptimalExperimentalDesign(m, [variable_list], time_grid)
             oed.solver_settings = {
                 "verbose": False,
                 "ipopt": {

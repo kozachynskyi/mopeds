@@ -3,8 +3,8 @@ import copy
 import numpy as np
 from matplotlib import pyplot as plt
 
-import par_est
-import par_est.examples
+import mopeds
+import mopeds.examples
 
 plt.ion()
 import pandas as pd
@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
 
-    variable_list, m, exp_data = par_est.examples.free_fall_example()
+    variable_list, m, exp_data = mopeds.examples.free_fall_example()
 
     # Create time-grid. Zero should be first
     time_grid = np.linspace(0, 30, 5)
@@ -20,7 +20,7 @@ if __name__ == "__main__":
     exp_data[0]["s"].dataframe.iloc[-1] = 100
 
     # Create simulation Object
-    sim_idas = par_est.Simulator(
+    sim_idas = mopeds.Simulator(
         m,
         time_grid,
         variable_list,
@@ -41,7 +41,7 @@ if __name__ == "__main__":
     }
     r = []
 
-    pe = par_est.ParameterEstimation(
+    pe = mopeds.ParameterEstimation(
         m,
         exp_data,
         simulator_name="acados",

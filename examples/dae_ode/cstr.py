@@ -3,12 +3,12 @@ from datetime import datetime, timedelta  # noqa: F401
 
 import numpy as np
 
-import par_est
-import par_est.examples
+import mopeds
+import mopeds.examples
 
 if __name__ == "__main__":
 
-    variable_list, m = par_est.examples.cstr_ode()
+    variable_list, m = mopeds.examples.cstr_ode()
 
     # Create time-grid. Zero should be first
     time_grid = np.linspace(10, 10000, 40)
@@ -19,7 +19,7 @@ if __name__ == "__main__":
     for var in var_list_fixed.values():
         var.fixed = True
 
-    sim_fixed = par_est.Simulator(m, time_grid, var_list_fixed)
+    sim_fixed = mopeds.Simulator(m, time_grid, var_list_fixed)
     res = sim_fixed.generate_exp_data()
     var_list_exp = sim_fixed.generate_exp_data()
 

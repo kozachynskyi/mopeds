@@ -1,13 +1,13 @@
 import pytest
 import casadi as ca
-import par_est.examples
-from par_est.model import VariableTypeError
+import mopeds.examples
+from mopeds.model import VariableTypeError
 import numpy as np
 
 
 def test_model():
 
-    var_list, model = par_est.examples.cstr_ode()
+    var_list, model = mopeds.examples.cstr_ode()
 
     assert len(model.varlist_state) == 5
     assert len(model.varlist_independent) == 18
@@ -18,7 +18,7 @@ def test_model():
     with pytest.raises(NotImplementedError):
         model.add_equations_differential(model.equations_differential[1])
 
-    var_list, model = par_est.examples.pendulum_dae_1()
+    var_list, model = mopeds.examples.pendulum_dae_1()
 
     assert len(model.varlist_state) == 2
     assert len(model.varlist_independent) == 2
@@ -31,16 +31,16 @@ def test_model():
     with pytest.raises(NotImplementedError):
         model.add_equations_algebraic(model.equations_algebraic[1])
 
-    var_list = par_est.VariableList()
-    var_list.add_variable(par_est.Variable("a_test"))
+    var_list = mopeds.VariableList()
+    var_list.add_variable(mopeds.Variable("a_test"))
     with pytest.raises(VariableTypeError):
-        model = par_est.Model(var_list)
+        model = mopeds.Model(var_list)
 
     for model in [
-        par_est.examples.cstr_ode,
-        par_est.examples.cstr_dae,
-        par_est.examples.cstr_dae_constant,
-        par_est.examples.cstr_ode_constant,
+        mopeds.examples.cstr_ode,
+        mopeds.examples.cstr_dae,
+        mopeds.examples.cstr_dae_constant,
+        mopeds.examples.cstr_ode_constant,
     ]:
         var_list, model = model()
         ode_system = {
@@ -74,14 +74,14 @@ def test_model():
 def test_varlist_model_reusability():
     """Test if model created from supplied varlist and
     without varlist provides same results."""
-    variable_list, model = par_est.examples.pendulum_dae_1(False)
+    variable_list, model = mopeds.examples.pendulum_dae_1(False)
     time_grid = np.linspace(0, 1, 3)
     variable_list["g"].value = 12.0
-    simulation = par_est.Simulator(model, time_grid, variable_list)
+    simulation = mopeds.Simulator(model, time_grid, variable_list)
     res_before = simulation.simulate_sym()
 
-    variable_list, model = par_est.examples.pendulum_dae_1(False, variable_list)
-    simulation = par_est.Simulator(model, time_grid, variable_list)
+    variable_list, model = mopeds.examples.pendulum_dae_1(False, variable_list)
+    simulation = mopeds.Simulator(model, time_grid, variable_list)
     res_after_pickle = simulation.simulate_sym()
 
     assert np.isclose(

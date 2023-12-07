@@ -3,8 +3,8 @@ import copy
 import dae_ode.hyfo_dae  # type: ignore
 import numpy as np
 
-import par_est
-import par_est.examples
+import mopeds
+import mopeds.examples
 
 if __name__ == "__main__":
 
@@ -48,7 +48,7 @@ if __name__ == "__main__":
     variable_list_optimizer["e0_T"].fixed = False
     # variable_list_optimizer["e0_p_Reactor"].fixed = False
 
-    oed = par_est.OptimalExperimentalDesign(m, [variable_list_optimizer], time_grid)
+    oed = mopeds.OptimalExperimentalDesign(m, [variable_list_optimizer], time_grid)
 
     unfix_parameters = oed.identifiability_analysis()
     print(unfix_parameters)

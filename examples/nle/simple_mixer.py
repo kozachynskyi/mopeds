@@ -1,20 +1,20 @@
 import copy
 
-import par_est
+import mopeds
 
 
 def initialize_problem():  # noqa: C901
 
-    variable_list = par_est.VariableList()
+    variable_list = mopeds.VariableList()
     # fmt:off
 
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_F_s2", 20.0, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_F_s4", 7.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_F_s2", 20.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_F_s4", 7.0, -1.0E9, 1.0E9))  # noqa: E501
 
-    variable_list.add_variable(par_est.VariableControl("e0_F_s1", 21.0, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableControl("e0_F_s3", 13.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableControl("e0_F_s1", 21.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableControl("e0_F_s3", 13.0, -1.0E9, 1.0E9))  # noqa: E501
 
-    m = par_est.Model(variable_list)
+    m = mopeds.Model(variable_list)
 
     e0_F_s1 = m.varlist_all["e0_F_s1"].casadi_var  # noqa: E501
     e0_F_s3 = m.varlist_all["e0_F_s3"].casadi_var  # noqa: E501
@@ -43,7 +43,7 @@ if __name__ == "__main__":
         var.fixed = True
 
     # Create simulation Object
-    sim_fixed = par_est.SimulatorNLE(m, var_list_fixed)
+    sim_fixed = mopeds.SimulatorNLE(m, var_list_fixed)
     # Run simulation and get simple results as array of numbers, but information about state variables and timestamp is lost
     res_simple = sim_fixed.simulate_sym()
     # Run simulation and connect results with actual state variables, which can be plotted based on available data

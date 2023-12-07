@@ -5,7 +5,7 @@ from collections.abc import Callable
 import casadi as ca
 import numpy as np
 
-from par_est import (
+from mopeds import (
     Model,
     Optimizer,
     Simulator,

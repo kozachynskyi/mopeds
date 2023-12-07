@@ -1,11 +1,11 @@
 import numpy as np
 
-import par_est
+import mopeds
 
 
 def isomerization():
-    VAR_LIST, MODEL, EXP_DATA = par_est.examples.isomerization_model()
-    pe = par_est.ParameterEstimationNLE(MODEL, EXP_DATA)
+    VAR_LIST, MODEL, EXP_DATA = mopeds.examples.isomerization_model()
+    pe = mopeds.ParameterEstimationNLE(MODEL, EXP_DATA)
 
     # Example isomerization 1 Bates Page 56 Table 2.2
     res_x = pe.optimize()["x_dict"]
@@ -19,8 +19,8 @@ def isomerization():
 
 
 def bod():
-    VAR_LIST, MODEL, EXP_DATA = par_est.examples.bod_model()
-    pe = par_est.ParameterEstimationNLE(MODEL, EXP_DATA)
+    VAR_LIST, MODEL, EXP_DATA = mopeds.examples.bod_model()
+    pe = mopeds.ParameterEstimationNLE(MODEL, EXP_DATA)
 
     # Example BOD 5 Bates Page 54
     res = pe.optimize()["x_dict"]
@@ -35,8 +35,8 @@ def bod():
 
 
 def puromycin():
-    varlist, model, data = par_est.examples.puromycin_model()
-    pe = par_est.ParameterEstimationNLE(model, data["Treated"])
+    varlist, model, data = mopeds.examples.puromycin_model()
+    pe = mopeds.ParameterEstimationNLE(model, data["Treated"])
 
     # Puromycin 6 Bates Page 51
     res_x = pe.optimize(objective_function="ols")["x_dict"]
@@ -55,8 +55,8 @@ def puromycin():
 
 def spmma():
     # Doesn't work as in book
-    varlist, model, data = par_est.examples.spmma()
-    pe = par_est.ParameterEstimationNLE(model, data)
+    varlist, model, data = mopeds.examples.spmma()
+    pe = mopeds.ParameterEstimationNLE(model, data)
 
     # Puromycin 6 Bates Page 51
     res_x = pe.optimize(objective_function="ols")["x_dict"]

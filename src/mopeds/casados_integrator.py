@@ -61,7 +61,7 @@ def create_casados_integrator(model, integrator_opts, DAE=True):
 
     sim.model = model
 
-    dir_path = Path.cwd() / "par_est_code"
+    dir_path = Path.cwd() / "modeps_code"
     sim.code_export_directory = str(
         dir_path / f"c_generated_code_{model.name}_{sim.solver_options.integrator_type}"
     )

@@ -1,14 +1,14 @@
 import numpy as np
 
-import par_est
+import mopeds
 
 
 def main():
-    varlist, model, data = par_est.examples.puromycin_model()
+    varlist, model, data = mopeds.examples.puromycin_model()
 
-    print(par_est.SimulatorNLE(model, varlist).simulate())
+    print(mopeds.SimulatorNLE(model, varlist).simulate())
 
-    pe = par_est.ParameterEstimationNLE(model, data["Treated"])
+    pe = mopeds.ParameterEstimationNLE(model, data["Treated"])
 
     # Puromycin 6 Bates Page 51
     res_x = pe.optimize(objective_function="ols")["x_dict"]

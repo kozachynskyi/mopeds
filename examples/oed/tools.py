@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib import ticker, cm
 import copy
 
-import par_est
+import mopeds
 
 def unfix_parameters(varlist):
     unfix_variables = ["theta1", "theta2", "theta3","theta4"]
@@ -38,7 +38,7 @@ def plot_fig3(oed, obj_f_name):
         num_p = 15
         control_bounds[var_name] = [lb, ub, num_p]
 
-    grid, meshgrid = par_est.tools.create_grid(control_bounds.values())
+    grid, meshgrid = mopeds.tools.create_grid(control_bounds.values())
 
     obj_f = []
     for grid_i in grid:

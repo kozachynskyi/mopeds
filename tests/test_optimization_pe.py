@@ -3,21 +3,21 @@ import casadi as ca
 import numpy as np
 
 import copy
-import par_est.examples
-import par_est
-import par_est.tools
+import mopeds.examples
+import mopeds
+import mopeds.tools
 import pytest
 
 
 @pytest.mark.parametrize("piecewise", [True, False])
 def test_pe_intials_algebraic(piecewise):
-    variable_list1, model = par_est.examples.empy_dae(piecewise)
+    variable_list1, model = mopeds.examples.empy_dae(piecewise)
     variable_list1["X1"].set_dataframe_from_value_and_time([1, 0], [0, 1])
     variable_list1["X2"].set_dataframe_from_value_and_time([0], [0])
     variable_list2 = copy.deepcopy(variable_list1)
     variable_list2["X1"].set_dataframe_from_value_and_time([1, 0], [0, 1])
     variable_list2["X2"].set_dataframe_from_value_and_time([1, 0], [0, 1])
-    pe = par_est.ParameterEstimation(model, [variable_list1, variable_list2])
+    pe = mopeds.ParameterEstimation(model, [variable_list1, variable_list2])
     pe.solver_settings = {
         "ipopt": {
             "max_iter": 0,
@@ -29,15 +29,15 @@ def test_pe_intials_algebraic(piecewise):
 
 @pytest.mark.parametrize("piecewise", [True, False])
 def test_pe_objective(piecewise):
-    variable_list1, model = par_est.examples.empy_dae(piecewise)
+    variable_list1, model = mopeds.examples.empy_dae(piecewise)
 
     for var in variable_list1.values():
         if isinstance(
             var,
             (
-                par_est.VariableControl,
-                par_est.VariableParameter,
-                par_est.VariableControlPiecewiseConstant,
+                mopeds.VariableControl,
+                mopeds.VariableParameter,
+                mopeds.VariableControlPiecewiseConstant,
             ),
         ):
             var.fixed = False
@@ -50,7 +50,7 @@ def test_pe_objective(piecewise):
     variable_list2["X1"].variance = 20
     variable_list2["X2"].set_dataframe_from_value_and_time([0, 4], [0, 2])
     variable_list2["X2"].variance = 40
-    pe = par_est.ParameterEstimation(model, [variable_list1, variable_list2])
+    pe = mopeds.ParameterEstimation(model, [variable_list1, variable_list2])
     pe.solver_settings = {
         "ipopt": {
             "max_iter": 0,
@@ -85,10 +85,10 @@ def test_pe(piecewise):
 
     """ ODE and DAE """
     for cstr_model in [
-        par_est.examples.cstr_ode,
-        par_est.examples.cstr_ode_constant,
-        par_est.examples.cstr_dae,
-        par_est.examples.cstr_dae_constant,
+        mopeds.examples.cstr_ode,
+        mopeds.examples.cstr_ode_constant,
+        mopeds.examples.cstr_dae,
+        mopeds.examples.cstr_dae_constant,
     ]:
         var_list, model = cstr_model(piecewise)
         time_grid = np.linspace(10, 10000, 3)
@@ -101,7 +101,7 @@ def test_pe(piecewise):
         var_list_fixed = copy.deepcopy(var_list)
         for var in var_list_fixed.values():
             var.fixed = True
-        var_list_exp = par_est.Simulator(
+        var_list_exp = mopeds.Simulator(
             model, time_grid, var_list_fixed
         ).generate_exp_data()
 
@@ -117,7 +117,7 @@ def test_pe(piecewise):
         var_list["e0_c_i1"].lower_bound = 0
         var_list["e0_c_i1"].upper_bound = None
 
-        pe = par_est.ParameterEstimation(
+        pe = mopeds.ParameterEstimation(
             model, [var_list]
         )
         pe.setup_regularization(0, np.array([95000]))
@@ -153,14 +153,14 @@ def test_pe_regularization(piecewise):
     """
 
     """ ODE and DAE """
-    cstr_model = par_est.examples.cstr_dae
+    cstr_model = mopeds.examples.cstr_dae
     var_list, model = cstr_model(piecewise)
     true_parameters = {}
     for n, v in var_list.items():
-        if isinstance(v, par_est.VariableParameter):
+        if isinstance(v, mopeds.VariableParameter):
             true_parameters[n] = v.value[0]
             v.fixed = False
-        elif isinstance(v, par_est.VariableState):
+        elif isinstance(v, mopeds.VariableState):
             v.variance = 0.001**2
 
     time_grid = np.linspace(10, 100, 3)
@@ -169,17 +169,17 @@ def test_pe_regularization(piecewise):
     var_list_fixed = copy.deepcopy(var_list)
     for var in var_list_fixed.values():
         var.fixed = True
-    var_list_exp = par_est.Simulator(
+    var_list_exp = mopeds.Simulator(
         model, time_grid, var_list_fixed
     ).generate_exp_data()
 
     for key, var in var_list_exp.items():
-        if isinstance(var, par_est.VariableControlPiecewiseConstant):
+        if isinstance(var, mopeds.VariableControlPiecewiseConstant):
             var_list[key].variable_list = var.variable_list
         else:
             var_list[key].dataframe = var.dataframe
 
-    pe = par_est.ParameterEstimation(
+    pe = mopeds.ParameterEstimation(
         model, [var_list]
     )
     a = pe.parameter_identifiability_chu2012(true_parameters, true_parameters.keys())

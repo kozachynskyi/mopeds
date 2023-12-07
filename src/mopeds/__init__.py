@@ -1,10 +1,10 @@
 import importlib.metadata
 
-__version__ = importlib.metadata.version("par_est")
+__version__ = importlib.metadata.version("mopeds")
 
 try:
     import acados_template
-    import par_est.casados_integrator
+    import mopeds.casados_integrator
 
     # casados_integrator doesn't support new API of casadi 3.6
     _ACADOS_SUPPORT = False
@@ -36,5 +36,5 @@ from .optimization import (
 from .optimization_oed import OptimalExperimentalDesign, OED_objective, OptimalSampling, AdaptiveOptimalSampling, AdaptiveSampling, FixedGridSampling, OptimalExperimentalDesign_NLE
 from .mpc import ModelPredictiveControl
 
-import par_est.examples
-import par_est.tools
+import mopeds.examples
+import mopeds.tools

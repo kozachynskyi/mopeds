@@ -4,27 +4,27 @@ import copy
 
 import casadi as ca
 
-import par_est
+import mopeds
 
 
 def empy_dae(
     piecewise_control: bool = False,
-) -> tuple[par_est.VariableList, par_est.Model]:
-    variable_list = par_est.VariableList()
+) -> tuple[mopeds.VariableList, mopeds.Model]:
+    variable_list = mopeds.VariableList()
 
-    variable_list.add_variable(par_est.VariableState("X1", 0))
-    variable_list.add_variable(par_est.VariableState("X2", 0))
-    variable_list.add_variable(par_est.VariableAlgebraic("Z1", 0.0))
+    variable_list.add_variable(mopeds.VariableState("X1", 0))
+    variable_list.add_variable(mopeds.VariableState("X2", 0))
+    variable_list.add_variable(mopeds.VariableAlgebraic("Z1", 0.0))
 
     if piecewise_control:
         variable_list.add_variable(
-            par_est.VariableControlPiecewiseConstant("C", 0.0, -1, 1)
+            mopeds.VariableControlPiecewiseConstant("C", 0.0, -1, 1)
         )
     else:
-        variable_list.add_variable(par_est.VariableControl("C", 0.0, -1, 1))
-    variable_list.add_variable(par_est.VariableParameter("P", 0.0, -1, 1))
+        variable_list.add_variable(mopeds.VariableControl("C", 0.0, -1, 1))
+    variable_list.add_variable(mopeds.VariableParameter("P", 0.0, -1, 1))
 
-    m = par_est.Model(variable_list)
+    m = mopeds.Model(variable_list)
 
     dydx1 = m.varlist_all["C"].casadi_var * 0
     dydx2 = m.varlist_all["P"].casadi_var * 0
@@ -50,27 +50,27 @@ def empy_dae(
 
 
 def pendulum_dae_1(
-    piecewise_control: bool = False, variable_list: None | par_est.VariableList = None
-) -> tuple[par_est.VariableList, par_est.Model]:
+    piecewise_control: bool = False, variable_list: None | mopeds.VariableList = None
+) -> tuple[mopeds.VariableList, mopeds.Model]:
     if variable_list is None:
-        variable_list = par_est.VariableList()
+        variable_list = mopeds.VariableList()
 
-        variable_list.add_variable(par_est.VariableState("x", 3.0))
-        variable_list.add_variable(par_est.VariableState("u", -1.0 / 3))
+        variable_list.add_variable(mopeds.VariableState("x", 3.0))
+        variable_list.add_variable(mopeds.VariableState("u", -1.0 / 3))
 
-        variable_list.add_variable(par_est.VariableAlgebraic("y", 4.0))
-        variable_list.add_variable(par_est.VariableAlgebraic("v", 1.0 / 4))
-        variable_list.add_variable(par_est.VariableAlgebraic("lambda", 1147.0 / 720))
+        variable_list.add_variable(mopeds.VariableAlgebraic("y", 4.0))
+        variable_list.add_variable(mopeds.VariableAlgebraic("v", 1.0 / 4))
+        variable_list.add_variable(mopeds.VariableAlgebraic("lambda", 1147.0 / 720))
 
         if piecewise_control:
             variable_list.add_variable(
-                par_est.VariableControlPiecewiseConstant("L", 5.0)
+                mopeds.VariableControlPiecewiseConstant("L", 5.0)
             )
         else:
-            variable_list.add_variable(par_est.VariableControl("L", 5.0))
-        variable_list.add_variable(par_est.VariableParameter("g", 10.0))
+            variable_list.add_variable(mopeds.VariableControl("L", 5.0))
+        variable_list.add_variable(mopeds.VariableParameter("g", 10.0))
 
-    m = par_est.Model(variable_list)
+    m = mopeds.Model(variable_list)
 
     # fmt: off
     dydx1 = m.varlist_all["u"].casadi_var
@@ -89,7 +89,7 @@ def pendulum_dae_1(
 
 def cstr_ode(
     piecewise_control: bool = False,
-) -> tuple[par_est.VariableList, par_est.Model]:
+) -> tuple[mopeds.VariableList, mopeds.Model]:
     e0_greek_nu_i1_r1 = -1.0
     e0_greek_nu_i1_r2 = 1.0
     e0_greek_nu_i2_r2 = -1.0
@@ -101,44 +101,44 @@ def cstr_ode(
     e0_R = 8.314
     e0_V = 1.0
 
-    variable_list = par_est.VariableList()
+    variable_list = mopeds.VariableList()
 
-    variable_list.add_variable(par_est.VariableState("e0_T", 273.0))
-    variable_list.add_variable(par_est.VariableState("e0_c_i1", 3.0))
-    variable_list.add_variable(par_est.VariableState("e0_c_i2", 10.0))
-    variable_list.add_variable(par_est.VariableState("e0_c_i3", 0.0))
-    variable_list.add_variable(par_est.VariableState("e0_c_i4", 0.0))
+    variable_list.add_variable(mopeds.VariableState("e0_T", 273.0))
+    variable_list.add_variable(mopeds.VariableState("e0_c_i1", 3.0))
+    variable_list.add_variable(mopeds.VariableState("e0_c_i2", 10.0))
+    variable_list.add_variable(mopeds.VariableState("e0_c_i3", 0.0))
+    variable_list.add_variable(mopeds.VariableState("e0_c_i4", 0.0))
 
     # fmt: off
-    variable_list.add_variable(par_est.VariableParameter("e0_E_r1", 9.6e4, 9.0e4, 10.0e4))
-    variable_list.add_variable(par_est.VariableParameter("e0_E_r2", 7.2e4, 6.8e4, 7.6e4))
-    variable_list.add_variable(par_est.VariableParameter("e0_E_r3", 6.9e4, 6.5e4, 7.3e4))
-    variable_list.add_variable(par_est.VariableParameter("e0_k_pre_r1", 5.0e6, 4.5e6, 5.5e6))
-    variable_list.add_variable(par_est.VariableParameter("e0_k_pre_r2", 1.0e7, 0.5e7, 1.5e7))
-    variable_list.add_variable(par_est.VariableParameter("e0_k_pre_r3", 5.0e5, 4.5e5, 5.5e5))
-    variable_list.add_variable(par_est.VariableParameter("e0_U", 1.4, 1.0, 1.8))
-    variable_list.add_variable(par_est.VariableParameter("e0_c_p", 3.5, 3.0, 4.0))
-    variable_list.add_variable(par_est.VariableParameter("e0_greek_Deltah_r1", 4.5e-3, 4.0e-3, 5.0e-3))
-    variable_list.add_variable(par_est.VariableParameter("e0_greek_Deltah_r2", -5.5e-3, -6.0e-3, -5.0e-3))
-    variable_list.add_variable(par_est.VariableParameter("e0_greek_Deltah_r3", 4.5e-3, 4.0e-3, 5.0e-3))
+    variable_list.add_variable(mopeds.VariableParameter("e0_E_r1", 9.6e4, 9.0e4, 10.0e4))
+    variable_list.add_variable(mopeds.VariableParameter("e0_E_r2", 7.2e4, 6.8e4, 7.6e4))
+    variable_list.add_variable(mopeds.VariableParameter("e0_E_r3", 6.9e4, 6.5e4, 7.3e4))
+    variable_list.add_variable(mopeds.VariableParameter("e0_k_pre_r1", 5.0e6, 4.5e6, 5.5e6))
+    variable_list.add_variable(mopeds.VariableParameter("e0_k_pre_r2", 1.0e7, 0.5e7, 1.5e7))
+    variable_list.add_variable(mopeds.VariableParameter("e0_k_pre_r3", 5.0e5, 4.5e5, 5.5e5))
+    variable_list.add_variable(mopeds.VariableParameter("e0_U", 1.4, 1.0, 1.8))
+    variable_list.add_variable(mopeds.VariableParameter("e0_c_p", 3.5, 3.0, 4.0))
+    variable_list.add_variable(mopeds.VariableParameter("e0_greek_Deltah_r1", 4.5e-3, 4.0e-3, 5.0e-3))
+    variable_list.add_variable(mopeds.VariableParameter("e0_greek_Deltah_r2", -5.5e-3, -6.0e-3, -5.0e-3))
+    variable_list.add_variable(mopeds.VariableParameter("e0_greek_Deltah_r3", 4.5e-3, 4.0e-3, 5.0e-3))
 
     if piecewise_control:
-        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("e0_c_in_i1", 5.0, 4.0, 6.0))
+        variable_list.add_variable(mopeds.VariableControlPiecewiseConstant("e0_c_in_i1", 5.0, 4.0, 6.0))
     else:
-        variable_list.add_variable(par_est.VariableControl("e0_c_in_i1", 5.0, 4.0, 6.0))
-    variable_list.add_variable(par_est.VariableControl("e0_c_in_i2", 10.0, 9.0, 11.0))
-    variable_list.add_variable(par_est.VariableControl("e0_c_in_i3", 0.0, 0.0, 1.0))
-    variable_list.add_variable(par_est.VariableControl("e0_c_in_i4", 0.0, 0.0, 1.0))
+        variable_list.add_variable(mopeds.VariableControl("e0_c_in_i1", 5.0, 4.0, 6.0))
+    variable_list.add_variable(mopeds.VariableControl("e0_c_in_i2", 10.0, 9.0, 11.0))
+    variable_list.add_variable(mopeds.VariableControl("e0_c_in_i3", 0.0, 0.0, 1.0))
+    variable_list.add_variable(mopeds.VariableControl("e0_c_in_i4", 0.0, 0.0, 1.0))
     if piecewise_control:
-        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("e0_T_in", 373.0, 353.0, 393.0))
+        variable_list.add_variable(mopeds.VariableControlPiecewiseConstant("e0_T_in", 373.0, 353.0, 393.0))
     else:
-        variable_list.add_variable(par_est.VariableControl("e0_T_in", 373.0, 353.0, 393.0))
-    variable_list.add_variable(par_est.VariableControl("e0_T_j", 373.0, 353.0, 393.0))
-    variable_list.add_variable(par_est.VariableControl("e0_F", 6.5e-4, 6.0e-4, 7.0e-4))
+        variable_list.add_variable(mopeds.VariableControl("e0_T_in", 373.0, 353.0, 393.0))
+    variable_list.add_variable(mopeds.VariableControl("e0_T_j", 373.0, 353.0, 393.0))
+    variable_list.add_variable(mopeds.VariableControl("e0_F", 6.5e-4, 6.0e-4, 7.0e-4))
     # fmt: on
 
     for var in variable_list.values():
-        if isinstance(var, (par_est.VariableParameter, par_est.VariableControl)):
+        if isinstance(var, (mopeds.VariableParameter, mopeds.VariableControl)):
             var.guess = var.lower_bound
 
     if piecewise_control:
@@ -147,7 +147,7 @@ def cstr_ode(
         var = variable_list["e0_c_in_i1"].variable_list.index(0)
         var.guess = var.lower_bound
 
-    m = par_est.Model(variable_list)
+    m = mopeds.Model(variable_list)
 
     # fmt: off
     tdot = (((((m.varlist_all["e0_F"].casadi_var / e0_V) * ((m.varlist_all["e0_T_in"].casadi_var - m.varlist_all["e0_T"].casadi_var))) + (((m.varlist_all["e0_U"].casadi_var * e0_A) / (e0_greek_rho * (m.varlist_all["e0_c_p"].casadi_var * e0_V))) * ((m.varlist_all["e0_T_j"].casadi_var - m.varlist_all["e0_T"].casadi_var)))) + (((-m.varlist_all["e0_greek_Deltah_r1"].casadi_var) / (e0_greek_rho * m.varlist_all["e0_c_p"].casadi_var)) * (m.varlist_all["e0_k_pre_r1"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r1"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))) + (((-m.varlist_all["e0_greek_Deltah_r2"].casadi_var) / (e0_greek_rho * m.varlist_all["e0_c_p"].casadi_var)) * (m.varlist_all["e0_k_pre_r2"].casadi_var * (m.varlist_all["e0_c_i2"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r2"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))) + (((-m.varlist_all["e0_greek_Deltah_r3"].casadi_var) / (e0_greek_rho * m.varlist_all["e0_c_p"].casadi_var)) * (m.varlist_all["e0_k_pre_r3"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r3"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))
@@ -164,7 +164,7 @@ def cstr_ode(
 
 def cstr_dae(
     piecewise_control: bool = False,
-) -> tuple[par_est.VariableList, par_est.Model]:
+) -> tuple[mopeds.VariableList, mopeds.Model]:
     e0_greek_nu_i1_r1 = -1.0
     e0_greek_nu_i1_r2 = 1.0
     e0_greek_nu_i2_r2 = -1.0
@@ -176,45 +176,45 @@ def cstr_dae(
     e0_R = 8.314
     e0_V = 1.0
 
-    variable_list = par_est.VariableList()
+    variable_list = mopeds.VariableList()
 
     # fmt: off
-    variable_list.add_variable(par_est.VariableState("e0_T", 273.0))
-    variable_list.add_variable(par_est.VariableState("e0_c_i1", 3.0))
-    variable_list.add_variable(par_est.VariableState("e0_c_i2", 10.0))
-    variable_list.add_variable(par_est.VariableState("e0_c_i3", 0.0))
-    variable_list.add_variable(par_est.VariableState("e0_c_i4", 0.0))
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_c_tot", 13.0))
+    variable_list.add_variable(mopeds.VariableState("e0_T", 273.0))
+    variable_list.add_variable(mopeds.VariableState("e0_c_i1", 3.0))
+    variable_list.add_variable(mopeds.VariableState("e0_c_i2", 10.0))
+    variable_list.add_variable(mopeds.VariableState("e0_c_i3", 0.0))
+    variable_list.add_variable(mopeds.VariableState("e0_c_i4", 0.0))
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_c_tot", 13.0))
 
-    variable_list.add_variable(par_est.VariableParameter("e0_E_r1", 9.6e4, 9.0e4, 10.0e4))
-    variable_list.add_variable(par_est.VariableParameter("e0_E_r2", 7.2e4, 6.8e4, 7.6e4))
-    variable_list.add_variable(par_est.VariableParameter("e0_E_r3", 6.9e4, 6.5e4, 7.3e4))
-    variable_list.add_variable(par_est.VariableParameter("e0_k_pre_r1", 5.0e6, 4.5e6, 5.5e6))
-    variable_list.add_variable(par_est.VariableParameter("e0_k_pre_r2", 1.0e7, 0.5e7, 1.5e7))
-    variable_list.add_variable(par_est.VariableParameter("e0_k_pre_r3", 5.0e5, 4.5e5, 5.5e5))
-    variable_list.add_variable(par_est.VariableParameter("e0_U", 1.4, 1.0, 1.8))
-    variable_list.add_variable(par_est.VariableParameter("e0_c_p", 3.5, 3.0, 4.0))
-    variable_list.add_variable(par_est.VariableParameter("e0_greek_Deltah_r1", 4.5e-3, 4.0e-3, 5.0e-3))
-    variable_list.add_variable(par_est.VariableParameter("e0_greek_Deltah_r2", -5.5e-3, -6.0e-3, -5.0e-3))
-    variable_list.add_variable(par_est.VariableParameter("e0_greek_Deltah_r3", 4.5e-3, 4.0e-3, 5.0e-3))
+    variable_list.add_variable(mopeds.VariableParameter("e0_E_r1", 9.6e4, 9.0e4, 10.0e4))
+    variable_list.add_variable(mopeds.VariableParameter("e0_E_r2", 7.2e4, 6.8e4, 7.6e4))
+    variable_list.add_variable(mopeds.VariableParameter("e0_E_r3", 6.9e4, 6.5e4, 7.3e4))
+    variable_list.add_variable(mopeds.VariableParameter("e0_k_pre_r1", 5.0e6, 4.5e6, 5.5e6))
+    variable_list.add_variable(mopeds.VariableParameter("e0_k_pre_r2", 1.0e7, 0.5e7, 1.5e7))
+    variable_list.add_variable(mopeds.VariableParameter("e0_k_pre_r3", 5.0e5, 4.5e5, 5.5e5))
+    variable_list.add_variable(mopeds.VariableParameter("e0_U", 1.4, 1.0, 1.8))
+    variable_list.add_variable(mopeds.VariableParameter("e0_c_p", 3.5, 3.0, 4.0))
+    variable_list.add_variable(mopeds.VariableParameter("e0_greek_Deltah_r1", 4.5e-3, 4.0e-3, 5.0e-3))
+    variable_list.add_variable(mopeds.VariableParameter("e0_greek_Deltah_r2", -5.5e-3, -6.0e-3, -5.0e-3))
+    variable_list.add_variable(mopeds.VariableParameter("e0_greek_Deltah_r3", 4.5e-3, 4.0e-3, 5.0e-3))
 
     if piecewise_control:
-        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("e0_c_in_i1", 5.0, 4.0, 6.0))
+        variable_list.add_variable(mopeds.VariableControlPiecewiseConstant("e0_c_in_i1", 5.0, 4.0, 6.0))
     else:
-        variable_list.add_variable(par_est.VariableControl("e0_c_in_i1", 5.0, 4.0, 6.0))
-    variable_list.add_variable(par_est.VariableControl("e0_c_in_i2", 10.0, 9.0, 11.0))
-    variable_list.add_variable(par_est.VariableControl("e0_c_in_i3", 0.0, 0.0, 1.0))
-    variable_list.add_variable(par_est.VariableControl("e0_c_in_i4", 0.0, 0.0, 1.0))
+        variable_list.add_variable(mopeds.VariableControl("e0_c_in_i1", 5.0, 4.0, 6.0))
+    variable_list.add_variable(mopeds.VariableControl("e0_c_in_i2", 10.0, 9.0, 11.0))
+    variable_list.add_variable(mopeds.VariableControl("e0_c_in_i3", 0.0, 0.0, 1.0))
+    variable_list.add_variable(mopeds.VariableControl("e0_c_in_i4", 0.0, 0.0, 1.0))
     if piecewise_control:
-        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("e0_T_in", 373.0, 353.0, 393.0))
+        variable_list.add_variable(mopeds.VariableControlPiecewiseConstant("e0_T_in", 373.0, 353.0, 393.0))
     else:
-        variable_list.add_variable(par_est.VariableControl("e0_T_in", 373.0, 353.0, 393.0))
-    variable_list.add_variable(par_est.VariableControl("e0_T_j", 373.0, 353.0, 393.0))
-    variable_list.add_variable(par_est.VariableControl("e0_F", 6.5e-4, 6.0e-4, 7.0e-4))
+        variable_list.add_variable(mopeds.VariableControl("e0_T_in", 373.0, 353.0, 393.0))
+    variable_list.add_variable(mopeds.VariableControl("e0_T_j", 373.0, 353.0, 393.0))
+    variable_list.add_variable(mopeds.VariableControl("e0_F", 6.5e-4, 6.0e-4, 7.0e-4))
     # fmt: on
 
     for var in variable_list.values():
-        if isinstance(var, (par_est.VariableParameter, par_est.VariableControl)):
+        if isinstance(var, (mopeds.VariableParameter, mopeds.VariableControl)):
             var.guess = var.lower_bound
 
     if piecewise_control:
@@ -223,7 +223,7 @@ def cstr_dae(
         var = variable_list["e0_c_in_i1"].variable_list.index(0)
         var.guess = var.lower_bound
 
-    m = par_est.Model(variable_list)
+    m = mopeds.Model(variable_list)
 
     # fmt: off
     tdot = (((((m.varlist_all["e0_F"].casadi_var / e0_V) * ((m.varlist_all["e0_T_in"].casadi_var - m.varlist_all["e0_T"].casadi_var))) + (((m.varlist_all["e0_U"].casadi_var * e0_A) / (e0_greek_rho * (m.varlist_all["e0_c_p"].casadi_var * e0_V))) * ((m.varlist_all["e0_T_j"].casadi_var - m.varlist_all["e0_T"].casadi_var)))) + (((-m.varlist_all["e0_greek_Deltah_r1"].casadi_var) / (e0_greek_rho * m.varlist_all["e0_c_p"].casadi_var)) * (m.varlist_all["e0_k_pre_r1"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r1"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))) + (((-m.varlist_all["e0_greek_Deltah_r2"].casadi_var) / (e0_greek_rho * m.varlist_all["e0_c_p"].casadi_var)) * (m.varlist_all["e0_k_pre_r2"].casadi_var * (m.varlist_all["e0_c_i2"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r2"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))) + (((-m.varlist_all["e0_greek_Deltah_r3"].casadi_var) / (e0_greek_rho * m.varlist_all["e0_c_p"].casadi_var)) * (m.varlist_all["e0_k_pre_r3"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r3"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))
@@ -243,53 +243,53 @@ def cstr_dae(
 
 def cstr_ode_constant(
     piecewise_control: bool = False,
-) -> tuple[par_est.VariableList, par_est.Model]:
+) -> tuple[mopeds.VariableList, mopeds.Model]:
 
-    variable_list = par_est.VariableList()
+    variable_list = mopeds.VariableList()
 
     # fmt: off
-    variable_list.add_variable(par_est.VariableState("e0_T", 273.0))
-    variable_list.add_variable(par_est.VariableState("e0_c_i1", 3.0))
-    variable_list.add_variable(par_est.VariableState("e0_c_i2", 10.0))
-    variable_list.add_variable(par_est.VariableState("e0_c_i3", 0.0))
-    variable_list.add_variable(par_est.VariableState("e0_c_i4", 0.0))
+    variable_list.add_variable(mopeds.VariableState("e0_T", 273.0))
+    variable_list.add_variable(mopeds.VariableState("e0_c_i1", 3.0))
+    variable_list.add_variable(mopeds.VariableState("e0_c_i2", 10.0))
+    variable_list.add_variable(mopeds.VariableState("e0_c_i3", 0.0))
+    variable_list.add_variable(mopeds.VariableState("e0_c_i4", 0.0))
 
-    variable_list.add_variable(par_est.VariableParameter("e0_E_r1", 9.6e4, 9.0e4, 10.0e4))
-    variable_list.add_variable(par_est.VariableParameter("e0_E_r2", 7.2e4, 6.8e4, 7.6e4))
-    variable_list.add_variable(par_est.VariableParameter("e0_E_r3", 6.9e4, 6.5e4, 7.3e4))
-    variable_list.add_variable(par_est.VariableParameter("e0_k_pre_r1", 5.0e6, 4.5e6, 5.5e6))
-    variable_list.add_variable(par_est.VariableParameter("e0_k_pre_r2", 1.0e7, 0.5e7, 1.5e7))
-    variable_list.add_variable(par_est.VariableParameter("e0_k_pre_r3", 5.0e5, 4.5e5, 5.5e5))
-    variable_list.add_variable(par_est.VariableParameter("e0_U", 1.4, 1.0, 1.8))
-    variable_list.add_variable(par_est.VariableParameter("e0_c_p", 3.5, 3.0, 4.0))
-    variable_list.add_variable(par_est.VariableParameter("e0_greek_Deltah_r1", 4.5e-3, 4.0e-3, 5.0e-3))
-    variable_list.add_variable(par_est.VariableParameter("e0_greek_Deltah_r2", -5.5e-3, -6.0e-3, -5.0e-3))
-    variable_list.add_variable(par_est.VariableParameter("e0_greek_Deltah_r3", 4.5e-3, 4.0e-3, 5.0e-3))
+    variable_list.add_variable(mopeds.VariableParameter("e0_E_r1", 9.6e4, 9.0e4, 10.0e4))
+    variable_list.add_variable(mopeds.VariableParameter("e0_E_r2", 7.2e4, 6.8e4, 7.6e4))
+    variable_list.add_variable(mopeds.VariableParameter("e0_E_r3", 6.9e4, 6.5e4, 7.3e4))
+    variable_list.add_variable(mopeds.VariableParameter("e0_k_pre_r1", 5.0e6, 4.5e6, 5.5e6))
+    variable_list.add_variable(mopeds.VariableParameter("e0_k_pre_r2", 1.0e7, 0.5e7, 1.5e7))
+    variable_list.add_variable(mopeds.VariableParameter("e0_k_pre_r3", 5.0e5, 4.5e5, 5.5e5))
+    variable_list.add_variable(mopeds.VariableParameter("e0_U", 1.4, 1.0, 1.8))
+    variable_list.add_variable(mopeds.VariableParameter("e0_c_p", 3.5, 3.0, 4.0))
+    variable_list.add_variable(mopeds.VariableParameter("e0_greek_Deltah_r1", 4.5e-3, 4.0e-3, 5.0e-3))
+    variable_list.add_variable(mopeds.VariableParameter("e0_greek_Deltah_r2", -5.5e-3, -6.0e-3, -5.0e-3))
+    variable_list.add_variable(mopeds.VariableParameter("e0_greek_Deltah_r3", 4.5e-3, 4.0e-3, 5.0e-3))
 
     if piecewise_control:
-        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("e0_c_in_i1", 5.0, 4.0, 6.0))
+        variable_list.add_variable(mopeds.VariableControlPiecewiseConstant("e0_c_in_i1", 5.0, 4.0, 6.0))
     else:
-        variable_list.add_variable(par_est.VariableControl("e0_c_in_i1", 5.0, 4.0, 6.0))
-    variable_list.add_variable(par_est.VariableControl("e0_c_in_i2", 10.0, 9.0, 11.0))
-    variable_list.add_variable(par_est.VariableControl("e0_c_in_i3", 0.0, 0.0, 1.0))
-    variable_list.add_variable(par_est.VariableControl("e0_c_in_i4", 0.0, 0.0, 1.0))
+        variable_list.add_variable(mopeds.VariableControl("e0_c_in_i1", 5.0, 4.0, 6.0))
+    variable_list.add_variable(mopeds.VariableControl("e0_c_in_i2", 10.0, 9.0, 11.0))
+    variable_list.add_variable(mopeds.VariableControl("e0_c_in_i3", 0.0, 0.0, 1.0))
+    variable_list.add_variable(mopeds.VariableControl("e0_c_in_i4", 0.0, 0.0, 1.0))
     if piecewise_control:
-        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("e0_T_in", 373.0, 353.0, 393.0))
+        variable_list.add_variable(mopeds.VariableControlPiecewiseConstant("e0_T_in", 373.0, 353.0, 393.0))
     else:
-        variable_list.add_variable(par_est.VariableControl("e0_T_in", 373.0, 353.0, 393.0))
-    variable_list.add_variable(par_est.VariableControl("e0_T_j", 373.0, 353.0, 393.0))
-    variable_list.add_variable(par_est.VariableControl("e0_F", 6.5e-4, 6.0e-4, 7.0e-4))
+        variable_list.add_variable(mopeds.VariableControl("e0_T_in", 373.0, 353.0, 393.0))
+    variable_list.add_variable(mopeds.VariableControl("e0_T_j", 373.0, 353.0, 393.0))
+    variable_list.add_variable(mopeds.VariableControl("e0_F", 6.5e-4, 6.0e-4, 7.0e-4))
 
-    variable_list.add_variable(par_est.VariableConstant("e0_greek_nu_i1_r1", -1.0))
-    variable_list.add_variable(par_est.VariableConstant("e0_greek_nu_i1_r2", 1.0))
-    variable_list.add_variable(par_est.VariableConstant("e0_greek_nu_i2_r2", -1.0))
-    variable_list.add_variable(par_est.VariableConstant("e0_greek_nu_i3_r1", 1.0))
-    variable_list.add_variable(par_est.VariableConstant("e0_greek_nu_i1_r3", -1.0))
-    variable_list.add_variable(par_est.VariableConstant("e0_greek_nu_i4_r3", 1.0))
-    variable_list.add_variable(par_est.VariableConstant("e0_greek_rho", 800.0))
-    variable_list.add_variable(par_est.VariableConstant("e0_A", 1.0))
-    variable_list.add_variable(par_est.VariableConstant("e0_R", 8.314))
-    variable_list.add_variable(par_est.VariableConstant("e0_V", 1.0))
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i1_r1", -1.0))
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i1_r2", 1.0))
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i2_r2", -1.0))
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i3_r1", 1.0))
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i1_r3", -1.0))
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i4_r3", 1.0))
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_rho", 800.0))
+    variable_list.add_variable(mopeds.VariableConstant("e0_A", 1.0))
+    variable_list.add_variable(mopeds.VariableConstant("e0_R", 8.314))
+    variable_list.add_variable(mopeds.VariableConstant("e0_V", 1.0))
     # fmt: on
 
     for var in variable_list.values():
@@ -301,7 +301,7 @@ def cstr_ode_constant(
         var = variable_list["e0_c_in_i1"].variable_list.index(0)
         var.guess = var.lower_bound
 
-    m = par_est.Model(variable_list)
+    m = mopeds.Model(variable_list)
 
     # fmt: off
     tdot = (((((m.varlist_all["e0_F"].casadi_var / m.varlist_all["e0_V"].casadi_var) * ((m.varlist_all["e0_T_in"].casadi_var - m.varlist_all["e0_T"].casadi_var))) + (((m.varlist_all["e0_U"].casadi_var * m.varlist_all["e0_A"].casadi_var) / (m.varlist_all["e0_greek_rho"].casadi_var * (m.varlist_all["e0_c_p"].casadi_var * m.varlist_all["e0_V"].casadi_var))) * ((m.varlist_all["e0_T_j"].casadi_var - m.varlist_all["e0_T"].casadi_var)))) + (((-m.varlist_all["e0_greek_Deltah_r1"].casadi_var) / (m.varlist_all["e0_greek_rho"].casadi_var * m.varlist_all["e0_c_p"].casadi_var)) * (m.varlist_all["e0_k_pre_r1"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r1"].casadi_var) / (m.varlist_all["e0_R"].casadi_var * m.varlist_all["e0_T"].casadi_var))))))) + (((-m.varlist_all["e0_greek_Deltah_r2"].casadi_var) / (m.varlist_all["e0_greek_rho"].casadi_var * m.varlist_all["e0_c_p"].casadi_var)) * (m.varlist_all["e0_k_pre_r2"].casadi_var * (m.varlist_all["e0_c_i2"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r2"].casadi_var) / (m.varlist_all["e0_R"].casadi_var * m.varlist_all["e0_T"].casadi_var))))))) + (((-m.varlist_all["e0_greek_Deltah_r3"].casadi_var) / (m.varlist_all["e0_greek_rho"].casadi_var * m.varlist_all["e0_c_p"].casadi_var)) * (m.varlist_all["e0_k_pre_r3"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r3"].casadi_var) / (m.varlist_all["e0_R"].casadi_var * m.varlist_all["e0_T"].casadi_var))))))
@@ -318,53 +318,53 @@ def cstr_ode_constant(
 
 def cstr_dae_constant(
     piecewise_control: bool = False,
-) -> tuple[par_est.VariableList, par_est.Model]:
-    variable_list = par_est.VariableList()
+) -> tuple[mopeds.VariableList, mopeds.Model]:
+    variable_list = mopeds.VariableList()
 
     # fmt: off
-    variable_list.add_variable(par_est.VariableState("e0_T", 273.0))
-    variable_list.add_variable(par_est.VariableState("e0_c_i1", 3.0))
-    variable_list.add_variable(par_est.VariableState("e0_c_i2", 10.0))
-    variable_list.add_variable(par_est.VariableState("e0_c_i3", 0.0))
-    variable_list.add_variable(par_est.VariableState("e0_c_i4", 0.0))
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_c_tot", 13.0))
+    variable_list.add_variable(mopeds.VariableState("e0_T", 273.0))
+    variable_list.add_variable(mopeds.VariableState("e0_c_i1", 3.0))
+    variable_list.add_variable(mopeds.VariableState("e0_c_i2", 10.0))
+    variable_list.add_variable(mopeds.VariableState("e0_c_i3", 0.0))
+    variable_list.add_variable(mopeds.VariableState("e0_c_i4", 0.0))
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_c_tot", 13.0))
 
-    variable_list.add_variable(par_est.VariableParameter("e0_E_r1", 9.6e4, 9.0e4, 10.0e4))
-    variable_list.add_variable(par_est.VariableParameter("e0_E_r2", 7.2e4, 6.8e4, 7.6e4))
-    variable_list.add_variable(par_est.VariableParameter("e0_E_r3", 6.9e4, 6.5e4, 7.3e4))
-    variable_list.add_variable(par_est.VariableParameter("e0_k_pre_r1", 5.0e6, 4.5e6, 5.5e6))
-    variable_list.add_variable(par_est.VariableParameter("e0_k_pre_r2", 1.0e7, 0.5e7, 1.5e7))
-    variable_list.add_variable(par_est.VariableParameter("e0_k_pre_r3", 5.0e5, 4.5e5, 5.5e5))
-    variable_list.add_variable(par_est.VariableParameter("e0_U", 1.4, 1.0, 1.8))
-    variable_list.add_variable(par_est.VariableParameter("e0_c_p", 3.5, 3.0, 4.0))
-    variable_list.add_variable(par_est.VariableParameter("e0_greek_Deltah_r1", 4.5e-3, 4.0e-3, 5.0e-3))
-    variable_list.add_variable(par_est.VariableParameter("e0_greek_Deltah_r2", -5.5e-3, -6.0e-3, -5.0e-3))
-    variable_list.add_variable(par_est.VariableParameter("e0_greek_Deltah_r3", 4.5e-3, 4.0e-3, 5.0e-3))
+    variable_list.add_variable(mopeds.VariableParameter("e0_E_r1", 9.6e4, 9.0e4, 10.0e4))
+    variable_list.add_variable(mopeds.VariableParameter("e0_E_r2", 7.2e4, 6.8e4, 7.6e4))
+    variable_list.add_variable(mopeds.VariableParameter("e0_E_r3", 6.9e4, 6.5e4, 7.3e4))
+    variable_list.add_variable(mopeds.VariableParameter("e0_k_pre_r1", 5.0e6, 4.5e6, 5.5e6))
+    variable_list.add_variable(mopeds.VariableParameter("e0_k_pre_r2", 1.0e7, 0.5e7, 1.5e7))
+    variable_list.add_variable(mopeds.VariableParameter("e0_k_pre_r3", 5.0e5, 4.5e5, 5.5e5))
+    variable_list.add_variable(mopeds.VariableParameter("e0_U", 1.4, 1.0, 1.8))
+    variable_list.add_variable(mopeds.VariableParameter("e0_c_p", 3.5, 3.0, 4.0))
+    variable_list.add_variable(mopeds.VariableParameter("e0_greek_Deltah_r1", 4.5e-3, 4.0e-3, 5.0e-3))
+    variable_list.add_variable(mopeds.VariableParameter("e0_greek_Deltah_r2", -5.5e-3, -6.0e-3, -5.0e-3))
+    variable_list.add_variable(mopeds.VariableParameter("e0_greek_Deltah_r3", 4.5e-3, 4.0e-3, 5.0e-3))
 
     if piecewise_control:
-        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("e0_c_in_i1", 5.0, 4.0, 6.0))
+        variable_list.add_variable(mopeds.VariableControlPiecewiseConstant("e0_c_in_i1", 5.0, 4.0, 6.0))
     else:
-        variable_list.add_variable(par_est.VariableControl("e0_c_in_i1", 5.0, 4.0, 6.0))
-    variable_list.add_variable(par_est.VariableControl("e0_c_in_i2", 10.0, 9.0, 11.0))
-    variable_list.add_variable(par_est.VariableControl("e0_c_in_i3", 0.0, 0.0, 1.0))
-    variable_list.add_variable(par_est.VariableControl("e0_c_in_i4", 0.0, 0.0, 1.0))
+        variable_list.add_variable(mopeds.VariableControl("e0_c_in_i1", 5.0, 4.0, 6.0))
+    variable_list.add_variable(mopeds.VariableControl("e0_c_in_i2", 10.0, 9.0, 11.0))
+    variable_list.add_variable(mopeds.VariableControl("e0_c_in_i3", 0.0, 0.0, 1.0))
+    variable_list.add_variable(mopeds.VariableControl("e0_c_in_i4", 0.0, 0.0, 1.0))
     if piecewise_control:
-        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("e0_T_in", 373.0, 353.0, 393.0))
+        variable_list.add_variable(mopeds.VariableControlPiecewiseConstant("e0_T_in", 373.0, 353.0, 393.0))
     else:
-        variable_list.add_variable(par_est.VariableControl("e0_T_in", 373.0, 353.0, 393.0))
-    variable_list.add_variable(par_est.VariableControl("e0_T_j", 373.0, 353.0, 393.0))
-    variable_list.add_variable(par_est.VariableControl("e0_F", 6.5e-4, 6.0e-4, 7.0e-4))
+        variable_list.add_variable(mopeds.VariableControl("e0_T_in", 373.0, 353.0, 393.0))
+    variable_list.add_variable(mopeds.VariableControl("e0_T_j", 373.0, 353.0, 393.0))
+    variable_list.add_variable(mopeds.VariableControl("e0_F", 6.5e-4, 6.0e-4, 7.0e-4))
 
-    variable_list.add_variable(par_est.VariableConstant("e0_greek_nu_i1_r1", -1.0))
-    variable_list.add_variable(par_est.VariableConstant("e0_greek_nu_i1_r2", 1.0))
-    variable_list.add_variable(par_est.VariableConstant("e0_greek_nu_i2_r2", -1.0))
-    variable_list.add_variable(par_est.VariableConstant("e0_greek_nu_i3_r1", 1.0))
-    variable_list.add_variable(par_est.VariableConstant("e0_greek_nu_i1_r3", -1.0))
-    variable_list.add_variable(par_est.VariableConstant("e0_greek_nu_i4_r3", 1.0))
-    variable_list.add_variable(par_est.VariableConstant("e0_greek_rho", 800.0))
-    variable_list.add_variable(par_est.VariableConstant("e0_A", 1.0))
-    variable_list.add_variable(par_est.VariableConstant("e0_R", 8.314))
-    variable_list.add_variable(par_est.VariableConstant("e0_V", 1.0))
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i1_r1", -1.0))
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i1_r2", 1.0))
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i2_r2", -1.0))
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i3_r1", 1.0))
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i1_r3", -1.0))
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i4_r3", 1.0))
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_rho", 800.0))
+    variable_list.add_variable(mopeds.VariableConstant("e0_A", 1.0))
+    variable_list.add_variable(mopeds.VariableConstant("e0_R", 8.314))
+    variable_list.add_variable(mopeds.VariableConstant("e0_V", 1.0))
     # fmt: on
 
     for var in variable_list.values():
@@ -377,7 +377,7 @@ def cstr_dae_constant(
         var = variable_list["e0_c_in_i1"].variable_list.index(0)
         var.guess = var.lower_bound
 
-    m = par_est.Model(variable_list)
+    m = mopeds.Model(variable_list)
 
     # fmt: off
     tdot = (((((m.varlist_all["e0_F"].casadi_var / m.varlist_all["e0_V"].casadi_var) * ((m.varlist_all["e0_T_in"].casadi_var - m.varlist_all["e0_T"].casadi_var))) + (((m.varlist_all["e0_U"].casadi_var * m.varlist_all["e0_A"].casadi_var) / (m.varlist_all["e0_greek_rho"].casadi_var * (m.varlist_all["e0_c_p"].casadi_var * m.varlist_all["e0_V"].casadi_var))) * ((m.varlist_all["e0_T_j"].casadi_var - m.varlist_all["e0_T"].casadi_var)))) + (((-m.varlist_all["e0_greek_Deltah_r1"].casadi_var) / (m.varlist_all["e0_greek_rho"].casadi_var * m.varlist_all["e0_c_p"].casadi_var)) * (m.varlist_all["e0_k_pre_r1"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r1"].casadi_var) / (m.varlist_all["e0_R"].casadi_var * m.varlist_all["e0_T"].casadi_var))))))) + (((-m.varlist_all["e0_greek_Deltah_r2"].casadi_var) / (m.varlist_all["e0_greek_rho"].casadi_var * m.varlist_all["e0_c_p"].casadi_var)) * (m.varlist_all["e0_k_pre_r2"].casadi_var * (m.varlist_all["e0_c_i2"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r2"].casadi_var) / (m.varlist_all["e0_R"].casadi_var * m.varlist_all["e0_T"].casadi_var))))))) + (((-m.varlist_all["e0_greek_Deltah_r3"].casadi_var) / (m.varlist_all["e0_greek_rho"].casadi_var * m.varlist_all["e0_c_p"].casadi_var)) * (m.varlist_all["e0_k_pre_r3"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r3"].casadi_var) / (m.varlist_all["e0_R"].casadi_var * m.varlist_all["e0_T"].casadi_var))))))
@@ -395,11 +395,11 @@ def cstr_dae_constant(
     return variable_list, m
 
 
-def vle_nle_problem() -> tuple[par_est.VariableList, par_est.Model]:
+def vle_nle_problem() -> tuple[mopeds.VariableList, mopeds.Model]:
     # Id. VLE of EtOH and Water
 
     # Variables
-    variable_list = par_est.variables.VariableList()  # Preallocate variable_list
+    variable_list = mopeds.variables.VariableList()  # Preallocate variable_list
 
     # Define variables
     #     T in K
@@ -410,17 +410,17 @@ def vle_nle_problem() -> tuple[par_est.VariableList, par_est.Model]:
     #     b = [1592.864,   1730.630]# b in K
     #     c = [-46.9659,   -39.7239] # c in K
 
-    variable_list.add_variable(par_est.VariableAlgebraic("T", 373))
-    variable_list.add_variable(par_est.VariableControl("x", 0.5))
-    variable_list.add_variable(par_est.VariableControl("P", 1e5))
-    variable_list.add_variable(par_est.VariableParameter("a1", 5.24125))
-    variable_list.add_variable(par_est.VariableParameter("a2", 5.19625))
-    variable_list.add_variable(par_est.VariableParameter("b1", 1592.864))
-    variable_list.add_variable(par_est.VariableParameter("b2", 1730.630))
-    variable_list.add_variable(par_est.VariableParameter("c1", -46.9659))
-    variable_list.add_variable(par_est.VariableParameter("c2", -39.7239))
+    variable_list.add_variable(mopeds.VariableAlgebraic("T", 373))
+    variable_list.add_variable(mopeds.VariableControl("x", 0.5))
+    variable_list.add_variable(mopeds.VariableControl("P", 1e5))
+    variable_list.add_variable(mopeds.VariableParameter("a1", 5.24125))
+    variable_list.add_variable(mopeds.VariableParameter("a2", 5.19625))
+    variable_list.add_variable(mopeds.VariableParameter("b1", 1592.864))
+    variable_list.add_variable(mopeds.VariableParameter("b2", 1730.630))
+    variable_list.add_variable(mopeds.VariableParameter("c1", -46.9659))
+    variable_list.add_variable(mopeds.VariableParameter("c2", -39.7239))
 
-    model = par_est.Model(variable_list)  # adding all variables to the model
+    model = mopeds.Model(variable_list)  # adding all variables to the model
 
     # Equations
     RES = model.varlist_all["P"].casadi_var - (
@@ -447,17 +447,17 @@ def vle_nle_problem() -> tuple[par_est.VariableList, par_est.Model]:
 
 
 def bod_model() -> tuple[
-    par_est.VariableList, par_est.Model, list[par_est.VariableList]
+    mopeds.VariableList, mopeds.Model, list[mopeds.VariableList]
 ]:
     # BOD data as used in Bates, Watts, Nonlinear regression analysis: Its applications
-    variable_list = par_est.variables.VariableList()  # Preallocate variable_list
+    variable_list = mopeds.variables.VariableList()  # Preallocate variable_list
 
-    variable_list.add_variable(par_est.VariableAlgebraic("f", 8.3))
-    variable_list.add_variable(par_est.VariableControl("x", 1))
-    variable_list.add_variable(par_est.VariableParameter("theta1", 20))
-    variable_list.add_variable(par_est.VariableParameter("theta2", 0.24))
+    variable_list.add_variable(mopeds.VariableAlgebraic("f", 8.3))
+    variable_list.add_variable(mopeds.VariableControl("x", 1))
+    variable_list.add_variable(mopeds.VariableParameter("theta1", 20))
+    variable_list.add_variable(mopeds.VariableParameter("theta2", 0.24))
 
-    m = par_est.Model(variable_list)  # adding all variables to the model
+    m = mopeds.Model(variable_list)  # adding all variables to the model
 
     f = m.varlist_all["f"].casadi_var  # noqa: E501
     x = m.varlist_all["x"].casadi_var  # noqa: E501
@@ -495,17 +495,17 @@ def bod_model() -> tuple[
 
 
 def puromycin_model() -> tuple[
-    par_est.VariableList, par_est.Model, dict(list[par_est.VariableList])
+    mopeds.VariableList, mopeds.Model, dict(list[mopeds.VariableList])
 ]:
     # Puromycin data as used in Bates, Watts, Nonlinear regression analysis: Its applications
-    variable_list = par_est.variables.VariableList()  # Preallocate variable_list
+    variable_list = mopeds.variables.VariableList()  # Preallocate variable_list
 
-    variable_list.add_variable(par_est.VariableAlgebraic("f", 8.3))
-    variable_list.add_variable(par_est.VariableControl("x", 1))
-    variable_list.add_variable(par_est.VariableParameter("theta1", 212.7))
-    variable_list.add_variable(par_est.VariableParameter("theta2", 0.0641))
+    variable_list.add_variable(mopeds.VariableAlgebraic("f", 8.3))
+    variable_list.add_variable(mopeds.VariableControl("x", 1))
+    variable_list.add_variable(mopeds.VariableParameter("theta1", 212.7))
+    variable_list.add_variable(mopeds.VariableParameter("theta2", 0.0641))
 
-    m = par_est.Model(variable_list)  # adding all variables to the model
+    m = mopeds.Model(variable_list)  # adding all variables to the model
 
     f = m.varlist_all["f"].casadi_var  # noqa: E501
     x = m.varlist_all["x"].casadi_var  # noqa: E501
@@ -569,15 +569,15 @@ def puromycin_model() -> tuple[
     return variable_list, m, exp_data
 
 
-def simple_mixer() -> tuple[par_est.VariableList, par_est.Model]:
-    variable_list = par_est.VariableList()
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_F_s2", 20.0))  # noqa: E501
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_F_s4", 7.0))  # noqa: E501
-    variable_list.add_variable(par_est.VariableControl("e0_F_s1", 21.0))  # noqa: E501
-    variable_list.add_variable(par_est.VariableParameter("e0_F_s3", 13.0))  # noqa: E501
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_F_s5", 20.0))  # noqa: E501
+def simple_mixer() -> tuple[mopeds.VariableList, mopeds.Model]:
+    variable_list = mopeds.VariableList()
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_F_s2", 20.0))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_F_s4", 7.0))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableControl("e0_F_s1", 21.0))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableParameter("e0_F_s3", 13.0))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_F_s5", 20.0))  # noqa: E501
 
-    m = par_est.Model(variable_list)
+    m = mopeds.Model(variable_list)
 
     e0_F_s1 = m.varlist_all["e0_F_s1"].casadi_var  # noqa: E501
     e0_F_s3 = m.varlist_all["e0_F_s3"].casadi_var  # noqa: E501
@@ -597,21 +597,21 @@ def simple_mixer() -> tuple[par_est.VariableList, par_est.Model]:
 
 
 def isomerization_model() -> tuple[
-    par_est.VariableList, par_est.Model, list[par_est.VariableList]
+    mopeds.VariableList, mopeds.Model, list[mopeds.VariableList]
 ]:
     # Isomerization data as used in Bates, Watts, Nonlinear regression analysis: Its applications
-    variable_list = par_est.variables.VariableList()  # Preallocate variable_list
+    variable_list = mopeds.variables.VariableList()  # Preallocate variable_list
 
-    variable_list.add_variable(par_est.VariableAlgebraic("f", 8.3))
-    variable_list.add_variable(par_est.VariableControl("x1", 1))
-    variable_list.add_variable(par_est.VariableControl("x2", 1))
-    variable_list.add_variable(par_est.VariableControl("x3", 1))
-    variable_list.add_variable(par_est.VariableParameter("theta1", 35.92))
-    variable_list.add_variable(par_est.VariableParameter("theta2", 0.0708))
-    variable_list.add_variable(par_est.VariableParameter("theta3", 0.0377))
-    variable_list.add_variable(par_est.VariableParameter("theta4", 0.167))
+    variable_list.add_variable(mopeds.VariableAlgebraic("f", 8.3))
+    variable_list.add_variable(mopeds.VariableControl("x1", 1))
+    variable_list.add_variable(mopeds.VariableControl("x2", 1))
+    variable_list.add_variable(mopeds.VariableControl("x3", 1))
+    variable_list.add_variable(mopeds.VariableParameter("theta1", 35.92))
+    variable_list.add_variable(mopeds.VariableParameter("theta2", 0.0708))
+    variable_list.add_variable(mopeds.VariableParameter("theta3", 0.0377))
+    variable_list.add_variable(mopeds.VariableParameter("theta4", 0.167))
 
-    m = par_est.Model(variable_list)  # adding all variables to the model
+    m = mopeds.Model(variable_list)  # adding all variables to the model
 
     f = m.varlist_all["f"].casadi_var  # noqa: E501
     x1 = m.varlist_all["x1"].casadi_var  # noqa: E501
@@ -674,24 +674,24 @@ def isomerization_model() -> tuple[
 
 
 def free_fall_example() -> tuple[
-    par_est.VariableList, par_est.Model, list[par_est.VariableList]
+    mopeds.VariableList, mopeds.Model, list[mopeds.VariableList]
 ]:
     # Isomerization data as used in Bates, Watts, Nonlinear regression analysis: Its applications
-    variable_list = par_est.variables.VariableList()  # Preallocate variable_list
+    variable_list = mopeds.variables.VariableList()  # Preallocate variable_list
 
-    variable_list.add_variable(par_est.VariableState("s", 0))
-    variable_list.add_variable(par_est.VariableState("v", 0))
+    variable_list.add_variable(mopeds.VariableState("s", 0))
+    variable_list.add_variable(mopeds.VariableState("v", 0))
 
-    variable_list.add_variable(par_est.VariableAlgebraic("a", 8.8))
-    variable_list.add_variable(par_est.VariableAlgebraic("d", 1))
-    variable_list.add_variable(par_est.VariableAlgebraic("a_i", 0))
+    variable_list.add_variable(mopeds.VariableAlgebraic("a", 8.8))
+    variable_list.add_variable(mopeds.VariableAlgebraic("d", 1))
+    variable_list.add_variable(mopeds.VariableAlgebraic("a_i", 0))
 
-    variable_list.add_variable(par_est.VariableParameter("g", 9.8))
-    variable_list.add_variable(par_est.VariableParameter("k1", 1))
-    variable_list.add_variable(par_est.VariableParameter("k2", 1.1))
-    variable_list.add_variable(par_est.VariableParameter("k3", 1.0))
+    variable_list.add_variable(mopeds.VariableParameter("g", 9.8))
+    variable_list.add_variable(mopeds.VariableParameter("k1", 1))
+    variable_list.add_variable(mopeds.VariableParameter("k2", 1.1))
+    variable_list.add_variable(mopeds.VariableParameter("k3", 1.0))
 
-    m = par_est.Model(variable_list)  # adding all variables to the model
+    m = mopeds.Model(variable_list)  # adding all variables to the model
 
     s = m.varlist_all["s"].casadi_var  # noqa: E501
     v = m.varlist_all["v"].casadi_var  # noqa: E501
@@ -734,23 +734,23 @@ def free_fall_example() -> tuple[
     return variable_list, m, exp_data
 
 def spmma() -> tuple[
-    par_est.VariableList, par_est.Model, list[par_est.VariableList]
+    mopeds.VariableList, mopeds.Model, list[mopeds.VariableList]
 ]:
     # s-PMMA data as used in Bates, Watts, Nonlinear regression analysis: Its applications
-    variable_list = par_est.variables.VariableList()  # Preallocate variable_list
+    variable_list = mopeds.variables.VariableList()  # Preallocate variable_list
 
-    variable_list.add_variable(par_est.VariableAlgebraic("e1", 4.22))
-    variable_list.add_variable(par_est.VariableAlgebraic("e2", 0.136))
+    variable_list.add_variable(mopeds.VariableAlgebraic("e1", 4.22))
+    variable_list.add_variable(mopeds.VariableAlgebraic("e2", 0.136))
 
-    variable_list.add_variable(par_est.VariableControl("f", 30))
+    variable_list.add_variable(mopeds.VariableControl("f", 30))
 
-    variable_list.add_variable(par_est.VariableParameter("eps0", 4.32))
-    variable_list.add_variable(par_est.VariableParameter("epsinf", 2.522))
-    variable_list.add_variable(par_est.VariableParameter("lnf0", 7.956))
-    variable_list.add_variable(par_est.VariableParameter("alpha", 0.531))
-    variable_list.add_variable(par_est.VariableParameter("beta", 0.554))
+    variable_list.add_variable(mopeds.VariableParameter("eps0", 4.32))
+    variable_list.add_variable(mopeds.VariableParameter("epsinf", 2.522))
+    variable_list.add_variable(mopeds.VariableParameter("lnf0", 7.956))
+    variable_list.add_variable(mopeds.VariableParameter("alpha", 0.531))
+    variable_list.add_variable(mopeds.VariableParameter("beta", 0.554))
 
-    m = par_est.Model(variable_list)  # adding all variables to the model
+    m = mopeds.Model(variable_list)  # adding all variables to the model
 
     e1 = m.varlist_all["e1"].casadi_var  # noqa: E501
     e2 = m.varlist_all["e2"].casadi_var  # noqa: E501
@@ -823,30 +823,30 @@ def spmma() -> tuple[
 
 # Baker yeast growth model Quaglio2018 10.1016/j.cherd.2018.04.041
 def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=False, u1_piecewise_linear=False) -> tuple[
-    par_est.VariableList, par_est.Model, list[par_est.VariableList]
+    mopeds.VariableList, mopeds.Model, list[mopeds.VariableList]
 ]:
-    variable_list = par_est.variables.VariableList()
+    variable_list = mopeds.variables.VariableList()
 
-    variable_list.add_variable(par_est.VariableState("x1", 5, 0, 10))
-    variable_list.add_variable(par_est.VariableState("x2", 0.01))
+    variable_list.add_variable(mopeds.VariableState("x1", 5, 0, 10))
+    variable_list.add_variable(mopeds.VariableState("x2", 0.01))
 
     if u1_piecewise_linear:
-        variable_list.add_variable(par_est.VariableState("u1_dot", 0))
+        variable_list.add_variable(mopeds.VariableState("u1_dot", 0))
 
     if ode is False:
-        variable_list.add_variable(par_est.VariableAlgebraic("r", 1.7))
+        variable_list.add_variable(mopeds.VariableAlgebraic("r", 1.7))
 
     if piecewise:
-        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("u1", 0.125, 0.05, 0.2))
-        variable_list.add_variable(par_est.VariableControlPiecewiseConstant("u2", 35, 5, 35))
+        variable_list.add_variable(mopeds.VariableControlPiecewiseConstant("u1", 0.125, 0.05, 0.2))
+        variable_list.add_variable(mopeds.VariableControlPiecewiseConstant("u2", 35, 5, 35))
     else:
-        variable_list.add_variable(par_est.VariableControl("u1", 0.125, 0.05, 0.2))
-        variable_list.add_variable(par_est.VariableControl("u2", 35, 5, 35))
+        variable_list.add_variable(mopeds.VariableControl("u1", 0.125, 0.05, 0.2))
+        variable_list.add_variable(mopeds.VariableControl("u2", 35, 5, 35))
 
-    variable_list.add_variable(par_est.VariableParameter("theta1", 0.310, 1e-2, 2))
-    variable_list.add_variable(par_est.VariableParameter("theta2", 0.180, 1e-2, 20))
-    variable_list.add_variable(par_est.VariableParameter("theta3", 0.550, 1e-2, 2))
-    variable_list.add_variable(par_est.VariableParameter("theta4", 0.050, 1e-2, 2))
+    variable_list.add_variable(mopeds.VariableParameter("theta1", 0.310, 1e-2, 2))
+    variable_list.add_variable(mopeds.VariableParameter("theta2", 0.180, 1e-2, 20))
+    variable_list.add_variable(mopeds.VariableParameter("theta3", 0.550, 1e-2, 2))
+    variable_list.add_variable(mopeds.VariableParameter("theta4", 0.050, 1e-2, 2))
 
     if normalize:
         for varname in ["theta1", "theta2", "theta3", "theta4"]:
@@ -857,7 +857,7 @@ def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=
     variable_list["x1"].variance = 0.01
     variable_list["x2"].variance = 0.05
 
-    m = par_est.Model(variable_list)  # adding all variables to the model
+    m = mopeds.Model(variable_list)  # adding all variables to the model
 
     x1 = m.varlist_all["x1"].casadi_var  # noqa: E501
     x2 = m.varlist_all["x2"].casadi_var  # noqa: E501
@@ -940,22 +940,22 @@ def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=
 
 # Pankajakshan2019
 def esterification_BA() -> tuple[
-    par_est.VariableList, par_est.Model, list[par_est.VariableList]
+    mopeds.VariableList, mopeds.Model, list[mopeds.VariableList]
 ]:
-    variable_list = par_est.variables.VariableList()  # Preallocate variable_list
+    variable_list = mopeds.variables.VariableList()  # Preallocate variable_list
 
-    variable_list.add_variable(par_est.VariableState("Cba", 1, 0.9, 1.55))
-    variable_list.add_variable(par_est.VariableState("Ce", 4.22))
-    variable_list.add_variable(par_est.VariableState("Ce", 0))
-    variable_list.add_variable(par_est.VariableState("Cw", 0))
+    variable_list.add_variable(mopeds.VariableState("Cba", 1, 0.9, 1.55))
+    variable_list.add_variable(mopeds.VariableState("Ce", 4.22))
+    variable_list.add_variable(mopeds.VariableState("Ce", 0))
+    variable_list.add_variable(mopeds.VariableState("Cw", 0))
 
-    variable_list.add_variable(par_est.VariableControl("F", 10, 7.5, 30))
-    variable_list.add_variable(par_est.VariableControl("T", 350, 343, 413))
+    variable_list.add_variable(mopeds.VariableControl("F", 10, 7.5, 30))
+    variable_list.add_variable(mopeds.VariableControl("T", 350, 343, 413))
 
-    variable_list.add_variable(par_est.VariableParameter("theta1", 4.32))
-    variable_list.add_variable(par_est.VariableParameter("theta2", 2.522))
+    variable_list.add_variable(mopeds.VariableParameter("theta1", 4.32))
+    variable_list.add_variable(mopeds.VariableParameter("theta2", 2.522))
 
-    m = par_est.Model(variable_list)  # adding all variables to the model
+    m = mopeds.Model(variable_list)  # adding all variables to the model
 
     D = 0.250  # micrometer
 
@@ -981,31 +981,31 @@ def esterification_BA() -> tuple[
     return variable_list, m
 
 def cstr_nle():
-    variable_list = par_est.VariableList()
+    variable_list = mopeds.VariableList()
     # fmt:off
 
 
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_X_c1", 0.8866276885, 0.0, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_c_c1", 1.376664E-4, 0.0, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_k", 11.7307437323, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_T", 704.755540977, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_c_Feed_c1", 0.0012142857, 0.0, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_X_c1", 0.8866276885, 0.0, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_c_c1", 1.376664E-4, 0.0, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_k", 11.7307437323, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_T", 704.755540977, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_c_Feed_c1", 0.0012142857, 0.0, 1.0E9))  # noqa: E501
 
-    variable_list.add_variable(par_est.VariableControl("e0_Q_Feed", 30.0, 28, 32))  # noqa: E501
-    variable_list.add_variable(par_est.VariableControl("e0_x_Feed_c1", 0.3, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableControl("e0_m_Cat", 20.0, 18, 22))  # noqa: E501
-    variable_list.add_variable(par_est.VariableControl("e0_T_Feed", 560.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableControl("e0_Q_Feed", 30.0, 28, 32))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableControl("e0_x_Feed_c1", 0.3, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableControl("e0_m_Cat", 20.0, 18, 22))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableControl("e0_T_Feed", 560.0, -1.0E9, 1.0E9))  # noqa: E501
 
-    variable_list.add_variable(par_est.VariableParameter("e0_cp", 1.75, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableParameter("e0_E", 135518.2, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableParameter("e0_greek_DeltaHR", -200000.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableParameter("e0_cp", 1.75, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableParameter("e0_E", 135518.2, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableParameter("e0_greek_DeltaHR", -200000.0, -1.0E9, 1.0E9))  # noqa: E501
 
-    variable_list.add_variable(par_est.VariableConstant("e0_M_c1", 210.0))  # noqa: E501
-    variable_list.add_variable(par_est.VariableConstant("e0_greek_rho", 0.85))  # noqa: E501
-    variable_list.add_variable(par_est.VariableConstant("e0_R", 8.314))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_M_c1", 210.0))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_rho", 0.85))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_R", 8.314))  # noqa: E501
 
 
-    m = par_est.Model(variable_list)
+    m = mopeds.Model(variable_list)
 
     e0_Q_Feed = m.varlist_all["e0_Q_Feed"].casadi_var  # noqa: E501
     e0_M_c1 = m.varlist_all["e0_M_c1"].casadi_var  # noqa: E501

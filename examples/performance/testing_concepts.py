@@ -1,21 +1,21 @@
 import casadi as ca
 import numpy as np
 
-import par_est
-import par_est.examples
-import par_est.tools
+import mopeds
+import mopeds.examples
+import mopeds.tools
 
 
 def jacobian_manipulation():
     """Vizualizes how OED manipulates jacobian to get covariance."""
 
     num_time = 3
-    varlist, model = par_est.examples.cstr_ode()
+    varlist, model = mopeds.examples.cstr_ode()
 
     time_grid = np.linspace(0, 1000, num_time + 1)
     for var in varlist.values():
         var.fixed = True
-    sim = par_est.Simulator(model, time_grid, varlist, simulate_jac=True)
+    sim = mopeds.Simulator(model, time_grid, varlist, simulate_jac=True)
     res = sim.simulate_jac()
 
     num_param = 19
@@ -30,7 +30,7 @@ def jacobian_manipulation():
 
     for jacobian in list_jacobian_at_timepoint:
         selected = jacobian.get(False, index_all_states, [0, 2])
-        par_est.utilities.plot_arrays([jacobian, selected])
+        mopeds.utilities.plot_arrays([jacobian, selected])
 
 
 def covariance_matrix_summation():

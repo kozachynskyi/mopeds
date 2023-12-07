@@ -3,14 +3,14 @@ import copy
 import numpy as np
 from matplotlib import pyplot as plt
 
-import par_est
-import par_est.examples
+import mopeds
+import mopeds.examples
 
 plt.ion()
 import pandas as pd
 import casadi as ca
 
-class SimulatorCustom(par_est.Simulator):
+class SimulatorCustom(mopeds.Simulator):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -66,7 +66,7 @@ class SimulatorCustom(par_est.Simulator):
 if __name__ == "__main__":
 
     piecewiseswitch = False
-    variable_list, m = par_est.examples.cstr_dae(piecewiseswitch)
+    variable_list, m = mopeds.examples.cstr_dae(piecewiseswitch)
 
     # Create time-grid. Zero should be first
     time_grid = np.linspace(0, 1000, 5)
@@ -74,14 +74,14 @@ if __name__ == "__main__":
 
     # Create simulation Object
     sim_fixed = SimulatorCustom(
-    # sim_fixed = par_est.Simulator(
+    # sim_fixed = mopeds.Simulator(
         m, time_grid, variable_list, use_idas_constraints=False, simulate_jac=True
         , integrator_name="collocation"
     )
     res = sim_fixed.generate_exp_data(algebraic=True)
 
     sim_fixed2 = SimulatorCustom(
-    # sim_fixed2 = par_est.Simulator(
+    # sim_fixed2 = mopeds.Simulator(
         m, time_grid2, variable_list, use_idas_constraints=False, simulate_jac=True
     )
     res2 = sim_fixed2.generate_exp_data(algebraic=True)
