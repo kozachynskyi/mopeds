@@ -5,6 +5,7 @@ description = "Simulate and Optimize (Parameter Estimation, Optimal Experimental
 authors = ["Volodymyr Kozachynskyi <vovakozach@gmail.com>"]
 repository = "https://git.tu-berlin.de/dbta/optimization/mopeds"
 license = "MIT"
+readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.8,<=3.12"

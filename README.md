@@ -1,10 +1,34 @@
 # mopeds
 
-A library wrapped around casadi to solve Simulation / Optimization problems based on ODE and DAE models. Currently Parameter Estimation (PE) and Optimal Experimental Design (OED) are supported out of the box.
+<img align="right" src="./docs/logo.png" width="200px">
 
-For a tutorial check https://www.user.tu-berlin.de/vovakozach/par_est/5min_tutorial.html
+A library wrapped around casadi to solve Simulation / Optimization problems based on steady state and dynamic models. 
+Equations system can be formulated a set of nonlinear equations (NLE), ordinary differential equations (ODE) and differential and algebraic equations (DAE) of index 1. Parameter Estimation (PE) and Optimal Experimental Design (OED) are supported out of the box.
+
+
+## Installation
+
+`pip` Installation:
+
+```
+pip install mopeds
+```
+
+## Migration from par_est
+
+If you used `par_est` before, in order to move to `mopeds` you need to replace the name, API did not change. In comparison to `par_est`, `mopeds` uses `casadi == 3.6.4`, so different results might be expected.
+Considering creating a test to compare the numerical results while migrating.
 
 ## What's New?
+
+### 0.10.0
+
+- Rename par_est to mopeds and open-source the package
+
+### 0.9.3.a1
+
+- OED of dynamic models supports multiple different modes and strategies
+- Added multiple regularization techniques
 
 ### 0.9.2
 
@@ -28,28 +52,6 @@ NLE Simulator and Parameter Estimation were reworked, with focus on analysis of 
 Parameter Estimation has different internals on how objective function is calculated, making it a bit faster and much more unrestandable.
 Examples from Bates, Watts "Nonlinear Regression analysis and its applications" were imlemented and tested.
 
-## Installation
-
-- python3.8 or 3.9 is required
-- install via pip or poetry
-    - INSTALL: pip install git+https://git.tu-berlin.de/vovakozach/pe_oed_casadi
-        - ITWM Repo: pip install git+https://gitlab.itwm.fraunhofer.de/bubel/parameter-estimation
-    - UPDATE: pip install -U git+https://git.tu-berlin.de/vovakozach/pe_oed_casadi
-
-### Installation ITWM
-
-`pip` Installation:
-```
-pip install par_est --extra-index-url https://token:ceBtskLYpNqS6LR17NzP@gitlab.itwm.fraunhofer.de/api/v4/projects/3167/packages/pypi/simple
-```
-
-`poetry` Installation:
-```
-[[tool.poetry.source]]
-name="par_est"
-url="https://token:ceBtskLYpNqS6LR17NzP@gitlab.itwm.fraunhofer.de/api/v4/projects/3167/packages/pypi/simple"
-```
-
 
 ## Development
 
@@ -57,78 +59,10 @@ url="https://token:ceBtskLYpNqS6LR17NzP@gitlab.itwm.fraunhofer.de/api/v4/project
 - Run `poetry install` (ensure that correct python version is installed ex. pyenv)
 - Run tests via `pytest`, final tests should be run with `tox -r` command
 
-### Old way
+## par_est
 
-- You still can use `pip install -e .` in order to install package in development mode, but it's not recommended and will be deprecated
+Built versions of `par_est` are available in internal pypi registry:
 
-## TODO
-
-Test_scaling in test_optimization shows that derivatives for first step with and without scaling are different, but it depends on a length of steps. Independent of ODE or DAE
-Add tests for different integrators: ["idas", "collocation"]
-Test and analyze hammersley generation in tools
-
-Test_pendulum_dae fails if time_grid has more timesteps. Presicion of DAE solver should be checked
-State variable starting value is redundant. It should be taken/stored from Experimental Data.
-Control variable can hold only one control value for one experiment. No control change in time and additional experiments can be added.
-Determine how to store time_grid - list or numpy array
-in Optimizer if guess is 0 it's set to 1, which shouldn't hold all the time. Consider to determine scalingn based on lb and ub
-
-Parameter estimation sequantially solves simulations. Multiprocessing doesn't work, because of picklign problem. Multithreading can be tested, but not sure it works. I shouldn't concentrate on that.
-
-OED has builtin variances, it should be taken from state variables
-
-## Development tips
-
-- To mark something as unfinished use WIP (work in progress)
-- To Debug casadi use: 
-    - "print_in": True
-    - "print_out": True
-    - "verbose": True
-    - "print_stats": True
-- TO get list of function options: integrator.print_options()
-
-## Structure
-
-Experimental Data is object that stores value and time arrays.
-
-Variables can be State, Parameter and Control. They have name and casadi variable connected to them.
-State Variable has starting value, value as experimental data object and opcua_id
-Parameter variables have guess value, value itself, and bounds for optimizer
-Control variable same as parameter but has opcua_id
-
-Variable list is ordered dict with Variables as values, and variable names as keys
-Variables added here via add_variable(). Opc write and read handled here. 
-State variables can be plotted via plot_states()
-
-Model holds equations and all variables without any values. It makes difference only between State and Variables (THey represented as ParameterVariable). It is needed to add consistently equations.
-
-Simulator does integrates a given model. It's intiated with Model, time_grid and Variable list. It doesn't care if variable is Parameter or Control variable. Matters only a fixed state: if variable is fixed it's value is used, if not, it's considered a casadi var for simulator and optimizer.
-_reset_scaling() is important method that handles scaling of simulation
-simulate() runs integrator at every time_grid point, and can also provide derivatives
-generate_exp_data() transforms output of simulator to VariableList. In such a way simulated data can be plotted and analyzed.
-Simulator holds variable list given on initialization.
-
-Optimizer is intialized based only on model and variable_list. It's a general class that holds input variable list
-scaling is either one number or array of values for scaling
-_setup_simulator is used for filling variable lists
-_setup_initialization sets guess for desicion variables and their bounds
-_setup_scaling is determining scaling for desicion variables based on current guess
-_objective generates objective calculation for optimization problem
-_optimize last step that launches optimization solver
-
-parameter estimation determines time_grid for itself, based on available state_variable data. It also fixes all controll variables.
-
-OED uses time grid provided to it. It uses unfixed contoll variables as desicion variables and unfixed parameters to calculate sensitivities
-_sensitivity_matrix is used to calculated Jy/dp
-get_fim() is used to calculate FIM for a given set of variables
-
-## Contributing
-
-- Use poetry to work with package and contribute to it https://python-poetry.org/
-- Use conventional commits to create commit messages https://www.conventionalcommits.org
-    - git config --local commit.template .git-commit-message
-
-## Note
-
-This project has been set up using PyScaffold 3.2.3. For details and usage
-information on PyScaffold see https://pyscaffold.org/.
+```
+pip install par_est --index-url https://git.tu-berlin.de/api/v4/projects/1237/packages/pypi/simple
+```
