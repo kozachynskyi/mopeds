@@ -2,8 +2,13 @@
 
 <img align="right" src="./docs/logo.png" width="200px">
 
-A library wrapped around casadi to solve Simulation / Optimization problems based on steady state and dynamic models. 
-Equations system can be formulated a set of nonlinear equations (NLE), ordinary differential equations (ODE) and differential and algebraic equations (DAE) of index 1. Parameter Estimation (PE) and Optimal Experimental Design (OED) are supported out of the box.
+A library wrapped around casadi to solve Simulation / Optimization problems based on steady state and dynamic models.
+
+The system of equations can be a set of nonlinear equations (NLE), ordinary differential equations (ODE) or differential and algebraic equations (DAE) of index 1.
+
+Parameter Estimation (PE) and Optimal Experimental Design (OED) are supported out of the box.
+
+The project is looking for case studies and testers, so if you have any problems using the package or have any questions, do not hesitate to contact us.
 
 
 ## Installation
