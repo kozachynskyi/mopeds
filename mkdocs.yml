@@ -5,12 +5,19 @@ site_name: mopeds
 theme:
   name: material
   custom_dir: overrides
+  features:
+    - content.action.edit
 
 nav:
   - Home: index.md
   - Simulation NLE: Simulation NLE.ipynb
   - Parameter Estimation NLE: Parameter Estimation NLE.ipynb
   - OED NLE: Optimal Experimental Design NLE.ipynb
+  - Simulation DAE: Simulation DAE.ipynb
+
+repo_url: https://git.tu-berlin.de/dbta/optimization/mopeds
+
+edit_uri: edit/main/docs/
 
 markdown_extensions:
   - abbr
