@@ -4,6 +4,13 @@ site_name: mopeds
 
 theme:
   name: material
+  custom_dir: overrides
+
+nav:
+  - Home: index.md
+  - Simulation NLE: Simulation NLE.ipynb
+  - Parameter Estimation NLE: Parameter Estimation NLE.ipynb
+  - OED NLE: Optimal Experimental Design NLE.ipynb
 
 markdown_extensions:
   - abbr
@@ -13,4 +20,5 @@ markdown_extensions:
         - includes/abbreviations.md
 
 plugins:
-  - mkdocs-jupyter
+  - mkdocs-jupyter:
+      ignore: [".ipynb_checkpoints/*.ipynb"]
