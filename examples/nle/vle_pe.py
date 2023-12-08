@@ -1,8 +1,8 @@
 import copy
 
-import par_est
-from par_est.examples import vle_nle_problem
-from par_est.tools import generate_varlist_with_data_NLE
+import mopeds
+from mopeds.examples import vle_nle_problem
+from mopeds.tools import generate_varlist_with_data_NLE
 
 if __name__ == "__main__":
 
@@ -34,7 +34,7 @@ if __name__ == "__main__":
         varlist.set_variable_list_unfixed(param_list)
 
     # Define ParameterEstimationNLE
-    pe = par_est.ParameterEstimationNLE(model, variable_list_optimizer)
+    pe = mopeds.ParameterEstimationNLE(model, variable_list_optimizer)
 
     # Solve parameter estimation problem
     res = pe.optimize(False)

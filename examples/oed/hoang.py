@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import ticker, cm
 
-import par_est
+import mopeds
 
 def plot_res(pe, parameters):
     data = pe.calculate_objective_and_residual(p_wls, "wls")
@@ -29,7 +29,7 @@ def plot_fig3(oed, obj_f_name):
         num_p = 15
         control_bounds[var_name] = [lb, ub, num_p]
 
-    grid, meshgrid = par_est.tools.create_grid(control_bounds.values())
+    grid, meshgrid = mopeds.tools.create_grid(control_bounds.values())
 
     obj_f = []
     for grid_i in grid:
@@ -45,7 +45,7 @@ def plot_fig3(oed, obj_f_name):
 if __name__ == "__main__":
     time_grid = np.linspace(0, 12, 5)
 
-    varlist, m_monod, exp_data = par_est.examples.yeast_growth("monod", False, ode=True)
+    varlist, m_monod, exp_data = mopeds.examples.yeast_growth("monod", False, ode=True)
     varlist["theta1"].value = 0.5
     varlist["theta2"].value = 0.5
     varlist["theta3"].value = 0.5
@@ -55,10 +55,10 @@ if __name__ == "__main__":
     varlist["x1"].value = 2
     varlist["x2"].value = 0.1
 
-    sim_monod = par_est.Simulator(m_monod, time_grid, varlist)
+    sim_monod = mopeds.Simulator(m_monod, time_grid, varlist)
     sim_monod.generate_exp_data().plot(show=True)
 
-    pe = par_est.ParameterEstimation(m_monod, exp_data)
+    pe = mopeds.ParameterEstimation(m_monod, exp_data)
     p_preliminary = {
         "theta1": 0.531,
         "theta2": 7.854,
@@ -91,16 +91,16 @@ if __name__ == "__main__":
 
 
     controls = {"u1": 0.12, "u2": 35, "x1": 5}
-    # oed = par_est.OptimalExperimentalDesign(m_monod, [varlist], time_grid)
+    # oed = mopeds.OptimalExperimentalDesign(m_monod, [varlist], time_grid)
     # oed.optimize()
     # a = oed.calculate_objective_and_jacobian(controls)
     # print(a)
     # print(a["jac"].shape)
 
-    # oed_settings = par_est.OEDsettings(20, 0.1, 4, 2)
-    oed_settings = par_est.OEDsettings(20, 0.1, 4, 2)
+    # oed_settings = mopeds.OEDsettings(20, 0.1, 4, 2)
+    oed_settings = mopeds.OEDsettings(20, 0.1, 4, 2)
 
-    oed = par_est.OptimalExperimentalDesign(m_monod, [varlist], time_grid)#, oed_settings)
+    oed = mopeds.OptimalExperimentalDesign(m_monod, [varlist], time_grid)#, oed_settings)
     # a = oed.optimize(1e-3)
     # print(a)
 

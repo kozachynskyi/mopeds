@@ -1,3 +1,144 @@
+## 0.10.0 (2023-12-07)
+
+### Feat
+
+- rework oed jacobian to work with new casadi syntax
+- update dependencies, allow python 3.12
+- move GN working PE to examples
+- fix regularization tests, and setup ridge regularization
+- move WIP tihkhnov tuning example in separate file
+- prepare for merge, fix tests
+- WIP impleementaton of pe with algebraic variables
+- add warning message while using ipopt as nle solver during PE
+- allow ipopt as solver of NLE equations system
+
+### Fix
+
+- support python >3.9
+- update factory() syntax of casadi
+- tools bug inttoduced with PiecewiseConstantCOntrols
+- undo changes, prepare for merge
+- fixed typo
+
+### Refactor
+
+- rename src folder
+- rework poetry to support 3.12
+- remove pyDOE artifacts
+- turn off casados_integrator
+- remove Jinja2 and pyDOE as dependencies
+- rework to avoid deprecation warnings of casadi and numpy
+- move example file
+
+## 0.9.3a1 (2023-10-11)
+
+### Feat
+
+- add test for tikhonov
+- add tikhonov WIP
+- add parameter scaling of jacobian for regularization
+- tools generate_varlist supports perturbation
+- reworked regularization techniques
+
+### Fix
+
+- fix lopez regularization
+
+## 0.9.3a0 (2023-09-24)
+
+### Feat
+
+- gitlab ci turn off, add poetry config
+- OEDNLE supports simulator class as input
+- add cstr NLE example in par_est
+- OED Nle takes into acount previous measurements
+- add OED for NLE WIP
+- oed simulator supports ca.MX time_grid
+
+### Fix
+
+- add FixedSampling setting for OED to __init__
+- oed.generate_data fixed Piecewise Controls
+- pe.parameter_analysis catches error if hessian not calculated
+
+### Refactor
+
+- OED move _optimize to BaseOED
+
+## 0.9.2.alpha1 (2023-08-31)
+
+### Fix
+
+- add FixedGridSamping as default mode for OED
+
+## 0.9.2.alpha (2023-08-31)
+
+### Feat
+
+- VariablePiecewiseConstant reworked lb, ub and guess
+- VariablePiecewiseConstant supports ca.MX as time_grid
+- oed supports Adaptive based sampling with piecewise controls
+- oed setups equality constraint after initialization
+- rework oed.generate_exp_data
+- add oed.separate_and_check_controls()
+- raise error of supplied time_sp or weight_ control is wrong
+- VariablePiecewiseConstant testing time_grid from ca.MX
+- categorize OED solution strategies Optimal, Adaptive etc
+- add deluca2016
+- varlist.plot() fills NA before plotting, to plot Controls
+- sim.generate_exp_data() returns PiecewiseConstantControls
+- **OED**: add option to add custom objective function
+- support for measruement weights
+- add initial version of hoang2014 from quaglio
+- **OED**: genereate_exp_data works with flexible sampling time
+- wip add reference to "parent" variable in VaribleControl
+- PieceswiseConstantControls are plotted in varlist
+- **OED**: add methods to create varlist for PE, and simulate Sim
+- **Sim**: make raised error more informative
+- **OED**: add simulate method to OED
+- **OED**: support for OED when t_sp is given, and t_sw is selected
+- **OED**: support for initial values of state variables
+- **OED**: jac returned is not scaled by parameters
+- **OED**: add parameter scaling to objective function
+- add OEDsettings, refactor OED to be more readable
+- first working version of OED with flexible time_grid
+- **OED**: don't allow unfixed PiecewiseControl vars with horizon
+- remove redundant code
+- **OED**: make time_grid_contorl an optional argument
+- add D criteria
+- utilities create_grid returns meschgrid for plotting
+- and yeast model, working on quaglio
+- add A criteria with FD
+
+### Fix
+
+- OED without provided settings works as expected
+- oed.generate_data ignores redundant time controls
+- OED generate_exp_data typo
+- **OED**: generate_exp_data if time0 of state variable is decision var
+- **OED**: typo in Objective_D
+- typo in OED
+- typos in OED
+- add _parameter_scaling to Callback
+- API change create_grid
+- typo OED
+- fix yeast model
+- typo
+
+### Refactor
+
+- remove unused import
+- modify error message
+- temp_backup
+- move tests around
+- add correct typing
+- **OED**: remove old self.optimize()
+- **Sim**: change iteration over self.time_relative via range
+- **Sim**: remove unused self.integrator
+- **PE**: jacobian scaling is clearly formulated
+- separate oed in opitmization_oed
+- separate Simulator in NLE and Dynamic
+
 ## 0.9.2 (2023-05-02)
 
 ### Fix
@@ -11,37 +152,6 @@
 - **PE**: identifiability use correct FIM, order of parameters irrelevant
 
 ## 0.9.0 (2023-04-23)
-
-### Refactor
-
-- reroll back example file changes
-- refactor the parameter analysis, return marginal CI
-- **PE**: move paramter_analysis and yao to PE_base
-- **SimDAE**: simplify simulate_t0
-- **SimDAE**: simplify simulate_dae_recalcluate_algebraic
-- **Sim**: reposition methods to set default similator settings
-- modify .gitignore file
-- **PE**: rearange some methods
-- add example for NLE cstr
-- move some methods around
-- **PENLE**: remove unused atribute
-- **PE**: move some methods
-- **PE**: remove redundancy
-- **PE**: use setup_simulator_mapping
-- **PE**: create PE_Base class and move methods around
-
-### Fix
-
-- **PE**: typo. how parameter covariance matrix is calculated
-- **PE**: fix WLS objective function , added 1/2
-- rework paramter variance for multiresponce data
-- acados import typo2
-- typo acados import
-- add fix to bug that happens on OptigodMarkI
-- remove typo
-- remove hessian-approximation option from ipopt
-- generalize experiments scaling for PE
-- **PENLE**: fix potential bug with sorting of variances
 
 ### Feat
 
@@ -65,6 +175,37 @@
 - **PEDAE**: remove objective_alg()
 - **SIM_ODE**: rename self.simulate() to self.simulate_sym()
 
+### Fix
+
+- **PE**: typo. how parameter covariance matrix is calculated
+- **PE**: fix WLS objective function , added 1/2
+- rework paramter variance for multiresponce data
+- acados import typo2
+- typo acados import
+- add fix to bug that happens on OptigodMarkI
+- remove typo
+- remove hessian-approximation option from ipopt
+- generalize experiments scaling for PE
+- **PENLE**: fix potential bug with sorting of variances
+
+### Refactor
+
+- reroll back example file changes
+- refactor the parameter analysis, return marginal CI
+- **PE**: move paramter_analysis and yao to PE_base
+- **SimDAE**: simplify simulate_t0
+- **SimDAE**: simplify simulate_dae_recalcluate_algebraic
+- **Sim**: reposition methods to set default similator settings
+- modify .gitignore file
+- **PE**: rearange some methods
+- add example for NLE cstr
+- move some methods around
+- **PENLE**: remove unused atribute
+- **PE**: move some methods
+- **PE**: remove redundancy
+- **PE**: use setup_simulator_mapping
+- **PE**: create PE_Base class and move methods around
+
 ## 0.8.3 (2022-12-09)
 
 ### Feat
@@ -73,14 +214,14 @@
 - **Varlist**: add show argument to plot()
 - **PENLE**: calclulate_objective_residuals returns sim values
 
-### Refactor
-
-- **Variable**: allow lists to specify time_grid
-
 ### Fix
 
 - **PENLE**: but at recursion of indetifiability analysis
 - **PENLE**: bug when parameters are not fixed as in varlist_decision
+
+### Refactor
+
+- **Variable**: allow lists to specify time_grid
 
 ## 0.8.2 (2022-11-02)
 
@@ -120,6 +261,22 @@
 - pe.calculate_sensitivity -> return meas_covaraince
 - return all residuals, not only nonzero ones
 
+### Fix
+
+- **MPC**: raise NotImplementedError (optimizer is not supported)
+- fix OLS dictionary
+- **NLEinference**: remove redundant seed attribute
+- **Vars**: VariableConstant.casadi_var returns self.value
+- **PENLE**: parameter_analysis plotting and calculations new API
+- **PENLE**: parameter identifiability yao new API
+- **PENLE**: fix how parameter_dict_to_list works, make it robust
+- **PENLE**: raise error, when optimize(obj_func=) str is not supported
+- **PEnle**: fix bug with _reset_scaling
+- **SimNLE**: generate_exp_data -> var.variance is propagated further
+- **PENLE**: array_data_new nan replaced with 0
+- **PENLE**: add raise error
+- (parameter_analysis) -> correctly scaled parameter covariance
+
 ### Refactor
 
 - **examples**: add dostring
@@ -142,22 +299,6 @@
 - add example from seminar 2022-08-02
 - clean up pe.parameter_analysis
 
-### Fix
-
-- **MPC**: raise NotImplementedError (optimizer is not supported)
-- fix OLS dictionary
-- **NLEinference**: remove redundant seed attribute
-- **Vars**: VariableConstant.casadi_var returns self.value
-- **PENLE**: parameter_analysis plotting and calculations new API
-- **PENLE**: parameter identifiability yao new API
-- **PENLE**: fix how parameter_dict_to_list works, make it robust
-- **PENLE**: raise error, when optimize(obj_func=) str is not supported
-- **PEnle**: fix bug with _reset_scaling
-- **SimNLE**: generate_exp_data -> var.variance is propagated further
-- **PENLE**: array_data_new nan replaced with 0
-- **PENLE**: add raise error
-- (parameter_analysis) -> correctly scaled parameter covariance
-
 ## 0.7.4 (2022-07-23)
 
 ## 0.7.3 (2022-07-23)
@@ -168,13 +309,13 @@
 
 ## 0.7.2 (2022-07-19)
 
-### Refactor
+### Feat
 
-- add .env folder to .gitignore
-- fix version to 0.7.1, add ITWM deploy Readme
-- deleted unnecessary file
-- remove redundant print statements
-- create sim.simulate_sym_unfixed() method
+- example 5-min-tut tested and implemented
+- add parameter_identifiability*yao and *eigenvalue
+- add peNLE.calculate_sensitivity_and_fim() method
+- add pe.calculate_ols_value() to analyze objective
+- add dict with variables and values as output of optimize()
 
 ### Fix
 
@@ -183,13 +324,13 @@
 - resolved an error in examples/nle/cstr_collocation_sim.py
 - wrong variables names while reporting optimize()
 
-### Feat
+### Refactor
 
-- example 5-min-tut tested and implemented
-- add parameter_identifiability*yao and *eigenvalue
-- add peNLE.calculate_sensitivity_and_fim() method
-- add pe.calculate_ols_value() to analyze objective
-- add dict with variables and values as output of optimize()
+- add .env folder to .gitignore
+- fix version to 0.7.1, add ITWM deploy Readme
+- deleted unnecessary file
+- remove redundant print statements
+- create sim.simulate_sym_unfixed() method
 
 ## 0.7.1 (2022-07-04)
 
@@ -203,6 +344,10 @@
 - add do_once() method for monkey-patching
 - add tqdm as dependency
 
+### Fix
+
+- removed decorator @notypecheck
+
 ### Refactor
 
 - add warning using "ipopt" with NLE
@@ -210,10 +355,6 @@
 - move import matplotlib inside methods
 - add new line for better output
 - remove breakpoins from examples
-
-### Fix
-
-- removed decorator @notypecheck
 
 ## 0.7.0 (2022-06-19)
 
@@ -223,16 +364,16 @@
 - add .show() method to show dataframe to HTML
 - remove pandasgui dependency, add Jinja2
 
+### Fix
+
+- fix DeprecationWarning pandas.Index.get_loc
+
 ### Refactor
 
 - add type annotations
 - remove Variable.get_data_opcua() method
 - import from par_est directly
 - remove unused code
-
-### Fix
-
-- fix DeprecationWarning pandas.Index.get_loc
 
 ## 0.6.2 (2022-06-14)
 
@@ -254,6 +395,11 @@
 - add scaling to NLEOptimization
 - add bounds for rootfinder, make bounds optional
 
+### Fix
+
+- fix example change API
+- set_bounds() works for Control Variables
+
 ### Refactor
 
 - fix type of list_simulators
@@ -263,11 +409,6 @@
 - scaling SimulatorNLE from PENLE
 - black8
 
-### Fix
-
-- fix example change API
-- set_bounds() works for Control Variables
-
 ## 0.6.0 (2022-03-21)
 
 ### Feat
@@ -276,15 +417,15 @@
 
 ## 0.5.2 (2022-03-15)
 
-### Fix
-
-- add importlib_metadata for python<3.8
-
 ### Feat
 
 - remove setup.py
 - add __version__
 - added berty NLE example
+
+### Fix
+
+- add importlib_metadata for python<3.8
 
 ## 0.5.1 (2022-03-09)
 
@@ -344,18 +485,7 @@
 - MPC ca now use algebraic and state vars
 - PE can calculate error of algebraic vars
 - added singe shooting MPC
-- added singe shooting MPC
 - Remove pip install -e support, update versions
-
-### Refactor
-
-- added plot argument to plot_simulation
-- used black
-- used black
-- use self.rootfinder, work only with DAE
-- extracted _get_varlist_to_plot() method
-- Fixed mypy and flake8 error. Used black
-- Added mypy, bumped lock
 
 ### Fix
 
@@ -377,9 +507,17 @@
 - wrong .variance order
 - fixed PE/MPC objective with algebraic var
 
-## 0.3.0 (2021-05-16)
+### Refactor
 
-## moved_git (2021-01-03)
+- added plot argument to plot_simulation
+- used black
+- used black
+- use self.rootfinder, work only with DAE
+- extracted _get_varlist_to_plot() method
+- Fixed mypy and flake8 error. Used black
+- Added mypy, bumped lock
+
+## 0.3.0 (2021-05-16)
 
 ## 0.2.1 (2020-11-29)
 

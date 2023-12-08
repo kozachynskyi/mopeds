@@ -15,7 +15,7 @@ import pandas as pd
 from scipy import linalg
 from tqdm import tqdm
 
-from par_est import (
+from mopeds import (
     Model,
     Simulator,
     SimulatorNLE,
@@ -31,7 +31,7 @@ from par_est import (
 )
 
 if _ACADOS_SUPPORT:
-    from par_est import casados_integrator
+    from mopeds import casados_integrator
 
 @dataclass
 class OEDsettings:

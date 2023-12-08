@@ -3,10 +3,10 @@ import copy
 import matplotlib.pyplot as plt
 import numpy as np
 
-import par_est
+import mopeds
 
 def get_varlist_paper(data_set=1, normalized=True):
-    varlist, model, _ = par_est.examples.yeast_growth("monod", True, ode=True, normalize=normalized)
+    varlist, model, _ = mopeds.examples.yeast_growth("monod", True, ode=True, normalize=normalized)
 
     if normalized:
         p_true = {
@@ -35,7 +35,7 @@ def get_varlist_paper(data_set=1, normalized=True):
     varlist["x2"].value = 0
 
 
-    oed_settings = par_est.OEDsettings(20, 0.1, 4, 4)
+    oed_settings = mopeds.OEDsettings(20, 0.1, 4, 4)
 
     if data_set == 1:
         varlist["x1"].value = 2.5
@@ -126,7 +126,7 @@ def get_varlist_paper(data_set=1, normalized=True):
     varlist["u2"].value = u2_paper[0]
     # breakpoint()
 
-    oed = par_est.OptimalExperimentalDesign(model, [varlist], time_grid, oed_settings)
+    oed = mopeds.OptimalExperimentalDesign(model, [varlist], time_grid, oed_settings)
     exp_varlist = oed.generate_experimental_data({}, p_true)
     # plot_controls(exp_varlist)
     # exp_varlist.plot()
@@ -161,7 +161,7 @@ def plot_from_parameters(oed, controls):
     ax2.plot(oed.time_grid_measurements, data[:, 1], c="r")
 
 def get_varlist_solution(normalized=True):
-    varlist, model, _ = par_est.examples.yeast_growth("monod", True, ode=True, normalize=normalized)
+    varlist, model, _ = mopeds.examples.yeast_growth("monod", True, ode=True, normalize=normalized)
 
     if normalized:
         p_true = {
@@ -212,9 +212,9 @@ def get_varlist_solution(normalized=True):
     varlist["u1"].ignore_plotting = False
     varlist["u2"].ignore_plotting = False
 
-    oed_settings = par_est.OEDsettings(20, 0.1, 4, 1)
+    oed_settings = mopeds.OEDsettings(20, 0.1, 4, 1)
 
-    oed = par_est.OptimalExperimentalDesign(model, [varlist], time_grid, oed_settings)
+    oed = mopeds.OptimalExperimentalDesign(model, [varlist], time_grid, oed_settings)
     exp_varlist = oed.generate_experimental_data(solution, p_true)
     exp_varlist.plot()
     parameter_accuracy(model, exp_varlist)
@@ -231,7 +231,7 @@ def parameter_accuracy(model, exp_varlist):
             df[var_name] = rng.normal(df, np.sqrt(var.variance))
             df[var_name][df[var_name] < 0] = 0
 
-    pe = par_est.ParameterEstimation(model, [exp_varlist])
+    pe = mopeds.ParameterEstimation(model, [exp_varlist])
     pe.solver_settings["ipopt"]["max_iter"] = 20
     res = pe.optimize()
     print(res)
@@ -244,7 +244,7 @@ if __name__ == "__main__":
     # plot_y()
     get_varlist_paper(3)
     # get_varlist_solution()
-    varlist, model, _ = par_est.examples.yeast_growth_ode("monod", True)
+    varlist, model, _ = mopeds.examples.yeast_growth_ode("monod", True)
     solution = {
         "x1": 0.4291013149958769,
         "u1_t0": 0.050002814999123055,
@@ -291,9 +291,9 @@ if __name__ == "__main__":
     varlist["x2"].value = 1e-5
 
     controls = {"u1": 0.12, "u2": 35, "x1": 5}
-    oed_settings = par_est.OEDsettings(20, 0.1, 4, 1)
+    oed_settings = mopeds.OEDsettings(20, 0.1, 4, 1)
 
-    oed = par_est.OptimalExperimentalDesign(model, [varlist], time_grid, oed_settings)
+    oed = mopeds.OptimalExperimentalDesign(model, [varlist], time_grid, oed_settings)
     print(oed.calculate_objective_and_jacobian(solution))
     # plot_from_parameters(oed, solution)
     plt.show()

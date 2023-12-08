@@ -1,10 +1,10 @@
 import numpy as np
 import casadi as ca
 import copy
-import par_est
+import mopeds
 
 
-class SimSaskia(par_est.SimulatorNLE):
+class SimSaskia(mopeds.SimulatorNLE):
     def model_analysis(self):
         J_mx = ca.jacobian(self.model.equations_algebraic, self.model.varlist_algebraic.get_casadi_variables())
         J = ca.Function("n", [ca.vcat([self.model.varlist_algebraic.get_casadi_variables(), self.model.varlist_independent.get_casadi_variables()])], [J_mx])
@@ -91,6 +91,6 @@ class SimSaskia(par_est.SimulatorNLE):
             # print(block_equations, block_variables, vars_in_equations)
             # breakpoint()
 
-VAR_LIST, MODEL, EXP_DATA = par_est.examples.isomerization_model()
+VAR_LIST, MODEL, EXP_DATA = mopeds.examples.isomerization_model()
 sim = SimSaskia(MODEL, VAR_LIST)
 sim.model_analysis()

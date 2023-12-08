@@ -3,11 +3,11 @@ import copy
 import casadi as ca
 import numpy as np
 
-import par_est
-import par_est.examples
-import par_est.tools
+import mopeds
+import mopeds.examples
+import mopeds.tools
 
-var_list, m = par_est.examples.cstr_dae()
+var_list, m = mopeds.examples.cstr_dae()
 # Create time-grid. Zero should be first
 time_grid = np.linspace(10, 10000, 4)
 time_grid = np.insert(time_grid, 0, 0)
@@ -15,7 +15,7 @@ time_grid = np.insert(time_grid, 0, 0)
 var_list_fixed = copy.deepcopy(var_list)
 for var in var_list_fixed.values():
     var.fixed = True
-var_list_exp = par_est.Simulator(m, time_grid, var_list_fixed, simulate_jac=True).generate_exp_data()
+var_list_exp = mopeds.Simulator(m, time_grid, var_list_fixed, simulate_jac=True).generate_exp_data()
 
 for key, var in var_list_exp.items():
     var_list[key] = var
@@ -25,7 +25,7 @@ for var in var_list.values():
 
 var_list["e0_E_r1"].fixed = False
 
-pe = par_est.ParameterEstimation(m, [var_list])
+pe = mopeds.ParameterEstimation(m, [var_list])
 
 pe._setup_scaling(False)
 sim_unscaled = pe.list_simulators[0].simulate_jac()

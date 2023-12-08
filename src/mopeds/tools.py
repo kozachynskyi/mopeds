@@ -1,4 +1,4 @@
-""" Here come methods that use par_est as import.
+""" Here come methods that use mopeds as import.
 Separated from utilities to avoid dependency hell"""
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import copy
 
 import numpy as np
 
-from par_est import Model, Simulator, SimulatorNLE, VariableList, VariableParameter, VariableControl
+from mopeds import Model, Simulator, SimulatorNLE, VariableList, VariableParameter, VariableControl
 
 
 def create_grid(bounds: list[list[float]]) -> list[list[float]]:

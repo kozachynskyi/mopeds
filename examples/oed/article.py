@@ -5,11 +5,11 @@ from matplotlib import ticker, cm
 from tools import unfix_parameters
 import casadi as ca
 
-import par_est
+import mopeds
 from quaglio import CriteriaD_asprey2002
 
 def yeast_oed(mode="initial", estimate=False, plot=False, random=False, num_control_switches=0):
-    varlist, m_monod, exp_data = par_est.examples.yeast_growth("monod", piecewise=True)
+    varlist, m_monod, exp_data = mopeds.examples.yeast_growth("monod", piecewise=True)
     varlist["u1"].ignore_plotting = False
     varlist["u2"].ignore_plotting = False
 
@@ -54,7 +54,7 @@ def yeast_oed(mode="initial", estimate=False, plot=False, random=False, num_cont
     varlist_oed = unfix_parameters(varlist)
 
     if mode == "initial":
-        oed = par_est.OptimalExperimentalDesign(m_monod, [varlist_oed], time_grid)
+        oed = mopeds.OptimalExperimentalDesign(m_monod, [varlist_oed], time_grid)
         oed.solver_settings["ipopt"]["linear_solver"] = "ma57"
 
         if estimate is False:
@@ -70,7 +70,7 @@ def yeast_oed(mode="initial", estimate=False, plot=False, random=False, num_cont
         print(obj)
 
     elif mode == "x_time_zero":
-        oed = par_est.OptimalExperimentalDesign(m_monod, [varlist_oed], time_grid)
+        oed = mopeds.OptimalExperimentalDesign(m_monod, [varlist_oed], time_grid)
         oed.solver_settings["ipopt"]["linear_solver"] = "ma57"
 
         if estimate is False:
@@ -85,9 +85,9 @@ def yeast_oed(mode="initial", estimate=False, plot=False, random=False, num_cont
         print(obj["f"])
 
     elif mode == "adaptive":
-        oed_setttings = par_est.AdaptiveSampling(num_control_switches=num_control_switches, num_sampling_times=len(time_grid)-1, max_time_experiment=time_grid[-1], min_sampling_delay=0.2, end_time_fixed=True)
+        oed_setttings = mopeds.AdaptiveSampling(num_control_switches=num_control_switches, num_sampling_times=len(time_grid)-1, max_time_experiment=time_grid[-1], min_sampling_delay=0.2, end_time_fixed=True)
 
-        oed = par_est.OptimalExperimentalDesign(m_monod, [varlist_oed], time_grid, oed_setttings)
+        oed = mopeds.OptimalExperimentalDesign(m_monod, [varlist_oed], time_grid, oed_setttings)
         oed.solver_settings["ipopt"]["linear_solver"] = "ma57"
 
         if random:
@@ -154,9 +154,9 @@ def yeast_oed(mode="initial", estimate=False, plot=False, random=False, num_cont
         # ideal
         extended_time_grid = np.linspace(0, time_grid[-1], 101)
 
-        oed_setttings = par_est.OptimalSampling(end_time_fixed=True, num_sampling_times=len(time_grid)-1,num_control_switches=num_control_switches)
+        oed_setttings = mopeds.OptimalSampling(end_time_fixed=True, num_sampling_times=len(time_grid)-1,num_control_switches=num_control_switches)
 
-        oed = par_est.OptimalExperimentalDesign(m_monod, [varlist_oed], extended_time_grid, oed_setttings)
+        oed = mopeds.OptimalExperimentalDesign(m_monod, [varlist_oed], extended_time_grid, oed_setttings)
         oed.solver_settings["ipopt"]["linear_solver"] = "ma57"
 
         if random:
@@ -185,9 +185,9 @@ def yeast_oed(mode="initial", estimate=False, plot=False, random=False, num_cont
     elif mode == "adaptive_optimal":
         extended_time_grid = time_grid
 
-        oed_setttings = par_est.AdaptiveOptimalSampling(end_time_fixed=True, num_sampling_times=len(time_grid)-1,max_time_experiment=time_grid[-1], num_control_switches=num_control_switches, min_sampling_delay=0.2)
+        oed_setttings = mopeds.AdaptiveOptimalSampling(end_time_fixed=True, num_sampling_times=len(time_grid)-1,max_time_experiment=time_grid[-1], num_control_switches=num_control_switches, min_sampling_delay=0.2)
 
-        oed = par_est.OptimalExperimentalDesign(m_monod, [varlist_oed], extended_time_grid, oed_setttings)
+        oed = mopeds.OptimalExperimentalDesign(m_monod, [varlist_oed], extended_time_grid, oed_setttings)
         oed.solver_settings["ipopt"]["linear_solver"] = "ma57"
 
         if random:

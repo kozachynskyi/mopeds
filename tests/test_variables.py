@@ -1,6 +1,6 @@
-import par_est
+import mopeds
 import pandas as pd
-from par_est.variables import SameVariableNameError, PlottingError
+from mopeds.variables import SameVariableNameError, PlottingError
 
 import casadi as ca
 import pytest
@@ -8,20 +8,20 @@ import pytest
 
 def test_variables():
     # Test VariableList() and subclasses
-    variable_list = par_est.VariableList()
+    variable_list = mopeds.VariableList()
     counter = 0
 
-    for variable_type in par_est.Variable.get_subclasses():
+    for variable_type in mopeds.Variable.get_subclasses():
         var = variable_type(f"Name{counter}")
         variable_list.add_variable(var)
         counter += 1
 
-    assert len(variable_list) == sum(1 for _ in par_est.Variable.get_subclasses())
+    assert len(variable_list) == sum(1 for _ in mopeds.Variable.get_subclasses())
 
     # Test SameVariableNameError
-    variable_list = par_est.VariableList()
+    variable_list = mopeds.VariableList()
 
-    var = par_est.VariableState("Name")
+    var = mopeds.VariableState("Name")
     variable_list.add_variable(var)
     assert var.casadi_var.name() == "Name"
     with pytest.raises(SameVariableNameError):
@@ -30,9 +30,9 @@ def test_variables():
     assert len(variable_list) == 1
 
     # Test PlottingError
-    variable_list = par_est.VariableList()
+    variable_list = mopeds.VariableList()
 
-    var_1 = par_est.VariableState("Var1")
+    var_1 = mopeds.VariableState("Var1")
     variable_list.add_variable(var_1)
 
     with pytest.raises(ValueError):
@@ -45,8 +45,8 @@ def test_variables():
     variable_list["Var1"].set_dataframe_from_value_and_time([0, 1], [0, 2])
     a = variable_list["Var1"]
 
-    var_1 = par_est.VariableControlPiecewiseConstant("Var1", 20)
-    var_2 = par_est.VariableControlPiecewiseConstant("Var1", 20)
+    var_1 = mopeds.VariableControlPiecewiseConstant("Var1", 20)
+    var_2 = mopeds.VariableControlPiecewiseConstant("Var1", 20)
 
     var_2.variable_list.index(0).dataframe.rename(
         index={
@@ -57,9 +57,9 @@ def test_variables():
         inplace=True,
     )
 
-    var_3 = par_est.VariableControlPiecewiseConstant("Var1", None)
+    var_3 = mopeds.VariableControlPiecewiseConstant("Var1", None)
 
-    var_1 = par_est.VariableControlPiecewiseConstant("Var1", 20)
+    var_1 = mopeds.VariableControlPiecewiseConstant("Var1", 20)
 
     assert variable_list["Var1"].time_absolute.equals(
         pd.DatetimeIndex(
@@ -137,17 +137,17 @@ def test_variables():
     assert list(var_3.to_dictionary().keys()) == [0, 11, 11.3]
 
     # Test constraints_idas prperty
-    var = par_est.VariableAlgebraic("var")
+    var = mopeds.VariableAlgebraic("var")
     assert var.get_constraint_idas == 0
-    var = par_est.VariableAlgebraic("var", None, -1, None)
+    var = mopeds.VariableAlgebraic("var", None, -1, None)
     assert var.get_constraint_idas == 0
-    var = par_est.VariableAlgebraic("var", None, 0, None)
+    var = mopeds.VariableAlgebraic("var", None, 0, None)
     assert var.get_constraint_idas == 1
-    var = par_est.VariableAlgebraic("var", None, None, 1)
+    var = mopeds.VariableAlgebraic("var", None, None, 1)
     assert var.get_constraint_idas == 0
-    var = par_est.VariableAlgebraic("var", None, None, -1)
+    var = mopeds.VariableAlgebraic("var", None, None, -1)
     assert var.get_constraint_idas == -2
-    var = par_est.VariableAlgebraic("var", None, None, 0)
+    var = mopeds.VariableAlgebraic("var", None, None, 0)
     assert var.get_constraint_idas == -1
 
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import casadi as ca
 
-from par_est import (
+from mopeds import (
     Variable,
     VariableAlgebraic,
     VariableConstant,
@@ -77,5 +77,5 @@ class Model(object):
 
 class VariableTypeError(Exception):
     def __init__(self, name) -> None:
-        message = f"Not a supported par_est_casadi variable class! Wrong variable with name: {name}"
+        message = f"Not a supported mopeds variable class! Wrong variable with name: {name}"
         super().__init__(message)

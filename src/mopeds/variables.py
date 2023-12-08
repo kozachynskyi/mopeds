@@ -14,7 +14,7 @@ import casadi as ca
 import numpy as np
 import pandas as pd
 
-import par_est
+import mopeds
 
 ORIGIN_TS: pd.Timestamp = pd.Timestamp(year=1970, month=1, day=1)
 """ Indicats a default zero timestamp for data, if date is irrelevant.
@@ -266,7 +266,7 @@ class Variable(object):
             self.dataframe = dataframe
 
     def show(self) -> None:
-        par_est.show_html_from_dataframe(self.dataframe)
+        mopeds.show_html_from_dataframe(self.dataframe)
 
 
 class VariableState(Variable):
@@ -726,7 +726,7 @@ class VariableList(OrderedDict[str, Union[Variable, VariableControlPiecewiseCons
         return plot_varlist
 
     def show(self) -> None:
-        par_est.show_html_from_dataframe(self.dataframe)
+        mopeds.show_html_from_dataframe(self.dataframe)
 
 
 class SameVariableNameError(Exception):

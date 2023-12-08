@@ -3,8 +3,8 @@ import copy
 import numpy as np
 from matplotlib import pyplot as plt
 
-import par_est
-import par_est.examples
+import mopeds
+import mopeds.examples
 
 plt.ion()
 import pandas as pd
@@ -12,10 +12,10 @@ import pandas as pd
 if __name__ == "__main__":
 
     piecewiseswitch = False
-    variable_list, m = par_est.examples.cstr_dae(piecewiseswitch)
+    variable_list, m = mopeds.examples.cstr_dae(piecewiseswitch)
 
     T_in = variable_list["e0_T_in"]
-    if isinstance(T_in, par_est.VariableControlPiecewiseConstant):
+    if isinstance(T_in, mopeds.VariableControlPiecewiseConstant):
         T_in.expand_horizon([4000, 7500], [283, 400])
 
     # Create time-grid. Zero should be first
@@ -30,7 +30,7 @@ if __name__ == "__main__":
     # var_list_fixed["e0_U"].fixed = False
     var_list_fixed["e0_T"].fixed = False
     # Create simulation Object
-    sim_fixed = par_est.Simulator(
+    sim_fixed = mopeds.Simulator(
         m, time_grid, var_list_fixed, use_idas_constraints=True, simulate_jac=False
     )
     # Run simulation and get simple results as array of numbers, but information about state variables and timestamp is lost

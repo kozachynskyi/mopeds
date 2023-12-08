@@ -1,6 +1,6 @@
 import numpy as np
 
-import par_est
+import mopeds
 import copy
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -41,8 +41,8 @@ def parameter_analysis_monte_carlo(pe, parameters):
 
 
 if __name__ == "__main__":
-    VAR_LIST, MODEL, EXP_DATA = par_est.examples.bod_model()
-    pe = par_est.ParameterEstimationNLE(MODEL, EXP_DATA)
+    VAR_LIST, MODEL, EXP_DATA = mopeds.examples.bod_model()
+    pe = mopeds.ParameterEstimationNLE(MODEL, EXP_DATA)
 
     # Example BOD 5 Bates Page 54
     res = pe.optimize()["x_dict"]

@@ -8,7 +8,7 @@ from numpy.typing import ArrayLike
 import casadi as ca
 import numpy as np
 
-from par_est import (
+from mopeds import (
     BadVariableError,
     Model,
     VariableAlgebraic,
@@ -23,7 +23,7 @@ from par_est import (
 
 if _ACADOS_SUPPORT:
     from acados_template import AcadosModel
-    from par_est import casados_integrator
+    from mopeds import casados_integrator
 
 
 class Simulator(object):
@@ -558,7 +558,7 @@ class Simulator(object):
     def analyze_WIP(
         self, state_value: list[float] = None
     ) -> list[dict[str, ca.DM] | list[float]]:
-        import par_est.tools as tools  # noqa: F401
+        import mopeds.tools as tools  # noqa: F401
 
         """ This function was working for previous version of the module."""
         function = ca.Function(

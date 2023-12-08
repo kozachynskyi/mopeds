@@ -1,19 +1,19 @@
-import par_est
+import mopeds
 import numpy as np
-import par_est.examples
+import mopeds.examples
 import casadi as ca
 import pytest
 
 
 @pytest.mark.parametrize("piecewise", [True, False])
 def test_dae_initials_calculation(piecewise):
-    varlist, model = par_est.examples.empy_dae(piecewise)
+    varlist, model = mopeds.examples.empy_dae(piecewise)
     varlist["X1"].value = 1
     varlist["C"].fixed = True
     varlist["P"].fixed = True
     time_grid = np.array([1, 2])
 
-    sim = par_est.Simulator(model, time_grid, varlist)
+    sim = mopeds.Simulator(model, time_grid, varlist)
     assert sim._initial_algebraic[0] == 0
     sim.calculate_algebraic_initials(apply_intials=True)
     assert sim._initial_algebraic[0] == -1
@@ -21,12 +21,12 @@ def test_dae_initials_calculation(piecewise):
 
 @pytest.mark.parametrize("piecewise", [True, False])
 def test_pendulum_dae(piecewise):
-    varlist, model = par_est.examples.pendulum_dae_1(piecewise)
+    varlist, model = mopeds.examples.pendulum_dae_1(piecewise)
 
     time_grid = np.linspace(0, 1, 3)
     for var in varlist.values():
         var.fixed = True
-    sim = par_est.Simulator(model, time_grid, varlist)
+    sim = mopeds.Simulator(model, time_grid, varlist)
     res_tau = sim.simulate_sym()
     res = np.array([[3.42289, 4.68624],
          [1.96674, 2.34688],
@@ -41,10 +41,10 @@ def test_pendulum_dae(piecewise):
 @pytest.mark.parametrize("piecewise", [True, False])
 def test_cstr(piecewise):
     for cstr_model in [
-        par_est.examples.cstr_ode,
-        par_est.examples.cstr_dae,
-        par_est.examples.cstr_dae_constant,
-        par_est.examples.cstr_ode_constant,
+        mopeds.examples.cstr_ode,
+        mopeds.examples.cstr_dae,
+        mopeds.examples.cstr_dae_constant,
+        mopeds.examples.cstr_ode_constant,
     ]:
         variable_list, m = cstr_model(piecewise)
         # Create time-grid. Zero should be first
@@ -55,9 +55,9 @@ def test_cstr(piecewise):
             if isinstance(
                 var,
                 (
-                    par_est.VariableControl,
-                    par_est.VariableParameter,
-                    par_est.VariableControlPiecewiseConstant,
+                    mopeds.VariableControl,
+                    mopeds.VariableParameter,
+                    mopeds.VariableControlPiecewiseConstant,
                 ),
             ):
                 var.fixed = False
@@ -74,7 +74,7 @@ def test_cstr(piecewise):
                     for var in variable_list.values():
                         var.fixed = True
 
-                sim = par_est.Simulator(m, time_grid, variable_list, simulate_jac=True)
+                sim = mopeds.Simulator(m, time_grid, variable_list, simulate_jac=True)
                 if j == 0:
                     res_simple = sim.simulate_sym()
                 else:
@@ -115,10 +115,10 @@ def test_cstr(piecewise):
 
 def test_piecewise():
     for cstr_model in [
-        par_est.examples.cstr_ode,
-        par_est.examples.cstr_dae,
-        par_est.examples.cstr_dae_constant,
-        par_est.examples.cstr_ode_constant,
+        mopeds.examples.cstr_ode,
+        mopeds.examples.cstr_dae,
+        mopeds.examples.cstr_dae_constant,
+        mopeds.examples.cstr_ode_constant,
     ]:
         time_grid = np.array([0, 10, 2000, 4000, 10000])
         time_grid_piecewise = np.array([0, 10, 10000])
@@ -126,7 +126,7 @@ def test_piecewise():
         variable_list, m = cstr_model(False)
         for var in variable_list.values():
             var.fixed = True
-        sim = par_est.Simulator(m, time_grid, variable_list, simulate_jac=True)
+        sim = mopeds.Simulator(m, time_grid, variable_list, simulate_jac=True)
 
         res = sim.simulate_jac()
 
@@ -135,7 +135,7 @@ def test_piecewise():
         T_in.expand_horizon([2000, 4000], [373, 373])
         for var in variable_list.values():
             var.fixed = True
-        sim = par_est.Simulator(
+        sim = mopeds.Simulator(
             m, time_grid_piecewise, variable_list, simulate_jac=True
         )
 
@@ -150,17 +150,17 @@ def test_piecewise():
 @pytest.mark.parametrize("piecewise", [True, False])
 def test_steadystate(piecewise):
     for cstr_model in [
-        par_est.examples.cstr_ode,
-        par_est.examples.cstr_dae,
-        par_est.examples.cstr_dae_constant,
-        par_est.examples.cstr_ode_constant,
+        mopeds.examples.cstr_ode,
+        mopeds.examples.cstr_dae,
+        mopeds.examples.cstr_dae_constant,
+        mopeds.examples.cstr_ode_constant,
     ]:
         variable_list, m = cstr_model(piecewise)
         # Create time-grid. Zero should be first
         time_grid = np.linspace(10, 100000, 4)
         time_grid = np.insert(time_grid, 0, 0)
 
-        sim = par_est.Simulator(m, time_grid, variable_list)
+        sim = mopeds.Simulator(m, time_grid, variable_list)
 
         sim_res = sim.simulate_sym()
 
@@ -173,31 +173,31 @@ def test_steadystate(piecewise):
 
 
 def test_constraints_idas():
-    variable_list, m = par_est.examples.cstr_dae()
+    variable_list, m = mopeds.examples.cstr_dae()
     time_grid = np.linspace(0, 100000, 4)
 
     # VariableAlgebraic
     variable_list["e0_c_tot"].lower_bound = None
     variable_list["e0_c_tot"].upper_bound = 0
 
-    sim = par_est.Simulator(m, time_grid, variable_list)
+    sim = mopeds.Simulator(m, time_grid, variable_list)
     sim.simulate_sym()
 
-    sim = par_est.Simulator(m, time_grid, variable_list, use_idas_constraints=True)
+    sim = mopeds.Simulator(m, time_grid, variable_list, use_idas_constraints=True)
     with pytest.raises(RuntimeError):
         sim.simulate_sym()
 
     # VariableState
-    variable_list, m = par_est.examples.cstr_ode()
+    variable_list, m = mopeds.examples.cstr_ode()
     time_grid = np.linspace(0, 100000, 4)
 
     variable_list["e0_c_i1"].lower_bound = None
     variable_list["e0_c_i1"].upper_bound = 0
 
-    sim = par_est.Simulator(m, time_grid, variable_list)
+    sim = mopeds.Simulator(m, time_grid, variable_list)
     sim.simulate_sym()
 
-    sim = par_est.Simulator(m, time_grid, variable_list, use_idas_constraints=True)
+    sim = mopeds.Simulator(m, time_grid, variable_list, use_idas_constraints=True)
     with pytest.raises(RuntimeError):
         sim.simulate_sym()
 

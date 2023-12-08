@@ -2,6 +2,7 @@
 .vscode
 **/tmp.pkl
 par_est_code
+mopeds_code
 
 # Temporary and binary files
 .ccls-cache

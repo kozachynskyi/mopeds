@@ -8,7 +8,7 @@ from numpy.typing import ArrayLike
 import casadi as ca
 import numpy as np
 
-from par_est import (
+from mopeds import (
     BadVariableError,
     Model,
     VariableAlgebraic,
@@ -23,7 +23,7 @@ from par_est import (
 
 if _ACADOS_SUPPORT:
     from acados_template import AcadosModel
-    from par_est import casados_integrator
+    from mopeds import casados_integrator
 
 
 class SimulatorNLE:

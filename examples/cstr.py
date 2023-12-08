@@ -3,12 +3,12 @@ import copy
 import casadi as ca
 import matplotlib.pyplot as plt
 
-import par_est
+import mopeds
 import numpy as np
 
 def initialize_problem(mode="old"):  # noqa: C901
 
-    variable_list = par_est.VariableList()
+    variable_list = mopeds.VariableList()
     # fmt:off
     def fun_175223__arrhenius(std_T,std_E_A,std_R,std_k_pre):  # noqa: E501,E231,E306
         std_k = (std_k_pre*ca.exp((-(std_E_A/(std_R*std_T)))))  # noqa: E501,E226
@@ -18,55 +18,55 @@ def initialize_problem(mode="old"):  # noqa: C901
         return std_a_Hplus
 
     if mode == "gc":
-        variable_list.add_variable(par_est.VariableAlgebraic("e0_x_i1_gc", 0.186, -10000.0, 1.0E9))  # noqa: E501
-        variable_list.add_variable(par_est.VariableAlgebraic("e0_x_i2_gc", 0.616, -1.0E9, 1.0E9))  # noqa: E501
-        variable_list.add_variable(par_est.VariableAlgebraic("e0_x_i3_gc", 0.004, -1.0E9, 1.0E9))  # noqa: E501
-        variable_list.add_variable(par_est.VariableAlgebraic("e0_x_i4_gc", 0.004, -1.0E9, 1.0E9))  # noqa: E501
+        variable_list.add_variable(mopeds.VariableAlgebraic("e0_x_i1_gc", 0.186, -10000.0, 1.0E9))  # noqa: E501
+        variable_list.add_variable(mopeds.VariableAlgebraic("e0_x_i2_gc", 0.616, -1.0E9, 1.0E9))  # noqa: E501
+        variable_list.add_variable(mopeds.VariableAlgebraic("e0_x_i3_gc", 0.004, -1.0E9, 1.0E9))  # noqa: E501
+        variable_list.add_variable(mopeds.VariableAlgebraic("e0_x_i4_gc", 0.004, -1.0E9, 1.0E9))  # noqa: E501
 
-    variable_list.add_variable(par_est.VariableConstant("e0_greek_nu_i1", -1.0))  # noqa: E501
-    variable_list.add_variable(par_est.VariableConstant("e0_greek_nu_i2", -1.0))  # noqa: E501
-    variable_list.add_variable(par_est.VariableConstant("e0_greek_nu_i3", 1.0))  # noqa: E501
-    variable_list.add_variable(par_est.VariableConstant("e0_greek_nu_i4", 1.0))  # noqa: E501
-    variable_list.add_variable(par_est.VariableConstant("e0_R", 8.314))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i1", -1.0))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i2", -1.0))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i3", 1.0))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i4", 1.0))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_R", 8.314))  # noqa: E501
 
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_K_reac", 30.313046554204817, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_a_Hplus_l1", 0.035817754492527894, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_k_for", 2.588504783617644, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_r_i4_l1", 1.0, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_x_i1_l1", 0.186, -10000.0, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_x_i2_l1", 0.616, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_x_i3_l1", 0.004, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_x_i4_l1", 0.194, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_r_i1_l1", 1.0, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_r_i2_l1", 1.0, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_r_i3_l1", 1.0, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableAlgebraic("e0_x_F_i2", 0.8, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_K_reac", 30.313046554204817, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_a_Hplus_l1", 0.035817754492527894, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_k_for", 2.588504783617644, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_r_i4_l1", 1.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_x_i1_l1", 0.186, -10000.0, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_x_i2_l1", 0.616, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_x_i3_l1", 0.004, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_x_i4_l1", 0.194, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_r_i1_l1", 1.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_r_i2_l1", 1.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_r_i3_l1", 1.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_x_F_i2", 0.8, -1.0E9, 1.0E9))  # noqa: E501
 
 
 
-    variable_list.add_variable(par_est.VariableControl("e0_greek_gamma_i1_l1", 1.0, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableControl("e0_greek_gamma_i2_l1", 1.0, -1.0E9, 1.0E9))  # noqa: E501
-    # variable_list.add_variable(par_est.VariableControl("e0_F_F", 1, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableControl("e0_F_F", 2.8e-2, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableControl("e0_greek_gamma_i3_l1", 1.0, -1.0E9, 1.0E9))  # noqa: E501
-    # variable_list.add_variable(par_est.VariableControl("e0_F_I", 1, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableControl("e0_F_I", 2.8e-2, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableControl("e0_x_F_i1", 0.2, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableControl("e0_x_F_i3", 0.0, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableControl("e0_x_F_i4", 0.0, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableControl("e0_T", 353.0, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableControl("e0_greek_gamma_i4_l1", 1.0, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableControl("e0_x_cat", 0.11, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableControl("e0_greek_gamma_i1_l1", 1.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableControl("e0_greek_gamma_i2_l1", 1.0, -1.0E9, 1.0E9))  # noqa: E501
+    # variable_list.add_variable(mopeds.VariableControl("e0_F_F", 1, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableControl("e0_F_F", 2.8e-2, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableControl("e0_greek_gamma_i3_l1", 1.0, -1.0E9, 1.0E9))  # noqa: E501
+    # variable_list.add_variable(mopeds.VariableControl("e0_F_I", 1, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableControl("e0_F_I", 2.8e-2, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableControl("e0_x_F_i1", 0.2, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableControl("e0_x_F_i3", 0.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableControl("e0_x_F_i4", 0.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableControl("e0_T", 353.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableControl("e0_greek_gamma_i4_l1", 1.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableControl("e0_x_cat", 0.11, -1.0E9, 1.0E9))  # noqa: E501
 
-    variable_list.add_variable(par_est.VariableParameter("e0_E_for_A", 48576.2078, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableParameter("e0_E_reac_A", -6948.0098, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableParameter("e0_Param_Hplus_A", 8.49E-4, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableParameter("e0_Param_Hplus_B", 1.016, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableParameter("e0_Param_Hplus_C", 116.6, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableParameter("e0_k_for_pre", 3.993E7, -1.0E9, 1.0E9))  # noqa: E501
-    variable_list.add_variable(par_est.VariableParameter("e0_k_reac_pre", 2.841, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableParameter("e0_E_for_A", 48576.2078, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableParameter("e0_E_reac_A", -6948.0098, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableParameter("e0_Param_Hplus_A", 8.49E-4, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableParameter("e0_Param_Hplus_B", 1.016, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableParameter("e0_Param_Hplus_C", 116.6, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableParameter("e0_k_for_pre", 3.993E7, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableParameter("e0_k_reac_pre", 2.841, -1.0E9, 1.0E9))  # noqa: E501
 
-    m = par_est.Model(variable_list)
+    m = mopeds.Model(variable_list)
 
     e0_greek_gamma_i1_l1 = m.varlist_all["e0_greek_gamma_i1_l1"].casadi_var  # noqa: E501
     e0_greek_gamma_i2_l1 = m.varlist_all["e0_greek_gamma_i2_l1"].casadi_var  # noqa: E501
@@ -175,7 +175,7 @@ if __name__ == "__main__":
     for var in var_list_fixed.values():
         var.fixed = True
 
-    sim_fixed = par_est.SimulatorNLE(m, var_list_fixed)
+    sim_fixed = mopeds.SimulatorNLE(m, var_list_fixed)
     res_simple = sim_fixed.simulate_sym()
     res = sim_fixed.generate_exp_data()
 
@@ -215,14 +215,14 @@ if __name__ == "__main__":
     for var_name in meas_names:
         variable_list[var_name].variance = 0.0005 ** 2
 
-    grid = par_est.tools.create_grid(list(controls.values()))
+    grid = mopeds.tools.create_grid(list(controls.values()))
 
     rng = np.random.default_rng(0)
-    list_varlist, true_par = par_est.tools.generate_varlist_with_data_NLE(
+    list_varlist, true_par = mopeds.tools.generate_varlist_with_data_NLE(
         m, variable_list, controls, perturbate=True, measurement_names=meas_names, rng=rng
     )
 
-    pe = par_est.ParameterEstimationNLE(m, list_varlist)
+    pe = mopeds.ParameterEstimationNLE(m, list_varlist)
 
     if False:
         residuals = pe.calculate_objective_and_residual(true_par)["residuals"]

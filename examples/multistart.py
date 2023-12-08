@@ -2,12 +2,12 @@ import copy
 
 import numpy as np
 
-import par_est
-import par_est.examples
+import mopeds
+import mopeds.examples
 
 if __name__ == "__main__":
 
-    variable_list, m = par_est.examples.cstr_ode()
+    variable_list, m = mopeds.examples.cstr_ode()
 
     # Create time-grid. Zero should be first
     time_grid = np.linspace(10, 1000, 4)
@@ -17,7 +17,7 @@ if __name__ == "__main__":
     var_list_fixed = copy.deepcopy(variable_list)
     for var in var_list_fixed.values():
         var.fixed = True
-    var_list_exp = par_est.Simulator(m, time_grid, var_list_fixed).generate_exp_data()
+    var_list_exp = mopeds.Simulator(m, time_grid, var_list_fixed).generate_exp_data()
 
     # Replace empty state variables with results from simulation
     variable_list_optimizer = copy.deepcopy(variable_list)
@@ -34,12 +34,12 @@ if __name__ == "__main__":
     variable_list_optimizer["e0_c_in_i4"].fixed = False
     variable_list_optimizer["e0_F"].fixed = False
 
-    pe = par_est.ParameterEstimation(
+    pe = mopeds.ParameterEstimation(
         m, [variable_list_optimizer, variable_list_optimizer]
     )
 
     res1 = pe.optimize_multistart(3, True, 10)
 
-    oed = par_est.OptimalExperimentalDesign(m, [variable_list_optimizer], time_grid)
+    oed = mopeds.OptimalExperimentalDesign(m, [variable_list_optimizer], time_grid)
     print(oed.identifiability_analysis())
     res2 = oed.optimize_multistart(3, False, 2)
