@@ -2,7 +2,7 @@
 
 <img align="right" src="./docs/logo.png" width="200px">
 
-A library wrapped around casadi to solve Simulation / Optimization problems based on steady state and dynamic models.
+mopeds - *Mo*del based *P*arameter *E*stimation and *D*esign of Experiment*s* is a library wrapped around casadi to solve Simulation / Optimization problems based on steady state and dynamic models.
 
 The system of equations can be a set of nonlinear equations (NLE), ordinary differential equations (ODE) or differential and algebraic equations (DAE) of index 1.
 
