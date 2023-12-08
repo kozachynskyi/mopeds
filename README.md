@@ -1,8 +1,8 @@
 # mopeds
 
-<img align="right" src="./docs/logo.png" width="200px">
+<img align="right" src="https://git.tu-berlin.de/dbta/optimization/mopeds/-/raw/main/docs/logo.png" width="400px">
 
-mopeds - *Mo*del based *P*arameter *E*stimation and *D*esign of Experiment*s* is a library wrapped around casadi to solve Simulation / Optimization problems based on steady state and dynamic models.
+mopeds - **Mo**del based **P**arameter **E**stimation and **D**esign of Experiment**s** is a library wrapped around casadi to solve Simulation / Optimization problems based on steady state and dynamic models.
 
 The system of equations can be a set of nonlinear equations (NLE), ordinary differential equations (ODE) or differential and algebraic equations (DAE) of index 1.
 
@@ -57,10 +57,28 @@ NLE Simulator and Parameter Estimation were reworked, with focus on analysis of 
 Parameter Estimation has different internals on how objective function is calculated, making it a bit faster and much more unrestandable.
 Examples from Bates, Watts "Nonlinear Regression analysis and its applications" were imlemented and tested.
 
+## Contributors
+
+Many people have been involved in the development of this package, either by writing actual code, helping with the methods behind it, or simply using it and providing feedback and feature requests. Here are just a few names:
+
+- Volodymyr Kozachynskyi
+- Dario Staubach
+- Martin Bubel
+- Lorenz Hafner
+- Mudassar Javed
+- Torben Talis
+- Joris Weigert
+- Erik Esche
+- Markus Illner
+- Christian Hoffman
+- Georg Brösigke
+- Maria Stockman
+
+and many, many others ...
 
 ## Development
 
-- Clone this repo on your computer git clone https://git.tu-berlin.de/vovakozach/pe_oed_casadi
+- Clone this repo on your computer `git clone https://git.tu-berlin.de/dbta/optimization/mopeds.git`
 - Run `poetry install` (ensure that correct python version is installed ex. pyenv)
 - Run tests via `pytest`, final tests should be run with `tox -r` command
 
