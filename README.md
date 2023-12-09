@@ -1,6 +1,6 @@
 # mopeds
 
-<img align="right" src="https://git.tu-berlin.de/dbta/optimization/mopeds/-/raw/main/docs/logo.png" width="400px">
+<img align="right" src="https://git.tu-berlin.de/dbta/optimization/mopeds/-/raw/main/docs/logo.png" width="300px">
 
 mopeds - **Mo**del based **P**arameter **E**stimation and **D**esign of Experiment**s** is a library wrapped around casadi to solve Simulation / Optimization problems based on steady state and dynamic models.
 
@@ -89,3 +89,7 @@ Built versions of `par_est` are available in internal pypi registry:
 ```
 pip install par_est --index-url https://git.tu-berlin.de/api/v4/projects/1237/packages/pypi/simple
 ```
+
+## Acknowledgement
+
+This work is funded by the Deutsche Forschungsgemeinschaft (DFG, German Research Foundation) - 56091768 and 466397921.
