@@ -1,10 +1,11 @@
 [tool.poetry]
 name = "mopeds"
-version = "0.10.0a2"
+version = "0.10.0a3"
 description = "Simulate and Optimize (Parameter Estimation, Optimal Experimental Design) NLE, ODE and DAE"
 authors = ["Volodymyr Kozachynskyi <vovakozach@gmail.com>"]
 repository = "https://git.tu-berlin.de/dbta/optimization/mopeds"
 license = "MIT"
+homepage= "https://mopeds.readthedocs.io/en/latest/"
 readme = "README.md"
 
 [tool.poetry.dependencies]

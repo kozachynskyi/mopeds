@@ -10,6 +10,8 @@ Parameter Estimation (PE) and Optimal Experimental Design (OED) are supported ou
 
 The project is looking for case studies and testers, so if you have any problems using the package or have any questions, do not hesitate to contact us.
 
+Documentation is available [here](https://mopeds.readthedocs.io/en/latest/).
+
 
 ## Installation
 
