@@ -206,7 +206,7 @@ class Simulator(object):
         self.simulate_sym: Callable[[], dict[str, ca.DM | ca.MX]] = simulate
         self.simulate_jac: Callable[[], dict[str, ca.DM | ca.MX]] = simulate_jac_func
 
-    def simulate_sym_unfixed(self, unfixed_variables: list[float] = None) -> ca.DM:
+    def simulate_sym_unfixed(self, unfixed_variables: dict[str, float]  = None) -> ca.DM:
         """This is slower version of simulate_sym but it allows user to supply values
         for unfixed variables"""
         res_array = self.simulate_sym()
@@ -216,11 +216,15 @@ class Simulator(object):
                 raise ValueError("You need to supply values for unfixed variables")
             else:
                 unfixed_symbols = ca.symvar(res_array["xf"])
+                values = []
+                for symbol in unfixed_symbols:
+                    values.append(unfixed_variables[symbol.name()])
+
                 return_values = [res_array["xf"]]
                 if self.model.DAE:
                     return_values.append(res_array["zf"])
                 function = ca.Function("f", unfixed_symbols, return_values)
-                final_res = function(*unfixed_variables)
+                final_res = function(*values)
 
         res_dict = {"xf": final_res[0]}
         if self.model.DAE:
@@ -832,7 +836,7 @@ class Simulator(object):
         self,
         algebraic: bool = False,
         recalculate_algebraic: bool = True,
-        unfixed_variables: list[float] | np.ndarray | None = None,
+        unfixed_variables: dict[str, float] | None = None,
     ) -> VariableList:
         """Runs simulation and returns results in VariableList class."""
         variables = VariableList()
@@ -865,8 +869,13 @@ class Simulator(object):
             if unfixed_variables is None:
                 raise ValueError(f"You need to supply values for unfixed variables:\n{ca.symvar(res_array)}")
             else:
-                function = ca.Function("f", ca.symvar(res_array), [res_array])
-                res_array = function(*unfixed_variables)
+                unfixed_symbols = ca.symvar(res_array)
+                values = []
+                for symbol in unfixed_symbols:
+                    values.append(unfixed_variables[symbol.name()])
+
+                function = ca.Function("f", unfixed_symbols, [res_array])
+                res_array = function(*values)
 
         shift_by = 0
 

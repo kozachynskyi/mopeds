@@ -218,7 +218,7 @@ class SimulatorNLE:
             index_var = self.mapping_independent_variables[var_name]
             self._independent_variables[index_var] = var_value
 
-    def generate_exp_data(self, unfixed_variables: list[float] = None) -> VariableList:
+    def generate_exp_data(self, unfixed_variables: dict[str, float] = None) -> VariableList:
         res_array = self.simulate_sym_unfixed(unfixed_variables)
 
         variables = VariableList()
@@ -254,7 +254,7 @@ class SimulatorNLE:
                 raise ValueError(f"IPOPT failed as NLE solver:\n{self.simulator.stats()}")
         return res
 
-    def simulate_sym_unfixed(self, unfixed_variables: list[float] = None) -> ca.DM:
+    def simulate_sym_unfixed(self, unfixed_variables: dict[str, float] = None) -> ca.DM:
         """This is slower version of simulate_sym but it allows user to supply values
         for unfixed variables"""
         self.call_arg["p"] = self._independent_variables * self.scaling
@@ -264,8 +264,13 @@ class SimulatorNLE:
             if unfixed_variables is None:
                 raise ValueError("You need to supply values for unfixed variables")
             else:
-                function = ca.Function("f", ca.symvar(res_array), [res_array])
-                res_array = function(*unfixed_variables)
+                unfixed_symbols = ca.symvar(res_array["xf"])
+                values = []
+                for symbol in unfixed_symbols:
+                    values.append(unfixed_variables[symbol.name()])
+
+                function = ca.Function("f", ca.symvar(unfixed_symbols), [res_array])
+                res_array = function(*values)
 
         return res_array
 

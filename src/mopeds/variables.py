@@ -701,7 +701,7 @@ class VariableList(OrderedDict[str, Union[Variable, VariableControlPiecewiseCons
             dataframe = plot_varlist.dataframe
             if prefix is not None:
                 dataframe = dataframe.add_prefix(prefix)
-            axes = dataframe.fillna(method="ffill").plot(**kwargs)
+            axes = dataframe.ffill().plot(**kwargs)
 
         from matplotlib import pyplot as plt
 

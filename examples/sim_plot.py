@@ -35,4 +35,4 @@ if __name__ == "__main__":
     )
     # Run simulation and get simple results as array of numbers, but information about state variables and timestamp is lost
     print(sim_fixed.simulate_sym())
-    print(sim_fixed.simulate_sym_unfixed([273]))
+    print(sim_fixed.simulate_sym_unfixed({"e0_T": 273}))
