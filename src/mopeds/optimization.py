@@ -1430,7 +1430,7 @@ class ParameterEstimation(PE_base):
 
     def plot_simulation(
         self,
-        supplied_parameters: list[float] | None = None,
+        supplied_parameters: dict[str, float] | None = None,
         experiment_names: list[str] | None = None,
         savefig: bool = False,
         algebraic: bool = True,
@@ -1457,7 +1457,7 @@ class ParameterEstimation(PE_base):
             res_guess = simulator.generate_exp_data(
                 algebraic=algebraic,
                 recalculate_algebraic=True,
-                unfixed_variables=self.guess,
+                unfixed_variables=dict(zip(self.varlist_decision.keys(), self.guess)),
             )
 
             if supplied_parameters is not None:
