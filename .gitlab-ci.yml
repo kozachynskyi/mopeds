@@ -4,5 +4,5 @@ stages:
 unit-test-job:
   stage: test
   script:
-    - pip install tox
-    - tox
+    - pip install .
+    - pytest
