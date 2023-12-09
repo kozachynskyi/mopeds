@@ -7,7 +7,6 @@ mopeds - **Mo**del based **P**arameter **E**stimation and **D**esign of Experime
 - Top level abstraction around [CasADi](https://web.casadi.org/) in the form of **Variable**, **Simulator** and **Optimizer** classes
 - Finding solution of steady-state and dynamic models
 - Solving parameter estimation (**PE**) and optimal experimental design (**OED**) design 
-- Currently only single-shooting is supported
 
 The project is still in development phase, so the API may change.
 We are looking for case studies and testers, so if you have any problems using the package or have any questions, do not hesitate to contact [Volodymyr Kozachynskyi](mailto:vovakozach@gmail.com).
