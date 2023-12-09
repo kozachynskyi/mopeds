@@ -5,4 +5,5 @@ unit-test-job:
   stage: test
   script:
     - pip install .
+    - pip install pytest
     - pytest
