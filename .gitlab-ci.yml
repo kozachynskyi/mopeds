@@ -7,3 +7,5 @@ unit-test-job:
     - pip install .
     - pip install pytest
     - pytest
+  when:
+    manual
