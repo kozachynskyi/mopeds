@@ -14,6 +14,8 @@ nav:
   - Parameter Estimation NLE: Parameter Estimation NLE.ipynb
   - OED NLE: Optimal Experimental Design NLE.ipynb
   - Simulation DAE: Simulation DAE.ipynb
+  - PE DAE: Parameter Estimation DAE.ipynb
+  - OED DAE: Optimal Experimental Design DAE.ipynb
 
 repo_url: https://git.tu-berlin.de/dbta/optimization/mopeds
 
