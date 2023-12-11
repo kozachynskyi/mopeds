@@ -17,3 +17,18 @@ test-3.11:
     extends: ".test"
     tags: 
       - py311
+
+test-3.12:
+    extends: ".test"
+    tags: 
+      - py312
+
+test-3.9:
+    extends: ".test"
+    tags: 
+      - py39
+
+test-3.8:
+    extends: ".test"
+    tags: 
+      - py38
