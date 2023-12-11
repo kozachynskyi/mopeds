@@ -3,6 +3,8 @@ stages:
 
 unit-test-job:
   stage: test
+  tags: 
+    - py311
   script:
     - pip install .
     - pip install pytest
