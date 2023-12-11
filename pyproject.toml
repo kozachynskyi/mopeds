@@ -9,7 +9,7 @@ homepage= "https://mopeds.readthedocs.io/en/latest/"
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = ">=3.8,<=3.12"
+python = ">=3.8,<3.13"
 casadi = ">=3.6.4"
 numpy = [
     {version = ">=1.21", python = ">=3.8,<3.12"},
