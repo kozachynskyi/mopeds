@@ -4,7 +4,11 @@ stages:
 unit-test-job:
   stage: test
   tags: 
+    - py312
     - py311
+    - py310
+    - py39
+    - py38
   script:
     - pip install .
     - pip install pytest
