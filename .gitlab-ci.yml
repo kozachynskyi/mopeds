@@ -1,17 +1,19 @@
 stages:
   - test
 
-unit-test-job:
-  stage: test
-  tags: 
-    - py312
-    - py311
-    - py310
-    - py39
-    - py38
-  script:
-    - pip install .
-    - pip install pytest
-    - pytest
-  when:
-    manual
+.test:
+    stage: "test"
+    script:
+      - pip install .
+      - pip install pytest
+      - pytest
+
+test-3.10:
+    extends: ".test"
+    tags: 
+      - py310
+
+test-3.11:
+    extends: ".test"
+    tags: 
+      - py311
