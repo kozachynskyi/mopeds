@@ -45,7 +45,7 @@ test-3.8:
 
 test-win-3.8:
     extends: ".test"
-    before_script: conda activate py38
+    before_script: conda activate 38
     tags: 
       - py38
       - windows
