@@ -1,5 +1,6 @@
 stages:
   - test
+  - test-manual
 
 .test:
     stage: "test"
@@ -8,19 +9,25 @@ stages:
       - pip install pytest
       - pytest
 
+.test-manual:
+    stage: "test-manual"
+    script:
+      - pip install .
+      - pip install pytest
+      - pytest
+    when: manual
+
 test-3.10:
-    extends: ".test"
+    extends: ".test-manual"
     tags: 
       - py310
       - linux
-    when: manual
 
 test-3.11:
-    extends: ".test"
+    extends: ".test-manual"
     tags: 
       - py311
       - linux
-    when: manual
 
 test-3.12:
     extends: ".test"
@@ -29,46 +36,40 @@ test-3.12:
       - linux
 
 test-3.9:
-    extends: ".test"
+    extends: ".test-manual"
     tags: 
       - py39
       - linux
-    when: manual
 
 test-3.8:
-    extends: ".test"
+    extends: ".test-manual"
     tags: 
       - py38
       - linux
-    when: manual
 
 test-win-3.8:
-    extends: ".test"
+    extends: ".test-manual"
     tags: 
       - py38
       - windows
-    when: manual
 
 test-win-3.9:
-    extends: ".test"
+    extends: ".test-manual"
     tags: 
       - py39
       - windows
-    when: manual
 
 test-win-3.10:
-    extends: ".test"
+    extends: ".test-manual"
     tags: 
       - py310
       - windows
-    when: manual
 
 test-win-3.11:
-    extends: ".test"
+    extends: ".test-manual"
     tags: 
       - py311
       - windows
-    when: manual
 
 test-win-3.12:
     extends: ".test"
