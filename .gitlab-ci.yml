@@ -1,0 +1,38 @@
+stages:
+  - test
+
+.test:
+    stage: "test"
+    script:
+      - pip install .
+      - pip install pytest
+      - pytest
+
+test-3.10:
+    extends: ".test"
+    tags: 
+      - py310
+    when: manual
+
+test-3.11:
+    extends: ".test"
+    tags: 
+      - py311
+    when: manual
+
+test-3.12:
+    extends: ".test"
+    tags: 
+      - py312
+
+test-3.9:
+    extends: ".test"
+    tags: 
+      - py39
+    when: manual
+
+test-3.8:
+    extends: ".test"
+    tags: 
+      - py38
+    when: manual
