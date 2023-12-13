@@ -1476,12 +1476,13 @@ class ParameterEstimation(PE_base):
                     fig.show()
                 else:
                     axes = res_guess.plot(
-                        prefix="GUESS ", color="blue", algebraic=algebraic
+                        prefix="GUESS ", color="blue", algebraic=algebraic, show=False
                     )
                     if supplied_parameters is not None:
                         axes = res_supplied.plot(
                             prefix="FINAL ", ax=axes, color="red", algebraic=algebraic
                         )
+                    axes[0].set_title(exp_name)
                     input_varlist.plot(
                         ax=axes,
                         marker="x",
@@ -1489,8 +1490,8 @@ class ParameterEstimation(PE_base):
                         prefix="EXP ",
                         linestyle="None",
                         algebraic=algebraic,
+                        show=True,
                     )
-                    axes[0].set_title(exp_name)
 
         if supplied_parameters is None:
             return [res_guess]
