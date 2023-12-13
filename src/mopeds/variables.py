@@ -103,6 +103,8 @@ class Variable(object):
     @value.setter
     def value(self, value: int | float) -> None:
         """Returns a list with values of variables"""
+        if isinstance(self, VariableConstant):
+            raise ValueError("Constants cannot be changed after creation")
         if isinstance(value, Iterable):
             raise NotImplementedError(
                 "Method can only be used to with scalars. Use variable.dataframe[variable.name] for arrays"
