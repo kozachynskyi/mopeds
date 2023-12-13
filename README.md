@@ -28,6 +28,10 @@ Considering creating a test to compare the numerical results while migrating.
 
 ## What's New?
 
+### 0.10.1
+
+- Fixed installation error in Windows python 3.11
+
 ### 0.10.0
 
 - Rename par_est to mopeds and open-source the package

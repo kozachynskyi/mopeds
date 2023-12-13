@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mopeds"
-version = "0.10.0"
+version = "0.10.1"
 description = "Simulate and Optimize (Parameter Estimation, Optimal Experimental Design) NLE, ODE and DAE"
 authors = ["Volodymyr Kozachynskyi <vovakozach@gmail.com>"]
 repository = "https://git.tu-berlin.de/dbta/optimization/mopeds"

@@ -1,7 +1,25 @@
-## 0.10.0 (2023-12-07)
+## 0.10.1 (2023-12-13)
 
 ### Feat
 
+- fully remove dependeincies versions
+- add tox and gitlab-ci
+- values of ConcstantVaraibles cannot be changed
+
+### Fix
+
+- python version 3.12.1 didn't work
+- add install pytest
+- try different scipy version
+- **PE**: plot simulations method
+
+## 0.10.0 (2023-12-09)
+
+## 0.10.0a2 (2023-12-09)
+
+### Feat
+
+- unfixed variable have to be supplied as dict, not as list
 - rework oed jacobian to work with new casadi syntax
 - update dependencies, allow python 3.12
 - move GN working PE to examples
@@ -22,6 +40,7 @@
 
 ### Refactor
 
+- deprecated fillna()
 - rename src folder
 - rework poetry to support 3.12
 - remove pyDOE artifacts
