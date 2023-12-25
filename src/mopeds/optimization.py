@@ -58,6 +58,8 @@ class Optimizer(object):
 
         # Deepcopy is used to avoid manipulating input variable list
         self.list_input_varlist: list[VariableList] = copy.deepcopy(variable_lists)
+        for varlist in self.list_input_varlist:
+            varlist._substitute_casadi_symbols(model.varlist_all)
 
         # Each varlist holds respective variables
         self.varlist_decision: VariableList = VariableList()
@@ -65,6 +67,7 @@ class Optimizer(object):
         self.varlist_control: VariableList = VariableList()
         self.varlist_state: VariableList = VariableList()
         self.varlist_algebraic: VariableList = VariableList()
+        self.nlpsol_g: None | ca.MX = None
 
         self.simulator_name: str = simulator_name
         self.simulator_settings: dict | None = simulator_settings
@@ -199,13 +202,18 @@ class Optimizer(object):
         Scaling should be done before setting a solver and solver settings."""
         self._setup_scaling(scale)
 
+        self.nlpsol_dict = {
+                "x": self.varlist_decision.get_casadi_variables(),
+                "f": self._objective()[0],
+            }
+
+        if self.nlpsol_g is not None:
+            self.nlpsol_dict["g"] = self.nlpsol_g
+
         self.solver: ca.Function = ca.nlpsol(
             "solver",
             self.solver_name,
-            {
-                "x": self.varlist_decision.get_casadi_variables(),
-                "f": self._objective()[0],
-            },
+            self.nlpsol_dict,
             self.solver_settings,
         )
 
@@ -218,11 +226,17 @@ class Optimizer(object):
                 lb_scaled[index] = ub
                 ub_scaled[index] = lb
 
-        res_solver = self.solver(
-            x0=self.guess / self.scaling,
-            lbx=lb_scaled,
-            ubx=ub_scaled,
-        )
+        self.nlpsol_args = {
+                "x0": self.guess / self.scaling,
+                "lbx": lb_scaled,
+                "ubx": ub_scaled,
+                }
+
+        if self.nlpsol_g is not None:
+            self.nlpsol_args["lbg"] = [0]*self.nlpsol_g.shape[0]
+            self.nlpsol_args["ubg"] = [0]*self.nlpsol_g.shape[0]
+
+        res_solver = self.solver.call(self.nlpsol_args)
 
         res_solver["x"] = res_solver["x"] * self.scaling
 
@@ -1507,12 +1521,14 @@ class ParameterEstimationNLE(PE_base):
         simulator_settings=None,
         simulator_name="rootfinder",
         *,
-        use_simulator_bounds=True,
+        use_simulator_bounds=None,
         SimulatorClass=SimulatorNLE,
     ) -> None:
+        if use_simulator_bounds is not None:
+            warn("use_simulator_bounds is not used anymore and will be ignored", DeprecationWarning)
         super().__init__(model, variable_lists, simulator_name, simulator_settings)
 
-        self._setup_simulator(use_simulator_bounds, SimulatorClass)
+        self._setup_simulator(SimulatorClass)
         self.logger.debug(
             "Created Optimizer object: \n Data Shape {} \n Desicion Variables {}".format(
                 self.array_data.shape, self.varlist_decision.get_variable_name()
@@ -1534,7 +1550,7 @@ class ParameterEstimationNLE(PE_base):
         self.setup_regularization(0, np.zeros((len(self.varlist_decision),1)))
 
     def _setup_simulator(
-        self, use_simulator_bounds: bool, SimulatorClass: SimulatorNLE
+        self, SimulatorClass: SimulatorNLE
     ) -> None:
         # It's not checked if all supplied varlist have same states etc.
         if not issubclass(SimulatorClass, SimulatorNLE):
@@ -1567,7 +1583,6 @@ class ParameterEstimationNLE(PE_base):
                 varlist_input,
                 self.simulator_settings,
                 self.simulator_name,
-                use_bounds=use_simulator_bounds,
             )
             list_simulators.append(simulator)
 
@@ -1580,7 +1595,8 @@ class ParameterEstimationNLE(PE_base):
                     varlist_data.append(np.nan)
                     varlist_data_mask.append(0.0)
                 else:
-                    varlist_data.append(var.value[0])
+                    scaled_value = var.scale_from_original(var.value[0])
+                    varlist_data.append(scaled_value)
                     varlist_data_mask.append(1.0)
 
                 varlist_variance.append(1.0 / var.variance)
@@ -1788,7 +1804,7 @@ class ParameterEstimationNLE(PE_base):
 
 
 class ParameterEstimationNLE_control(ParameterEstimationNLE):
-    def _setup_simulator(self, use_simulator_bounds):
+    def _setup_simulator(self):
         # It's not checked if all supplied varlist have same states etc.
         for var in self.list_input_varlist[0].values():
             if isinstance(var, VariableAlgebraic):
@@ -1837,7 +1853,6 @@ class ParameterEstimationNLE_control(ParameterEstimationNLE):
                 new_varlist,
                 self.simulator_settings,
                 self.simulator_name,
-                use_bounds=use_simulator_bounds,
             )
             list_simulators.append(simulator)
 

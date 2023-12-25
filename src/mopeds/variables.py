@@ -4,6 +4,7 @@ import sys
 from collections.abc import Generator, Iterable
 from datetime import datetime, timedelta
 from typing import Any, Union
+import copy
 
 if sys.version_info[1] == 8:
     from typing import OrderedDict
@@ -74,6 +75,18 @@ class Variable(object):
 
         plt.show()
         return axis
+
+    def _create_copy(self, prefix: str) -> Variable:
+        """Copies a variable with a new name assuming prefix is not empty. Symbolic variable is newly created"""
+        if isinstance(self, (VariableConstant, VariableControlPiecewiseConstant)):
+            raise NotImplementedError
+        new_var = copy.deepcopy(self)
+        new_name = self.name + prefix
+
+        new_var.name = new_name
+        new_var.casadi_var: ca.MX = ca.MX.sym(new_name)
+        new_var.dataframe.rename(columns = {self.name: new_name}, inplace=True)
+        return new_var
 
     def __repr__(self) -> str:
         return f"{self.name}\n{type(self)}\n{self.value}\n"
@@ -269,6 +282,22 @@ class Variable(object):
 
     def show(self) -> None:
         mopeds.show_html_from_dataframe(self.dataframe)
+
+    def _get_scaling_constants(self):
+        if np.isinf(self.lower_bound) or np.isinf(self.upper_bound):
+            v, r = (1, 0)
+        else:
+            v = 1 / 2 * (self.upper_bound - self.lower_bound )
+            r = 1 / 2 * (self.lower_bound + self.upper_bound)
+        return v, r
+
+    def scale_to_original(self, value: ca.MX | float | np.array):
+        v, r = self._get_scaling_constants()
+        return value * v + r
+
+    def scale_from_original(self, value: ca.MX | float | np.array):
+        v, r = self._get_scaling_constants()
+        return (value - r) / v
 
 
 class VariableState(Variable):
@@ -621,6 +650,34 @@ class VariableList(OrderedDict[str, Union[Variable, VariableControlPiecewiseCons
         for var in self.values():
             casadi_vars.append(var.casadi_var)
         return ca.vcat(casadi_vars)
+
+    def _substitute_casadi_symbols(self, model_varlist: VariableList):
+        for model_var in model_varlist.values():
+            if not isinstance(model_var, VariableConstant):
+                self[model_var.name].casadi_var = model_var.casadi_var
+
+    def get_scaled_casadi_variables(self) -> ca.MX:
+        """Returns a concatanated vector of all variables in a variable_list self while scaling them using bounds for source_variable_list"""
+        casadi_vars = []
+        for var in self.values():
+            casadi_vars.append(var.scale_to_original(var.casadi_var))
+        return ca.vcat(casadi_vars)
+
+    def _get_sublist_of_type(self, variable_type) -> VariableList:
+        sub_varlist = VariableList()
+        for var in self.values():
+            if isinstance(var, variable_type):
+                sub_varlist.add_variable(var)
+        return sub_varlist
+
+    def get_algebraic(self) -> VariableList:
+        return self._get_sublist_of_type(VariableAlgebraic)
+
+    def get_independent(self) -> VariableList:
+        return self._get_sublist_of_type((VariableControl, VariableParameter))
+
+    def get_state(self) -> VariableList:
+        return self._get_sublist_of_type(VariableState)
 
     def get_data_opcua(self, time_start: Any, time_stop: Any) -> None:
         # Older implementation doesn't work anymore, removed on 06-15-2022

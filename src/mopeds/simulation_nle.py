@@ -4,6 +4,7 @@ import copy
 import logging
 from typing import Callable, cast
 from numpy.typing import ArrayLike
+import warnings
 
 import casadi as ca
 import numpy as np
@@ -37,8 +38,12 @@ class SimulatorNLE:
         solver_settings: dict | None = None,
         solver_name: str = "rootfinder",
         *,
-        use_bounds: bool = True,
+        use_bounds: bool = None,
     ):
+        if use_bounds is not None:
+            raise DeprecationWarning
+            warnings.warn("use_bounds argument is ignored", DeprecationWarning)
+
         self.model: Model = model
         if solver_name not in self.supported_solvers:
             raise TypeError(
@@ -51,6 +56,7 @@ class SimulatorNLE:
 
         self._solver_name: str = solver_name
         self.__input_variable_list: VariableList = copy.deepcopy(variable_list)
+        self.__input_variable_list._substitute_casadi_symbols(model.varlist_all)
 
         if solver_settings is not None:
             self.solver_settings: dict = solver_settings
@@ -60,17 +66,17 @@ class SimulatorNLE:
         self._setup_variables()
         self._reset_scaling()
 
-        if self._solver_name == "rootfinder":
-            if use_bounds:
-                self.solver_settings["constraints"] = self._rootfinder_bounds
+        scaled_equations = ca.substitute(self.model.equations_algebraic, self.__input_variable_list.get_algebraic().get_casadi_variables(), self.__input_variable_list.get_algebraic().get_scaled_casadi_variables())
+        self._model_equations = scaled_equations
 
+        if self._solver_name == "rootfinder":
             self.function: ca.Function = ca.Function(
                 "f",
                 [
                     self.model.varlist_algebraic.get_casadi_variables(),
                     self.model.varlist_independent.get_casadi_variables(),
                 ],
-                [self.model.equations_algebraic],
+                [scaled_equations],
                 ["x0", "p"],
                 ["x"],
             )
@@ -88,8 +94,8 @@ class SimulatorNLE:
                 {
                     "x": self.model.varlist_algebraic.get_casadi_variables(),
                     "p": self.model.varlist_independent.get_casadi_variables(),
-                    "g": self.model.equations_algebraic,
-                    "f": (ca.sum1(self.model.equations_algebraic) ** 2),
+                    "g": scaled_equations,
+                    "f": (ca.sum1(scaled_equations) ** 2),
                 },
                 self.solver_settings,
             )
@@ -99,9 +105,8 @@ class SimulatorNLE:
                 "lbg": 0,
                 "ubg": 0,
             }
-            if use_bounds:
-                self.call_arg["lbx"] = self._lower_bound
-                self.call_arg["ubx"] = self._upper_bound
+            self.call_arg["lbx"] = self._lower_bound
+            self.call_arg["ubx"] = self._upper_bound
 
         self.jacobian: ca.Function = self.simulator.jacobian()
 
@@ -157,15 +162,15 @@ class SimulatorNLE:
             if isinstance(var, VariableAlgebraic):
                 mapping_algebraic_variables[var.name] = index_algebraic
                 index_algebraic += 1
-                guess.append(var.guess)
+                guess.append(var.scale_from_original(var.guess))
                 if var.lower_bound is None:
                     lower_bound.append(-ca.inf)
                 else:
-                    lower_bound.append(var.lower_bound)
+                    lower_bound.append(var.scale_from_original(var.lower_bound))
                 if var.upper_bound is None:
                     upper_bound.append(ca.inf)
                 else:
-                    upper_bound.append(var.upper_bound)
+                    upper_bound.append(var.scale_from_original(var.upper_bound))
             elif isinstance(var, VariableConstant):
                 pass
             elif isinstance(var, (VariableControl, VariableParameter)):
@@ -182,21 +187,7 @@ class SimulatorNLE:
         self._lower_bound: list[float] = lower_bound
         self._upper_bound: list[float] = upper_bound
 
-        for lower_bound_i, upper_bound_i in zip(self._lower_bound, self._upper_bound):
-            rootfinder_bound = 0
-            if lower_bound_i == 0:
-                rootfinder_bound = 1
-            elif lower_bound_i > 0:
-                rootfinder_bound = 2
-            elif upper_bound_i == 0:
-                rootfinder_bound = -1
-            elif upper_bound_i < 0:
-                rootfinder_bound = -2
-
-            rootfinder_bounds.append(rootfinder_bound)
-
         self._guess: list[float] = guess
-        self._rootfinder_bounds: list[int] = rootfinder_bounds
         self._independent_variables: ca.MX | ca.DM = ca.vcat(independent_variables)
 
         if isinstance(self._independent_variables, ca.MX):
@@ -219,20 +210,18 @@ class SimulatorNLE:
             self._independent_variables[index_var] = var_value
 
     def generate_exp_data(self, unfixed_variables: dict[str, float] = None) -> VariableList:
-        res_array = self.simulate_sym_unfixed(unfixed_variables)
+        res_array = self.simulate_sym_unfixed(unfixed_variables).toarray()
 
         variables = VariableList()
 
-        for count, var in enumerate(self.model.varlist_algebraic.values()):
+
+        for var_name, res in zip(self.model.varlist_algebraic.keys(), res_array):
+            var = self.__input_variable_list[var_name]
             new_var = copy.deepcopy(var)
             new_var.casadi_var = None
-            new_var.lower_bound = self._lower_bound[count]
-            new_var.upper_bound = self._upper_bound[count]
-            new_var.set_dataframe_from_value_and_time([float(res_array[count])], [0])
-            new_var.ignore_plotting = self.__input_variable_list[
-                var.name
-            ].ignore_plotting
-            new_var.variance = self.__input_variable_list[var.name].variance
+
+            value = var.scale_to_original(res)
+            new_var.value = float(value)
             variables.add_variable(new_var)
 
         return variables

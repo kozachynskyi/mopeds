@@ -859,7 +859,6 @@ class OptimalExperimentalDesign_NLE(OED_NLE_base):
                 self.list_input_varlist[0],
                 self.simulator_settings,
                 self.simulator_name,
-                use_bounds=use_simulator_bounds,
             )
         ]
 
