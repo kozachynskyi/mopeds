@@ -17,6 +17,8 @@ import pandas as pd
 
 import mopeds
 
+VARIABLE_SCALING = True
+
 ORIGIN_TS: pd.Timestamp = pd.Timestamp(year=1970, month=1, day=1)
 """ Indicats a default zero timestamp for data, if date is irrelevant.
 Chosen DateTime is the same, that is used by pd.to_datetime() by default.
@@ -61,6 +63,7 @@ class Variable(object):
         # attibute used to decide if variable should be plotted
         self.ignore_plotting: bool = True
         self.variable_list: VariableList
+        self.ignore_scaling = False
 
     @classmethod
     def get_subclasses(cls) -> Generator[type[Variable], None, None]:
@@ -96,7 +99,7 @@ class Variable(object):
         Used in Simulator for readability and less if statements.
         """
         if self.fixed:
-            return self.value[0]
+            return self.scale_from_original(self.value[0])
         else:
             return self.casadi_var
 
@@ -104,9 +107,9 @@ class Variable(object):
         """Return guess or value at time zero. Used further for
         readability"""
         if self.fixed:
-            return self.value[0]
+            return self.scale_from_original(self.value[0])
         else:
-            return self.guess
+            return self.scale_from_original(self.guess)
 
     @property
     def value(self) -> list[float]:
@@ -284,20 +287,33 @@ class Variable(object):
         mopeds.show_html_from_dataframe(self.dataframe)
 
     def _get_scaling_constants(self):
-        if np.isinf(self.lower_bound) or np.isinf(self.upper_bound):
+        if isinstance(self, VariableControlPiecewiseConstant):
+            lb = self.lower_bound[0]
+            ub = self.upper_bound[0]
+        else:
+            lb = self.lower_bound
+            ub = self.upper_bound
+
+        if VARIABLE_SCALING is False:
+            v, r = (1, 0)
+        elif self.ignore_scaling:
+            v, r = (1, 0)
+        elif np.isinf(lb) or np.isinf(ub):
+            v, r = (1, 0)
+        elif lb == ub:
             v, r = (1, 0)
         else:
-            v = 1 / 2 * (self.upper_bound - self.lower_bound )
-            r = 1 / 2 * (self.lower_bound + self.upper_bound)
+            v = (ub - lb) / 2
+            r = (ub + lb) / 2
         return v, r
 
     def scale_to_original(self, value: ca.MX | float | np.array):
         v, r = self._get_scaling_constants()
-        return value * v + r
+        return (value - 0) * v + r
 
     def scale_from_original(self, value: ca.MX | float | np.array):
         v, r = self._get_scaling_constants()
-        return (value - r) / v
+        return ((value - r) / v) + 0
 
 
 class VariableState(Variable):
@@ -648,7 +664,8 @@ class VariableList(OrderedDict[str, Union[Variable, VariableControlPiecewiseCons
         """Returns a concatanated vector of all variables in a variable_list."""
         casadi_vars = []
         for var in self.values():
-            casadi_vars.append(var.casadi_var)
+            if not isinstance(var, VariableConstant):
+                casadi_vars.append(var.casadi_var)
         return ca.vcat(casadi_vars)
 
     def _substitute_casadi_symbols(self, model_varlist: VariableList):
@@ -660,8 +677,21 @@ class VariableList(OrderedDict[str, Union[Variable, VariableControlPiecewiseCons
         """Returns a concatanated vector of all variables in a variable_list self while scaling them using bounds for source_variable_list"""
         casadi_vars = []
         for var in self.values():
-            casadi_vars.append(var.scale_to_original(var.casadi_var))
+            if not isinstance(var, VariableConstant):
+                casadi_vars.append(var.scale_to_original(var.casadi_var))
         return ca.vcat(casadi_vars)
+
+    def scale_to_original(self, values: ca.MX | float | np.array):
+        scaled_value = []
+        for var, value in zip(self.values(), np.asarray(values)):
+            scaled_value.append(var.scale_to_original(value))
+        return scaled_value
+
+    def scale_from_original(self, values: ca.MX | float | np.array):
+        scaled_value = []
+        for var, value in zip(self.values(), values):
+            scaled_value.append(var.scale_from_original(value))
+        return scaled_value
 
     def _get_sublist_of_type(self, variable_type) -> VariableList:
         sub_varlist = VariableList()

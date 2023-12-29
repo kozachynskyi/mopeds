@@ -55,6 +55,7 @@ class Simulator(object):
 
         self.__input_variable_list: VariableList = copy.deepcopy(variable_list)
         self.model: Model = model
+        self.__input_variable_list._substitute_casadi_symbols(self.model.varlist_all)
 
         if integrator_name not in self.supported_integrators:
             raise TypeError(
@@ -64,10 +65,14 @@ class Simulator(object):
 
         self.setup_time_grid(input_time_grid)
 
+        scaled_equations_diff = ca.cse(ca.substitute(self.model.equations_differential, self.__input_variable_list.get_casadi_variables(), self.__input_variable_list.get_scaled_casadi_variables()))
+        if self.model.DAE:
+            scaled_equations_alg = ca.cse(ca.substitute(self.model.equations_algebraic, self.__input_variable_list.get_casadi_variables(), self.__input_variable_list.get_scaled_casadi_variables()))
+
         self.ode_system: dict[str, ca.MX] = {
             "x": self.model.varlist_state.get_casadi_variables(),
             "p": ca.vertcat(self.model.varlist_independent.get_casadi_variables()),
-            "ode": self.model.equations_differential,
+            "ode": scaled_equations_diff,
         }
 
         # Tau variable is used to specify a length of iteration step externally, via tau variable
@@ -77,12 +82,12 @@ class Simulator(object):
             "p": ca.vertcat(
                 self.tau, self.model.varlist_independent.get_casadi_variables()
             ),
-            "ode": self.model.equations_differential * self.tau,
+            "ode": scaled_equations_diff * self.tau,
         }
 
         if self.model.DAE:
-            self.ode_system["alg"] = self.model.equations_algebraic
-            self.ode_system_tau["alg"] = self.model.equations_algebraic
+            self.ode_system["alg"] = scaled_equations_alg
+            self.ode_system_tau["alg"] = scaled_equations_alg
             self.ode_system["z"] = self.model.varlist_algebraic.get_casadi_variables()
             self.ode_system_tau[
                 "z"
@@ -292,7 +297,7 @@ class Simulator(object):
                 cast(VariableAlgebraic, var)
                 mapping_algebraic_variables[var.name] = index_algebraic
                 index_algebraic += 1
-                initial_algebraic.append(var.guess)
+                initial_algebraic.append(var.scale_from_original(var.guess))
 
             elif isinstance(var, VariableParameter):
                 mapping_independent_variables[var.name] = index_independent
@@ -371,9 +376,10 @@ class Simulator(object):
                 "All variables should be fixed, to use this method"
             )
         for var_name, var_value in ind_variables.items():
+            var = self.__input_variable_list[var_name]
             index_var = self.mapping_independent_variables[var_name]
             for index in range(len(self._independent_variables)):
-                self._independent_variables[index][index_var] = var_value
+                self._independent_variables[index][index_var] = var.scale_from_original(var_value)
 
     def debug_state(self, state_values):
         values = np.asarray(state_values)
@@ -847,12 +853,12 @@ class Simulator(object):
         result_simulation = self.simulate_sym()
         result_initial = self._simulate_t0()
         if not algebraic or not self.model.DAE:
-            result_varlist = [copy.deepcopy(self.model.varlist_state)]
+            result_varlist = [copy.deepcopy(self.__input_variable_list.get_state())]
             res_array = ca.horzcat(result_initial["xf0"], result_simulation["xf"])
         else:
             result_varlist = [
-                copy.deepcopy(self.model.varlist_state),
-                copy.deepcopy(self.model.varlist_algebraic),
+                copy.deepcopy(self.__input_variable_list.get_state()),
+                copy.deepcopy(self.__input_variable_list.get_algebraic()),
             ]
             res_array = ca.vertcat(
                 ca.horzcat(
@@ -886,7 +892,7 @@ class Simulator(object):
 
                 value = res_array[count + shift_by, :]
                 # value is of ca.DM type and data is nested in first array
-                value = value.toarray()[0]
+                value = var.scale_to_original(value.toarray()[0])
 
                 new_var.set_dataframe_from_value_and_time(
                     value, self.time_grid_relative, self.origin_ts

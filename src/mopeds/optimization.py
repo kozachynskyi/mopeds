@@ -28,6 +28,7 @@ from mopeds import (
     tools,
     utilities,
     _ACADOS_SUPPORT,
+    VARIABLE_SCALING,
 )
 
 if _ACADOS_SUPPORT:
@@ -89,9 +90,10 @@ class Optimizer(object):
                 if "time_sp" in var_name or "weight_" in var_name:
                     raise ValueError(f"Variable {var_name} is not a decision variable!")
                 print(f"Supplied value for variables {var_name} is ignored!")
-        for var_name in self.varlist_decision.keys():
+        for var_name, var in self.varlist_decision.items():
             try:
-                selected_variables.append(variables_dict[var_name])
+                scaled_value = var.scale_from_original(variables_dict[var_name])
+                selected_variables.append(scaled_value)
             except KeyError:
                 raise KeyError(f"Missing value for {var_name}")
 
@@ -130,9 +132,9 @@ class Optimizer(object):
             if var.guess == 0:
                 guess.append(1.0)
             else:
-                guess.append(var.guess)
-            lower_bound.append(var.lower_bound)
-            upper_bound.append(var.upper_bound)
+                guess.append(var.scale_from_original(var.guess))
+            lower_bound.append(var.scale_from_original(var.lower_bound))
+            upper_bound.append(var.scale_from_original(var.upper_bound))
 
         self.guess: np.ndarray = np.array(guess)
         self.lower_bound: np.ndarray = np.array(lower_bound)
@@ -148,46 +150,9 @@ class Optimizer(object):
         By default, variable guess is used as a scaling value.
         TODO: Whole loop can be replaced by simple np.where, isn't it?
         """
-        if scale:
-            self.scaling: np.ndarray | int = np.where(self.guess == 0, 1, self.guess)
-
-            for simulator, mapping in zip(
-                self.list_simulators, self.mapping_simulator_decisions
-            ):
-                simulator._reset_scaling()
-
-                if isinstance(self, (ParameterEstimation, ParameterEstimationNLE)):
-                    for index_simulator, index_decision in mapping.items():
-                        current_guess = self.guess[index_decision]
-                        if current_guess == 0:
-                            simulator.scaling[index_simulator] = 1
-                        else:
-                            simulator.scaling[index_simulator] = current_guess
-
-                else:
-                    # this loop is used because simple "for loop" fails for ca.MX vector
-                    if isinstance(simulator, SimulatorNLE):
-                        independent_variables = simulator._independent_variables
-                    elif isinstance(simulator, Simulator):
-                        independent_variables = simulator._independent_variables[0]
-                    else:
-                        raise NotImplementedError
-
-                    for count in range(independent_variables.size()[0]):
-                        var = independent_variables[count]
-                        if var.is_symbolic():
-                            if var.name() in self.varlist_decision:
-                                current_guess = self.varlist_decision[var.name()].guess
-                                if current_guess == 0:
-                                    simulator.scaling[count] = 1
-                                else:
-                                    simulator.scaling[count] = current_guess
-                            else:
-                                simulator.scaling[count] = 1
-        else:
-            self.scaling = 1
-            for simulator in self.list_simulators:
-                simulator._reset_scaling()
+        self.scaling = 1
+        for simulator in self.list_simulators:
+            simulator._reset_scaling()
 
         if isinstance(self, PE_base):
             self.generate_simulate_all_functions()
@@ -238,11 +203,11 @@ class Optimizer(object):
 
         res_solver = self.solver.call(self.nlpsol_args)
 
-        res_solver["x"] = res_solver["x"] * self.scaling
+        res_solver["x"] = np.asarray(self.varlist_decision.scale_to_original(res_solver["x"]))
 
         res_dict = {}
         for solution, var_name in zip(
-            res_solver["x"].toarray(), list(self.varlist_decision.keys())
+            res_solver["x"], list(self.varlist_decision.keys())
         ):
             res_dict[var_name] = float(solution[0])
 
@@ -852,7 +817,10 @@ class PE_base(Optimizer):
         )
 
         S = results_sensitivity["jac_scaled_full_theory"]
-        S = S * np.array(self.variables_dict_to_list(parameters))
+        if VARIABLE_SCALING:
+            pass
+        else:
+            S = S * np.array(self.variables_dict_to_list(parameters))
         S_norm = S / np.linalg.norm(S, axis=0)
 
         beta_msqr = np.sqrt(np.sum(S**2, axis=0) / S.shape[0])
@@ -866,8 +834,12 @@ class PE_base(Optimizer):
             for subset_index in itertools.combinations(parameters_index, subset_size):
                 S_norm_subset = S_norm[:, subset_index]
                 FIM = S_norm_subset.T @ S_norm_subset
-                gamma_k = 1 / np.sqrt(eigsorted(FIM)[0][-1])
-                rho_k = np.linalg.det(FIM) ** (1/(2*S.shape[1]))
+                try:
+                    gamma_k = 1 / np.sqrt(eigsorted(FIM)[0][-1])
+                    rho_k = np.linalg.det(FIM) ** (1/(2*S.shape[1]))
+                except np.linalg.LinAlgError:
+                    gamma_k = np.nan
+                    rho_k = np.nan
                 subset_names = np.array(sorted_unfixed_params)[list(subset_index)]
                 if min_gamma > gamma_k:
                     min_gamma = gamma_k
@@ -1315,13 +1287,14 @@ class ParameterEstimation(PE_base):
                 if isinstance(var, VariableState) or (
                     isinstance(var, VariableAlgebraic) and use_algebraic_vars
                 ):
-                    data_frame = data_frame.join(var.dataframe, how="outer")
+                    data_frame = data_frame.join(var.scale_from_original(var.dataframe), how="outer")
+
 
                 elif isinstance(var, VariableControl):
                     var.fixed = True
                     if isinstance(var, VariableControlPiecewiseConstant):
                         var.fixed = True
-                        data_frame = data_frame.join(var.dataframe, how="outer")
+                        data_frame = data_frame.join(var.scale_from_original(var.dataframe), how="outer")
                         # Column should be dropped, because it's needed only for unique timestamp
                         data_frame.drop(columns=var.name, inplace=True)
 
@@ -1369,8 +1342,9 @@ class ParameterEstimation(PE_base):
             inverted_variances_varlist = []
             for var_name in variable_name_list:
                 var = varlist_input[var_name]
+                scaled_variance = var.variance / var._get_scaling_constants()[0]**2
                 inverted_variances_varlist.append(
-                    1.0 / (np.full(len(time_grid_unique) - 1, var.variance))
+                    1.0 / (np.full(len(time_grid_unique) - 1, scaled_variance))
                 )
             inverted_variances_array = np.column_stack(inverted_variances_varlist)
             list_inverted_variances.append(inverted_variances_array)
@@ -1549,6 +1523,80 @@ class ParameterEstimationNLE(PE_base):
         self._setup_experiments_scale(False)
         self.setup_regularization(0, np.zeros((len(self.varlist_decision),1)))
 
+    def prepare_nle(self):
+        self.varlist_algebraic_new = VariableList()
+
+
+        lower_bound = self.lower_bound.tolist()
+        upper_bound = self.upper_bound.tolist()
+        guess = self.guess.tolist()
+
+        fixed_parameters = []
+        fixed_parameters_values = []
+        g = []
+        meas_symbols = []
+
+        for variable_name, model_var in self.model.varlist_independent.items():
+            var = self.list_input_varlist[0][variable_name]
+
+            if isinstance(var, VariableParameter):
+                if var.fixed is True:
+                    fixed_parameters.append(model_var.casadi_var)
+                    fixed_parameters_values.append(var.value[0])
+                else:
+                    fixed_parameters.append(model_var.casadi_var)
+                    fixed_parameters_values.append(var.casadi_var)
+
+        for sim_index, sim in enumerate(self.list_simulators):
+            control_symbols = []
+            control_values = []
+            meas_symbols_sim = []
+
+            for variable_name, model_var in self.model.varlist_independent.items():
+                var = self.list_input_varlist[sim_index][variable_name]
+                if isinstance(var, VariableControlPiecewiseConstant):
+                    raise NotImplementedError
+                elif isinstance(var, VariableControl):
+                    control_symbols.append(model_var.casadi_var)
+                    control_values.append(var.value[0])
+
+            varlist_new_algebraic_i = VariableList()
+            for variable_name in self.model.varlist_algebraic.keys():
+                var = self.list_input_varlist[sim_index][variable_name]
+
+                new_var = var._create_copy(f"_sim{sim_index}")
+
+                varlist_new_algebraic_i.add_variable(new_var)
+                self.varlist_decision.add_variable(new_var)
+
+                lower_bound.append(new_var.scale_from_original(new_var.lower_bound))
+                upper_bound.append(new_var.scale_from_original(new_var.upper_bound))
+                guess.append(new_var.scale_from_original(new_var.guess))
+
+                if ~np.isnan(new_var.value[0]):
+                    meas_symbols_sim.append(new_var.casadi_var)
+
+            meas_symbols.append(ca.hcat(meas_symbols_sim))
+
+            equations_subs_alg = ca.substitute(self.model.equations_algebraic, self.model.varlist_algebraic.get_casadi_variables(), varlist_new_algebraic_i.get_casadi_variables())
+
+            if len(fixed_parameters) == 0:
+                equations_subs_par = equations_subs_alg
+            else:
+                equations_subs_par = ca.substitute(equations_subs_alg, ca.vcat(fixed_parameters), ca.vcat(fixed_parameters_values))
+            if len(control_symbols) == 0:
+                equations_subs_all = equations_subs_par
+            else:
+                equations_subs_all = ca.substitute(equations_subs_par, ca.vcat(control_symbols), ca.MX(control_values))
+            g.append(equations_subs_all)
+            self.varlist_algebraic_new.update(**varlist_new_algebraic_i)
+
+        self.nlpsol_g = ca.cse(ca.vcat(g))
+        self.lower_bound = np.array(lower_bound)
+        self.upper_bound = np.array(upper_bound)
+        self.guess = np.array(guess)
+        self.simulate_all_mx = ca.vcat(meas_symbols)
+
     def _setup_simulator(
         self, SimulatorClass: SimulatorNLE
     ) -> None:
@@ -1599,7 +1647,8 @@ class ParameterEstimationNLE(PE_base):
                     varlist_data.append(scaled_value)
                     varlist_data_mask.append(1.0)
 
-                varlist_variance.append(1.0 / var.variance)
+                scaled_variance = var.variance / var._get_scaling_constants()[0]**2
+                varlist_variance.append(1.0 / scaled_variance)
             list_data.append(varlist_data)
             list_data_mask.append(varlist_data_mask)
             list_inverted_variances.append(varlist_variance)
@@ -1688,7 +1737,8 @@ class ParameterEstimationNLE(PE_base):
             for var_name in [*dict_of_controls.keys(), *dict_of_responses.keys()]:
                 var_values = []
                 for simulation in var_list_list:
-                    var_values.append(simulation[var_name].value[0])
+                    var = simulation[var_name]
+                    var_values.append(var.scale_to_original(var.value[0]))
                 sim_data[var_name] = np.array(var_values)
 
             return sim_data

@@ -13,6 +13,7 @@ except ImportError:
 
 from .utilities import MXPickler, show_html_from_dataframe
 from .variables import (
+    VARIABLE_SCALING,
     Variable,
     VariableParameter,
     VariableAlgebraic,

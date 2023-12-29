@@ -100,7 +100,8 @@ def test_oed(piecewise):
         res = oed.optimize()
 
         logging.warning(f"{res['f']}")
-        assert np.isclose(res["f"], ca.DM(39.499), rtol=0, atol=1.0e-4)
+        assert np.isclose(res["f"], ca.DM(14560.8813040))
+        assert np.isclose(res["x"], 6)
 
         # For not functionality is turnded off
         # res = oed.optimize(True)
@@ -142,7 +143,7 @@ def test_oed_piecewise():
         exp_data = oed_piecewise.generate_experimental_data({"e0_c_in_i1_t0": 5})
         pe = mopeds.ParameterEstimation(model_piecewise, [exp_data])
         res_pe = pe.optimize()
-        assert np.isclose(oed_piecewise.parameter_values, res_pe["x"])
+        assert np.isclose(oed_piecewise.parameter_values, pe.varlist_decision.scale_from_original(res_pe["x"]), atol=1e-4)
 
         assert np.isclose(res["f"], res_piecewise["f"])
         # logging.warning(f"{res['f']}")

@@ -66,8 +66,8 @@ class SimulatorNLE:
         self._setup_variables()
         self._reset_scaling()
 
-        scaled_equations = ca.substitute(self.model.equations_algebraic, self.__input_variable_list.get_algebraic().get_casadi_variables(), self.__input_variable_list.get_algebraic().get_scaled_casadi_variables())
-        self._model_equations = scaled_equations
+        scaled_equations = ca.substitute(self.model.equations_algebraic, self.__input_variable_list.get_casadi_variables(), self.__input_variable_list.get_scaled_casadi_variables())
+        self._model_equations = ca.cse(scaled_equations)
 
         if self._solver_name == "rootfinder":
             self.function: ca.Function = ca.Function(
@@ -76,7 +76,7 @@ class SimulatorNLE:
                     self.model.varlist_algebraic.get_casadi_variables(),
                     self.model.varlist_independent.get_casadi_variables(),
                 ],
-                [scaled_equations],
+                [self._model_equations],
                 ["x0", "p"],
                 ["x"],
             )
@@ -94,8 +94,8 @@ class SimulatorNLE:
                 {
                     "x": self.model.varlist_algebraic.get_casadi_variables(),
                     "p": self.model.varlist_independent.get_casadi_variables(),
-                    "g": scaled_equations,
-                    "f": (ca.sum1(scaled_equations) ** 2),
+                    "g": self._model_equations,
+                    "f": (ca.sum1(self._model_equations) ** 2),
                 },
                 self.solver_settings,
             )
@@ -151,7 +151,6 @@ class SimulatorNLE:
         guess = []
         lower_bound = []
         upper_bound = []
-        rootfinder_bounds = []
         independent_variables = []
         for variable_name in self.model.varlist_all.keys():
             try:
@@ -206,8 +205,9 @@ class SimulatorNLE:
                 "All variables should be fixed, to use this method"
             )
         for var_name, var_value in ind_variables.items():
+            var = self.__input_variable_list[var_name]
             index_var = self.mapping_independent_variables[var_name]
-            self._independent_variables[index_var] = var_value
+            self._independent_variables[index_var] = var.scale_from_original(var_value)
 
     def generate_exp_data(self, unfixed_variables: dict[str, float] = None) -> VariableList:
         res_array = self.simulate_sym_unfixed(unfixed_variables).toarray()

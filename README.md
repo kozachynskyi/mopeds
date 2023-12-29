@@ -28,6 +28,10 @@ Considering creating a test to compare the numerical results while migrating.
 
 ## What's New?
 
+### Upcoming
+
+- NLEs are automatically scaled, if lower and upper bound are provided, use_bounds for rootfinder NLE is deprecated
+
 ### 0.10.1
 
 - Fixed installation error in Windows python 3.11

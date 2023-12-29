@@ -29,6 +29,7 @@ from mopeds import (
     Optimizer,
     ORIGIN_TS,
 )
+import mopeds
 
 if _ACADOS_SUPPORT:
     from mopeds import casados_integrator
@@ -173,8 +174,7 @@ class OED_base(Optimizer):
 
     @property
     def _parameter_scaling(self):
-        parameter_scaling = ca.repmat(self.parameter_values, 1, self.jacobian_scaled_mx.shape[0]).T
-        return parameter_scaling
+        return 1
 
     def change_parameter_values(self):
         """Change parameter values in simulator"""
@@ -230,8 +230,13 @@ class OED_base(Optimizer):
 
         selected_controls = self.variables_dict_to_list(controls)
         res = casadi_function(x=selected_controls, p=parameter_values)
+        res_list = []
+        for col_index, name in enumerate(self.names_of_measurements):
+            scaled_res = self.list_input_varlist[0][name].scale_to_original(res["y"][:,col_index])
+            res_list.append(scaled_res)
+
         result_np = {
-            "y": res["y"].toarray(),
+            "y": np.array(res_list).squeeze().T,
         }
 
         return result_np
@@ -335,11 +340,12 @@ class OED_base(Optimizer):
                     exp_varlist[var_name].value = controls[var_name]
         
         if parameters is None:
-            for index, par_name in enumerate(self.varlist_parameter.keys()):
-                exp_varlist[par_name].value =self.parameter_values[index]
+            for index, par_var in enumerate(self.varlist_parameter.values()):
+                exp_varlist[par_var.name].value = par_var.scale_to_original(self.parameter_values[index])
         else:
             for par_name, par_value in parameters.items():
-                exp_varlist[par_name].value = par_value
+                par_var = self.varlist_parameter[par_name]
+                exp_varlist[par_name].value = par_var.scale_from_original(par_value)
 
         return exp_varlist
 
@@ -391,7 +397,7 @@ class OED_base(Optimizer):
             elif isinstance(var, VariableParameter):
                 if var.fixed is False:
                     self.varlist_parameter.add_variable(var)
-                    parameter_values.append(var.value[0])
+                    parameter_values.append(var.scale_from_original(var.value[0]))
 
             elif isinstance(var, VariableState):
                 if var.name in self.list_measureable_variables:
@@ -400,7 +406,7 @@ class OED_base(Optimizer):
                 if var.fixed is False:
                     if np.isnan(var.guess):
                         var.guess = var.value[0]
-                    self.varlist_decision.add_variable(var)
+                    self.varlist_decision.add_variable(var.scale_from_original(var))
 
         for time_var in self.varlist_timegrid.values():
             self.varlist_decision.add_variable(time_var)
@@ -496,11 +502,11 @@ class OED_base(Optimizer):
             ubg=self.upper_bound_g,
         )
 
-        res_solver["x"] = res_solver["x"]
+        res_solver["x"] = np.asarray(self.varlist_decision.scale_to_original(res_solver["x"]))
 
         res_dict = {}
         for solution, var_name in zip(
-            res_solver["x"].toarray(), list(self.varlist_decision.keys())
+            res_solver["x"], list(self.varlist_decision.keys())
         ):
             res_dict[var_name] = float(solution[0])
 
@@ -587,6 +593,7 @@ class OptimalExperimentalDesign(OED_base):
 
             for i, guess in enumerate(initial_guess):
                 new_var = VariableControl("time_sp" + str(i), guess, self._oed_settings.min_sampling_delay, self._oed_settings.max_time_experiment)
+                new_var.ignore_scaling = True
                 self.varlist_timegrid.add_variable(new_var)
 
             if self._oed_settings.end_time_fixed:
@@ -618,6 +625,7 @@ class OptimalExperimentalDesign(OED_base):
         if self._oed_settings.measurement_weights:
             for i in range(self.time_grid_measurements.shape[0] - 1):
                 new_var = VariableControl("weight_" + str(i), 0.5, 0, 1)
+                new_var.ignore_scaling = True
                 self.varlist_weights.add_variable(new_var)
             if self._oed_settings.end_time_fixed:
                 self.varlist_weights[new_var.name].lower_bound = 1
@@ -714,7 +722,7 @@ class OED_NLE_base(OED_base):
             elif isinstance(var, VariableParameter):
                 if var.fixed is False:
                     self.varlist_parameter.add_variable(var)
-                    parameter_values.append(var.value[0])
+                    parameter_values.append(var.scale_from_original(var.value[0]))
 
             elif isinstance(var, VariableAlgebraic):
                 if var.name in self.list_measureable_variables:
@@ -722,7 +730,7 @@ class OED_NLE_base(OED_base):
                     self.names_of_measurements.append(var.name)
                 if var.fixed is False:
                     if np.isnan(var.guess):
-                        var.guess = var.value[0]
+                        var.guess = var.scale_from_original(var.value[0])
                     self.varlist_decision.add_variable(var)
 
         if len(self.varlist_parameter) == 0:

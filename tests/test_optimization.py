@@ -135,20 +135,20 @@ def test_optimizer(piecewise):  # noqa: C901
                         res_oed = oed.optimize(1e-3)
 
             if i == 0:
-                assert res_pe["x"].size() == (11, 1)
-                assert res_oed["x"].size() == (7, 1)
+                assert res_pe["x"].size == (11)
+                assert res_oed["x"].size == (7)
             elif i == 1:
-                assert res_pe["x"].size() == (10, 1)
-                assert res_oed["x"].size() == (7, 1)
+                assert res_pe["x"].size == (10)
+                assert res_oed["x"].size == (7)
             elif i == 2:
-                assert res_pe["x"].size() == (10, 1)
-                assert res_oed["x"].size() == (6, 1)
+                assert res_pe["x"].size == (10)
+                assert res_oed["x"].size == (6)
             elif i == 3:
-                assert res_pe["x"].size() == (10, 1)
-                assert res_oed["x"].size() == (6, 1)
+                assert res_pe["x"].size == (10)
+                assert res_oed["x"].size == (6)
             elif i == 4:
-                assert res_pe["x"].size() == (1, 1)
-                assert res_oed["x"].size() == (1, 1)
+                assert res_pe["x"].size == (1)
+                assert res_oed["x"].size == (1)
 
 
 if __name__ == "__main__":
