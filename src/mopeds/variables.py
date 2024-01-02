@@ -693,6 +693,15 @@ class VariableList(OrderedDict[str, Union[Variable, VariableControlPiecewiseCons
             scaled_value.append(var.scale_from_original(value))
         return scaled_value
 
+    def _get_scaling_constants(self):
+        scaling_constant_v = []
+        scaling_constant_r = []
+        for var in self.values():
+            v, r = var._get_scaling_constants()
+            scaling_constant_v.append(v)
+            scaling_constant_r.append(r)
+        return scaling_constant_v, scaling_constant_r
+
     def _get_sublist_of_type(self, variable_type) -> VariableList:
         sub_varlist = VariableList()
         for var in self.values():

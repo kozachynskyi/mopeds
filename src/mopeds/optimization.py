@@ -615,6 +615,16 @@ class PE_base(Optimizer):
                 "jac_meas", [decision_variables], [jac_meas_mx]
         )
         jac_all_dm = jac_meas_function(all_parameter_values)
+        scale_parameters = np.tile(np.array(self.varlist_decision._get_scaling_constants()[0]), (jac_all_dm.shape[0],1))
+        jac_all_dm = jac_all_dm / scale_parameters
+
+        # scale_measurements = []
+        # for meas_name in self.names_of_measurements:
+        #     scale_measurements.append(self.list_input_varlist[0][meas_name]._get_scaling_constants()[0])
+        # scale_measurements = np.tile(scale_measurements,jac_all_dm.shape) 
+        # jac_all_dm = jac_all_dm * scale_measurements
+        # breakpoint()
+        
         jacobian_index = [0, self.simulate_all_mx.shape[0]]
 
         for index_measurement, meas_name in enumerate(self.names_of_measurements):
