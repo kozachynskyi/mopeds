@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 from collections.abc import Generator, Iterable
 from datetime import datetime, timedelta
+import contextlib
 from typing import Any, Union
 import copy
 
@@ -17,7 +18,29 @@ import pandas as pd
 
 import mopeds
 
-VARIABLE_SCALING = True
+# Options logic copied from numpy printoptions
+_options = {
+    "variable_scaling": True,
+    }
+
+def get_options():
+    opts = _options.copy()
+    return opts
+
+@contextlib.contextmanager
+def options(*, variable_scaling: bool):
+    opts = get_options()
+    try:
+        set_options(variable_scaling=variable_scaling)
+        yield get_options()
+    finally:
+        set_options(**opts)
+
+def set_options(*, variable_scaling: bool):
+    if not isinstance(variable_scaling, bool):
+        raise TypeError
+    _options.update({"variable_scaling": variable_scaling})
+
 
 ORIGIN_TS: pd.Timestamp = pd.Timestamp(year=1970, month=1, day=1)
 """ Indicats a default zero timestamp for data, if date is irrelevant.
@@ -294,7 +317,9 @@ class Variable(object):
             lb = self.lower_bound
             ub = self.upper_bound
 
-        if VARIABLE_SCALING is False:
+        if get_options()["variable_scaling"] is False:
+            v, r = (1, 0)
+        elif isinstance(self, VariableState):
             v, r = (1, 0)
         elif self.ignore_scaling:
             v, r = (1, 0)
@@ -309,7 +334,7 @@ class Variable(object):
 
     def scale_to_original(self, value: ca.MX | float | np.array):
         v, r = self._get_scaling_constants()
-        return (value - 0) * v + r
+        return ((value - 0) * v + r)
 
     def scale_from_original(self, value: ca.MX | float | np.array):
         v, r = self._get_scaling_constants()

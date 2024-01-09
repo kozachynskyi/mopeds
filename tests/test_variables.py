@@ -5,6 +5,15 @@ from mopeds.variables import SameVariableNameError, PlottingError
 import casadi as ca
 import pytest
 
+def test_options():
+    assert mopeds.get_options()["variable_scaling"]
+    with mopeds.options(variable_scaling = False):
+        assert mopeds.get_options()["variable_scaling"] is False
+    assert mopeds.get_options()["variable_scaling"]
+    mopeds.set_options(variable_scaling=False)
+    assert mopeds.get_options()["variable_scaling"] is False
+    mopeds.set_options(variable_scaling=True)
+    assert mopeds.get_options()["variable_scaling"]
 
 def test_variables():
     # Test VariableList() and subclasses
@@ -152,4 +161,5 @@ def test_variables():
 
 
 if __name__ == "__main__":
+    test_options()
     test_variables()

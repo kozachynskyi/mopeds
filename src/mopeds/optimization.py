@@ -28,7 +28,8 @@ from mopeds import (
     tools,
     utilities,
     _ACADOS_SUPPORT,
-    VARIABLE_SCALING,
+    get_options,
+    options,
 )
 
 if _ACADOS_SUPPORT:
@@ -757,7 +758,9 @@ class PE_base(Optimizer):
         )
 
         S = results_sensitivity["jac_scaled_full_theory"]
-        S = S * np.array(self.variables_dict_to_list(parameters))
+        with options(variable_scaling=False):
+            print(self.variables_dict_to_list(parameters))
+            S = S * np.array(self.variables_dict_to_list(parameters))
 
         info = []
         best_set = None
@@ -827,9 +830,7 @@ class PE_base(Optimizer):
         )
 
         S = results_sensitivity["jac_scaled_full_theory"]
-        if VARIABLE_SCALING:
-            pass
-        else:
+        with options(variable_scaling=False):
             S = S * np.array(self.variables_dict_to_list(parameters))
         S_norm = S / np.linalg.norm(S, axis=0)
 
@@ -911,7 +912,8 @@ class PE_base(Optimizer):
         )
 
         S = results_sensitivity["jac_scaled_full_theory"]
-        S = S * np.array(self.variables_dict_to_list(parameters))
+        with options(variable_scaling=False):
+            S = S * np.array(self.variables_dict_to_list(parameters))
 
 
         # S = S * np.array(self.variables_dict_to_list(parameters))
@@ -972,7 +974,8 @@ class PE_base(Optimizer):
         )
 
         S = results_sensitivity["jac_scaled_full_theory"]
-        S = S * np.array(self.variables_dict_to_list(parameters))
+        with options(variable_scaling=False):
+            S = S * np.array(self.variables_dict_to_list(parameters))
         fim_matrix = (S.T @ S)
 
         for i in range(fim_matrix.shape[0]):
@@ -1032,7 +1035,8 @@ class PE_base(Optimizer):
         results_sensitivity = self.calculate_sensitivity_and_fim(parameters)
 
         jacobian_yao = results_sensitivity["jac_yao_full"]
-        jacobian_yao = jacobian_yao * np.array(self.variables_dict_to_list(parameters))
+        with options(variable_scaling=False):
+            jacobian_yao = jacobian_yao * np.array(self.variables_dict_to_list(parameters))
 
         XK = np.zeros(jacobian_yao.shape)
 

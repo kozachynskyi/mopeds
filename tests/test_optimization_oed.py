@@ -100,7 +100,7 @@ def test_oed(piecewise):
         res = oed.optimize()
 
         logging.warning(f"{res['f']}")
-        assert np.isclose(res["f"], ca.DM(14560.8813040))
+        assert np.isclose(res["f"], ca.DM(1.57995673e-06))
         assert np.isclose(res["x"], 6)
 
         # For not functionality is turnded off

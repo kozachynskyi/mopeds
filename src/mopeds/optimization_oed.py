@@ -174,7 +174,8 @@ class OED_base(Optimizer):
 
     @property
     def _parameter_scaling(self):
-        return 1
+        parameter_scaling = ca.repmat(self.parameter_values_unscaled, 1, self.jacobian_scaled_mx.shape[0]).T
+        return parameter_scaling
 
     def change_parameter_values(self):
         """Change parameter values in simulator"""
@@ -199,9 +200,12 @@ class OED_base(Optimizer):
 
         selected_parameters = self.variables_dict_to_list(controls)
         res = casadi_function(x=selected_parameters)
+
+        jac_unscaled = res["jac"].toarray() / self.varlist_parameter._get_scaling_constants()[0]
+
         result_np = {
             "f": float(res["f"]),
-            "jac": res["jac"].toarray(),
+            "jac": jac_unscaled,
         }
 
         return result_np
@@ -373,6 +377,7 @@ class OED_base(Optimizer):
 
     def _setup_varlist_decision(self):
         parameter_values = []
+        parameter_values_unscaled = []
         inverted_variances = []
         self.names_of_measurements = []
 
@@ -398,6 +403,7 @@ class OED_base(Optimizer):
                 if var.fixed is False:
                     self.varlist_parameter.add_variable(var)
                     parameter_values.append(var.scale_from_original(var.value[0]))
+                    parameter_values_unscaled.append(float(var.value[0]))
 
             elif isinstance(var, VariableState):
                 if var.name in self.list_measureable_variables:
@@ -420,6 +426,7 @@ class OED_base(Optimizer):
         self.array_inverted_std = np.sqrt(inverted_variances)
 
         self.parameter_values = np.array(parameter_values)
+        self.parameter_values_unscaled = np.array(parameter_values_unscaled)
 
     def generate_jacobian_function(self) -> None:
         """Combines simulate_sym() functions from simulator, and creates MX structure, that is used
@@ -707,6 +714,7 @@ class OptimalExperimentalDesign(OED_base):
 class OED_NLE_base(OED_base):
     def _setup_varlist_decision(self):
         parameter_values = []
+        parameter_values_unscaled = []
         inverted_variances = []
         self.names_of_measurements = []
 
@@ -723,6 +731,7 @@ class OED_NLE_base(OED_base):
                 if var.fixed is False:
                     self.varlist_parameter.add_variable(var)
                     parameter_values.append(var.scale_from_original(var.value[0]))
+                    parameter_values_unscaled.append(float(var.value[0]))
 
             elif isinstance(var, VariableAlgebraic):
                 if var.name in self.list_measureable_variables:
@@ -739,6 +748,7 @@ class OED_NLE_base(OED_base):
         self.array_inverted_std = np.sqrt(inverted_variances)
 
         self.parameter_values = np.array(parameter_values)
+        self.parameter_values_unscaled = np.array(parameter_values_unscaled)
 
     def generate_jacobian_function(self) -> None:
         parameter_variables = self.varlist_parameter.get_casadi_variables()
