@@ -52,6 +52,7 @@ class Optimizer(object):
     ) -> None:
         self.solver_name: str
         self.solver_settings: dict
+        self._created_with_options = get_options()
 
         if not isinstance(variable_lists, list):
             raise (Exception("Variable list should be nested of type list"))
@@ -811,6 +812,8 @@ class PE_base(Optimizer):
         parameters_not_identifiable: list[str] | None = None,
         eigenvalue_threshold: float = 10e-4,
     ):
+        if self._created_with_options["variable_scaling"] or get_options()["variable_scaling"]:
+            raise NotImplementedError("Brun identification analysis with scaling is dependent on operating system")
         self._setup_scaling(False)
         if parameters_identifiable is None:
             parameters_identifiable = []
