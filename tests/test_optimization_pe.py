@@ -1,6 +1,7 @@
 import logging
 import casadi as ca
 import numpy as np
+import sys
 
 import copy
 import mopeds.examples
@@ -187,9 +188,10 @@ def test_pe_regularization(piecewise):
     c = pe.parameter_identifiability_lopez2013(true_parameters, true_parameters.keys())
     e = pe.parameter_identifiability_brun2001(true_parameters, true_parameters.keys())
 
-    pe = mopeds.ParameterEstimation(
-            model, [var_list], simulator_settings={"expand": True, "abstol": 1e-16, "reltol": 1e-14}
-    )
+    if sys.platform == "darwin":
+        pe = mopeds.ParameterEstimation(
+                model, [var_list], simulator_settings={"expand": True, "abstol": 1e-16, "reltol": 1e-14}
+        )
     d = pe.parameter_identifiability_quaiser2009(true_parameters, true_parameters.keys())
 
     identifiable_a = ['e0_E_r2', 'e0_c_p']
