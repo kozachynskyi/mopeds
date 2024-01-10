@@ -186,13 +186,11 @@ def test_pe_regularization(piecewise):
     a = pe.parameter_identifiability_chu2012(true_parameters, true_parameters.keys())
     b = pe.parameter_identifiability_yao2003(true_parameters, true_parameters.keys())
     c = pe.parameter_identifiability_lopez2013(true_parameters, true_parameters.keys())
-    e = pe.parameter_identifiability_brun2001(true_parameters, true_parameters.keys())
 
-    if sys.platform == "darwin":
-        pe = mopeds.ParameterEstimation(
-                model, [var_list], simulator_settings={"expand": True, "abstol": 1e-16, "reltol": 1e-14}
-        )
-    d = pe.parameter_identifiability_quaiser2009(true_parameters, true_parameters.keys())
+    with mopeds.options(variable_scaling=False):
+        pe = mopeds.ParameterEstimation(model, [var_list])
+        d = pe.parameter_identifiability_quaiser2009(true_parameters, true_parameters.keys())
+        e = pe.parameter_identifiability_brun2001(true_parameters, true_parameters.keys())
 
     identifiable_a = ['e0_E_r2', 'e0_c_p']
     identifiable_b = ['e0_E_r1', 'e0_E_r3', 'e0_c_p']
