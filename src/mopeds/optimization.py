@@ -1306,7 +1306,6 @@ class ParameterEstimation(PE_base):
                 ):
                     data_frame = data_frame.join(var.scale_from_original(var.dataframe), how="outer")
 
-
                 elif isinstance(var, VariableControl):
                     var.fixed = True
                     if isinstance(var, VariableControlPiecewiseConstant):

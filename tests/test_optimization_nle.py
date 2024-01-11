@@ -337,7 +337,6 @@ def test_multivariate_pe():
     assert np.isclose(res_sens["cov_par"], cov_par)
 
 
-@pytest.mark.skip(reason="dosn't work after scaling introduction")
 def test_inference_bounds():
     VAR_LIST, MODEL, EXP_DATA = mopeds.examples.bod_model()
 
