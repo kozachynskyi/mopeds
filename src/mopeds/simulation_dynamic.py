@@ -66,6 +66,8 @@ class Simulator(object):
         self.setup_time_grid(input_time_grid)
 
         scaled_equations_diff = ca.cse(ca.substitute(self.model.equations_differential, self.__input_variable_list.get_casadi_variables(), self.__input_variable_list.get_scaled_casadi_variables()))
+        scaled_equations_diff = scaled_equations_diff / self.__input_variable_list.get_state()._get_scaling_constants()[0]
+
         if self.model.DAE:
             scaled_equations_alg = ca.cse(ca.substitute(self.model.equations_algebraic, self.__input_variable_list.get_casadi_variables(), self.__input_variable_list.get_scaled_casadi_variables()))
 

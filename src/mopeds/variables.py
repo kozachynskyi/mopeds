@@ -319,8 +319,6 @@ class Variable(object):
 
         if get_options()["variable_scaling"] is False:
             v, r = (1, 0)
-        elif isinstance(self, VariableState):
-            v, r = (1, 0)
         elif self.ignore_scaling:
             v, r = (1, 0)
         elif np.isinf(lb) or np.isinf(ub):
@@ -329,7 +327,10 @@ class Variable(object):
             v, r = (1, 0)
         else:
             v = (ub - lb) / 2
-            r = (ub + lb) / 2
+            if isinstance(self, VariableState):
+                r = 0
+            else:
+                r = (ub + lb) / 2
         return v, r
 
     def scale_to_original(self, value: ca.MX | float | np.array):

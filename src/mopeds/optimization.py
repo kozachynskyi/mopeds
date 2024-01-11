@@ -407,7 +407,7 @@ class PE_base(Optimizer):
         Thus, covariance of the measurements is assumed to be zero."""
         residuals = (self.simulate_all_mx - self.array_data) * self.array_data_mask
         scaled_residuals = (
-            residuals * self.array_inverted_std * np.sqrt(self.experiments_scale)
+            residuals * self.array_inverted_scaled_std * np.sqrt(self.experiments_scale)
         )
         objective = ca.sumsqr(scaled_residuals)
         return objective, residuals
@@ -416,7 +416,7 @@ class PE_base(Optimizer):
         c = 2
         residuals = (self.simulate_all_mx - self.array_data) * self.array_data_mask
         scaled_residuals = (
-            residuals * self.array_inverted_std * np.sqrt(self.experiments_scale)
+            residuals * self.array_inverted_scaled_std * np.sqrt(self.experiments_scale)
         )
         res_mod = ca.sqrt(scaled_residuals ** 2)
         objective = 2 * c**2 * (res_mod/c -  ca.log(1 + res_mod/c))
@@ -424,6 +424,33 @@ class PE_base(Optimizer):
         objective = ca.sum2(objective)
         # objective = ca.sumsqr(scaled_residuals)
         return objective, residuals
+
+    def _unscale_jacobian(self, jacobian):
+        scale_parameters = np.tile(np.array(self.varlist_decision._get_scaling_constants()[0]), (jacobian.shape[0],1))
+        scaled_jacobian = jacobian / scale_parameters
+
+        scaling_constants_measurements = []
+        for meas_name in self.names_of_measurements:
+            scaling_constants_measurements.append(self.list_input_varlist[0][meas_name]._get_scaling_constants()[0])
+        scaling_measurements = np.repeat(np.asarray([scaling_constants_measurements]), len(self.varlist_decision), axis=0).T
+
+        scaling_all = []
+
+        if isinstance(self.list_simulators[0], Simulator):
+            for sim in self.list_simulators:
+                len_time_grid = sim.time_grid_relative.shape[0] - 1
+                scaling_simulator_i = np.repeat(scaling_measurements, len_time_grid, axis=0)
+                scaling_all.append(scaling_simulator_i)
+            scale_measurements = np.concatenate(scaling_all, axis=0)
+        else:
+            scale_measurements = np.repeat(scaling_measurements, len(self.list_simulators), axis=0)
+
+
+        scaled_jacobian = scaled_jacobian * scale_measurements
+        # print(scale_measurements)
+        # breakpoint()
+        return scaled_jacobian
+
 
     def setup_regularization(self, contribution: None | float = None, reference_parameters: None | np.ndarray = None):
         if contribution is None:
@@ -487,9 +514,6 @@ class PE_base(Optimizer):
         experiment_weigts: bool = False,
     ) -> dict[str, float | np.ndarray]:
         self._setup_scaling(False)
-        if experiment_weigts:
-            if isinstance(self, ParameterEstimation):
-                self._setup_
         if objective_function == "ols":
             obj_f = self._objective_ols()
         elif objective_function == "wls":
@@ -617,15 +641,29 @@ class PE_base(Optimizer):
                 "jac_meas", [decision_variables], [jac_meas_mx]
         )
         jac_all_dm = jac_meas_function(all_parameter_values)
-        scale_parameters = np.tile(np.array(self.varlist_decision._get_scaling_constants()[0]), (jac_all_dm.shape[0],1))
-        jac_all_dm = jac_all_dm / scale_parameters
 
-        # scale_measurements = []
+        jac_all_dm = self._unscale_jacobian(jac_all_dm)
+        # print(self.arra
+        # scale_parameters = np.tile(np.array(self.varlist_decision._get_scaling_constants()[0]), (jac_all_dm.shape[0],1))
+        # jac_all_dm = jac_all_dm / scale_parameters
+
+        # scaling_constants_measurements = []
         # for meas_name in self.names_of_measurements:
-        #     scale_measurements.append(self.list_input_varlist[0][meas_name]._get_scaling_constants()[0])
-        # scale_measurements = np.tile(scale_measurements,jac_all_dm.shape) 
-        # jac_all_dm = jac_all_dm * scale_measurements
-        # breakpoint()
+        #     scaling_constants_measurements.append(self.list_input_varlist[0][meas_name]._get_scaling_constants()[0])
+        # scaling_measurements = np.repeat(np.asarray([scaling_constants_measurements]), len(self.varlist_decision), axis=0).T
+
+        # sca = []
+
+        # if isinstance(self.list_simulators[0], Simulator):
+        #     for sim in self.list_simulators:
+        #         len_time_grid = sim.time_grid_relative.shape[0] - 1
+        #         v = np.repeat(scaling_measurements, len_time_grid, axis=0)
+        #         sca.append(v)
+        #     sca = np.concatenate(sca, axis=0)
+        # else:
+        #     sca = np.repeat(scaling_measurements, len(self.list_simulators), axis=0)
+
+        # jac_all_dm = jac_all_dm / sca
         
         jacobian_index = [0, self.simulate_all_mx.shape[0]]
 
@@ -1282,6 +1320,7 @@ class ParameterEstimation(PE_base):
 
         list_simulator_mappings = []
         list_inverted_variances = []
+        list_inverted_scaled_variances = []
 
         for simulator_index, varlist_input in enumerate(self.list_input_varlist):
             # Create a time_grid, that "stops" at every experimental data, for every state variable
@@ -1356,14 +1395,21 @@ class ParameterEstimation(PE_base):
             if self._use_algebraic_variables:
                 variable_name_list.extend(list(self.model.varlist_algebraic.keys()))
             inverted_variances_varlist = []
+            inverted_scaled_variances_varlist = []
             for var_name in variable_name_list:
                 var = varlist_input[var_name]
                 scaled_variance = var.variance / var._get_scaling_constants()[0]**2
                 inverted_variances_varlist.append(
+                    1.0 / (np.full(len(time_grid_unique) - 1, var.variance))
+                )
+                inverted_scaled_variances_varlist.append(
                     1.0 / (np.full(len(time_grid_unique) - 1, scaled_variance))
                 )
             inverted_variances_array = np.column_stack(inverted_variances_varlist)
+            inverted_scaled_variances_array = np.column_stack(inverted_scaled_variances_varlist)
+
             list_inverted_variances.append(inverted_variances_array)
+            list_inverted_scaled_variances.append(inverted_scaled_variances_array)
 
             size_simulation_output.append(inverted_variances_array.shape)
 
@@ -1410,10 +1456,15 @@ class ParameterEstimation(PE_base):
             self.index_measurements_in_sim.append(index)
 
         # Inverted variances provided weightning matrix for PE problem
-        self.array_inverted_variance: np.ndarray = np.concatenate(
+        array_inverted_variance: np.ndarray = np.concatenate(
             list_inverted_variances
         )[:, ~index_columns_with_all_nans]
-        self.array_inverted_std = np.sqrt(self.array_inverted_variance)
+        self.array_inverted_std = np.sqrt(array_inverted_variance)
+
+        array_inverted_scaled_variance: np.ndarray = np.concatenate(
+            list_inverted_scaled_variances
+        )[:, ~index_columns_with_all_nans]
+        self.array_inverted_scaled_std = np.sqrt(array_inverted_scaled_variance)
 
         self.experiments_weights: np.ndarray = np.concatenate(experiments_weights)
 
@@ -1627,11 +1678,13 @@ class ParameterEstimationNLE(PE_base):
         list_simulator_mappings = []
         list_data = []
         list_inverted_variances = []
+        list_inverted_scaled_variances = []
 
         for varlist_input in self.list_input_varlist:
             varlist_data = []
             varlist_data_mask = []
             varlist_variance = []
+            varlist_scaled_variance = []
             for var in varlist_input.values():
                 if isinstance(var, VariableControl):
                     if not var.fixed:
@@ -1664,10 +1717,12 @@ class ParameterEstimationNLE(PE_base):
                     varlist_data_mask.append(1.0)
 
                 scaled_variance = var.variance / var._get_scaling_constants()[0]**2
-                varlist_variance.append(1.0 / scaled_variance)
+                varlist_variance.append(1.0 / var.variance)
+                varlist_scaled_variance.append(1.0 / scaled_variance)
             list_data.append(varlist_data)
             list_data_mask.append(varlist_data_mask)
             list_inverted_variances.append(varlist_variance)
+            list_inverted_scaled_variances.append(varlist_scaled_variance)
 
         self.list_simulators: list[SimulatorNLE] = list_simulators
 
@@ -1681,10 +1736,14 @@ class ParameterEstimationNLE(PE_base):
         self.names_of_measurements: list[str] = all_measurements_names[
             ~index_columns_with_all_nans
         ].tolist()
-        self.array_inverted_variance = np.array(list_inverted_variances)[
+        array_inverted_variance = np.array(list_inverted_variances)[
             :, ~index_columns_with_all_nans
         ]
-        self.array_inverted_std = np.sqrt(self.array_inverted_variance)
+        self.array_inverted_std = np.sqrt(array_inverted_variance)
+        array_inverted_scaled_variance = np.array(list_inverted_scaled_variances)[
+            :, ~index_columns_with_all_nans
+        ]
+        self.array_inverted_scaled_std = np.sqrt(array_inverted_scaled_variance)
 
         self.index_measurements_in_sim = []
         for name in self.names_of_measurements:

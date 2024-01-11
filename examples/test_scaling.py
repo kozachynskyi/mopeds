@@ -9,20 +9,29 @@ def dyn():
     res = []
     for i in [True, False]:
         with mopeds.options(variable_scaling=i):
-            vl, m = mopeds.examples.pendulum_dae_1()
-            vl["y"].lower_bound = -2
-            vl["y"].upper_bound = 4
-            time_grid = np.linspace(0, 1, 10)
+            vl, m = mopeds.examples.cstr(True, True, True)
+            for v in vl.values():
+                v.lower_bound = -2
+                v.upper_bound = 1
+
+            endtime = 1e3
+            # if i:
+            #     endtime = 1 / 20
+
+            time_grid = np.linspace(0, endtime, 10)
             print("\n\n\n\n\n")
             opts = {
                 "expand": 1,
-                # "abstol": 1e-14,
+                "abstol": 1e-15,
+                "reltol": 1e-12,
             }
             sim = mopeds.Simulator(m, time_grid, vl, integrator_settings=opts)
             res.append(sim.generate_exp_data(True))
 
+    print(res[1].dataframe)
     print(res[0].dataframe / res[1].dataframe)
     for key in res[0].keys():
+        # print(res[0][key] / res[1][key])
         print(key)
 
 

@@ -405,4 +405,4 @@ if __name__ == "__main__":
     # test_pe()
     # test_multivariate_pe()
     # test_inference_bounds()
-    # test_parameter_jacobian()
+    test_parameter_jacobian()

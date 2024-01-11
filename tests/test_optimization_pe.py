@@ -66,7 +66,6 @@ def test_pe_objective(piecewise):
 
     assert_numpy = np.testing.assert_array_equal
     assert_numpy(data, pe.array_data)
-    assert_numpy(var, pe.array_inverted_variance)
     assert_numpy(weight, pe.experiments_weights)
     assert_numpy(mask, pe.array_data_mask)
 
@@ -78,21 +77,18 @@ def test_pe_objective(piecewise):
         assert res["f"] == obj
         assert np.isclose(res_weight["f"], obj_weight)
 
-
 @pytest.mark.parametrize("piecewise", [True, False])
-def test_pe(piecewise):
+@pytest.mark.parametrize("dae", [True, False])
+@pytest.mark.parametrize("use_constant", [True, False])
+@pytest.mark.parametrize("scaling", [True, False])
+def test_pe(piecewise, dae, use_constant, scaling):
     """Test that ParameterEstimation on ODE and DAE always yields same result.
     Helpfull to see if any drastic changes in calculation were made
     """
 
     """ ODE and DAE """
-    for cstr_model in [
-        mopeds.examples.cstr_ode,
-        mopeds.examples.cstr_ode_constant,
-        mopeds.examples.cstr_dae,
-        mopeds.examples.cstr_dae_constant,
-    ]:
-        var_list, model = cstr_model(piecewise)
+    with mopeds.options(variable_scaling=scaling):
+        var_list, model = mopeds.examples.cstr(piecewise, dae, use_constant)
         time_grid = np.linspace(10, 10000, 3)
         time_grid = np.insert(time_grid, 0, 0)
 
@@ -149,78 +145,78 @@ def test_pe(piecewise):
 
 
 @pytest.mark.parametrize("piecewise", [True, False])
-def test_pe_regularization(piecewise):
+@pytest.mark.parametrize("dae", [True, False])
+@pytest.mark.parametrize("scaling", [True, False])
+def test_pe_regularization(piecewise, dae, scaling):
     """Test that ParameterEstimation on ODE and DAE always yields same result.
     Helpfull to see if any drastic changes in calculation were made
     """
+    with mopeds.options(variable_scaling=True):
+        var_list, model = mopeds.examples.cstr(piecewise, dae, True)
+        true_parameters = {}
+        for n, v in var_list.items():
+            if isinstance(v, mopeds.VariableParameter):
+                true_parameters[n] = v.value[0]
+                v.fixed = False
+            elif isinstance(v, mopeds.VariableState):
+                v.variance = 0.001**2
 
-    """ ODE and DAE """
-    cstr_model = mopeds.examples.cstr_dae
-    var_list, model = cstr_model(piecewise)
-    true_parameters = {}
-    for n, v in var_list.items():
-        if isinstance(v, mopeds.VariableParameter):
-            true_parameters[n] = v.value[0]
-            v.fixed = False
-        elif isinstance(v, mopeds.VariableState):
-            v.variance = 0.001**2
+        time_grid = np.linspace(10, 100, 3)
+        time_grid = np.insert(time_grid, 0, 0)
 
-    time_grid = np.linspace(10, 100, 3)
-    time_grid = np.insert(time_grid, 0, 0)
+        var_list_fixed = copy.deepcopy(var_list)
+        for var in var_list_fixed.values():
+            var.fixed = True
+        var_list_exp = mopeds.Simulator(
+            model, time_grid, var_list_fixed
+        ).generate_exp_data()
 
-    var_list_fixed = copy.deepcopy(var_list)
-    for var in var_list_fixed.values():
-        var.fixed = True
-    var_list_exp = mopeds.Simulator(
-        model, time_grid, var_list_fixed
-    ).generate_exp_data()
+        for key, var in var_list_exp.items():
+            if isinstance(var, mopeds.VariableControlPiecewiseConstant):
+                var_list[key].variable_list = var.variable_list
+            else:
+                var_list[key].dataframe = var.dataframe
 
-    for key, var in var_list_exp.items():
-        if isinstance(var, mopeds.VariableControlPiecewiseConstant):
-            var_list[key].variable_list = var.variable_list
-        else:
-            var_list[key].dataframe = var.dataframe
+        pe = mopeds.ParameterEstimation(
+            model, [var_list]
+        )
+        a = pe.parameter_identifiability_chu2012(true_parameters, true_parameters.keys())
+        b = pe.parameter_identifiability_yao2003(true_parameters, true_parameters.keys())
+        c = pe.parameter_identifiability_lopez2013(true_parameters, true_parameters.keys())
+        d = pe.parameter_identifiability_quaiser2009(true_parameters, true_parameters.keys())
 
-    pe = mopeds.ParameterEstimation(
-        model, [var_list]
-    )
-    a = pe.parameter_identifiability_chu2012(true_parameters, true_parameters.keys())
-    b = pe.parameter_identifiability_yao2003(true_parameters, true_parameters.keys())
-    c = pe.parameter_identifiability_lopez2013(true_parameters, true_parameters.keys())
-    d = pe.parameter_identifiability_quaiser2009(true_parameters, true_parameters.keys())
+        with pytest.raises(NotImplementedError):
+            e = pe.parameter_identifiability_brun2001(true_parameters, true_parameters.keys())
 
-    with pytest.raises(NotImplementedError):
-        e = pe.parameter_identifiability_brun2001(true_parameters, true_parameters.keys())
+        with mopeds.options(variable_scaling=False):
+            pe = mopeds.ParameterEstimation(model, [var_list])
+            e = pe.parameter_identifiability_brun2001(true_parameters, true_parameters.keys())
 
-    with mopeds.options(variable_scaling=False):
-        pe = mopeds.ParameterEstimation(model, [var_list])
-        e = pe.parameter_identifiability_brun2001(true_parameters, true_parameters.keys())
+        identifiable_a = ['e0_E_r2', 'e0_c_p']
+        identifiable_b = ['e0_E_r1', 'e0_E_r3', 'e0_c_p']
+        identifiable_d = ['e0_c_p', 'e0_E_r2', 'e0_E_r3']
+        ranked_c = ['e0_c_p', 'e0_E_r2', 'e0_E_r3', 'e0_k_pre_r2', 'e0_k_pre_r3', 'e0_E_r1', 'e0_greek_Deltah_r2', 'e0_k_pre_r1', 'e0_U', 'e0_greek_Deltah_r3', 'e0_greek_Deltah_r1']
+        ranked_d = ['e0_c_p', 'e0_E_r2', 'e0_E_r3', 'e0_k_pre_r2', 'e0_k_pre_r3', 'e0_E_r1', 'e0_U', 'e0_greek_Deltah_r2', 'e0_k_pre_r1', 'e0_greek_Deltah_r3', 'e0_greek_Deltah_r1']
+        ranked_e = ['e0_greek_Deltah_r1', 'e0_greek_Deltah_r3', 'e0_greek_Deltah_r2', 'e0_k_pre_r1', 'e0_E_r1', 'e0_k_pre_r3', 'e0_k_pre_r2', 'e0_E_r3', 'e0_E_r2', 'e0_U', 'e0_c_p']
+        identifiable_e = ['e0_E_r1', 'e0_E_r3', 'e0_k_pre_r2', 'e0_U', 'e0_greek_Deltah_r1']
 
-    identifiable_a = ['e0_E_r2', 'e0_c_p']
-    identifiable_b = ['e0_E_r1', 'e0_E_r3', 'e0_c_p']
-    identifiable_d = ['e0_c_p', 'e0_E_r2', 'e0_E_r3']
-    ranked_c = ['e0_c_p', 'e0_E_r2', 'e0_E_r3', 'e0_k_pre_r2', 'e0_k_pre_r3', 'e0_E_r1', 'e0_greek_Deltah_r2', 'e0_k_pre_r1', 'e0_U', 'e0_greek_Deltah_r3', 'e0_greek_Deltah_r1']
-    ranked_d = ['e0_c_p', 'e0_E_r2', 'e0_E_r3', 'e0_k_pre_r2', 'e0_k_pre_r3', 'e0_E_r1', 'e0_U', 'e0_greek_Deltah_r2', 'e0_k_pre_r1', 'e0_greek_Deltah_r3', 'e0_greek_Deltah_r1']
-    ranked_e = ['e0_greek_Deltah_r1', 'e0_greek_Deltah_r3', 'e0_greek_Deltah_r2', 'e0_k_pre_r1', 'e0_E_r1', 'e0_k_pre_r3', 'e0_k_pre_r2', 'e0_E_r3', 'e0_E_r2', 'e0_U', 'e0_c_p']
-    identifiable_e = ['e0_E_r1', 'e0_E_r3', 'e0_k_pre_r2', 'e0_U', 'e0_greek_Deltah_r1']
+        assert a["estimable"] == identifiable_a
+        assert b["estimable"] == identifiable_b
+        assert c["estimable"] == identifiable_a
+        assert d["estimable"] == identifiable_d
+        assert e["estimable"] == identifiable_e
 
-    assert a["estimable"] == identifiable_a
-    assert b["estimable"] == identifiable_b
-    assert c["estimable"] == identifiable_a
-    assert d["estimable"] == identifiable_d
-    assert e["estimable"] == identifiable_e
-
-    if not c["ranked"] == ranked_c:
-        warnings.warn("Ranking is scaling dependent")
-    if not d["ranked"] == ranked_d:
-        warnings.warn("Ranking is scaling dependent")
-    if not e["ranked"] == ranked_e:
-        warnings.warn("Ranking is scaling dependent")
+        if not c["ranked"] == ranked_c:
+            warnings.warn("Ranking is scaling dependent")
+        if not d["ranked"] == ranked_d:
+            warnings.warn("Ranking is scaling dependent")
+        if not e["ranked"] == ranked_e:
+            warnings.warn("Ranking is scaling dependent")
 
 
 if __name__ == "__main__":
     pass
-    test_pe(True,True)
-    test_pe_objective(False)
-    test_pe_intials_algebraic()
-    test_pe_regularization(True)
+    # test_pe(True,True)
+    # test_pe_objective(False)
+    # test_pe_intials_algebraic()
+    test_pe_regularization(True, True, True)

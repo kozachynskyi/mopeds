@@ -9,8 +9,10 @@ import casadi as ca
 
 
 @pytest.mark.parametrize("piecewise", [True, False])
-def test_pickling_objects(tmp_path, piecewise):
-    variable_list, model = mopeds.examples.cstr_dae(piecewise)
+@pytest.mark.parametrize("dae", [True, False])
+@pytest.mark.parametrize("use_constant", [True, False])
+def test_pickling_objects(tmp_path, piecewise, dae, use_constant):
+    variable_list, model = mopeds.examples.cstr(piecewise, dae, use_constant)
     variable = variable_list["e0_T"]
     time_grid = np.linspace(10, 10000, 4)
     time_grid = np.insert(time_grid, 0, 0)

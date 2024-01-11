@@ -10,14 +10,61 @@ import pytest
 
 
 @pytest.mark.parametrize("piecewise", [True, False])
-def test_parameter_jacobian(piecewise):
-    for cstr_model in [
-        mopeds.examples.cstr_ode,
-        mopeds.examples.cstr_ode_constant,
-        mopeds.examples.cstr_dae,
-        mopeds.examples.cstr_dae_constant,
-    ]:
-        var_list, model = cstr_model(piecewise)
+@pytest.mark.parametrize("dae", [True, False])
+@pytest.mark.parametrize("use_constant", [True, False])
+def test_scaling(piecewise, dae, use_constant):
+    res = [[],[],[],[],[]]
+    for scaling in (False, True):
+        # if piecewise:
+        #     T_in = var_list["e0_T_in"]
+        #     T_in.expand_horizon([2000, 4000], [373, 373])
+
+        with mopeds.options(variable_scaling=scaling):
+            var_list, model = mopeds.examples.cstr(piecewise, dae, use_constant)
+            time_grid = np.linspace(0, 1000, 4)
+            time_grid_expanded = list(time_grid) + [2000, 4000]
+
+            var_list_exp = mopeds.Simulator(model, time_grid, var_list).generate_exp_data()
+
+            for key, var in var_list_exp.items():
+                var_list[key] = var
+
+            var_list["e0_U"].fixed = False
+            var_list["e0_E_r1"].fixed = False
+
+            opts = {
+                "expand": 1,
+                "abstol": 1e-10,
+                "reltol": 1e-8,
+            }
+
+            pe = mopeds.ParameterEstimation(model, [var_list], simulator_settings=opts)
+            jac_pe_full = pe.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_E_r1": 9.6e4})["jac_full"]
+            jac_pe_scaled = pe.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_E_r1": 9.6e4})["jac_scaled_full_theory"]
+
+            oed = mopeds.OptimalExperimentalDesign(model, [var_list], time_grid, simulator_settings=opts)
+            oed_expanded = mopeds.OptimalExperimentalDesign(model, [var_list], time_grid_expanded, simulator_settings=opts)
+            jac_oed = oed.calculate_objective_and_jacobian({"e0_T_in": 373})["jac"]
+            jac_oed_expanded = oed_expanded.calculate_objective_and_jacobian({"e0_T_in": 373})["jac"]
+
+            res[0].append(var_list_exp.dataframe)
+            res[1].append(jac_pe_full)
+            res[2].append(jac_pe_scaled)
+            res[3].append(jac_oed)
+            res[4].append(jac_oed_expanded)
+
+    for index, v in enumerate(res):
+        # print(v[1]/ v[0])
+        assert np.all(np.isclose(v[1], v[0], equal_nan=True))
+
+
+@pytest.mark.parametrize("scaling", [True, False])
+@pytest.mark.parametrize("dae", [True, False])
+@pytest.mark.parametrize("use_constant", [True, False])
+@pytest.mark.parametrize("piecewise", [True, False])
+def test_parameter_jacobian(piecewise, dae, use_constant, scaling):
+    with mopeds.options(variable_scaling=scaling):
+        var_list, model = mopeds.examples.cstr(piecewise, dae, use_constant)
         time_grid = np.linspace(0, 1000, 4)
         time_grid_expanded = list(time_grid) + [2000, 4000]
 
@@ -58,7 +105,7 @@ def test_optimizer(piecewise):  # noqa: C901
     """Tests if optimizer can deal with variable list of fixed and unfixed parameters.
     Not well designed, and may yield false positives, but let it be.
     """
-    variable_list, m = mopeds.examples.cstr_ode(piecewise)
+    variable_list, m = mopeds.examples.cstr(piecewise, True, True)
 
     for var in variable_list.values():
         if isinstance(
@@ -153,5 +200,7 @@ def test_optimizer(piecewise):  # noqa: C901
 
 if __name__ == "__main__":
     pass
-    test_optimizer(True)
-    test_parameter_jacobian(True)
+    # test_optimizer(True)
+    # test_parameter_jacobian(False, True, True, False)
+    test_scaling(False, True, True)
+    test_scaling(False, True, False)

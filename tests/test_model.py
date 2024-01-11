@@ -5,13 +5,16 @@ from mopeds.model import VariableTypeError
 import numpy as np
 
 
-def test_model():
-
-    var_list, model = mopeds.examples.cstr_ode()
+@pytest.mark.parametrize("piecewise", [True, False])
+@pytest.mark.parametrize("dae", [True, False])
+@pytest.mark.parametrize("use_constant", [True, False])
+@pytest.mark.parametrize("scaling", [True, False])
+def test_model(piecewise, dae, use_constant, scaling):
+    var_list, model = mopeds.examples.cstr(use_constant=True)
 
     assert len(model.varlist_state) == 5
     assert len(model.varlist_independent) == 18
-    assert len(model.varlist_all) == 23
+    assert len(model.varlist_all) == 34
 
     assert model.equations_differential.size() == (5, 1)
 
@@ -36,13 +39,8 @@ def test_model():
     with pytest.raises(VariableTypeError):
         model = mopeds.Model(var_list)
 
-    for model in [
-        mopeds.examples.cstr_ode,
-        mopeds.examples.cstr_dae,
-        mopeds.examples.cstr_dae_constant,
-        mopeds.examples.cstr_ode_constant,
-    ]:
-        var_list, model = model()
+    with mopeds.options(variable_scaling=scaling):
+        var_list, model = mopeds.examples.cstr(piecewise, dae, use_constant)
         ode_system = {
             "x": model.varlist_state.get_casadi_variables(),
             "p": ca.vertcat(model.varlist_independent.get_casadi_variables()),
@@ -91,5 +89,5 @@ def test_varlist_model_reusability():
 
 
 if __name__ == "__main__":
-    # test_model()
+    test_model(True, True, True, True)
     test_varlist_model_reusability()

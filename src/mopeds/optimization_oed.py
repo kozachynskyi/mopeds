@@ -198,10 +198,10 @@ class OED_base(Optimizer):
             ["f", "jac"],
         )
 
-        selected_parameters = self.variables_dict_to_list(controls)
-        res = casadi_function(x=selected_parameters)
+        selected_controls = self.variables_dict_to_list(controls)
+        res = casadi_function(x=selected_controls)
 
-        jac_unscaled = res["jac"].toarray() / self.varlist_parameter._get_scaling_constants()[0]
+        jac_unscaled = self._unscale_jacobian(res["jac"].toarray())
 
         result_np = {
             "f": float(res["f"]),
@@ -296,7 +296,8 @@ class OED_base(Optimizer):
             if meas_name in controls.keys():
                 sim_data = np.insert(sim_data, 0, controls[meas_name])
             else:
-                value_time0 = self.list_simulators[0]._initial_state[index]
+                var = self.list_input_varlist[0][meas_name]
+                value_time0 = var.scale_to_original(self.list_simulators[0]._initial_state[index])
 
                 # Set value to arbitraty 1, it will be overwritten afterwards in varlist_decision part
                 if isinstance(value_time0, ca.MX):
@@ -379,6 +380,7 @@ class OED_base(Optimizer):
         parameter_values = []
         parameter_values_unscaled = []
         inverted_variances = []
+        inverted_scaled_variances = []
         self.names_of_measurements = []
 
         for variable_name in self.model.varlist_all.keys():
@@ -407,7 +409,10 @@ class OED_base(Optimizer):
 
             elif isinstance(var, VariableState):
                 if var.name in self.list_measureable_variables:
+                    scaled_variance = var.variance / var._get_scaling_constants()[0]**2
+
                     inverted_variances.append(1 / var.variance)
+                    inverted_scaled_variances.append(1 / scaled_variance)
                     self.names_of_measurements.append(var.name)
                 if var.fixed is False:
                     if np.isnan(var.guess):
@@ -422,8 +427,8 @@ class OED_base(Optimizer):
 
         if len(self.varlist_parameter) == 0:
             raise ValueError("All parameters are fixed, OED is not possible")
-        self.array_inverted_variances: np.ndarray = np.array(inverted_variances)
         self.array_inverted_std = np.sqrt(inverted_variances)
+        self.array_inverted_scaled_std = np.sqrt(inverted_scaled_variances)
 
         self.parameter_values = np.array(parameter_values)
         self.parameter_values_unscaled = np.array(parameter_values_unscaled)
@@ -475,7 +480,7 @@ class OED_base(Optimizer):
         jac_meas_mx = jac_meas_function(self.parameter_values, decision_variables)
 
         num_time_stamps = self.simulate_all_mx.shape[0]
-        meas_std = ca.repmat(self.array_inverted_std,1,num_time_stamps).T[:]
+        meas_std = ca.repmat(self.array_inverted_scaled_std,1,num_time_stamps).T[:]
         meas_std = ca.repmat(meas_std,1,num_par)
 
         jac_meas_scaled_mx = jac_meas_mx * meas_std
@@ -584,6 +589,29 @@ class OptimalExperimentalDesign(OED_base):
                 sim.calculate_algebraic_initials(apply_intials=True)
 
         self._setup_equality_constraints()
+
+    def _unscale_jacobian(self, jacobian):
+        scale_parameters = np.tile(np.array(self.varlist_parameter._get_scaling_constants()[0]), (jacobian.shape[0],1))
+        scaled_jacobian = jacobian / scale_parameters
+
+        scaling_constants_measurements = []
+        # for meas_name in self.names_of_measurements:
+            # scaling_constants_measurements.append(self.list_input_varlist[0][meas_name]._get_scaling_constants()[0])
+        # scaling_measurements = np.repeat(np.asarray([scaling_constants_measurements]), len(self.varlist_parameter), axis=0).T
+
+        scaling_all = []
+
+        # if isinstance(self.list_simulators[0], Simulator):
+        #     for sim in self.list_simulators:
+        #         len_time_grid = len(self.time_grid_measurements) - 1
+        #         scaling_simulator_i = np.repeat(scaling_measurements, len_time_grid, axis=0)
+        #         scaling_all.append(scaling_simulator_i)
+        #     scale_measurements = np.concatenate(scaling_all, axis=0)
+        # else:
+        #     scale_measurements = np.repeat(scaling_measurements, len(self.list_simulators), axis=0)
+
+        # # scaled_jacobian = scaled_jacobian / scale_measurements
+        return scaled_jacobian
 
     def _initialize_from_settings(self):
         settings = self._oed_settings
@@ -712,10 +740,16 @@ class OptimalExperimentalDesign(OED_base):
 
 
 class OED_NLE_base(OED_base):
+    def _unscale_jacobian(self, jacobian):
+        scale_parameters = np.tile(np.array(self.varlist_parameter._get_scaling_constants()[0]), (jacobian.shape[0],1))
+        scaled_jacobian = jacobian / scale_parameters
+        return scaled_jacobian
+
     def _setup_varlist_decision(self):
         parameter_values = []
         parameter_values_unscaled = []
         inverted_variances = []
+        inverted_scaled_variances = []
         self.names_of_measurements = []
 
         for variable_name in self.model.varlist_all.keys():
@@ -735,7 +769,9 @@ class OED_NLE_base(OED_base):
 
             elif isinstance(var, VariableAlgebraic):
                 if var.name in self.list_measureable_variables:
+                    scaled_variance = var.variance / var._get_scaling_constants()[0]**2
                     inverted_variances.append(1 / var.variance)
+                    inverted_scaled_variances.append(1 / scaled_variance)
                     self.names_of_measurements.append(var.name)
                 if var.fixed is False:
                     if np.isnan(var.guess):
@@ -744,8 +780,8 @@ class OED_NLE_base(OED_base):
 
         if len(self.varlist_parameter) == 0:
             raise ValueError("All parameters are fixed, OED is not possible")
-        self.array_inverted_variances: np.ndarray = np.array(inverted_variances)
         self.array_inverted_std = np.sqrt(inverted_variances)
+        self.array_inverted_scaled_std = np.sqrt(inverted_scaled_variances)
 
         self.parameter_values = np.array(parameter_values)
         self.parameter_values_unscaled = np.array(parameter_values_unscaled)
@@ -800,7 +836,7 @@ class OED_NLE_base(OED_base):
                 jac_meas_mx = jac_meas_function(self.parameter_values, decision_variables)
 
                 jac_meas_scaled_mx = (
-                    jac_meas_mx * self.array_inverted_std[index_measurement]
+                    jac_meas_mx * self.array_inverted_scaled_std[index_measurement]
                 )
 
                 jacobian[meas_name].append(jac_meas_mx)
