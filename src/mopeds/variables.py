@@ -334,11 +334,11 @@ class Variable(object):
 
     def scale_to_original(self, value: ca.MX | float | np.array):
         v, r = self._get_scaling_constants()
-        return ((value - 0) * v + r)
+        return (value * v + r)
 
     def scale_from_original(self, value: ca.MX | float | np.array):
         v, r = self._get_scaling_constants()
-        return ((value - r) / v) + 0
+        return ((value - r) / v)
 
 
 class VariableState(Variable):
