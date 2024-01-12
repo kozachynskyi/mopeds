@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import contextlib
 from typing import Any, Union
 import copy
+from functools import wraps
 
 if sys.version_info[1] == 8:
     from typing import OrderedDict
@@ -40,6 +41,17 @@ def set_options(*, variable_scaling: bool):
     if not isinstance(variable_scaling, bool):
         raise TypeError
     _options.update({"variable_scaling": variable_scaling})
+
+def _consistent_scaling_decorator(func):
+    """Assures that object method uses scaling that was used while creating the instance"""
+    @wraps(func)
+    def _decorator(self, *args, **kwargs):
+        if get_options()["variable_scaling"] != self._created_with_options["variable_scaling"]:
+            print("User provided scaling is ignored, because object was created with another scaling")
+        with options(variable_scaling=self._created_with_options["variable_scaling"]):
+            return func(self, *args, **kwargs)
+    return _decorator
+
 
 
 ORIGIN_TS: pd.Timestamp = pd.Timestamp(year=1970, month=1, day=1)

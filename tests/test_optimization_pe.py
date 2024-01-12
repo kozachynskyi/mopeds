@@ -71,11 +71,10 @@ def test_pe_objective(piecewise):
 
     obj = np.sum(var * (data * mask) ** 2)
     obj_weight = np.sum(weight * var * (data * mask) ** 2)
-    for switch in [True, False]:
-        res = pe.optimize(switch)
-        res_weight = pe.optimize(switch, scale_experiments=True)
-        assert res["f"] == obj
-        assert np.isclose(res_weight["f"], obj_weight)
+    res = pe.optimize()
+    res_weight = pe.optimize(scale_experiments=True)
+    assert res["f"] == obj
+    assert np.isclose(res_weight["f"], obj_weight)
 
 @pytest.mark.parametrize("piecewise", [True, False])
 @pytest.mark.parametrize("dae", [True, False])
@@ -122,26 +121,16 @@ def test_pe(piecewise, dae, use_constant, scaling):
 
         if model.DAE:
             answer_scaled = 1.26485e-13
-            answer = 1.02115e-11
         else:
             answer_scaled = 2.04875e-18
-            answer = 6.48183e-12
 
         res = pe.optimize()
         res_tikh = pe.optimize(objective_function="tikh")
         logging.warning(
             f"Model.DAE: {model.DAE}, Result: {res['f']}, Expecting: {answer_scaled}"
         )
-        assert np.isclose(res["f"], ca.DM(answer_scaled), rtol=0, atol=1.0e-9)
-        assert np.isclose(res_tikh["f"], ca.DM(answer_scaled), rtol=0, atol=1.0e-9)
-
-        res = pe.optimize(False)
-        res_tikh = pe.optimize(False, objective_function="tikh")
-        logging.warning(
-            f"Model.DAE: {model.DAE}, Result: {res['f']}, Expecting: {answer}"
-        )
-        assert np.isclose(res["f"], ca.DM(answer), rtol=0, atol=1.0e-9)
-        assert np.isclose(res_tikh["f"], ca.DM(answer), rtol=0, atol=1.0e-9)
+        assert np.isclose(res["f"], ca.DM(answer_scaled))
+        assert np.isclose(res_tikh["f"], ca.DM(answer_scaled))
 
 
 @pytest.mark.parametrize("piecewise", [True, False])

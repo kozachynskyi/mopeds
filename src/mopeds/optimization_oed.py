@@ -6,7 +6,6 @@ from abc import abstractmethod
 from collections.abc import Callable
 from itertools import combinations
 from typing import Sequence
-from warnings import warn
 from dataclasses import dataclass
 
 import casadi as ca
@@ -28,8 +27,8 @@ from mopeds import (
     _ACADOS_SUPPORT,
     Optimizer,
     ORIGIN_TS,
+    _consistent_scaling_decorator,
 )
-import mopeds
 
 if _ACADOS_SUPPORT:
     from mopeds import casados_integrator
@@ -177,15 +176,12 @@ class OED_base(Optimizer):
         parameter_scaling = ca.repmat(self.parameter_values_unscaled, 1, self.jacobian_scaled_mx.shape[0]).T
         return parameter_scaling
 
-    def change_parameter_values(self):
-        """Change parameter values in simulator"""
-
+    @_consistent_scaling_decorator
     def calculate_objective_and_jacobian(
         self,
         controls: dict[str, float],
         objective_function: str | OED_objective = "A",
     ) -> dict[str, float | np.ndarray]:
-        self._setup_scaling(False)
 
         obj_f = self.select_objective_function(objective_function)()
 
@@ -210,13 +206,12 @@ class OED_base(Optimizer):
 
         return result_np
 
+    @_consistent_scaling_decorator
     def simulate(
         self,
         controls: dict[str, float],
         parameters: dict[str, float] | None = None,
     ) -> dict[str, float | np.ndarray]:
-        self._setup_scaling(False)
-
         decision_variables = self.varlist_decision.get_casadi_variables()
 
         if parameters is None:
@@ -271,6 +266,7 @@ class OED_base(Optimizer):
 
         return res_dict
 
+    @_consistent_scaling_decorator
     def generate_experimental_data(
         self,
         controls: dict[str, float],
@@ -376,6 +372,7 @@ class OED_base(Optimizer):
         var.fixed = False
 
 
+    @_consistent_scaling_decorator
     def _setup_varlist_decision(self):
         parameter_values = []
         parameter_values_unscaled = []
@@ -433,6 +430,7 @@ class OED_base(Optimizer):
         self.parameter_values = np.array(parameter_values)
         self.parameter_values_unscaled = np.array(parameter_values_unscaled)
 
+    @_consistent_scaling_decorator
     def generate_jacobian_function(self) -> None:
         """Combines simulate_sym() functions from simulator, and creates MX structure, that is used
         further in objective_function calculation"""
@@ -492,6 +490,7 @@ class OED_base(Optimizer):
         self.jacobian_mx = jac_meas_mx
         self.jacobian_scaled_mx = jac_meas_scaled_mx
 
+    @_consistent_scaling_decorator
     def _optimize(self, scale: float) -> dict[str, ca.DM | ca.MX]:
         """Runs optimizer, uses scaling if needed. Returned values is scaled back.
         Scaling should be done before setting a solver and solver settings."""
@@ -590,29 +589,14 @@ class OptimalExperimentalDesign(OED_base):
 
         self._setup_equality_constraints()
 
+    @_consistent_scaling_decorator
     def _unscale_jacobian(self, jacobian):
         scale_parameters = np.tile(np.array(self.varlist_parameter._get_scaling_constants()[0]), (jacobian.shape[0],1))
         scaled_jacobian = jacobian / scale_parameters
 
-        scaling_constants_measurements = []
-        # for meas_name in self.names_of_measurements:
-            # scaling_constants_measurements.append(self.list_input_varlist[0][meas_name]._get_scaling_constants()[0])
-        # scaling_measurements = np.repeat(np.asarray([scaling_constants_measurements]), len(self.varlist_parameter), axis=0).T
-
-        scaling_all = []
-
-        # if isinstance(self.list_simulators[0], Simulator):
-        #     for sim in self.list_simulators:
-        #         len_time_grid = len(self.time_grid_measurements) - 1
-        #         scaling_simulator_i = np.repeat(scaling_measurements, len_time_grid, axis=0)
-        #         scaling_all.append(scaling_simulator_i)
-        #     scale_measurements = np.concatenate(scaling_all, axis=0)
-        # else:
-        #     scale_measurements = np.repeat(scaling_measurements, len(self.list_simulators), axis=0)
-
-        # # scaled_jacobian = scaled_jacobian / scale_measurements
         return scaled_jacobian
 
+    @_consistent_scaling_decorator
     def _initialize_from_settings(self):
         settings = self._oed_settings
 
@@ -683,7 +667,8 @@ class OptimalExperimentalDesign(OED_base):
                 if time in self.time_grid_measurements:
                     self.index_time_grid.append(time_index)
 
-    def _setup_simulator(self, *, use_idas_constraints: bool = False) -> None:
+    @_consistent_scaling_decorator
+    def _setup_simulator(self, *, use_idas_constraints: bool = None) -> None:
         """Initializes simulator class. Parameter variables are fixed, and an index of an unfixed
         parameter is saved in self.select_independent list.
         This list is used during the calculation of the objective, to ignore jacobian of fixed parameters.
@@ -740,11 +725,13 @@ class OptimalExperimentalDesign(OED_base):
 
 
 class OED_NLE_base(OED_base):
+    @_consistent_scaling_decorator
     def _unscale_jacobian(self, jacobian):
         scale_parameters = np.tile(np.array(self.varlist_parameter._get_scaling_constants()[0]), (jacobian.shape[0],1))
         scaled_jacobian = jacobian / scale_parameters
         return scaled_jacobian
 
+    @_consistent_scaling_decorator
     def _setup_varlist_decision(self):
         parameter_values = []
         parameter_values_unscaled = []
@@ -786,6 +773,7 @@ class OED_NLE_base(OED_base):
         self.parameter_values = np.array(parameter_values)
         self.parameter_values_unscaled = np.array(parameter_values_unscaled)
 
+    @_consistent_scaling_decorator
     def generate_jacobian_function(self) -> None:
         parameter_variables = self.varlist_parameter.get_casadi_variables()
 
@@ -898,6 +886,7 @@ class OptimalExperimentalDesign_NLE(OED_NLE_base):
             },
         }
 
+    @_consistent_scaling_decorator
     def _setup_simulator(
         self, use_simulator_bounds: bool, SimulatorClass: SimulatorNLE
     ) -> None:

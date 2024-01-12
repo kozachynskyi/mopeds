@@ -76,5 +76,5 @@ def test_varlist_simulation_reusability(tmp_path, piecewise):
 
 
 if __name__ == "__main__":
-    test_pickling_objects(pathlib.Path.cwd())
+    test_pickling_objects(pathlib.Path.cwd(), True, True, True)
     # test_varlist_reusability(pathlib.Path.cwd(), True)

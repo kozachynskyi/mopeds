@@ -11,7 +11,6 @@ class PE_GN(mopeds.ParameterEstimation):
     def _optimize(self, scale):
         """Runs optimizer, uses scaling if needed. Returned values is scaled back.
         Scaling should be done before setting a solver and solver settings."""
-        self._setup_scaling(scale)
 
         x = self.varlist_decision.get_casadi_variables()
         F = self._objective()[1]

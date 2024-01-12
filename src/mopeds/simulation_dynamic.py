@@ -4,6 +4,7 @@ import copy
 import logging
 from typing import Callable, cast
 from numpy.typing import ArrayLike
+from warnings import warn
 
 import casadi as ca
 import numpy as np
@@ -19,6 +20,8 @@ from mopeds import (
     VariableParameter,
     VariableState,
     _ACADOS_SUPPORT,
+    _consistent_scaling_decorator,
+    get_options,
 )
 
 if _ACADOS_SUPPORT:
@@ -43,7 +46,7 @@ class Simulator(object):
         integrator_name: str = "idas",
         integrator_settings: dict | None = None,
         *,
-        use_idas_constraints: bool = False,
+        use_idas_constraints: bool = None,
         simulate_jac: bool = False,
         recalculate_algebraic: bool = False,
     ) -> None:
@@ -52,6 +55,9 @@ class Simulator(object):
         self.logger.debug(
             "Creating Simulator object: \n timegrid \n {0} \n".format(input_time_grid)
         )
+        if use_idas_constraints is not None:
+            warn("IDAS constraints are deprecated", FutureWarning, 2)
+        self._created_with_options = get_options()
 
         self.__input_variable_list: VariableList = copy.deepcopy(variable_list)
         self.model: Model = model
@@ -114,8 +120,6 @@ class Simulator(object):
             self.__integrator_settings = integrator_settings
         else:
             self.__integrator_settings = self.get_default_simulator_settings()
-
-        self._setup_constraints_idas(use_idas_constraints)
 
         if self.__integrator_name == "acados":
             model_acados = AcadosModel()
@@ -192,8 +196,6 @@ class Simulator(object):
                 factory_names,
             )
 
-        self._reset_scaling()
-
         # This code is moved here, so this if statement shouldn't be called every simulation
         if self.model.DAE is True:
             if self.__integrator_name == "acados":
@@ -213,6 +215,7 @@ class Simulator(object):
         self.simulate_sym: Callable[[], dict[str, ca.DM | ca.MX]] = simulate
         self.simulate_jac: Callable[[], dict[str, ca.DM | ca.MX]] = simulate_jac_func
 
+    @_consistent_scaling_decorator
     def simulate_sym_unfixed(self, unfixed_variables: dict[str, float]  = None) -> ca.DM:
         """This is slower version of simulate_sym but it allows user to supply values
         for unfixed variables"""
@@ -239,35 +242,7 @@ class Simulator(object):
 
         return res_dict
 
-    def _reset_scaling(self) -> None:
-        self.scaling: ca.DM = ca.DM.ones(self._independent_variables[0].size())
-
-    def _setup_constraints_idas(self, use_idas_constraints: bool) -> None:
-        """Holds a list of constraints for state and algebraic variables
-        which can be used to constrain the solution of the idas
-        to positive or negative numbers"""
-        self._constraints_idas: list[float] = []
-        variable_names = list(self.model.varlist_state.keys())
-        if self.model.DAE:
-            variable_names.extend(list(self.model.varlist_algebraic.keys()))
-        for var_name in variable_names:
-            self._constraints_idas.append(
-                self.__input_variable_list[var_name].get_constraint_idas
-            )
-
-        if use_idas_constraints:
-            if not self.__integrator_name == "idas":
-                self.logger.warning(
-                    "use_idas_constraints argument is applicable only for idas solver"
-                )
-            else:
-                if all(constraint == 0 for constraint in self._constraints_idas):
-                    self.logger.warning(
-                        "All idas constraints are 0, so no option is set"
-                    )
-                else:
-                    self.__integrator_settings["constraints"] = self._constraints_idas
-
+    @_consistent_scaling_decorator
     def _setup_variables(self) -> None:
         """Setup all important lists for simulator"""
         mapping_independent_variables = {}
@@ -369,6 +344,7 @@ class Simulator(object):
                     self.contains_unfixed = True
             self._independent_variables[index] = casadi_mx
 
+    @_consistent_scaling_decorator
     def change_independent_variables(self, ind_variables: dict[str, float]):
         """Use this method to change either Controls or Parameters of the Simulation. ind_variables is a dictionary
         with VariableNames as dict.keys(), and their respective values, as dict.values(). Example:
@@ -382,14 +358,6 @@ class Simulator(object):
             index_var = self.mapping_independent_variables[var_name]
             for index in range(len(self._independent_variables)):
                 self._independent_variables[index][index_var] = var.scale_from_original(var_value)
-
-    def debug_state(self, state_values):
-        values = np.asarray(state_values)
-        print(dict(zip(self.model.varlist_state.keys(), values)))
-
-    def debug_algebraic(self, algebraic_values):
-        values = np.asarray(algebraic_values)
-        print(dict(zip(self.model.varlist_algebraic.keys(), values)))
 
     def get_default_simulator_settings(self) -> None:
         """Sane default settings for integrators"""
@@ -446,6 +414,7 @@ class Simulator(object):
 
         return integrator_settings
 
+    @_consistent_scaling_decorator
     def calculate_steady_state(self) -> dict[str, ca.DM]:
         if self.model.DAE:
             steady_state_rootfinder = ca.Function(
@@ -497,6 +466,7 @@ class Simulator(object):
             )
         return res_steadystate
 
+    @_consistent_scaling_decorator
     def calculate_algebraic_initials(
         self, *, apply_intials: bool = False, analyze: bool = False
     ) -> None:
@@ -567,6 +537,7 @@ class Simulator(object):
                 self.logger.debug("Fixed algebraic intials")
                 self._initial_algebraic = res
 
+    @_consistent_scaling_decorator
     def analyze_WIP(
         self, state_value: list[float] = None
     ) -> list[dict[str, ca.DM] | list[float]]:
@@ -649,6 +620,7 @@ class Simulator(object):
         return [res, old_initial]
         # return check_initials, check_jacobian
 
+    @_consistent_scaling_decorator
     def _simulate_jac_dae(self) -> dict[str, ca.DM | ca.MX]:
         """Return dictionary with results "xf" - state,
         "zf" - algebraic, "jac_xf_p" - derivatives.
@@ -667,7 +639,7 @@ class Simulator(object):
                 x0=x_init,
                 z0=alg_init,
                 p=ca.vertcat(
-                    time_step - prev_time_step, independent_variables * self.scaling
+                    time_step - prev_time_step, independent_variables 
                 ),
             )
 
@@ -686,6 +658,7 @@ class Simulator(object):
         res = {"xf": res_states, "zf": res_algebraic, "jac_xf_p": res_jacobian}
         return res
 
+    @_consistent_scaling_decorator
     def _simulate_jac_ode(self) -> dict[str, ca.DM | ca.MX]:
         """Return dictionary with results "xf" - state,
         "zf" - algebraic, "jac_xf_p" - derivatives.
@@ -701,7 +674,7 @@ class Simulator(object):
             res_integration = self.integrator_tau_jac(
                 x0=x_init,
                 p=ca.vertcat(
-                    time_step - prev_time_step, independent_variables * self.scaling
+                    time_step - prev_time_step, independent_variables
                 ),
             )
 
@@ -717,6 +690,7 @@ class Simulator(object):
         res = {"xf": res_states, "jac_xf_p": res_jacobian}
         return res
 
+    @_consistent_scaling_decorator
     def _simulate_dae_calculate_algebraic(self) -> dict[str, ca.DM | ca.MX]:
         """Return dictionary with results "xf" - state,
         "zf" - algebraic
@@ -725,7 +699,7 @@ class Simulator(object):
             self._initial_algebraic_original,
             ca.vertcat(
                 self._initial_state,
-                self._independent_variables[0] * self.scaling,
+                self._independent_variables[0],
             ),
         )
         self._initial_algebraic = alg_init
@@ -733,6 +707,7 @@ class Simulator(object):
 
         return res
 
+    @_consistent_scaling_decorator
     def _simulate_t0(self) -> dict[str, ca.DM | ca.MX]:
         """Return dictionary with results "xf0" and "zf0" for state and
         algebraic variables at time 0"""
@@ -745,7 +720,7 @@ class Simulator(object):
                 z0=self._initial_algebraic,
                 p=ca.vertcat(
                     prev_time_step,
-                    self._independent_variables[0] * self.scaling,
+                    self._independent_variables[0],
                 ),
             )
             init_algebraic = res_integration["zf"][:, 0]
@@ -753,6 +728,7 @@ class Simulator(object):
 
         return res
 
+    @_consistent_scaling_decorator
     def _simulate_dae_acados(self) -> dict[str, ca.DM | ca.MX]:
         """Return dictionary with results "xf" - state,
         "zf" - algebraic
@@ -765,7 +741,7 @@ class Simulator(object):
             res_algebraic[:, -1],
             ca.vertcat(
                 res_states[:, -1],
-                self._independent_variables[0] * self.scaling,
+                self._independent_variables[0],
             ),
         )
 
@@ -774,6 +750,7 @@ class Simulator(object):
         res = {"xf": res_states, "zf": res_algebraic}
         return res
 
+    @_consistent_scaling_decorator
     def _simulate_dae_casadi(self) -> dict[str, ca.DM | ca.MX]:
         """Return dictionary with results "xf" - state,
         "zf" - algebraic
@@ -793,7 +770,7 @@ class Simulator(object):
                 x0=x_init,
                 z0=alg_init,
                 p=ca.vertcat(
-                    time_step - prev_time_step, independent_variables * self.scaling
+                    time_step - prev_time_step, independent_variables
                 ),
             )
 
@@ -810,6 +787,7 @@ class Simulator(object):
         res = {"xf": res_states, "zf": res_algebraic}
         return res
 
+    @_consistent_scaling_decorator
     def _simulate_ode(self) -> dict[str, ca.DM | ca.MX]:
         """Return dictionary with results "xf" - state,
         "zf" - algebraic
@@ -826,7 +804,7 @@ class Simulator(object):
             res_integration = self.integrator_tau(
                 x0=x_init,
                 p=ca.vertcat(
-                    time_step - prev_time_step, independent_variables * self.scaling
+                    time_step - prev_time_step, independent_variables
                 ),
             )
 
@@ -840,6 +818,7 @@ class Simulator(object):
         res = {"xf": res_states}
         return res
 
+    @_consistent_scaling_decorator
     def generate_exp_data(
         self,
         algebraic: bool = False,

@@ -24,6 +24,7 @@ from .variables import (
     VariableControlPiecewiseConstant,
     VariableControl,
     VariableList,
+    _consistent_scaling_decorator,
 )
 from .variables import BadVariableError
 from .variables import ORIGIN_TS

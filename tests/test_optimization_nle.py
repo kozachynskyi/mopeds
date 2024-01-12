@@ -76,23 +76,22 @@ def test_pe():
             simulator_name=simulator_name,
         )
 
-        for switch in [True, False]:
-            for objective in ["ols", "wls"]:
-                res = pe.optimize(switch, objective_function=objective)
-                answer_f = 0
-                answer_param = [5.19625]
+        for objective in ["ols", "wls"]:
+            res = pe.optimize(objective_function=objective)
+            answer_f = 0
+            answer_param = [5.19625]
 
-                logging.warning(
-                    f"Model.NLE: {model}, Result: {res['f']}, Expecting: {answer_f}"
-                )
-                assert np.isclose(res["f"], ca.DM(answer_f), rtol=0, atol=1.0e-9)
+            logging.warning(
+                f"Model.NLE: {model}, Result: {res['f']}, Expecting: {answer_f}"
+            )
+            assert np.isclose(res["f"], ca.DM(answer_f), rtol=0, atol=1.0e-9)
 
-                logging.warning(
-                    f"Model.NLE: {model}, Result: {res['x']}, Expecting: {answer_param}"
-                )
-                assert np.all(
-                    np.isclose(res["x"], ca.DM(answer_param), rtol=0, atol=1.0e-9)
-                )
+            logging.warning(
+                f"Model.NLE: {model}, Result: {res['x']}, Expecting: {answer_param}"
+            )
+            assert np.all(
+                np.isclose(res["x"], ca.DM(answer_param), rtol=0, atol=1.0e-9)
+            )
 
         for sim in pe.list_simulators:
             if i == 1:

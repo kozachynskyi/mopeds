@@ -8,6 +8,7 @@ from itertools import combinations
 from typing import Sequence
 from warnings import warn
 import itertools
+from functools import wraps
 
 import casadi as ca
 import numpy as np
@@ -29,6 +30,7 @@ from mopeds import (
     utilities,
     _ACADOS_SUPPORT,
     get_options,
+    _consistent_scaling_decorator,
     options,
 )
 
@@ -83,21 +85,26 @@ class Optimizer(object):
         # Runs optimization once
         raise (NotImplementedError)
 
-    def variables_dict_to_list(self, variables_dict: dict[str, float]) -> list[float]:
+    @_consistent_scaling_decorator
+    def variables_dict_to_list(self, variables_dict: dict[str, float], *, scaling=None) -> list[float]:
         """Takes a dictionary with {"var_name": var_value} and transforms to list
         corresponding to the order of self.varlist_decision variables"""
-        selected_variables: list[float] = []
-        for var_name in variables_dict.keys():
-            if var_name not in self.varlist_decision.keys():
-                if "time_sp" in var_name or "weight_" in var_name:
-                    raise ValueError(f"Variable {var_name} is not a decision variable!")
-                print(f"Supplied value for variables {var_name} is ignored!")
-        for var_name, var in self.varlist_decision.items():
-            try:
-                scaled_value = var.scale_from_original(variables_dict[var_name])
-                selected_variables.append(scaled_value)
-            except KeyError:
-                raise KeyError(f"Missing value for {var_name}")
+        if not isinstance(scaling, bool):
+            scaling = self._created_with_options["variable_scaling"]
+
+        with options(variable_scaling=scaling):
+            selected_variables: list[float] = []
+            for var_name in variables_dict.keys():
+                if var_name not in self.varlist_decision.keys():
+                    if "time_sp" in var_name or "weight_" in var_name:
+                        raise ValueError(f"Variable {var_name} is not a decision variable!")
+                    print(f"Supplied value for variables {var_name} is ignored!")
+            for var_name, var in self.varlist_decision.items():
+                try:
+                    scaled_value = var.scale_from_original(variables_dict[var_name])
+                    selected_variables.append(scaled_value)
+                except KeyError:
+                    raise KeyError(f"Missing value for {var_name}")
 
         return selected_variables
 
@@ -123,6 +130,7 @@ class Optimizer(object):
 
         return mapping_simulator_decisions
 
+    @_consistent_scaling_decorator
     def _setup_initialization(self) -> None:
         """Sets initials and bounds for optimizer, and as default no scaling.
         If guess equals 0, 1 is used instead to avoid division by 0 during initialization"""
@@ -145,30 +153,18 @@ class Optimizer(object):
             f"Initialized:\nguess {self.guess}\nlower_bound {self.lower_bound}\nupper_bound {self.upper_bound}"
         )
 
-    def _setup_scaling(self, scale: bool = False) -> None:
-        """Scaling of decision variables should be done before setting a solver and solver settings.
-        Sets scaling variables in optimizer and simulator.
-        Scaling is used to correctly spread the weight of decision variables in optimizaiton function.
-        By default, variable guess is used as a scaling value.
-        TODO: Whole loop can be replaced by simple np.where, isn't it?
-        """
-        self.scaling = 1
-        for simulator in self.list_simulators:
-            simulator._reset_scaling()
-
-        if isinstance(self, PE_base):
-            self.generate_simulate_all_functions()
-
     @abstractmethod
     def _objective(self) -> tuple[ca.MX | ca.DM, ca.MX | ca.DM]:
         """Returns a way to calculate and objective. Dependent on optimization type."""
         raise (NotImplementedError)
 
-    def _optimize(self, scale: bool) -> dict[str, ca.DM | ca.MX]:
+    @_consistent_scaling_decorator
+    def _optimize(self, scale: bool = None) -> dict[str, ca.DM | ca.MX]:
         """Runs optimizer, uses scaling if needed. Returned values is scaled back.
-        Scaling should be done before setting a solver and solver settings."""
-        self._setup_scaling(scale)
-
+        """
+        if scale is not None:
+            warn("Scale argument is deprecated", FutureWarning, 5)
+            
         self.nlpsol_dict = {
                 "x": self.varlist_decision.get_casadi_variables(),
                 "f": self._objective()[0],
@@ -184,19 +180,10 @@ class Optimizer(object):
             self.solver_settings,
         )
 
-        lb_scaled = self.lower_bound / self.scaling
-        ub_scaled = self.upper_bound / self.scaling
-
-        # Scaling of negative numbers requires a switch bounds
-        for index, (lb, ub) in enumerate(zip(lb_scaled, ub_scaled)):
-            if lb > ub:
-                lb_scaled[index] = ub
-                ub_scaled[index] = lb
-
         self.nlpsol_args = {
-                "x0": self.guess / self.scaling,
-                "lbx": lb_scaled,
-                "ubx": ub_scaled,
+                "x0": self.guess,
+                "lbx": self.lower_bound,
+                "ubx": self.upper_bound,
                 }
 
         if self.nlpsol_g is not None:
@@ -227,6 +214,7 @@ class Optimizer(object):
                     sim.model_acados, new_settings, sim.model.DAE
                 )
 
+    @_consistent_scaling_decorator
     def map_objective(self, plot: bool = True) -> None:
         """Calculate objective function for different values of parameters and plot, if needed.
         Currently support only 3 unfixed decision variables."""
@@ -234,7 +222,6 @@ class Optimizer(object):
 
         decision_variables = self.varlist_decision.get_casadi_variables()
         if decision_variables.shape == (3, 1):
-            self._setup_scaling(False)
             objective_function = ca.Function(
                 "objective",
                 [decision_variables],
@@ -302,6 +289,7 @@ class Optimizer(object):
         )
         return list_startpoint
 
+    @_consistent_scaling_decorator
     def optimize_multistart(
         self,
         num_initials: int,
@@ -347,9 +335,9 @@ class Optimizer(object):
         result_list_sorted = [res[1] for res in results_with_f]
 
         self.solver_settings = initial_settings
-        self.scaling = initial_guess
         return result_list_sorted
 
+    @_consistent_scaling_decorator
     def check_decision_bounds(self, plot: bool = False) -> None:
         """Method is simulating model on upper and lower bounds of decision variables.
         Prints if there were porblems simulation some bounds, meaning that optimizer
@@ -425,6 +413,7 @@ class PE_base(Optimizer):
         # objective = ca.sumsqr(scaled_residuals)
         return objective, residuals
 
+    @_consistent_scaling_decorator
     def _unscale_jacobian(self, jacobian):
         scale_parameters = np.tile(np.array(self.varlist_decision._get_scaling_constants()[0]), (jacobian.shape[0],1))
         scaled_jacobian = jacobian / scale_parameters
@@ -469,14 +458,14 @@ class PE_base(Optimizer):
     def _objective_tikhonov(self):
         objective, residuals = self._objective_wls()
 
-        penalty = ca.sqrt(ca.sumsqr(self.varlist_decision.get_casadi_variables() - self.reference_parameters / self.scaling))
+        penalty = ca.sqrt(ca.sumsqr(self.varlist_decision.get_casadi_variables() - self.reference_parameters))
         regularization_part = 0.5 * (self.regularization_contribution ** 2) * penalty
 
         objective = objective + regularization_part
 
         return objective, residuals
 
-    def optimize(self, scale=True, objective_function="wls"):
+    def optimize(self, scale=None, objective_function="wls"):
         if objective_function == "wls":
             self._objective = self._objective_wls
         elif objective_function == "ols":
@@ -507,13 +496,13 @@ class PE_base(Optimizer):
         else:
             self.experiments_scale = 1
 
+    @_consistent_scaling_decorator
     def calculate_objective_and_residual(
         self,
         parameters: dict[str, float],
         objective_function: str = "ols",
         experiment_weigts: bool = False,
     ) -> dict[str, float | np.ndarray]:
-        self._setup_scaling(False)
         if objective_function == "ols":
             obj_f = self._objective_ols()
         elif objective_function == "wls":
@@ -547,6 +536,7 @@ class PE_base(Optimizer):
                     self.varlist_decision.add_variable(var)
         self.setup_regularization()
 
+    @_consistent_scaling_decorator
     def generate_simulate_all_functions(self) -> None:
         """Combines simulate_sym() functions from simulator, and creates MX structure, that is used
         further in objective_function calculation"""
@@ -577,6 +567,7 @@ class PE_base(Optimizer):
         )
         self.simulate_all_mx = self.simulate_all_function(free_variables)
 
+    @_consistent_scaling_decorator
     def calculate_sensitivity_and_fim(
         self, parameters: dict[str, float], parameter_names: list[str] | None = None
     ) -> dict[str, np.ndarray]:
@@ -595,7 +586,6 @@ class PE_base(Optimizer):
 
         Jacobian dimensions: dY/dp [NumOfMeasurements x NumOfParameters]
         """
-        self._setup_scaling()
         decision_variables = self.varlist_decision.get_casadi_variables()
         if parameter_names is not None:
             list_selected_parameters_index = []
@@ -771,6 +761,7 @@ class PE_base(Optimizer):
 
         return result
 
+    @_consistent_scaling_decorator
     def parameter_identifiability_chu2012(
         self,
         parameters: dict[str, float],
@@ -778,7 +769,6 @@ class PE_base(Optimizer):
         parameters_identifiable: list[str] | None = None,
         parameters_not_identifiable: list[str] | None = None,
     ):
-        self._setup_scaling(False)
         if parameters_identifiable is None:
             parameters_identifiable = []
 
@@ -797,9 +787,7 @@ class PE_base(Optimizer):
         )
 
         S = results_sensitivity["jac_scaled_full_theory"]
-        with options(variable_scaling=False):
-            print(self.variables_dict_to_list(parameters))
-            S = S * np.array(self.variables_dict_to_list(parameters))
+        S = S * np.array(self.variables_dict_to_list(parameters, scaling=False))
 
         info = []
         best_set = None
@@ -842,6 +830,7 @@ class PE_base(Optimizer):
 
         return result
 
+    @_consistent_scaling_decorator
     def parameter_identifiability_brun2001(
         self,
         parameters: dict[str, float],
@@ -852,7 +841,6 @@ class PE_base(Optimizer):
     ):
         if self._created_with_options["variable_scaling"] or get_options()["variable_scaling"]:
             raise NotImplementedError("Brun identification analysis with scaling is dependent on operating system")
-        self._setup_scaling(False)
         if parameters_identifiable is None:
             parameters_identifiable = []
 
@@ -871,8 +859,7 @@ class PE_base(Optimizer):
         )
 
         S = results_sensitivity["jac_scaled_full_theory"]
-        with options(variable_scaling=False):
-            S = S * np.array(self.variables_dict_to_list(parameters))
+        S = S * np.array(self.variables_dict_to_list(parameters, scaling=False))
         S_norm = S / np.linalg.norm(S, axis=0)
 
         beta_msqr = np.sqrt(np.sum(S**2, axis=0) / S.shape[0])
@@ -928,6 +915,7 @@ class PE_base(Optimizer):
 
         return result
 
+    @_consistent_scaling_decorator
     def parameter_identifiability_lopez2013(
         self,
         parameters: dict[str, float],
@@ -936,7 +924,6 @@ class PE_base(Optimizer):
         parameters_not_identifiable: list[str] | None = None,
         eigenvalue_threshold: float = 10e-4,
     ):
-        self._setup_scaling(False)
         if parameters_identifiable is None:
             parameters_identifiable = []
 
@@ -953,8 +940,7 @@ class PE_base(Optimizer):
         )
 
         S = results_sensitivity["jac_scaled_full_theory"]
-        with options(variable_scaling=False):
-            S = S * np.array(self.variables_dict_to_list(parameters))
+        S = S * np.array(self.variables_dict_to_list(parameters, scaling=False))
 
 
         # S = S * np.array(self.variables_dict_to_list(parameters))
@@ -986,6 +972,7 @@ class PE_base(Optimizer):
 
         return result
 
+    @_consistent_scaling_decorator
     def parameter_identifiability_quaiser2009(
         self,
         parameters: dict[str, float],
@@ -998,7 +985,6 @@ class PE_base(Optimizer):
         Threshold is taken from Quasier 2009.
         Return ranked parameters in descending order, and divide them in identifiable and not"""
 
-        self._setup_scaling(False)
         if parameters_identifiable is None:
             parameters_identifiable = []
 
@@ -1015,8 +1001,7 @@ class PE_base(Optimizer):
         )
 
         S = results_sensitivity["jac_scaled_full_theory"]
-        with options(variable_scaling=False):
-            S = S * np.array(self.variables_dict_to_list(parameters))
+        S = S * np.array(self.variables_dict_to_list(parameters, scaling=False))
         fim_matrix = (S.T @ S)
 
         for i in range(fim_matrix.shape[0]):
@@ -1046,6 +1031,7 @@ class PE_base(Optimizer):
 
         return result
 
+    @_consistent_scaling_decorator
     def parameter_identifiability_yao2003(
         self,
         parameters: dict[str, float],
@@ -1054,7 +1040,6 @@ class PE_base(Optimizer):
     ):
         """Do parameter ranking based on Yao 2003. Cut-off value taken from Yao 2003.
         Return ranked parameters in descending order, and divide them in identifiable and not"""
-        self._setup_scaling(False)
         parameter_values_all: list[float] = []
         selected_parameters: list[float] = []
         unranked_parameters: list[str] = []
@@ -1076,8 +1061,7 @@ class PE_base(Optimizer):
         results_sensitivity = self.calculate_sensitivity_and_fim(parameters)
 
         jacobian_yao = results_sensitivity["jac_yao_full"]
-        with options(variable_scaling=False):
-            jacobian_yao = jacobian_yao * np.array(self.variables_dict_to_list(parameters))
+        jacobian_yao = jacobian_yao * np.array(self.variables_dict_to_list(parameters, scaling=False))
 
         XK = np.zeros(jacobian_yao.shape)
 
@@ -1134,12 +1118,11 @@ class PE_base(Optimizer):
 
         return result
 
+    @_consistent_scaling_decorator
     def parameter_analysis(self, parameters: dict[str, float], plot=True):
         import scipy.stats
 
         num_par = len(self.varlist_decision)
-
-        self._setup_scaling(False)
 
         selected_parameters = self.variables_dict_to_list(parameters)
         result_sens = self.calculate_sensitivity_and_fim(parameters)
@@ -1243,7 +1226,7 @@ class ParameterEstimation(PE_base):
         simulator_name: str = "idas",
         simulator_settings: dict | None = None,
         *,
-        use_idas_constraints: bool = False,
+        use_idas_constraints: bool = None,
         use_algebraic_vars: bool = False,
         recalculate_algebraic: bool = False,
     ):
@@ -1266,11 +1249,6 @@ class ParameterEstimation(PE_base):
                     "newton_iter": 100,
                     "code_reuse": False,
                 }
-
-        if use_idas_constraints:
-            warn("idas constraints option is ignored", DeprecationWarning)
-            use_idas_constraints = False
-
         self._use_algebraic_variables = use_algebraic_vars
 
         self._objective: Callable[
@@ -1301,6 +1279,7 @@ class ParameterEstimation(PE_base):
 
         self._setup_experiments_scale(False)
 
+    @_consistent_scaling_decorator
     def _setup_simulator(
         self,
         *,
@@ -1473,9 +1452,10 @@ class ParameterEstimation(PE_base):
         # For example [{1: 2}], {1: 3}]: in first simulator._independent_variables[1]
         # is the same variable as self.varlist_decision[2]
         self.mapping_simulator_decisions: list[dict[int, int]] = list_simulator_mappings
+        self.generate_simulate_all_functions()
 
     def optimize(
-        self, scale=True, objective_function="wls", *, scale_experiments=False
+        self, scale=None, objective_function="wls", *, scale_experiments=False
     ) -> dict[str, ca.DM]:
         """Solves optimization problem. Scaling decreases amount of iterations,
         and should always almost be used
@@ -1483,6 +1463,7 @@ class ParameterEstimation(PE_base):
         self._setup_experiments_scale(scale_experiments)
         return PE_base.optimize(self, scale, objective_function)
 
+    @_consistent_scaling_decorator
     def plot_simulation(
         self,
         supplied_parameters: dict[str, float] | None = None,
@@ -1492,7 +1473,6 @@ class ParameterEstimation(PE_base):
         plot: bool = True,
     ) -> list[VariableList]:  # noqa: E501
         """Plots experimental points against simulated trajectories, first line, initial guess, than supplied values"""
-        self._setup_scaling(False)
 
         if experiment_names is None:
             experiment_names = []
@@ -1566,7 +1546,7 @@ class ParameterEstimationNLE(PE_base):
         SimulatorClass=SimulatorNLE,
     ) -> None:
         if use_simulator_bounds is not None:
-            warn("use_simulator_bounds is not used anymore and will be ignored", DeprecationWarning)
+            warn("use_simulator_bounds is not used anymore and will be ignored", FutureWarning, 2)
         super().__init__(model, variable_lists, simulator_name, simulator_settings)
 
         self._setup_simulator(SimulatorClass)
@@ -1590,6 +1570,7 @@ class ParameterEstimationNLE(PE_base):
         self._setup_experiments_scale(False)
         self.setup_regularization(0, np.zeros((len(self.varlist_decision),1)))
 
+    @_consistent_scaling_decorator
     def prepare_nle(self):
         self.varlist_algebraic_new = VariableList()
 
@@ -1664,6 +1645,7 @@ class ParameterEstimationNLE(PE_base):
         self.guess = np.array(guess)
         self.simulate_all_mx = ca.vcat(meas_symbols)
 
+    @_consistent_scaling_decorator
     def _setup_simulator(
         self, SimulatorClass: SimulatorNLE
     ) -> None:
@@ -1760,6 +1742,7 @@ class ParameterEstimationNLE(PE_base):
 
 
 
+    @_consistent_scaling_decorator
     def calculate_inference_bounds(
         self,
         dict_of_params: dict,
@@ -1929,6 +1912,7 @@ class ParameterEstimationNLE(PE_base):
 
 
 class ParameterEstimationNLE_control(ParameterEstimationNLE):
+    @_consistent_scaling_decorator
     def _setup_simulator(self):
         # It's not checked if all supplied varlist have same states etc.
         for var in self.list_input_varlist[0].values():
@@ -2016,7 +2000,8 @@ class ParameterEstimationNLE_control(ParameterEstimationNLE):
 
         return objective
 
-    def optimize(self, scale=False, objective_function="ols"):
+    @_consistent_scaling_decorator
+    def optimize(self, scale=None, objective_function="ols"):
         if objective_function == "wls":
             self._objective = self._objective_wls
         elif objective_function == "ols":

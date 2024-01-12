@@ -171,15 +171,9 @@ def test_optimizer(piecewise):  # noqa: C901
                 },
             }
 
-            for ij in range(2):
-                if ij == 0:
-                    res_pe = pe.optimize()
-                    if j == 0:
-                        res_oed = oed.optimize()
-                else:
-                    res_pe = pe.optimize(False)
-                    if j == 0:
-                        res_oed = oed.optimize(1e-3)
+            res_pe = pe.optimize()
+            if j == 0:
+                res_oed = oed.optimize()
 
             if i == 0:
                 assert res_pe["x"].size == (11)
