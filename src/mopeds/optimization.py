@@ -599,10 +599,15 @@ class PE_base(Optimizer):
             parameters, objective_function="ols"
         )["residuals"]
 
+        scaling_constants_measurements = []
+        for meas_name in self.names_of_measurements:
+            scaling_constants_measurements.append(self.list_input_varlist[0][meas_name]._get_scaling_constants()[0])
+        scaled_residuals = residuals * np.array(scaling_constants_measurements)
+
         # Eq 7-13-22 Bard 1974
         dof = np.count_nonzero(self.array_data_mask) - (len(self.varlist_decision) / len(self.names_of_measurements))
 
-        measurement_variance_estimate = np.diag(residuals.T @ residuals) / dof
+        measurement_variance_estimate = np.diag(scaled_residuals.T @ scaled_residuals) / dof
         print("OLS std: ", np.sqrt(measurement_variance_estimate))
 
         estimated_inverted_std = copy.deepcopy(self.array_inverted_std)
