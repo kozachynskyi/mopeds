@@ -380,12 +380,7 @@ class OED_base(Optimizer):
         inverted_scaled_variances = []
         self.names_of_measurements = []
 
-        for variable_name in self.model.varlist_all.keys():
-            try:
-                var = self.list_input_varlist[0][variable_name]
-            except KeyError:
-                continue
-
+        for var in self.model.varlist(self.list_input_varlist[0]).values():
             if isinstance(var, VariableControl):
                 if var.fixed is False:
                     if isinstance(var, VariableControlPiecewiseConstant):
@@ -562,11 +557,11 @@ class OptimalExperimentalDesign(OED_base):
         self._initialize_from_settings()
 
         if measurable_variables is None:
-            self.list_measureable_variables = list(self.model.varlist_state.keys())
+            self.list_measureable_variables = list(self.model.varlist_state(self.list_input_varlist[0]).keys())
         else:
             self.list_measureable_variables = []
             # Do this so variable names are sorted as expected
-            for var_name in self.model.varlist_state.keys():
+            for var_name in self.model.varlist_state(self.list_input_varlist[0]).keys():
                 if var_name in measurable_variables:
                     self.list_measureable_variables.append(var_name)
 
@@ -739,12 +734,7 @@ class OED_NLE_base(OED_base):
         inverted_scaled_variances = []
         self.names_of_measurements = []
 
-        for variable_name in self.model.varlist_all.keys():
-            try:
-                var = self.list_input_varlist[0][variable_name]
-            except KeyError:
-                continue
-
+        for var in self.model.varlist(self.list_input_varlist[0]).values():
             if isinstance(var, VariableControl):
                 if var.fixed is False:
                     self.varlist_decision.add_variable(var)
@@ -864,11 +854,11 @@ class OptimalExperimentalDesign_NLE(OED_NLE_base):
 
 
         if measurable_variables is None:
-            self.list_measureable_variables = list(self.model.varlist_algebraic.keys())
+            self.list_measureable_variables = list(self.model.varlist_algebraic(self.list_input_varlist[0]).keys())
         else:
             self.list_measureable_variables = []
             # Do this so variable names are sorted as expected
-            for var_name in self.model.varlist_algebraic.keys():
+            for var_name in self.model.varlist_algebraic(self.list_input_varlist[0]).keys():
                 if var_name in measurable_variables:
                     self.list_measureable_variables.append(var_name)
 

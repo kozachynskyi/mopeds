@@ -59,9 +59,9 @@ class Simulator(object):
             warn("IDAS constraints are deprecated", FutureWarning, 2)
         self._created_with_options = get_options()
 
-        self.__input_variable_list: VariableList = copy.deepcopy(variable_list)
+        self._input_variable_list: VariableList = copy.deepcopy(variable_list)
         self.model: Model = model
-        self.__input_variable_list._substitute_casadi_symbols(self.model.varlist_all)
+        self.model.subsitute_casadi_symbols(self._input_variable_list)
 
         if integrator_name not in self.supported_integrators:
             raise TypeError(
@@ -71,24 +71,24 @@ class Simulator(object):
 
         self.setup_time_grid(input_time_grid)
 
-        scaled_equations_diff = ca.substitute(self.model.equations_differential, self.__input_variable_list.get_casadi_variables(), self.__input_variable_list.get_scaled_casadi_variables())
-        scaled_equations_diff = ca.cse(scaled_equations_diff / self.__input_variable_list.get_state()._get_scaling_constants()[0])
+        scaled_equations_diff = ca.substitute(self.model.equations_differential, self._input_variable_list.get_casadi_variables(), self._input_variable_list.get_scaled_casadi_variables())
+        scaled_equations_diff = ca.cse(scaled_equations_diff / self._input_variable_list.get_state()._get_scaling_constants()[0])
 
         if self.model.DAE:
-            scaled_equations_alg = ca.cse(ca.substitute(self.model.equations_algebraic, self.__input_variable_list.get_casadi_variables(), self.__input_variable_list.get_scaled_casadi_variables()))
+            scaled_equations_alg = ca.cse(ca.substitute(self.model.equations_algebraic, self._input_variable_list.get_casadi_variables(), self._input_variable_list.get_scaled_casadi_variables()))
 
         self.ode_system: dict[str, ca.MX] = {
-            "x": self.model.varlist_state.get_casadi_variables(),
-            "p": ca.vertcat(self.model.varlist_independent.get_casadi_variables()),
+            "x": self.model.varlist_state(self._input_variable_list).get_casadi_variables(),
+            "p": ca.vertcat(self.model.varlist_independent(self._input_variable_list).get_casadi_variables()),
             "ode": scaled_equations_diff,
         }
 
         # Tau variable is used to specify a length of iteration step externally, via tau variable
         self.tau: ca.MX = ca.MX.sym("tau")
         self.ode_system_tau: dict[str, ca.MX] = {
-            "x": self.model.varlist_state.get_casadi_variables(),
+            "x": self.model.varlist_state(self._input_variable_list).get_casadi_variables(),
             "p": ca.vertcat(
-                self.tau, self.model.varlist_independent.get_casadi_variables()
+                self.tau, self.model.varlist_independent(self._input_variable_list).get_casadi_variables()
             ),
             "ode": scaled_equations_diff * self.tau,
         }
@@ -96,10 +96,10 @@ class Simulator(object):
         if self.model.DAE:
             self.ode_system["alg"] = scaled_equations_alg
             self.ode_system_tau["alg"] = scaled_equations_alg
-            self.ode_system["z"] = self.model.varlist_algebraic.get_casadi_variables()
+            self.ode_system["z"] = self.model.varlist_algebraic(self._input_variable_list).get_casadi_variables()
             self.ode_system_tau[
                 "z"
-            ] = self.model.varlist_algebraic.get_casadi_variables()
+            ] = self.model.varlist_algebraic(self._input_variable_list).get_casadi_variables()
 
         if self.model.DAE:
             self.function_algebraic_equations = ca.Function(
@@ -121,55 +121,25 @@ class Simulator(object):
         else:
             self.__integrator_settings = self.get_default_simulator_settings()
 
-        if self.__integrator_name == "acados":
-            model_acados = AcadosModel()
-
-            xdot = []
-            for key in self.model.varlist_state.keys():
-                xdot.append(ca.MX.sym(f"{key}_dot"))
-            model_acados.xdot = ca.vcat(xdot)
-            model_acados.x = self.model.varlist_state.get_casadi_variables()
-            model_acados.name = self.model.name
-            model_acados.u = ca.vertcat(
-                self.tau, self.model.varlist_independent.get_casadi_variables()
-            )
-            if self.model.DAE:
-                model_acados.z = self.model.varlist_algebraic.get_casadi_variables()
-                model_acados.f_impl_expr = ca.vertcat(
-                    model_acados.xdot - self.model.equations_differential * self.tau,
-                    self.model.equations_algebraic,
-                )
-            else:
-                model_acados.f_impl_expr = (
-                    model_acados.xdot - self.model.equations_differential * self.tau
-                )
-            self.model_acados = model_acados
-            self.integrator_tau = casados_integrator.create_casados_integrator(
-                self.model_acados, self.__integrator_settings, self.model.DAE
-            )
-        else:
-            self.integrator_tau: ca.Function = ca.integrator(
-                "integrator_tau",
-                self.__integrator_name,
-                self.ode_system_tau,
-                0,
-                1,
-                self.__integrator_settings,
-            )
+        self.integrator_tau: ca.Function = ca.integrator(
+            "integrator_tau",
+            self.__integrator_name,
+            self.ode_system_tau,
+            0,
+            1,
+            self.__integrator_settings,
+        )
 
         # This integrator is used to output values of algebraic variables at time 0
         # and should be run first to get algebraic variables at time 0 for whole simulation
-        if self.__integrator_name == "acados":
-            self.integrator_tau_with_t0 = self.integrator_tau
-        else:
-            self.integrator_tau_with_t0: ca.Function = ca.integrator(
-                "integrator_tau_with_t0",
-                self.__integrator_name,
-                self.ode_system_tau,
-                0,
-                [0, 1],
-                self.__integrator_settings,
-            )
+        self.integrator_tau_with_t0: ca.Function = ca.integrator(
+            "integrator_tau_with_t0",
+            self.__integrator_name,
+            self.ode_system_tau,
+            0,
+            [0, 1],
+            self.__integrator_settings,
+        )
 
         # This list is used for utility functions, like finding steady state
         self._guess_or_value_of_independent_variables: list[float] = []
@@ -256,12 +226,7 @@ class Simulator(object):
         initial_algebraic = []
         initial_state = []
 
-        for variable_name in self.model.varlist_all.keys():
-            try:
-                var = self.__input_variable_list[variable_name]
-            except KeyError:
-                continue
-
+        for var in self.model.varlist(self._input_variable_list).values():
             if isinstance(var, VariableState):
                 mapping_state_variables[var.name] = index_state
                 index_state += 1
@@ -354,7 +319,7 @@ class Simulator(object):
                 "All variables should be fixed, to use this method"
             )
         for var_name, var_value in ind_variables.items():
-            var = self.__input_variable_list[var_name]
+            var = self._input_variable_list[var_name]
             index_var = self.mapping_independent_variables[var_name]
             for index in range(len(self._independent_variables)):
                 self._independent_variables[index][index_var] = var.scale_from_original(var_value)
@@ -834,12 +799,12 @@ class Simulator(object):
         result_simulation = self.simulate_sym()
         result_initial = self._simulate_t0()
         if not algebraic or not self.model.DAE:
-            result_varlist = [copy.deepcopy(self.__input_variable_list.get_state())]
+            result_varlist = [copy.deepcopy(self._input_variable_list.get_state())]
             res_array = ca.horzcat(result_initial["xf0"], result_simulation["xf"])
         else:
             result_varlist = [
-                copy.deepcopy(self.__input_variable_list.get_state()),
-                copy.deepcopy(self.__input_variable_list.get_algebraic()),
+                copy.deepcopy(self._input_variable_list.get_state()),
+                copy.deepcopy(self._input_variable_list.get_algebraic()),
             ]
             res_array = ca.vertcat(
                 ca.horzcat(
@@ -878,16 +843,16 @@ class Simulator(object):
                 new_var.set_dataframe_from_value_and_time(
                     value, self.time_grid_relative, self.origin_ts
                 )
-                new_var.ignore_plotting = self.__input_variable_list[
+                new_var.ignore_plotting = self._input_variable_list[
                     var.name
                 ].ignore_plotting
 
                 variables.add_variable(new_var)
             shift_by = count + 1
 
-        for var in self.model.varlist_independent.values():
+        for var in self.model.varlist_independent(self._input_variable_list).values():
             if isinstance(var, VariableControlPiecewiseConstant):
-                new_var = copy.deepcopy(self.__input_variable_list[var.name])
+                new_var = copy.deepcopy(self._input_variable_list[var.name])
                 variables.add_variable(new_var)
 
         return variables
@@ -899,14 +864,14 @@ class Simulator(object):
             self.time_grid_relative: np.ndarray = time_grid
         else:
             time_grid = np.asfarray(time_grid)
-            for var in self.__input_variable_list.values():
+            for var in self._input_variable_list.values():
                 if isinstance(var, VariableControlPiecewiseConstant):
                     time_grid = np.append(time_grid, var.time_relative)
 
             # Values of provided time_grid are rounded to milisecconds
             # in order to avoid timestamps that are very close to each other
             self.time_grid_relative: np.ndarray = np.unique(time_grid)
-        self.origin_ts = self.__input_variable_list.get_common_origin()
+        self.origin_ts = self._input_variable_list.get_common_origin()
         self.logger.debug(
             "Timegrid modified: \n self.timegrid \n {0} \n".format(
                 self.time_grid_relative

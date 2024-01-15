@@ -1,7 +1,6 @@
 import pytest
 import casadi as ca
 import mopeds.examples
-from mopeds.model import VariableTypeError
 import numpy as np
 
 
@@ -12,8 +11,9 @@ import numpy as np
 def test_model(piecewise, dae, use_constant, scaling):
     var_list, model = mopeds.examples.cstr(use_constant=True)
 
-    assert len(model.varlist_state) == 5
-    assert len(model.varlist_independent) == 18
+    assert len(model.varlist_state(var_list)) == 5
+    assert len(model.varlist_independent(var_list)) == 18
+    assert len(model.varlist(var_list)) == 34
     assert len(model.varlist_all) == 34
 
     assert model.equations_differential.size() == (5, 1)
@@ -23,9 +23,10 @@ def test_model(piecewise, dae, use_constant, scaling):
 
     var_list, model = mopeds.examples.pendulum_dae_1()
 
-    assert len(model.varlist_state) == 2
-    assert len(model.varlist_independent) == 2
-    assert len(model.varlist_algebraic) == 3
+    assert len(model.varlist_state(var_list)) == 2
+    assert len(model.varlist_independent(var_list)) == 2
+    assert len(model.varlist_algebraic(var_list)) == 3
+    assert len(model.varlist(var_list)) == 7
     assert len(model.varlist_all) == 7
 
     assert model.equations_differential.size() == (2, 1)
@@ -36,14 +37,12 @@ def test_model(piecewise, dae, use_constant, scaling):
 
     var_list = mopeds.VariableList()
     var_list.add_variable(mopeds.Variable("a_test"))
-    with pytest.raises(VariableTypeError):
-        model = mopeds.Model(var_list)
 
     with mopeds.options(variable_scaling=scaling):
         var_list, model = mopeds.examples.cstr(piecewise, dae, use_constant)
         ode_system = {
-            "x": model.varlist_state.get_casadi_variables(),
-            "p": ca.vertcat(model.varlist_independent.get_casadi_variables()),
+            "x": model.varlist_state(var_list).get_casadi_variables(),
+            "p": ca.vertcat(model.varlist_independent(var_list).get_casadi_variables()),
             "ode": model.equations_differential,
         }
 
@@ -56,7 +55,7 @@ def test_model(piecewise, dae, use_constant, scaling):
         )
 
         if model.DAE:
-            ode_system["z"] = model.varlist_algebraic.get_casadi_variables()
+            ode_system["z"] = model.varlist_algebraic(var_list).get_casadi_variables()
             ode_system["alg"] = model.equations_algebraic
 
             function = ca.Function(

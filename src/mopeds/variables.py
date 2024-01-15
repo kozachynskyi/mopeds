@@ -689,6 +689,8 @@ class VariableList(OrderedDict[str, Union[Variable, VariableControlPiecewiseCons
     def add_variable(self, variable: Variable) -> None:
         if variable.name in self:
             raise SameVariableNameError(variable.name)
+        elif not isinstance(variable, Variable):
+            raise TypeError()
         else:
             self.update({variable.name: variable})
 
@@ -706,10 +708,21 @@ class VariableList(OrderedDict[str, Union[Variable, VariableControlPiecewiseCons
                 casadi_vars.append(var.casadi_var)
         return ca.vcat(casadi_vars)
 
-    def _substitute_casadi_symbols(self, model_varlist: VariableList):
-        for model_var in model_varlist.values():
-            if not isinstance(model_var, VariableConstant):
-                self[model_var.name].casadi_var = model_var.casadi_var
+    def _get_sorted_varlist(self, variable_names: list, *, raise_error=True):
+        """Return a variable list that includes only variables from provided list
+        and in the same order as in given varlist. If variable doesn't exist in self,
+        raise an error, if raise_error is False."""
+        return_varlist = VariableList()
+        for variable_name in variable_names:
+            try:
+                var = self[variable_name]
+            except KeyError as e:
+                if raise_error:
+                    raise e
+                else:
+                    continue
+            return_varlist.add_variable(var)
+        return return_varlist
 
     def get_scaled_casadi_variables(self) -> ca.MX:
         """Returns a concatanated vector of all variables in a variable_list self while scaling them using bounds for source_variable_list"""

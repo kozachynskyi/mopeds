@@ -159,7 +159,27 @@ def test_variables():
     var = mopeds.VariableAlgebraic("var", None, None, 0)
     assert var.get_constraint_idas == -1
 
+def test_varlist():
+    var_1 = mopeds.VariableControlPiecewiseConstant("v1", 20)
+    var_2 = mopeds.VariableControlPiecewiseConstant("v2", 20)
+    var_3 = mopeds.VariableControlPiecewiseConstant("v3", 20)
+    vl = mopeds.VariableList()
+    vl_unordered = mopeds.VariableList()
+
+    vl.add_variable(var_1)
+    vl.add_variable(var_2)
+
+    vl_unordered.add_variable(var_2)
+    vl_unordered.add_variable(var_1)
+    vl_unordered.add_variable(var_3)
+
+    assert list(vl.keys()) == ["v1", "v2"]
+    with pytest.raises(KeyError):
+        vl._get_sorted_varlist(vl_unordered).keys()
+    assert list(vl._get_sorted_varlist(vl_unordered, raise_error=False).keys()) == ["v2", "v1"]
+
 
 if __name__ == "__main__":
-    test_options()
-    test_variables()
+    # test_options()
+    # test_variables()
+    test_varlist()

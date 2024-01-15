@@ -31,6 +31,7 @@ Considering creating a test to compare the numerical results while migrating.
 ### Upcoming
 
 - NLEs are automatically scaled, if lower and upper bound are provided, use_bounds for rootfinder NLE is deprecated
+- Model does not contain any variable lists
 
 ### 0.10.1
 

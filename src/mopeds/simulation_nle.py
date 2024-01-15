@@ -57,8 +57,8 @@ class SimulatorNLE:
             self._call_simulator = self.__call_simulator_rootfinder
 
         self._solver_name: str = solver_name
-        self.__input_variable_list: VariableList = copy.deepcopy(variable_list)
-        self.__input_variable_list._substitute_casadi_symbols(model.varlist_all)
+        self._input_variable_list: VariableList = copy.deepcopy(variable_list)
+        self.model.subsitute_casadi_symbols(self._input_variable_list)
 
         if solver_settings is not None:
             self.solver_settings: dict = solver_settings
@@ -67,15 +67,15 @@ class SimulatorNLE:
 
         self._setup_variables()
 
-        scaled_equations = ca.substitute(self.model.equations_algebraic, self.__input_variable_list.get_casadi_variables(), self.__input_variable_list.get_scaled_casadi_variables())
+        scaled_equations = ca.substitute(self.model.equations_algebraic, self._input_variable_list.get_casadi_variables(), self._input_variable_list.get_scaled_casadi_variables())
         self._model_equations = ca.cse(scaled_equations)
 
         if self._solver_name == "rootfinder":
             self.function: ca.Function = ca.Function(
                 "f",
                 [
-                    self.model.varlist_algebraic.get_casadi_variables(),
-                    self.model.varlist_independent.get_casadi_variables(),
+                    self.model.varlist_algebraic(self._input_variable_list).get_casadi_variables(),
+                    self.model.varlist_independent(self._input_variable_list).get_casadi_variables(),
                 ],
                 [self._model_equations],
                 ["x0", "p"],
@@ -93,8 +93,8 @@ class SimulatorNLE:
                 "solver",
                 "ipopt",
                 {
-                    "x": self.model.varlist_algebraic.get_casadi_variables(),
-                    "p": self.model.varlist_independent.get_casadi_variables(),
+                    "x": self.model.varlist_algebraic(self._input_variable_list).get_casadi_variables(),
+                    "p": self.model.varlist_independent(self._input_variable_list).get_casadi_variables(),
                     "g": self._model_equations,
                     "f": (ca.sum1(self._model_equations) ** 2),
                 },
@@ -154,12 +154,7 @@ class SimulatorNLE:
         lower_bound = []
         upper_bound = []
         independent_variables = []
-        for variable_name in self.model.varlist_all.keys():
-            try:
-                var = self.__input_variable_list[variable_name]
-            except KeyError:
-                continue
-
+        for var in self.model.varlist(self._input_variable_list).values():
             if isinstance(var, VariableAlgebraic):
                 mapping_algebraic_variables[var.name] = index_algebraic
                 index_algebraic += 1
@@ -208,7 +203,7 @@ class SimulatorNLE:
                 "All variables should be fixed, to use this method"
             )
         for var_name, var_value in ind_variables.items():
-            var = self.__input_variable_list[var_name]
+            var = self._input_variable_list[var_name]
             index_var = self.mapping_independent_variables[var_name]
             self._independent_variables[index_var] = var.scale_from_original(var_value)
 
@@ -219,8 +214,8 @@ class SimulatorNLE:
         variables = VariableList()
 
 
-        for var_name, res in zip(self.model.varlist_algebraic.keys(), res_array):
-            var = self.__input_variable_list[var_name]
+        for var_name, res in zip(self.model.varlist_algebraic(self._input_variable_list).keys(), res_array):
+            var = self._input_variable_list[var_name]
             new_var = copy.deepcopy(var)
             new_var.casadi_var = None
 

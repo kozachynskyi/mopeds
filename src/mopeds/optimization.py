@@ -64,7 +64,7 @@ class Optimizer(object):
         # Deepcopy is used to avoid manipulating input variable list
         self.list_input_varlist: list[VariableList] = copy.deepcopy(variable_lists)
         for varlist in self.list_input_varlist:
-            varlist._substitute_casadi_symbols(model.varlist_all)
+            self.model.subsitute_casadi_symbols(varlist)
 
         # Each varlist holds respective variables
         self.varlist_decision: VariableList = VariableList()
@@ -535,9 +535,7 @@ class PE_base(Optimizer):
         return result_np
 
     def _setup_varlist_decision(self):
-        for variable_name in self.model.varlist_independent.keys():
-            var = self.list_input_varlist[0][variable_name]
-
+        for var in self.model.varlist_independent(self.list_input_varlist[0]).values():
             if isinstance(var, VariableParameter):
                 if var.fixed is False:
                     self.varlist_decision.add_variable(var)
@@ -1292,6 +1290,7 @@ class ParameterEstimation(PE_base):
 
         for simulator_index, varlist_input in enumerate(self.list_input_varlist):
             # Create a time_grid, that "stops" at every experimental data, for every state variable
+            ordered_varlist_input = self.model.varlist(varlist_input)
             if not varlist_input.get_common_origin(
                 strict=True, variable_type=VariableState
             ):
@@ -1302,12 +1301,7 @@ class ParameterEstimation(PE_base):
                 )
             data_frame = pd.DataFrame()
 
-            for variable_name in self.model.varlist_all.keys():
-                try:
-                    var = varlist_input[variable_name]
-                except KeyError:
-                    continue
-
+            for var in ordered_varlist_input.values():
                 if isinstance(var, VariableState) or (
                     isinstance(var, VariableAlgebraic) and use_algebraic_vars
                 ):
@@ -1339,7 +1333,7 @@ class ParameterEstimation(PE_base):
             simulator = Simulator(
                 self.model,
                 np.array(time_grid_unique),
-                varlist_input,
+                ordered_varlist_input,
                 self.simulator_name,
                 simulator_settings,
                 use_idas_constraints=use_idas_constraints,
@@ -1359,13 +1353,13 @@ class ParameterEstimation(PE_base):
             experimental_data_mask.append(new_experiment_data_mask_varlist)
 
             # Generate inverted_variances
-            variable_name_list = list(self.model.varlist_state.keys())
+            variable_name_list = list(ordered_varlist_input.get_state().keys())
             if self._use_algebraic_variables:
-                variable_name_list.extend(list(self.model.varlist_algebraic.keys()))
+                variable_name_list.extend(list(ordered_varlist_input.get_algebraic().keys()))
             inverted_variances_varlist = []
             inverted_scaled_variances_varlist = []
             for var_name in variable_name_list:
-                var = varlist_input[var_name]
+                var = ordered_varlist_input[var_name]
                 scaled_variance = var.variance / var._get_scaling_constants()[0]**2
                 inverted_variances_varlist.append(
                     1.0 / (np.full(len(time_grid_unique) - 1, var.variance))
@@ -1385,9 +1379,9 @@ class ParameterEstimation(PE_base):
         self.list_simulators: Sequence[Simulator] = list_simulators
 
         array_data = np.concatenate(experimental_data)
-        all_measurements_names_list = list(self.model.varlist_state.keys())
+        all_measurements_names_list = list(ordered_varlist_input.get_state().keys())
         if self._use_algebraic_variables:
-            all_measurements_names_list.extend(list(self.model.varlist_algebraic.keys()))
+            all_measurements_names_list.extend(list(ordered_varlist_input.get_algebraic().keys()))
 
         all_measurements_names = np.array(all_measurements_names_list)
 
@@ -1573,15 +1567,13 @@ class ParameterEstimationNLE(PE_base):
         g = []
         meas_symbols = []
 
-        for variable_name, model_var in self.model.varlist_independent.items():
-            var = self.list_input_varlist[0][variable_name]
-
+        for variable_name, var in self.model.varlist_independent(self.list_input_varlist[0]).items():
             if isinstance(var, VariableParameter):
                 if var.fixed is True:
-                    fixed_parameters.append(model_var.casadi_var)
+                    fixed_parameters.append(var.casadi_var)
                     fixed_parameters_values.append(var.value[0])
                 else:
-                    fixed_parameters.append(model_var.casadi_var)
+                    fixed_parameters.append(var.casadi_var)
                     fixed_parameters_values.append(var.casadi_var)
 
         for sim_index, sim in enumerate(self.list_simulators):
@@ -1589,16 +1581,16 @@ class ParameterEstimationNLE(PE_base):
             control_values = []
             meas_symbols_sim = []
 
-            for variable_name, model_var in self.model.varlist_independent.items():
-                var = self.list_input_varlist[sim_index][variable_name]
+            for variable_name, var in self.model.varlist_independent(self.list_input_varlist[sim_index]).items():
                 if isinstance(var, VariableControlPiecewiseConstant):
                     raise NotImplementedError
                 elif isinstance(var, VariableControl):
-                    control_symbols.append(model_var.casadi_var)
+                    control_symbols.append(var.casadi_var)
                     control_values.append(var.value[0])
 
             varlist_new_algebraic_i = VariableList()
-            for variable_name in self.model.varlist_algebraic.keys():
+
+            for variable_name in self.model.varlist_algebraic(self.list_input_varlist[sim_index]).keys():
                 var = self.list_input_varlist[sim_index][variable_name]
 
                 new_var = var._create_copy(f"_sim{sim_index}")
@@ -1615,7 +1607,7 @@ class ParameterEstimationNLE(PE_base):
 
             meas_symbols.append(ca.hcat(meas_symbols_sim))
 
-            equations_subs_alg = ca.substitute(self.model.equations_algebraic, self.model.varlist_algebraic.get_casadi_variables(), varlist_new_algebraic_i.get_casadi_variables())
+            equations_subs_alg = ca.substitute(self.model.equations_algebraic, self.model.varlist_algebraic(self.list_input_varlist[sim_index]).get_casadi_variables(), varlist_new_algebraic_i.get_casadi_variables())
 
             if len(fixed_parameters) == 0:
                 equations_subs_par = equations_subs_alg
@@ -1652,11 +1644,12 @@ class ParameterEstimationNLE(PE_base):
         list_inverted_scaled_variances = []
 
         for varlist_input in self.list_input_varlist:
+            ordered_varlist_input = self.model.varlist(varlist_input)
             varlist_data = []
             varlist_data_mask = []
             varlist_variance = []
             varlist_scaled_variance = []
-            for var in varlist_input.values():
+            for var in ordered_varlist_input.values():
                 if isinstance(var, VariableControl):
                     if not var.fixed:
                         raise NotImplementedError
@@ -1668,7 +1661,7 @@ class ParameterEstimationNLE(PE_base):
 
             simulator = SimulatorClass(
                 self.model,
-                varlist_input,
+                ordered_varlist_input,
                 self.simulator_settings,
                 self.simulator_name,
             )
@@ -1676,9 +1669,7 @@ class ParameterEstimationNLE(PE_base):
 
             list_simulator_mappings.append(self._setup_simulator_mapping(simulator))
 
-            for variable_name in self.model.varlist_algebraic.keys():
-                var = varlist_input[variable_name]
-
+            for var in ordered_varlist_input.get_algebraic().values():
                 if var.value[0] is None or np.isnan(var.value[0]):
                     varlist_data.append(np.nan)
                     varlist_data_mask.append(0.0)
@@ -1698,7 +1689,7 @@ class ParameterEstimationNLE(PE_base):
         self.list_simulators: list[SimulatorNLE] = list_simulators
 
         array_data = np.array(list_data)
-        all_measurements_names = np.array(list(self.model.varlist_algebraic.keys()))
+        all_measurements_names = np.array(list(ordered_varlist_input.get_algebraic().keys()))
 
         index_columns_with_all_nans = np.isnan(array_data).all(axis=0)
 

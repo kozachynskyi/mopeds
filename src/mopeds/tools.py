@@ -78,7 +78,7 @@ def generate_varlist_with_data_NLE(
         rng = np.random.default_rng()
 
     if measurement_names is None:
-        measurement_names = model.varlist_algebraic.keys()
+        measurement_names = model.varlist_algebraic(variable_list).keys()
 
     variable_list_original = copy.deepcopy(variable_list)
     true_parameters = {}
@@ -86,7 +86,7 @@ def generate_varlist_with_data_NLE(
     for var in variable_list.values():
         var.fixed = True
 
-    for var in model.varlist_independent.values():
+    for var in model.varlist_independent(variable_list).values():
         if isinstance(var, VariableParameter):
             var_varlist = variable_list_original[var.name]
             true_parameters[var_varlist.name] = var_varlist.value[0]
