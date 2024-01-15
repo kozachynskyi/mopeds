@@ -18,13 +18,10 @@ pandas = "*"
 tqdm = "*"
 
 [tool.poetry.group.test.dependencies]
-pytest = ">6.0.0"
-
+pytest = "*"
 
 [tool.poetry.group.docs.dependencies]
-mkdocs-material = "^9.4.14"
-mkdocs-jupyter = {version = "0.24.6", python = ">=3.9"}
-notebook = "^7.0.6"
+notebook = "*"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

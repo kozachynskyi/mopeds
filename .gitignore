@@ -3,6 +3,7 @@
 **/tmp.pkl
 par_est_code
 mopeds_code
+poetry.lock
 
 # Temporary and binary files
 .ccls-cache
