@@ -643,31 +643,7 @@ class PE_base(Optimizer):
         jac_meas_function = ca.Function(
                 "jac_meas", [decision_variables], [jac_meas_mx]
         )
-        jac_all_dm = jac_meas_function(all_parameter_values)
-
-        jac_all_dm = self._unscale_jacobian(jac_all_dm)
-        # print(self.arra
-        # scale_parameters = np.tile(np.array(self.varlist_decision._get_scaling_constants()[0]), (jac_all_dm.shape[0],1))
-        # jac_all_dm = jac_all_dm / scale_parameters
-
-        # scaling_constants_measurements = []
-        # for meas_name in self.names_of_measurements:
-        #     scaling_constants_measurements.append(self.list_input_varlist[0][meas_name]._get_scaling_constants()[0])
-        # scaling_measurements = np.repeat(np.asarray([scaling_constants_measurements]), len(self.varlist_decision), axis=0).T
-
-        # sca = []
-
-        # if isinstance(self.list_simulators[0], Simulator):
-        #     for sim in self.list_simulators:
-        #         len_time_grid = sim.time_grid_relative.shape[0] - 1
-        #         v = np.repeat(scaling_measurements, len_time_grid, axis=0)
-        #         sca.append(v)
-        #     sca = np.concatenate(sca, axis=0)
-        # else:
-        #     sca = np.repeat(scaling_measurements, len(self.list_simulators), axis=0)
-
-        # jac_all_dm = jac_all_dm / sca
-        
+        jac_all_dm = self._unscale_jacobian(jac_meas_function(all_parameter_values))
         jacobian_index = [0, self.simulate_all_mx.shape[0]]
 
         for index_measurement, meas_name in enumerate(self.names_of_measurements):

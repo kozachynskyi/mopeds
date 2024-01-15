@@ -115,7 +115,7 @@ class Variable(object):
         return axis
 
     def _create_copy(self, prefix: str) -> Variable:
-        """Copies a variable with a new name assuming prefix is not empty. Symbolic variable is newly created"""
+        """Copies a variable and create a same one with new name. Symbolic variable is newly created. If prefix == '', name stays the same"""
         if isinstance(self, (VariableConstant, VariableControlPiecewiseConstant)):
             raise NotImplementedError
         new_var = copy.deepcopy(self)
