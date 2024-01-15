@@ -96,10 +96,10 @@ def cstr(
 
     # fmt: off
     variable_list.add_variable(mopeds.VariableState("e0_T", 273.0, 250, 450))
-    variable_list.add_variable(mopeds.VariableState("e0_c_i1", 3.0, 0, 10))
+    variable_list.add_variable(mopeds.VariableState("e0_c_i1", 3.0, 3, 10))
     variable_list.add_variable(mopeds.VariableState("e0_c_i2", 10.0, 0, 20))
-    variable_list.add_variable(mopeds.VariableState("e0_c_i3", 0.0, 3))
-    variable_list.add_variable(mopeds.VariableState("e0_c_i4", 0.0, 2))
+    variable_list.add_variable(mopeds.VariableState("e0_c_i3", 0.00, 0, 3))
+    variable_list.add_variable(mopeds.VariableState("e0_c_i4", 0.00, 0, 2))
     if dae:
         variable_list.add_variable(mopeds.VariableAlgebraic("e0_c_tot", 13.0, 10, 20))
 

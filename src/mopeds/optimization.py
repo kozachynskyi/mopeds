@@ -415,9 +415,18 @@ class PE_base(Optimizer):
 
     @_consistent_scaling_decorator
     def _unscale_jacobian(self, jacobian):
+        scaled_jacobian = self._unscale_jacobian_parameter_values(jacobian)
+        scaled_jacobian = self._unscale_jacobian_measurement_values(scaled_jacobian)
+        return scaled_jacobian
+
+    @_consistent_scaling_decorator
+    def _unscale_jacobian_parameter_values(self, jacobian):
         scale_parameters = np.tile(np.array(self.varlist_decision._get_scaling_constants()[0]), (jacobian.shape[0],1))
         scaled_jacobian = jacobian / scale_parameters
+        return scaled_jacobian
 
+    @_consistent_scaling_decorator
+    def _unscale_jacobian_measurement_values(self, jacobian):
         scaling_constants_measurements = []
         for meas_name in self.names_of_measurements:
             scaling_constants_measurements.append(self.list_input_varlist[0][meas_name]._get_scaling_constants()[0])
@@ -435,9 +444,7 @@ class PE_base(Optimizer):
             scale_measurements = np.repeat(scaling_measurements, len(self.list_simulators), axis=0)
 
 
-        scaled_jacobian = scaled_jacobian * scale_measurements
-        # print(scale_measurements)
-        # breakpoint()
+        scaled_jacobian = jacobian * scale_measurements
         return scaled_jacobian
 
 
@@ -602,7 +609,8 @@ class PE_base(Optimizer):
         scaling_constants_measurements = []
         for meas_name in self.names_of_measurements:
             scaling_constants_measurements.append(self.list_input_varlist[0][meas_name]._get_scaling_constants()[0])
-        scaled_residuals = residuals * np.array(scaling_constants_measurements)
+        scale_factor = np.array([scaling_constants_measurements])
+        scaled_residuals = residuals * scale_factor
 
         # Eq 7-13-22 Bard 1974
         dof = np.count_nonzero(self.array_data_mask) - (len(self.varlist_decision) / len(self.names_of_measurements))
@@ -678,7 +686,7 @@ class PE_base(Optimizer):
                 jac_meas_selected_dm * estimated_inverted_std[:, index_measurement]
             )
             jac_meas_selected_yao_dm = jac_meas_selected_dm * (
-                1 / res_simulation[:, index_measurement]
+                1 / (res_simulation[:, index_measurement] * scale_factor[0, index_measurement])
             )
             if parameter_names is None:
                 jacobian[meas_name] = jac_meas_selected_dm

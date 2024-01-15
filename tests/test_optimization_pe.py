@@ -12,6 +12,47 @@ import pytest
 
 
 @pytest.mark.parametrize("piecewise", [True, False])
+@pytest.mark.parametrize("dae", [True, False])
+def test_scaling(piecewise, dae):
+    sens_fim = []
+    time_grid = np.linspace(0, 1000, 4)
+    var_list, model = mopeds.examples.cstr(piecewise, dae)
+    if piecewise:
+        T_in = var_list["e0_T_in"]
+        T_in.expand_horizon([2000, 2500, 4000], [363, 383, 393])
+
+    varlist_i = copy.deepcopy(var_list)
+
+    with mopeds.options(variable_scaling=False):
+        var_list_exp = mopeds.Simulator(model, time_grid, var_list).generate_exp_data()
+
+    for scaling in [True, False]:
+        with mopeds.options(variable_scaling=scaling):
+            for key, var in var_list_exp.items():
+                varlist_i[key] = var
+
+            varlist_i["e0_U"].fixed = False
+            varlist_i["e0_E_r1"].fixed = False
+
+            opts = {
+                "expand": 1,
+                "abstol": 1e-14,
+                "reltol": 1e-12,
+            }
+
+            pe = mopeds.ParameterEstimation(model, [varlist_i], simulator_settings=opts)
+            sens_fim.append(pe.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_E_r1": 9.6e4}))
+    
+    for key in sens_fim[0].keys():
+        # print(key)
+        v1 = sens_fim[0][key] 
+        v2 = sens_fim[1][key] 
+        if key not in ["jac_sorted", "jac_scaled_sorted", "jac_yao_sorted", "jac_wls", "hess_wls", "hess_tikh"]:
+            # print(v2/v1)
+            assert np.isclose(v1, v2).all()
+
+
+@pytest.mark.parametrize("piecewise", [True, False])
 def test_pe_intials_algebraic(piecewise):
     variable_list1, model = mopeds.examples.empy_dae(piecewise)
     variable_list1["X1"].set_dataframe_from_value_and_time([1, 0], [0, 1])
@@ -208,4 +249,5 @@ if __name__ == "__main__":
     # test_pe(True,True)
     # test_pe_objective(False)
     # test_pe_intials_algebraic()
-    test_pe_regularization(True, True, True)
+    # test_pe_regularization(True, True, True)
+    test_scaling(True, True)
