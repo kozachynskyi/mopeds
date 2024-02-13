@@ -409,7 +409,7 @@ class OED_base(Optimizer):
                 if var.fixed is False:
                     if np.isnan(var.guess):
                         var.guess = var.value[0]
-                    self.varlist_decision.add_variable(var.scale_from_original(var))
+                    self.varlist_decision.add_variable(var)
 
         for time_var in self.varlist_timegrid.values():
             self.varlist_decision.add_variable(time_var)
