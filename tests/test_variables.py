@@ -6,6 +6,7 @@ import casadi as ca
 import pytest
 
 def test_options():
+    mopeds.set_options(variable_scaling=True)
     assert mopeds.get_options()["variable_scaling"]
     with mopeds.options(variable_scaling = False):
         assert mopeds.get_options()["variable_scaling"] is False
@@ -180,6 +181,6 @@ def test_varlist():
 
 
 if __name__ == "__main__":
-    # test_options()
+    test_options()
     # test_variables()
     test_varlist()

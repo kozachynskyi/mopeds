@@ -209,7 +209,7 @@ class SimulatorNLE:
 
     @_consistent_scaling_decorator
     def generate_exp_data(self, unfixed_variables: dict[str, float] = None) -> VariableList:
-        res_array = self.simulate_sym_unfixed(unfixed_variables).toarray()
+        res_array = self.simulate_sym_unfixed(unfixed_variables)["x"].toarray()
 
         variables = VariableList()
 
@@ -250,15 +250,17 @@ class SimulatorNLE:
             if unfixed_variables is None:
                 raise ValueError("You need to supply values for unfixed variables")
             else:
-                unfixed_symbols = ca.symvar(res_array["xf"])
+                unfixed_symbols = ca.symvar(res_array)
                 values = []
                 for symbol in unfixed_symbols:
-                    values.append(unfixed_variables[symbol.name()])
+                    var_name = symbol.name()
+                    values.append(self._input_variable_list[var_name].scale_from_original(unfixed_variables[var_name]))
 
-                function = ca.Function("f", ca.symvar(unfixed_symbols), [res_array])
+                function = ca.Function("f", ca.symvar(*unfixed_symbols), [res_array])
                 res_array = function(*values)
 
-        return res_array
+        res_dict = {"x": res_array}
+        return res_dict
 
     def select_simulation_result(
         self, result: ca.DM | ca.MX, return_var_indexes: list[int]
