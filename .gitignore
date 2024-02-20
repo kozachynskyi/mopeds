@@ -4,6 +4,7 @@
 par_est_code
 mopeds_code
 poetry.lock
+site
 
 # Temporary and binary files
 .ccls-cache
