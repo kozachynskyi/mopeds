@@ -19,14 +19,9 @@ from mopeds import (
     VariableList,
     VariableParameter,
     VariableState,
-    _ACADOS_SUPPORT,
     get_options,
     _consistent_scaling_decorator,
 )
-
-if _ACADOS_SUPPORT:
-    from acados_template import AcadosModel
-    from mopeds import casados_integrator
 
 
 class SimulatorNLE:
@@ -65,7 +60,7 @@ class SimulatorNLE:
         else:
             self.solver_settings = self.get_default_simulator_settings()
 
-        self._setup_variables()
+        self.__setup_variables()
 
         scaled_equations = ca.substitute(self.model.equations_algebraic, self._input_variable_list.get_casadi_variables(), self._input_variable_list.get_scaled_casadi_variables())
         self._model_equations = ca.cse(scaled_equations)
@@ -143,8 +138,7 @@ class SimulatorNLE:
 
         return solver_settings
 
-    @_consistent_scaling_decorator
-    def _setup_variables(self) -> None:
+    def __setup_variables(self) -> None:
         mapping_independent_variables = {}
         mapping_algebraic_variables = {}
         index_algebraic = 0
@@ -209,26 +203,12 @@ class SimulatorNLE:
 
     @_consistent_scaling_decorator
     def generate_exp_data(self, unfixed_variables: dict[str, float] = None) -> VariableList:
-        res_array = self.simulate_sym_unfixed(unfixed_variables)["x"].toarray()
-
-        variables = VariableList()
-
-
-        for var_name, res in zip(self.model.varlist_algebraic(self._input_variable_list).keys(), res_array):
-            var = self._input_variable_list[var_name]
-            new_var = copy.deepcopy(var)
-            new_var.casadi_var = None
-
-            value = var.scale_to_original(res)
-            new_var.value = float(value[0])
-            variables.add_variable(new_var)
-
-        return variables
+        warn("generate_exp_data is deprecated. Use simulate()", FutureWarning)
+        return self.simulate(unfixed_variables=unfixed_variables, return_varlist=True)[2]
 
     def __call_simulator_rootfinder(self) -> ca.DM:
         """This method is needed to raise an error, if ipopt simulator fails to converge"""
-        res = self.simulator.call(self.call_arg)
-        return res
+        return self.simulator.call(self.call_arg)
 
     def __call_simulator_ipopt(self) -> ca.DM:
         """This method is needed to raise an error, if ipopt simulator fails to converge"""
@@ -239,48 +219,72 @@ class SimulatorNLE:
                 raise ValueError(f"IPOPT failed as NLE solver:\n{self.simulator.stats()}")
         return res
 
-    @_consistent_scaling_decorator
-    def simulate_sym_unfixed(self, unfixed_variables: dict[str, float] = None) -> ca.DM:
-        """This is slower version of simulate_sym but it allows user to supply values
-        for unfixed variables"""
-        self.call_arg["p"] = self._independent_variables
-        res_array = self._call_simulator()["x"]
+    def select_simulation_result(
+        self, result: dict[str, ca.DM], return_var_names: list[str] | None
+    ) -> ca.DM | ca.MX:
+        """Take result from self.simulate_fast() and return only a subset of results, defined by
+        list of variable names"""
+        if return_var_names is not None:
+            return_var_index = []
+            for var_name in return_var_names:
+                return_var_index.append(self.mapping_algebraic_variables[var_name])
+            res_selected = result["x"].get(False, return_var_index, 0)
+        else:
+            res_selected = {"x": None}
 
-        if not isinstance(res_array, ca.DM):
+        return res_selected
+
+    @_consistent_scaling_decorator
+    def simulate(self, *, return_var_names: list[str] | None = None, unfixed_variables: dict[str, float] | None = None, return_varlist: bool = True) -> (dict(str, ca.MX), ca.MX | None, VariableList | None):
+        """Wrapper for simulate_fast, that returns scaled results.
+        res is returned as dict to be consistent with Dynamic simulations."""
+        res = self.simulate_fast()
+        res_selected = self.select_simulation_result(res, return_var_names)
+
+        if not isinstance(res["x"], ca.DM):
             if unfixed_variables is None:
                 raise ValueError("You need to supply values for unfixed variables")
             else:
-                unfixed_symbols = ca.symvar(res_array)
+                unfixed_symbols = ca.symvar(res["x"])
                 values = []
                 for symbol in unfixed_symbols:
                     var_name = symbol.name()
                     values.append(self._input_variable_list[var_name].scale_from_original(unfixed_variables[var_name]))
 
-                function = ca.Function("f", ca.symvar(*unfixed_symbols), [res_array])
-                res_array = function(*values)
+                function = ca.Function("f", unfixed_symbols, [res["x"]])
+                res = {"x": function(*values)}
+        else:
+            res = {"x": res["x"]}
 
-        res_dict = {"x": res_array}
-        return res_dict
+        if return_varlist:
+            variables = VariableList()
+            for var_name, res_var in zip(self.model.varlist_algebraic(self._input_variable_list).keys(), res["x"].toarray()):
+                if return_var_names is not None:
+                    if var_name not in return_var_names:
+                        continue
+                var = self._input_variable_list[var_name]
+                new_var = copy.deepcopy(var)
+                new_var.casadi_var = None
 
-    def select_simulation_result(
-        self, result: ca.DM | ca.MX, return_var_indexes: list[int]
-    ) -> ca.DM | ca.MX:
-        """Take result from self.simulate_sym() and return only a subset of results, defined by column
-        index in return_var_names"""
-        return result.get(False, return_var_indexes, 0)
+                value = var.scale_to_original(res_var)
+                new_var.value = float(value[0])
+                variables.add_variable(new_var)
+        else:
+            variables = None
+
+        return res, res_selected, variables
 
     @_consistent_scaling_decorator
-    def simulate(self, return_var_names: list[str] | None = None) -> ca.DM | ca.MX:
-        """Wrapper for simulate_sym, that returns only results for variables, specified in return_var_names"""
-        res = self.simulate_sym()["x"]
-        if return_var_names is not None:
-            return_var_index = []
-            for var_name in return_var_names:
-                return_var_index.append(self.mapping_algebraic_variables[var_name])
-            res = self.select_simulation_result(res, return_var_index)
-        return res
+    def simulate_sym_unfixed(self, unfixed_variables: dict[str, float] = None) -> dict[str, ca.DM]:
+        warn("simulate_sym_unfixed is deprecated. Use simulate(unfixed_variables=unfixed_variables, return_varlist=False)", FutureWarning)
+        return self.simulate(unfixed_variables=unfixed_variables, return_varlist=False)[0]
 
     def simulate_sym(self) -> dict[str, ca.MX | ca.DM]:
+        warn("simulate_sym is deprecated. Use simulate_fast", FutureWarning, 2)
+        return self.simulate_fast()
+
+    def simulate_fast(self) -> dict[str, ca.MX | ca.DM]:
+        """Should be used internally for fast calculations. Output of the solution is not scaled"""
         self.call_arg["p"] = self._independent_variables
 
         res = self._call_simulator()

@@ -30,8 +30,10 @@ Considering creating a test to compare the numerical results while migrating.
 
 ### Upcoming
 
-- NLEs are automatically scaled, if lower and upper bound are provided, use_bounds for rootfinder NLE is deprecated
-- Model does not contain any variable lists
+- Variables are automatically scaled, if lower and upper bound are provided, use_bounds for rootfinder NLE is deprecated
+- Dynamic and steady state simulators have a consistent API now, sim.simulate() and sim.simulate_fast(), generate_exp_data is deprecated, used sim.simulate()[2] instead, to get a varlist.
+- Model does not contain any variable lists, instead in just holds an order of variables and respecive casadi variables.
+- Parameter Estimation of NLE models supports direct optimization, before only the sequential optimization was used: for every experiment there was a rootfinder that found solution and provided gradient for optimizer.
 
 ### 0.10.1
 

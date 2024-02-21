@@ -427,7 +427,7 @@ class OED_base(Optimizer):
 
     @_consistent_scaling_decorator
     def generate_jacobian_function(self) -> None:
-        """Combines simulate_sym() functions from simulator, and creates MX structure, that is used
+        """Combines simulate_fast() functions from simulator, and creates MX structure, that is used
         further in objective_function calculation"""
         parameter_variables = self.varlist_parameter.get_casadi_variables()
 
@@ -436,7 +436,7 @@ class OED_base(Optimizer):
         else:
             raise NotImplementedError
 
-        res_simulation = self.list_simulators[0].simulate_sym()[res_dict_name].T
+        res_simulation = self.list_simulators[0].simulate_fast()[res_dict_name].T
 
         parameter_variables = self.varlist_parameter.get_casadi_variables()
         decision_variables = self.varlist_decision.get_casadi_variables()
@@ -772,7 +772,7 @@ class OED_NLE_base(OED_base):
         else:
             raise NotImplementedError
 
-        res_simulation = self.list_simulators[0].simulate_sym()[res_dict_name].T
+        res_simulation = self.list_simulators[0].simulate_fast()[res_dict_name].T
 
         parameter_variables = self.varlist_parameter.get_casadi_variables()
         decision_variables = self.varlist_decision.get_casadi_variables()

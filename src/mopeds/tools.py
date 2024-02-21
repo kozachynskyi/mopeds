@@ -38,7 +38,7 @@ def generate_varlist_with_data(
     for var in var_list_fixed.values():
         var.fixed = True
     sim = Simulator(model, time_grid, var_list_fixed)
-    var_list_exp = sim.generate_exp_data(algebraic)
+    var_list_exp = sim.simulate(algebraic=True)[2]
 
     # Replace empty state variables with results from simulation
     variable_list_with_data = copy.deepcopy(variable_list)
@@ -100,7 +100,7 @@ def generate_varlist_with_data_NLE(
         sim_fixed.change_independent_variables(
             dict(zip(control_bounds.keys(), grid_point))
         )
-        varlist_results = sim_fixed.generate_exp_data()
+        varlist_results = sim_fixed.simulate()[2]
 
         # Set startings values
         for variable_name, variable in varlist_results.items():
