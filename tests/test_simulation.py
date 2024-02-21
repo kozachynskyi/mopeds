@@ -28,7 +28,7 @@ def test_pendulum_dae(piecewise):
         var.fixed = True
     with mopeds.options(variable_scaling=False):
         sim = mopeds.Simulator(model, time_grid, varlist)
-        res_tau = sim.generate_exp_data(True).dataframe
+        res_tau = sim.simulate(algebraic=True)[2].dataframe
         res_tau.drop(columns="L", inplace=True, errors='ignore')
         res = np.array([[3.42289, 4.68624],
              [1.96674, 2.34688],
@@ -38,6 +38,14 @@ def test_pendulum_dae(piecewise):
         assert np.isclose(
                 res_tau.iloc[1:].T, res
         ).all()
+
+        res_tau = sim.simulate(return_var_names=["u", "v"])[2].dataframe
+        res_tau.drop(columns="L", inplace=True, errors='ignore')
+        assert np.isclose(
+                res_tau.iloc[1:].T, res[[1,3]]
+        ).all()
+        res_tau = sim.simulate(return_var_names=["u", "v"], return_varlist=False)[2]
+        assert res_tau is None
 
 
 @pytest.mark.parametrize("piecewise", [True, False])
@@ -76,25 +84,25 @@ def test_cstr(piecewise, dae, use_constant, scaling):
 
                 sim = mopeds.Simulator(m, time_grid, variable_list, simulate_jac=True)
                 if j == 0:
-                    res_simple = sim.simulate_sym()
+                    res_simple = sim.simulate_fast()
                 else:
                     res_simple = sim.simulate_jac()
 
                 if i == 4:
-                    res = sim.generate_exp_data()
+                    res = sim.simulate()[2]
                     if piecewise:
                         assert len(res) == 7
                     else:
                         assert len(res) == 5
                     if sim.model.DAE:
-                        res = sim.generate_exp_data(algebraic=True)
+                        res = sim.simulate(algebraic=True)[2]
                         if piecewise:
                             assert len(res) == 8
                         else:
                             assert len(res) == 6
                 else:
                     with pytest.raises(ValueError):
-                        res = sim.generate_exp_data()
+                        res = sim.simulate()[2]
 
                 if j == 1:
                     assert res_simple["jac_xf_p"].size() == (5, 76)
@@ -159,7 +167,7 @@ def test_steadystate(piecewise, dae, use_constant, scaling):
 
         sim = mopeds.Simulator(m, time_grid, variable_list)
 
-        sim_res = sim.simulate_sym()
+        sim_res = sim.simulate_fast()
 
         steady_state = sim.calculate_steady_state()
 

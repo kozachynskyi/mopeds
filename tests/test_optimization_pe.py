@@ -24,7 +24,7 @@ def test_scaling(piecewise, dae):
     varlist_i = copy.deepcopy(var_list)
 
     with mopeds.options(variable_scaling=False):
-        var_list_exp = mopeds.Simulator(model, time_grid, var_list).generate_exp_data()
+        var_list_exp = mopeds.Simulator(model, time_grid, var_list).simulate()[2]
 
     for scaling in [True, False]:
         with mopeds.options(variable_scaling=scaling):
@@ -141,7 +141,7 @@ def test_pe(piecewise, dae, use_constant, scaling):
             var.fixed = True
         var_list_exp = mopeds.Simulator(
             model, time_grid, var_list_fixed
-        ).generate_exp_data()
+        ).simulate()[2]
 
         for key, var in var_list_exp.items():
             var_list[key] = var
@@ -199,7 +199,7 @@ def test_pe_regularization(piecewise, dae, scaling):
             var.fixed = True
         var_list_exp = mopeds.Simulator(
             model, time_grid, var_list_fixed
-        ).generate_exp_data()
+        ).simulate()[2]
 
         for key, var in var_list_exp.items():
             if isinstance(var, mopeds.VariableControlPiecewiseConstant):

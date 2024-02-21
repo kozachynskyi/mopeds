@@ -24,7 +24,7 @@ def test_scaling(piecewise, dae, use_constant):
             time_grid = np.linspace(0, 1000, 4)
             time_grid_expanded = list(time_grid) + [2000, 4000]
 
-            var_list_exp = mopeds.Simulator(model, time_grid, var_list).generate_exp_data()
+            var_list_exp = mopeds.Simulator(model, time_grid, var_list).simulate()[2]
 
             for key, var in var_list_exp.items():
                 var_list[key] = var
@@ -72,7 +72,7 @@ def test_parameter_jacobian(piecewise, dae, use_constant, scaling):
             T_in = var_list["e0_T_in"]
             T_in.expand_horizon([2000, 4000], [373, 373])
 
-        var_list_exp = mopeds.Simulator(model, time_grid, var_list).generate_exp_data()
+        var_list_exp = mopeds.Simulator(model, time_grid, var_list).simulate()[2]
 
         for key, var in var_list_exp.items():
             var_list[key] = var
@@ -126,7 +126,7 @@ def test_optimizer(piecewise):  # noqa: C901
     var_list_fixed = copy.deepcopy(variable_list)
     for var in var_list_fixed.values():
         var.fixed = True
-    var_list_exp = mopeds.Simulator(m, time_grid, var_list_fixed).generate_exp_data()
+    var_list_exp = mopeds.Simulator(m, time_grid, var_list_fixed).simulate()[2]
 
     # Replace empty state variables with results from simulation
     for key, var in var_list_exp.items():

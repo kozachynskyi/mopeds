@@ -27,9 +27,9 @@ def test_jacobian_weights(piecewise, dae, use_constant, scaling):
                 T_in.expand_horizon([2000, 4000], [373, 373])
 
             if weight_on:
-                var_list_exp = mopeds.Simulator(model, time_grid, var_list).generate_exp_data()
+                var_list_exp = mopeds.Simulator(model, time_grid, var_list).simulate()[2]
             else:
-                var_list_exp = mopeds.Simulator(model, time_grid_modified, var_list).generate_exp_data()
+                var_list_exp = mopeds.Simulator(model, time_grid_modified, var_list).simulate()[2]
 
             for key, var in var_list_exp.items():
                 var_list[key] = var

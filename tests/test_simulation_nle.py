@@ -12,12 +12,12 @@ def test_vle_nle():
         variable_list.set_variable_list_fixed()
         variable_list["x"].value = 0.5
         sim = mopeds.SimulatorNLE(model, variable_list)
-        res = sim.simulate_sym()
+        res = sim.simulate_fast()
         true_answer_T = 359.451
 
         variable_list["a1"].fixed = False
         sim_unfixed = mopeds.SimulatorNLE(model, variable_list)
-        res_unfixed = sim_unfixed.simulate_sym_unfixed({"a1": 5.24125})
+        res_unfixed = sim_unfixed.simulate(unfixed_variables={"a1": 5.24125})[0]
 
         logging.warning(
             f"Model.NLE: {model}, Result: {res['x']}, Expecting: {true_answer_T}"
@@ -30,13 +30,13 @@ def test_utilities_methods():
     variable_list, model = mopeds.examples.simple_mixer()
 
     sim = mopeds.SimulatorNLE(model, variable_list)
-    res_full = sim.simulate()
+    res_full = sim.simulate()[0]
 
-    assert res_full[0] == sim.simulate(["e0_F_s2"])
-    assert res_full[1] == sim.simulate(["e0_F_s4"])
+    assert res_full["x"][0] == sim.simulate(return_var_names=["e0_F_s2"])[1]
+    assert res_full["x"][1] == sim.simulate(return_var_names=["e0_F_s4"])[1]
 
     sim.change_independent_variables({"e0_F_s1": 10, "e0_F_s3": 15})
-    res_full = sim.simulate()
+    res_full = sim.simulate()[0]["x"]
     assert np.array_equal(res_full, ca.DM([10.0, -5.0, 10.0]))
 
 

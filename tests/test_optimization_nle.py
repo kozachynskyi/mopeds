@@ -18,7 +18,7 @@ def test_parameter_jacobian():
     for m_cat in [22, 18, 20]:
         var_list_i = copy.deepcopy(var_list)
         var_list_i["e0_m_Cat"].value = m_cat
-        var_list_exp = mopeds.SimulatorNLE(model, var_list).generate_exp_data()
+        var_list_exp = mopeds.SimulatorNLE(model, var_list).simulate()[2]
         var_list_i["e0_cp"].fixed = False
         var_list_i["e0_E"].fixed = False
 
@@ -76,22 +76,23 @@ def test_pe():
             simulator_name=simulator_name,
         )
 
-        for objective in ["ols", "wls"]:
-            res = pe.optimize(objective_function=objective)
-            answer_f = 0
-            answer_param = [5.19625]
+        for objective in ["ols", "wls", "fair", "tikh"]:
+            for direct in [True, False]:
+                res = pe.optimize(objective_function=objective, direct_optimization=direct)
+                answer_f = 0
+                answer_param = [5.19625]
 
-            logging.warning(
-                f"Model.NLE: {model}, Result: {res['f']}, Expecting: {answer_f}"
-            )
-            assert np.isclose(res["f"], ca.DM(answer_f), rtol=0, atol=1.0e-9)
+                logging.warning(
+                    f"Model.NLE: {model}, Result: {res['f']}, Expecting: {answer_f}"
+                )
+                assert np.isclose(res["f"], ca.DM(answer_f), rtol=0, atol=1.0e-9)
 
-            logging.warning(
-                f"Model.NLE: {model}, Result: {res['x']}, Expecting: {answer_param}"
-            )
-            assert np.all(
-                np.isclose(res["x"], ca.DM(answer_param), rtol=0, atol=1.0e-9)
-            )
+                logging.warning(
+                    f"Model.NLE: {model}, Result: {res['x']}, Expecting: {answer_param}"
+                )
+                assert np.all(
+                    np.isclose(res["x"], ca.DM(answer_param), rtol=0, atol=1.0e-9)
+                )
 
         for sim in pe.list_simulators:
             if i == 1:

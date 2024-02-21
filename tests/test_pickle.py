@@ -20,7 +20,7 @@ def test_pickling_objects(tmp_path, piecewise, dae, use_constant):
     for var in var_list_fixed.values():
         var.fixed = True
     simulation = mopeds.Simulator(model, time_grid, var_list_fixed)
-    var_list_exp = simulation.generate_exp_data()
+    var_list_exp = simulation.simulate()[2]
 
     for key, var in var_list_exp.items():
         variable_list[key] = var
@@ -49,7 +49,7 @@ def test_varlist_simulation_reusability(tmp_path, piecewise):
     time_grid = np.linspace(0, 1, 3)
     variable_list["g"].value = 12.0
     simulation = mopeds.Simulator(model, time_grid, variable_list)
-    res_before_pickle = simulation.simulate_sym()
+    res_before_pickle = simulation.simulate_fast()
 
     file_write = open(tmp_path / "tmp.pkl", "wb")
     pickler = mopeds.MXPickler(file_write)
@@ -58,7 +58,7 @@ def test_varlist_simulation_reusability(tmp_path, piecewise):
     file_read = open(tmp_path / "tmp.pkl", "rb")
     variable_list_after = pickle.load(file_read)
     simulation = mopeds.Simulator(model, time_grid, variable_list_after)
-    res_after_pickle = simulation.simulate_sym()
+    res_after_pickle = simulation.simulate_fast()
 
     assert np.isclose(
         ca.vertcat(res_before_pickle["xf"], res_before_pickle["zf"]),
@@ -67,7 +67,7 @@ def test_varlist_simulation_reusability(tmp_path, piecewise):
 
     variable_list, model = mopeds.examples.pendulum_dae_1(piecewise, variable_list)
     simulation = mopeds.Simulator(model, time_grid, variable_list)
-    res_after_pickle = simulation.simulate_sym()
+    res_after_pickle = simulation.simulate_fast()
 
     assert np.isclose(
         ca.vertcat(res_before_pickle["xf"], res_before_pickle["zf"]),

@@ -75,11 +75,11 @@ def test_varlist_model_reusability():
     time_grid = np.linspace(0, 1, 3)
     variable_list["g"].value = 12.0
     simulation = mopeds.Simulator(model, time_grid, variable_list)
-    res_before = simulation.simulate_sym()
+    res_before = simulation.simulate_fast()
 
     variable_list, model = mopeds.examples.pendulum_dae_1(False, variable_list)
     simulation = mopeds.Simulator(model, time_grid, variable_list)
-    res_after_pickle = simulation.simulate_sym()
+    res_after_pickle = simulation.simulate_fast()
 
     assert np.isclose(
         ca.vertcat(res_before["xf"], res_before["zf"]),
