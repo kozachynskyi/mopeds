@@ -522,7 +522,7 @@ l_vl = []
 
 for P in np.linspace(1e5, 2e5, 2):
     sim.change_independent_variables({"e0_P": P})
-    res = sim.generate_exp_data()
+    res = sim.simulate()[2]
     vl = copy.deepcopy(varlist)
     vl["e0_x_V_i1"].value = res["e0_x_V_i1"].value[0]
     vl["e0_T"].value = res["e0_T"].value[0]

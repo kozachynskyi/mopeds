@@ -18,7 +18,7 @@ class SimulatorCustom(mopeds.Simulator):
             self.integrator_tau_jac_zf = self.integrator_tau.factory(
                 "integrator_tau_jacobian",
                 self.integrator_tau.name_in(),
-                ["xf", "zf", "qf", "rxf", "rzf", "rqf", "jac:xf:p", "jac:zf:p"],
+                ["xf", "qf", "zf", "adj_x0", "adj_p", "adj_z0", "jac:xf:p", "jac:zf:p"],
             )
             self.simulate_jac_zf = self._simulate_jac_dae_zf
 
@@ -41,7 +41,7 @@ class SimulatorCustom(mopeds.Simulator):
                 x0=x_init,
                 z0=alg_init,
                 p=ca.vertcat(
-                    time_step - prev_time_step, independent_variables * self.scaling
+                    time_step - prev_time_step, independent_variables
                 ),
             )
 
@@ -66,7 +66,7 @@ class SimulatorCustom(mopeds.Simulator):
 if __name__ == "__main__":
 
     piecewiseswitch = False
-    variable_list, m = mopeds.examples.cstr_dae(piecewiseswitch)
+    variable_list, m = mopeds.examples.cstr(piecewiseswitch)
 
     # Create time-grid. Zero should be first
     time_grid = np.linspace(0, 1000, 5)
@@ -78,13 +78,13 @@ if __name__ == "__main__":
         m, time_grid, variable_list, use_idas_constraints=False, simulate_jac=True
         , integrator_name="collocation"
     )
-    res = sim_fixed.generate_exp_data(algebraic=True)
+    res = sim_fixed.simulate(algebraic=True)[2]
 
     sim_fixed2 = SimulatorCustom(
     # sim_fixed2 = mopeds.Simulator(
         m, time_grid2, variable_list, use_idas_constraints=False, simulate_jac=True
     )
-    res2 = sim_fixed2.generate_exp_data(algebraic=True)
+    res2 = sim_fixed2.simulate(algebraic=True)[2]
 
     # jac = sim_fixed.simulate_jac_zf()["jac_xf_p"]
     jac_zf = sim_fixed.simulate_jac_zf()["jac_zf_p"]

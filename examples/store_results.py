@@ -25,8 +25,8 @@ if __name__ == "__main__":
         var.fixed = True
 
     sim_fixed = mopeds.Simulator(m, time_grid, var_list_fixed)
-    res_simple = sim_fixed.simulate_sym()
-    res = sim_fixed.generate_exp_data(algebraic=True)
+    res_simple = sim_fixed.simulate_fast()
+    res = sim_fixed.simulate(algebraic=True)[2]
     variable = variable_list["e0_T"]
 
     objects_to_pickle_names = [

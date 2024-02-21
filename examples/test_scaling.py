@@ -26,7 +26,7 @@ def dyn():
                 "reltol": 1e-12,
             }
             sim = mopeds.Simulator(m, time_grid, vl, integrator_settings=opts)
-            res.append(sim.generate_exp_data(True))
+            res.append(sim.simulate(algebraic=True)[2])
 
     print(res[1].dataframe)
     print(res[0].dataframe / res[1].dataframe)
@@ -41,7 +41,7 @@ def stead():
         with mopeds.options(variable_scaling=i):
             vl, m = mopeds.examples.cstr_nle()
             sim = mopeds.SimulatorNLE(m, vl)
-            res.append(sim.simulate_sym())
+            res.append(sim.simulate_fast())
     for key in res[0].keys():
         print(key)
         for j, var in enumerate(vl.get_state()):

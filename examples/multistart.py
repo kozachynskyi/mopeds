@@ -17,7 +17,7 @@ if __name__ == "__main__":
     var_list_fixed = copy.deepcopy(variable_list)
     for var in var_list_fixed.values():
         var.fixed = True
-    var_list_exp = mopeds.Simulator(m, time_grid, var_list_fixed).generate_exp_data()
+    var_list_exp = mopeds.Simulator(m, time_grid, var_list_fixed).simulate()[2]
 
     # Replace empty state variables with results from simulation
     variable_list_optimizer = copy.deepcopy(variable_list)

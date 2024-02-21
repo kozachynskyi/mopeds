@@ -50,7 +50,7 @@ def generate_data(
 
     for x in x_range:
         simulator._independent_variables[0] = x
-        res = simulator.simulate_sym()
+        res = simulator.simulate_fast()
         y = float(res["x"])
 
         if perturbate:

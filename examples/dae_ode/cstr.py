@@ -20,8 +20,8 @@ if __name__ == "__main__":
         var.fixed = True
 
     sim_fixed = mopeds.Simulator(m, time_grid, var_list_fixed)
-    res = sim_fixed.generate_exp_data()
-    var_list_exp = sim_fixed.generate_exp_data()
+    res = sim_fixed.simulate()
+    var_list_exp = sim_fixed.simulate()[2]
 
     # start_time = datetime(2018, 1, 1, 1, 0, 0, 0) + timedelta(days=1)
     # end_time = start_time + timedelta(seconds=1000)

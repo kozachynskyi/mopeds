@@ -668,7 +668,7 @@ if __name__ == "__main__":
     sim_fixed = mopeds.Simulator(m, time_grid, var_list_fixed)
 
     # Run simulation and connect results with actual state variables, which can be plotted based on available data
-    var_list_exp = sim_fixed.generate_exp_data()
+    var_list_exp = sim_fixed.simulate()[2]
 
     # Replace empty state variables with results from simulation
     variable_list_optimizer = copy.deepcopy(variable_list)

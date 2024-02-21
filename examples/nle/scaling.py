@@ -142,9 +142,9 @@ if __name__ == "__main__":
     vl, m = example8dot7(True)
     grid = np.linspace(0,100,5)
     sim = mopeds.Simulator(m, grid, vl)
-    res1 = sim.generate_exp_data(True)
+    res1 = sim.simulate(algebraic=True)[2]
     sim.change_independent_variables({"x1": 3})
-    res2 = sim.generate_exp_data(True)
+    res2 = sim.simulate(algebraic=True)[2]
 
     exp = []
     for i, res in enumerate([res1, res2]):

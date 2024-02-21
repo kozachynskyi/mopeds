@@ -176,8 +176,8 @@ if __name__ == "__main__":
         var.fixed = True
 
     sim_fixed = mopeds.SimulatorNLE(m, var_list_fixed)
-    res_simple = sim_fixed.simulate_sym()
-    res = sim_fixed.generate_exp_data()
+    res_simple = sim_fixed.simulate_fast()
+    res = sim_fixed.simulate()[2]
 
     unfix_names = [
         "e0_E_for_A",
