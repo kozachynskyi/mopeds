@@ -603,6 +603,8 @@ class VariableConstant(Variable):
         name: str,
         value: float | None = None,
         opc_ua_id: int | None = None,
+        *args,
+        **kwargs,
     ):
         super().__init__(name)
         self.dataframe = self._dataframe_from_value(value)
