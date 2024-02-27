@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 
 import numpy as np
+import pandas as pd
 
 from mopeds import Model, Simulator, SimulatorNLE, VariableList, VariableParameter, VariableControl
 
@@ -115,3 +116,15 @@ def generate_varlist_with_data_NLE(
         varlist_list.append(variable_list_optimizer)
 
     return varlist_list, true_parameters
+
+def analyze_scaling_nle(model, varlist, control_bounds):
+    """Change the control variables in a given bounds, calculate all algeraic variables and provide lower and upper bounds for them"""
+    all_data, true_parameters = generate_varlist_with_data_NLE(model, varlist, control_bounds=control_bounds, perturbate=False)
+    v = all_data[0].dataframe
+    vv = all_data[1].dataframe
+    g = pd.concat([vl.dataframe for vl in all_data])
+
+    algebraic_names = varlist.get_algebraic().keys()
+    selected_data = g[algebraic_names]
+    return_bounds = dict(zip(algebraic_names, zip(selected_data.min(), selected_data.max())))
+    return return_bounds
