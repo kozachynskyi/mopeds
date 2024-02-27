@@ -35,6 +35,7 @@ Considering creating a test to compare the numerical results while migrating.
 - Model does not contain any variable lists, instead in just holds an order of variables and respecive casadi variables.
 - Parameter Estimation of NLE models supports direct optimization, before only the sequential optimization was used: for every experiment there was a rootfinder that found solution and provided gradient for optimizer.
 - VariableConstant allows multiple inputs, which are ignored. Used to easier switch from Independent Variable to constant
+- Add tools.analyze_scaling() and pe.check_results_bounds to help with selection of scaling bounds
 
 ### 0.10.1
 

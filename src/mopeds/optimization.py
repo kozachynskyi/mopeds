@@ -159,6 +159,31 @@ class Optimizer(object):
         """Returns a way to calculate and objective. Dependent on optimization type."""
         raise (NotImplementedError)
 
+    def check_result_bounds(self, result) -> pd.DataFrame:
+        """Use output of self.optimize() and check if decision variables are not on the bounds
+        Returns dataframe with variables that are not in bounds."""
+        if result["x_unscaled"].shape[0] == len(self.varlist_decision):
+            varlist_decision = self.varlist_decision
+            lower_bound = self.lower_bound
+            upper_bound = self.upper_bound
+        elif result["x_unscaled"].shape[0] == len(self.varlist_decision_direct):
+            varlist_decision = self.varlist_decision_direct
+            lower_bound = self.lower_bound_direct
+            upper_bound = self.upper_bound_direct
+        else:
+            raise ValueError
+
+        results_with_bound = {}
+        for i, (var, res_i) in enumerate(zip(varlist_decision.values(), result["x_unscaled"])):
+            value = var.scale_to_original(float(res_i))
+            lb = var.scale_to_original(lower_bound[i])
+            ub = var.scale_to_original(upper_bound[i])
+            results_with_bound[var.name] = [lb, value, ub]
+        df = pd.DataFrame.from_dict(results_with_bound).T
+        selected_df = df[(df[0] > df[1]) | (df[2] < df[1])]
+        selected_df.columns = ["lb", "value", "ub"]
+        return selected_df
+
     @_consistent_scaling_decorator
     def _optimize(self, scale: bool = None, direct_optimization: bool = False) -> dict[str, ca.DM | ca.MX]:
         """Runs optimizer, uses scaling if needed. Returned values is scaled back.
@@ -204,9 +229,12 @@ class Optimizer(object):
 
         res_solver = self.solver.call(self.nlpsol_args)
 
-        res_solver["x"] = np.asarray(varlist_decision.scale_to_original(res_solver["x"]))
+        res_solver["x_unscaled"] = res_solver["x"].toarray()
+        res_solver["x_all"] = np.asarray(varlist_decision.scale_to_original(res_solver["x"]))
         if direct_optimization:
-            res_solver["x"] = res_solver["x"][:len(self.varlist_decision)]
+            res_solver["x"] = res_solver["x_all"][:len(self.varlist_decision)]
+        else:
+            res_solver["x"] = res_solver["x_all"]
 
         res_dict = {}
         for solution, var_name in zip(
@@ -214,7 +242,17 @@ class Optimizer(object):
         ):
             res_dict[var_name] = float(solution[0])
 
+        if direct_optimization:
+            res_dict_all = {}
+            for solution, var_name in zip(
+                res_solver["x_all"], list(varlist_decision.keys())
+            ):
+                res_dict_all[var_name] = float(solution[0])
+        else:
+            res_dict_all = res_dict
+
         res_solver["x_dict"] = res_dict
+        res_solver["x_dict_all"] = res_dict
         self.reset_acados()
 
         return res_solver
@@ -1589,6 +1627,8 @@ class ParameterEstimationNLE(PE_base):
 
         lower_bound = self.lower_bound.tolist()
         upper_bound = self.upper_bound.tolist()
+        lower_bound_inf = self.lower_bound.tolist()
+        upper_bound_inf = self.upper_bound.tolist()
         guess = self.guess.tolist()
 
         guess_dict = {}
@@ -1636,6 +1676,8 @@ class ParameterEstimationNLE(PE_base):
 
                 lower_bound.append(new_var.scale_from_original(new_var.lower_bound))
                 upper_bound.append(new_var.scale_from_original(new_var.upper_bound))
+                lower_bound_inf.append(-ca.inf)
+                upper_bound_inf.append(ca.inf)
                 guess.append(var_guess)
 
                 if var.name in self.names_of_measurements:
@@ -1657,11 +1699,14 @@ class ParameterEstimationNLE(PE_base):
                 equations_subs_all = ca.substitute(equations_subs_par, ca.vcat(control_symbols), ca.MX(control_values))
 
             self.varlist_algebraic_direct.update(**varlist_new_algebraic_i)
+            # equality_constraints.append(equations_subs_all.printme(sim_index))
             equality_constraints.append(equations_subs_all)
 
         self.nlpsol_g_direct = ca.cse(ca.vcat(equality_constraints))
         self.lower_bound_direct = np.array(lower_bound)
+        self.lower_bound_direct_inf = np.array(lower_bound_inf)
         self.upper_bound_direct = np.array(upper_bound)
+        self.upper_bound_direct_inf = np.array(upper_bound_inf)
         self.guess_direct = np.array(guess)
         self.simulate_all_direct = ca.vcat(meas_symbols)
 
