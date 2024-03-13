@@ -180,7 +180,7 @@ class Optimizer(object):
             ub = var.scale_to_original(upper_bound[i])
             results_with_bound[var.name] = [lb, value, ub]
         df = pd.DataFrame.from_dict(results_with_bound).T
-        selected_df = df[(df[0] > df[1]) | (df[2] < df[1])]
+        selected_df = df[(df[0] >= df[1]) | (df[2] <= df[1])]
         selected_df.columns = ["lb", "value", "ub"]
         return selected_df
 
