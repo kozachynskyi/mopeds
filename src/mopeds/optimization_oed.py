@@ -276,7 +276,10 @@ class OED_base(Optimizer):
         exp_varlist = copy.deepcopy(self.list_input_varlist[0])
 
         for index, meas_name in enumerate(self.names_of_measurements):
-            sim_data = res_sim[:, index]
+            if len(self.names_of_measurements) == 1:
+                sim_data = res_sim
+            else:
+                sim_data = res_sim[:, index]
 
             if self._oed_settings.measurement_weights:
                 index_measurements = []
