@@ -37,7 +37,7 @@ if __name__ == "__main__":
 
             vl, m = get_model()
             bounds = {"x": [1, 30, 10]}
-            exp_data, true_params = mopeds.tools.generate_varlist_with_data_NLE(m, vl, bounds, perturbate=False)
+            exp_data, true_params = mopeds.tools.generate_artificial_data_from_grid_nle(m, vl, bounds, perturbate=False)
 
             x_values = []
             y_std_real = []

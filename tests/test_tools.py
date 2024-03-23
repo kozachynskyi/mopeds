@@ -7,7 +7,7 @@ import mopeds
 def test_artificial_data_generator_nle():
     variable_list, model = mopeds.examples.simple_mixer()
     control_bounds = {"e0_F_s1": [17, 20, 3]}
-    res, par = mopeds.tools.generate_varlist_with_data_NLE(model, variable_list, control_bounds, perturbate=False)
+    res, par = mopeds.tools.generate_artificial_data_from_grid_nle(model, variable_list, control_bounds, perturbate=False)
 
     for varlist, expected in zip(res, [17, 18.5, 20]):
         assert varlist["e0_F_s2"].value[0] == expected
@@ -15,7 +15,7 @@ def test_artificial_data_generator_nle():
     for varlist, expected in zip(res, [4, 5.5, 7]):
         assert varlist["e0_F_s4"].value[0] == expected
 
-    res, par = mopeds.tools.generate_varlist_with_data_NLE(model, variable_list, control_bounds, perturbate=True, rng=np.random.default_rng(0), measurement_names=["e0_F_s2"])
+    res, par = mopeds.tools.generate_artificial_data_from_grid_nle(model, variable_list, control_bounds, perturbate=True, rng=np.random.default_rng(0), measurement_names=["e0_F_s2"])
 
     for varlist, expected in zip(res, [17.125730221093395, 18.367895136708697, 20.64042265044328]):
         assert np.isclose(varlist["e0_F_s2"].value[0], expected)

@@ -53,7 +53,7 @@ def test_pe():
     (
         variable_list_optimizer,
         true_parameters,
-    ) = mopeds.tools.generate_varlist_with_data_NLE(
+    ) = mopeds.tools.generate_artificial_data_from_grid_nle(
         model, variable_list, control_bounds, perturbate=False
     )
     variable_list_optimizer = variable_list_optimizer[0]
@@ -117,7 +117,7 @@ def test_multivariate_pe():
     (
         variable_list_optimizer,
         true_parameters,
-    ) = mopeds.tools.generate_varlist_with_data_NLE(
+    ) = mopeds.tools.generate_artificial_data_from_grid_nle(
         model, varlist, control_bounds, perturbate=True, rng=rng
     )
 

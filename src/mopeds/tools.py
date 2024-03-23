@@ -3,6 +3,7 @@ Separated from utilities to avoid dependency hell"""
 from __future__ import annotations
 
 import copy
+from warnings import warn
 
 import numpy as np
 import pandas as pd
@@ -55,25 +56,49 @@ def generate_varlist_with_data(
 
     return variable_list_with_data
 
-
-def generate_varlist_with_data_NLE(
-    model,
-    variable_list,
-    control_bounds,
+def generate_artificial_data_from_grid_nle(
+    model: Model,
+    variable_list: VariableList,
+    control_bounds: dict[list[float]],
     perturbate: bool = True,
     rng: np.random.Generator = None,
     measurement_names: list[str] = None,
+    *,
+    keep_in_bounds: bool = True,
 ) -> tuple[list[VariableList], dict[str, float]]:
+    """Wrapper around generate_artificial_data_nle, where controls are generated based on uniform grid.
+    control_bounds is dictionary, with variable names as keys(),
+    and values() as a list with 3 elements: [lower_bound, upper_bound, num_points]
+    """
+    grid, _ = create_grid(list(control_bounds.values()))
+    control_grid = []
+    for grid_point in grid:
+        control_grid.append(dict(zip(control_bounds.keys(), grid_point)))
+    return generate_artificial_data_nle(model, variable_list, control_grid, perturbate, rng, measurement_names, keep_in_bounds=keep_in_bounds)
+
+
+def generate_artificial_data_nle(
+    model: Model,
+    variable_list: VariableList,
+    controls: list[dict[float]],
+    perturbate: bool = True,
+    rng: np.random.Generator = None,
+    measurement_names: list[str] = None,
+    *,
+    keep_in_bounds: bool = True,
+    ) -> tuple[list[VariableList], dict[str, float]]:
     """Generate artificial data that can immediately be used by Parameter Estimator.
     Returns list of varlists and a dictionary with parameter values that were used
     to generate data.
 
     Parameter values that are used are taken from variable list.
-    control_bounds is dictionary, with variable names as keys(),
-    and values() as a list with 3 elements: [lower_bound, upper_bound, num_points]
+    controls is a list with dictionary, representing control variables and their respective values.
+    For example, [{"P": 1, "T": 80}, {"P": 2, "T": 90}] will create two sets of artificial data, generated
+    at pressure 1 and T 80 and pressure 2 and temperature 90.
     perturbate: if True, generated data is perturbated based on variance in variable_list
     rng: is a rng object, user can use it to predefine the randomization of the noise
     measurement_names: list with variable names, for which artificial data should be generated
+    keep_in_bounds: if perturbated value is out of variable bounds -> make it equal to the closes bound
     """
     if rng is None:
         rng = np.random.default_rng()
@@ -92,15 +117,12 @@ def generate_varlist_with_data_NLE(
             var_varlist = variable_list_original[var.name]
             true_parameters[var_varlist.name] = var_varlist.value[0]
 
-    grid, meshgrid = create_grid(list(control_bounds.values()))
     sim_fixed = SimulatorNLE(model, variable_list)
 
     varlist_list = []
-    for grid_point in grid:
+    for grid_point in controls:
         variable_list_optimizer = copy.deepcopy(variable_list_original)
-        sim_fixed.change_independent_variables(
-            dict(zip(control_bounds.keys(), grid_point))
-        )
+        sim_fixed.change_independent_variables(grid_point)
         varlist_results = sim_fixed.simulate()[2]
 
         # Set startings values
@@ -109,13 +131,27 @@ def generate_varlist_with_data_NLE(
                 value = variable.value[0]
                 if perturbate:
                     value = rng.normal(value, np.sqrt(variable.variance))
+                    if keep_in_bounds:
+                        value = min(variable.upper_bound, max(variable.lower_bound, value))
                 variable_list_optimizer[variable_name].guess = value
                 variable_list_optimizer[variable_name].value = value
-        for index, var_name in enumerate(control_bounds.keys()):
-            variable_list_optimizer[var_name].value = grid_point[index]
+        for var_name, var_value in grid_point.items():
+            variable_list_optimizer[var_name].value = var_value
         varlist_list.append(variable_list_optimizer)
 
     return varlist_list, true_parameters
+
+def generate_varlist_with_data_NLE(
+    model,
+    variable_list,
+    control_bounds,
+    perturbate: bool = True,
+    rng: np.random.Generator = None,
+    measurement_names: list[str] = None,
+) -> tuple[list[VariableList], dict[str, float]]:
+    warn("Deprecated API, use generate_artificial_data_from_grid_nle", FutureWarning, 2)
+    return generate_artificial_data_from_grid_nle(model, variable_list, control_bounds, perturbate, rng, measurement_names)
+
 
 def analyze_scaling_nle(model, varlist, control_bounds):
     """Change the control variables in a given bounds, calculate all algeraic variables and provide lower and upper bounds for them"""

@@ -36,6 +36,9 @@ Considering creating a test to compare the numerical results while migrating.
 - Parameter Estimation of NLE models supports direct optimization, before only the sequential optimization was used: for every experiment there was a rootfinder that found solution and provided gradient for optimizer.
 - VariableConstant allows multiple inputs, which are ignored. Used to easier switch from Independent Variable to constant
 - Add tools.analyze_scaling() and pe.check_results_bounds to help with selection of scaling bounds
+- Added linear example in mopeds.example
+- Added "df_all" when calculating the objective and residual of the PE NLE
+- Rework API of tools. Generate_varlist.. for NLE is now called generate_artificial_data..
 
 ### 0.10.1
 
