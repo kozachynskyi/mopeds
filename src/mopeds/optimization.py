@@ -586,17 +586,25 @@ class PE_base(Optimizer):
         casadi_function = ca.Function(
             "objective",
             [decision_variables],
-            [obj_f[0], obj_f[1], self.simulate_all_mx],
+            [obj_f[0], obj_f[1], self.simulate_all_mx, self._simulate_all_mx],
             ["x"],
-            ["f", "residuals", "y"],
+            ["f", "residuals", "y", "y_all"],
         )
 
         selected_parameters = self.variables_dict_to_list(parameters)
         res = casadi_function(x=selected_parameters)
+
+        if isinstance(self, ParameterEstimationNLE):
+            algebraic_names = self.model.varlist_algebraic(self.list_input_varlist[0]).keys()
+            df_all = pd.DataFrame(res["y_all"], columns=algebraic_names)
+        else:
+            df_all = None
+
         result_np = {
             "f": float(res["f"]),
             "residuals": res["residuals"].toarray(),
             "y": res["y"].toarray(),
+            "df_all": df_all,
         }
 
         return result_np
@@ -638,6 +646,11 @@ class PE_base(Optimizer):
             "sim_all", [free_variables], [all_selected_measurements]
         )
         self.simulate_all_mx = self.simulate_all_function(free_variables)
+
+        _simulate_all_function = ca.Function(
+            "sim_all", [free_variables], [ca.vcat(list_simulation_T)]
+        )
+        self._simulate_all_mx = _simulate_all_function(free_variables)
 
     @_consistent_scaling_decorator
     def calculate_sensitivity_and_fim(
