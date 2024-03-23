@@ -7,6 +7,38 @@ import casadi as ca
 import mopeds
 
 
+def linear_example() -> [mopeds.VariableList, mopeds.Model]:
+    variable_list = mopeds.VariableList()
+    variable_list.add_variable(mopeds.VariableAlgebraic("y", 1.0))
+    variable_list.add_variable(mopeds.VariableAlgebraic("z", 1.0))
+    variable_list.add_variable(mopeds.VariableAlgebraic("q", 1.0))
+    variable_list.add_variable(mopeds.VariableControl("u", 1.0, 1, 2))
+    variable_list.add_variable(mopeds.VariableControl("v", 3.0, 3, 4))
+    variable_list.add_variable(mopeds.VariableParameter("a", 1.0))
+    variable_list.add_variable(mopeds.VariableParameter("b", 2.0))
+    variable_list.add_variable(mopeds.VariableParameter("c", 3.0))
+    variable_list.add_variable(mopeds.VariableParameter("d", 4.0))
+
+    m = mopeds.Model(variable_list)
+
+    y = m.variables_all["y"]
+    z = m.variables_all["z"]
+    q = m.variables_all["q"]
+    u = m.variables_all["u"]
+    v = m.variables_all["v"]
+    a = m.variables_all["a"]
+    b = m.variables_all["b"]
+    c = m.variables_all["c"]
+    d = m.variables_all["d"]
+
+    eq1 = y - (a + z + q + d * u**2)
+    eq2 = z - (b * u)
+    eq3 = q - (c * v)
+
+    m.add_equations_algebraic([eq1, eq2, eq3])
+
+    return variable_list, m
+
 def empy_dae(
     piecewise_control: bool = False,
 ) -> tuple[mopeds.VariableList, mopeds.Model]:
