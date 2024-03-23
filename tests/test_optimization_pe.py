@@ -37,7 +37,7 @@ def test_scaling(piecewise, dae):
             opts = {
                 "expand": 1,
                 "abstol": 1e-14,
-                "reltol": 1e-12,
+                "reltol": 1e-13,
             }
 
             pe = mopeds.ParameterEstimation(model, [varlist_i], simulator_settings=opts)
