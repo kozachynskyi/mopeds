@@ -240,7 +240,7 @@ class OED_base(Optimizer):
 
         return result_np
 
-    def _separate_and_check_controls(self, controls: dict):
+    def separate_and_check_controls(self, controls: dict):
         """Takes a controls dictionary and separates in weights, time_sp, and others"""
         # Check if supplied weights and times variables are correct
         self.variables_dict_to_list(controls)
