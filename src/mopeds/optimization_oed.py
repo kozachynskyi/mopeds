@@ -777,6 +777,8 @@ class OED_NLE_base(OED_base):
         jacobian = {}
         jacobian_scaled = {}
 
+        jacobian_constant = {}
+        jacobian_scaled_constant = {}
 
         decision_variables_casadi = self.varlist_decision.get_casadi_variables()
 
@@ -788,10 +790,14 @@ class OED_NLE_base(OED_base):
         list_decision_variables.append(decision_variables_casadi)
 
         for decision_variables in list_decision_variables:
+            previous_measurement_flag = not isinstance(decision_variables, ca.MX)
+
             for index_measurement, meas_name in enumerate(self.names_of_measurements):
                 if jacobian.get(meas_name, None) is None:
                     jacobian[meas_name] = []
                     jacobian_scaled[meas_name] = []
+                    jacobian_constant[meas_name] = []
+                    jacobian_scaled_constant[meas_name] = []
 
                 jac_meas_mx = ca.jacobian(
                     self.simulate_all_mx[:, index_measurement], parameter_variables
@@ -808,15 +814,27 @@ class OED_NLE_base(OED_base):
                 jacobian[meas_name].append(jac_meas_mx)
                 jacobian_scaled[meas_name].append(jac_meas_scaled_mx)
 
+                if previous_measurement_flag:
+                    jacobian_constant[meas_name].append(jac_meas_mx)
+                    jacobian_scaled_constant[meas_name].append(jac_meas_scaled_mx)
+
+
         for index_measurement, meas_name in enumerate(self.names_of_measurements):
             jacobian[meas_name] = ca.vcat(jacobian[meas_name])
             jacobian_scaled[meas_name] = ca.vcat(jacobian_scaled[meas_name])
+            jacobian_constant[meas_name] = ca.vcat(jacobian_constant[meas_name])
+            jacobian_scaled_constant[meas_name] = ca.vcat(jacobian_scaled_constant[meas_name])
 
         jac_array = ca.vcat(list(jacobian.values()))
         jac_array_scaled = ca.vcat(list(jacobian_scaled.values()))
 
+        jac_array_constant = ca.vcat(list(jacobian_constant.values()))
+        jac_array_scaled_constant = ca.vcat(list(jacobian_scaled_constant.values()))
+
         self.jacobian_mx = jac_array
         self.jacobian_scaled_mx = jac_array_scaled
+        self.jacobian_mx_constant = jac_array_constant
+        self.jacobian_scaled_mx_constant = jac_array_scaled_constant
 
 
 class OptimalExperimentalDesign_NLE(OED_NLE_base):
