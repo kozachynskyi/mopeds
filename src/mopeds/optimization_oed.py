@@ -217,7 +217,7 @@ class OED_base(Optimizer):
         if parameters is None:
             parameter_values = self.parameter_values
         else:
-            parameter_values = self.parameter_dict_to_list(parameters)
+            parameter_values = self.variables_dict_to_list(parameters)
 
         casadi_function = ca.Function(
             "objective",
@@ -352,21 +352,6 @@ class OED_base(Optimizer):
                 exp_varlist[par_name].value = par_var.scale_from_original(par_value)
 
         return exp_varlist
-
-    def parameter_dict_to_list(self, parameters_dict: dict[str, float]) -> list[float]:
-        """Takes a dictionary with {"var_name": var_value} and transforms to list
-        corresponding to the order of self.varlist_parameter variables"""
-        selected_variables: list[float] = []
-        for var_name in parameters_dict.keys():
-            if var_name not in self.varlist_parameter.keys():
-                print(f"Supplied value for variables {var_name} is ignored!")
-        for var_name in self.varlist_parameter.keys():
-            try:
-                selected_variables.append(parameters_dict[var_name])
-            except KeyError:
-                raise KeyError(f"Missing value for {var_name}")
-
-        return selected_variables
 
     def _setup_piecewise_control(self, var):
         len_timegrid = len(self.time_grid_control_switch)
