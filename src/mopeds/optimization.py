@@ -1284,6 +1284,97 @@ class PE_base(Optimizer):
     def dof(self):
         return np.count_nonzero(self.array_data_mask) - len(self.varlist_decision)
 
+    @_consistent_scaling_decorator
+    def _setup_direct_optimization(self):
+        self.varlist_algebraic_direct = VariableList()
+
+        lower_bound = self.lower_bound.tolist()
+        upper_bound = self.upper_bound.tolist()
+        lower_bound_inf = self.lower_bound.tolist()
+        upper_bound_inf = self.upper_bound.tolist()
+        guess = self.guess.tolist()
+
+        guess_dict = {}
+        for var in self.varlist_decision.values():
+            guess_dict[var.name] = var.guess
+
+        fixed_parameters = []
+        fixed_parameters_values = []
+
+        for variable_name, var in self.model.varlist_independent(self.list_input_varlist[0]).items():
+            if isinstance(var, VariableParameter):
+                if var.fixed is True:
+                    fixed_parameters.append(var.casadi_var)
+                    fixed_parameters_values.append(var.scale_from_original(var.value[0]))
+                else:
+                    fixed_parameters.append(var.casadi_var)
+                    fixed_parameters_values.append(var.casadi_var)
+
+        equality_constraints = []
+        meas_symbols = []
+        self.varlist_decision_direct = copy.deepcopy(self.varlist_decision)
+
+        for sim_index, input_varlist in enumerate(self.list_input_varlist):
+            good_initial_guess = self.list_simulators[sim_index].simulate(return_varlist=False, unfixed_variables=guess_dict)[0]["x"].toarray().flatten()
+            control_symbols = []
+            control_values = []
+            meas_symbols_sim = []
+
+            for variable_name, var in self.model.varlist_independent(input_varlist).items():
+                if isinstance(var, VariableControlPiecewiseConstant):
+                    raise NotImplementedError
+                elif isinstance(var, VariableControl):
+                    control_symbols.append(var.casadi_var)
+                    control_values.append(var.scale_from_original(var.value[0]))
+
+            varlist_new_algebraic_i = VariableList()
+
+            for variable_name, var_guess in zip(self.model.varlist_algebraic(input_varlist).keys(), good_initial_guess):
+                var = input_varlist[variable_name]
+
+                new_var = var._create_copy(f"_sim{sim_index}")
+
+                varlist_new_algebraic_i.add_variable(new_var)
+                self.varlist_decision_direct.add_variable(new_var)
+
+                lower_bound.append(new_var.scale_from_original(new_var.lower_bound))
+                upper_bound.append(new_var.scale_from_original(new_var.upper_bound))
+                lower_bound_inf.append(-ca.inf)
+                upper_bound_inf.append(ca.inf)
+                guess.append(var_guess)
+
+                if var.name in self.names_of_measurements:
+                    meas_symbols_sim.append(new_var.casadi_var)
+
+            meas_symbols.append(ca.hcat(meas_symbols_sim))
+
+            scaled_equations = ca.substitute(self.model.equations_algebraic, input_varlist.get_casadi_variables(), input_varlist.get_scaled_casadi_variables())
+
+            equations_subs_alg = ca.substitute(scaled_equations, self.model.varlist_algebraic(input_varlist).get_casadi_variables(), varlist_new_algebraic_i.get_casadi_variables())
+
+            if len(fixed_parameters) == 0:
+                equations_subs_par = equations_subs_alg
+            else:
+                equations_subs_par = ca.substitute(equations_subs_alg, ca.vcat(fixed_parameters), ca.vcat(fixed_parameters_values))
+            if len(control_symbols) == 0:
+                equations_subs_all = equations_subs_par
+            else:
+                equations_subs_all = ca.substitute(equations_subs_par, ca.vcat(control_symbols), ca.MX(control_values))
+
+            self.varlist_algebraic_direct.update(**varlist_new_algebraic_i)
+            # equality_constraints.append(equations_subs_all.printme(sim_index))
+            equality_constraints.append(equations_subs_all)
+
+        self.nlpsol_g_direct = ca.cse(ca.vcat(equality_constraints))
+        self.lower_bound_direct = np.array(lower_bound)
+        self.lower_bound_direct_inf = np.array(lower_bound_inf)
+        self.upper_bound_direct = np.array(upper_bound)
+        self.upper_bound_direct_inf = np.array(upper_bound_inf)
+        self.guess_direct = np.array(guess)
+        self.simulate_all_direct = ca.vcat(meas_symbols)
+
+
+
 
 class ParameterEstimation(PE_base):
     def __init__(
@@ -1619,7 +1710,7 @@ class ParameterEstimationNLE(PE_base):
             )
         )
         self._setup_initialization()
-        self.__setup_direct_optimization()
+        self._setup_direct_optimization()
 
         self.solver_name = "ipopt"
         self.solver_settings = {
@@ -1633,95 +1724,6 @@ class ParameterEstimationNLE(PE_base):
 
         self._setup_experiments_scale(False)
         self.setup_regularization(0, np.zeros((len(self.varlist_decision),1)))
-
-    @_consistent_scaling_decorator
-    def __setup_direct_optimization(self):
-        self.varlist_algebraic_direct = VariableList()
-
-        lower_bound = self.lower_bound.tolist()
-        upper_bound = self.upper_bound.tolist()
-        lower_bound_inf = self.lower_bound.tolist()
-        upper_bound_inf = self.upper_bound.tolist()
-        guess = self.guess.tolist()
-
-        guess_dict = {}
-        for var in self.varlist_decision.values():
-            guess_dict[var.name] = var.guess
-
-        fixed_parameters = []
-        fixed_parameters_values = []
-
-        for variable_name, var in self.model.varlist_independent(self.list_input_varlist[0]).items():
-            if isinstance(var, VariableParameter):
-                if var.fixed is True:
-                    fixed_parameters.append(var.casadi_var)
-                    fixed_parameters_values.append(var.scale_from_original(var.value[0]))
-                else:
-                    fixed_parameters.append(var.casadi_var)
-                    fixed_parameters_values.append(var.casadi_var)
-
-        equality_constraints = []
-        meas_symbols = []
-        self.varlist_decision_direct = copy.deepcopy(self.varlist_decision)
-
-        for sim_index, input_varlist in enumerate(self.list_input_varlist):
-            good_initial_guess = self.list_simulators[sim_index].simulate(return_varlist=False, unfixed_variables=guess_dict)[0]["x"].toarray().flatten()
-            control_symbols = []
-            control_values = []
-            meas_symbols_sim = []
-
-            for variable_name, var in self.model.varlist_independent(input_varlist).items():
-                if isinstance(var, VariableControlPiecewiseConstant):
-                    raise NotImplementedError
-                elif isinstance(var, VariableControl):
-                    control_symbols.append(var.casadi_var)
-                    control_values.append(var.scale_from_original(var.value[0]))
-
-            varlist_new_algebraic_i = VariableList()
-
-            for variable_name, var_guess in zip(self.model.varlist_algebraic(input_varlist).keys(), good_initial_guess):
-                var = input_varlist[variable_name]
-
-                new_var = var._create_copy(f"_sim{sim_index}")
-
-                varlist_new_algebraic_i.add_variable(new_var)
-                self.varlist_decision_direct.add_variable(new_var)
-
-                lower_bound.append(new_var.scale_from_original(new_var.lower_bound))
-                upper_bound.append(new_var.scale_from_original(new_var.upper_bound))
-                lower_bound_inf.append(-ca.inf)
-                upper_bound_inf.append(ca.inf)
-                guess.append(var_guess)
-
-                if var.name in self.names_of_measurements:
-                    meas_symbols_sim.append(new_var.casadi_var)
-
-            meas_symbols.append(ca.hcat(meas_symbols_sim))
-
-            scaled_equations = ca.substitute(self.model.equations_algebraic, input_varlist.get_casadi_variables(), input_varlist.get_scaled_casadi_variables())
-
-            equations_subs_alg = ca.substitute(scaled_equations, self.model.varlist_algebraic(input_varlist).get_casadi_variables(), varlist_new_algebraic_i.get_casadi_variables())
-
-            if len(fixed_parameters) == 0:
-                equations_subs_par = equations_subs_alg
-            else:
-                equations_subs_par = ca.substitute(equations_subs_alg, ca.vcat(fixed_parameters), ca.vcat(fixed_parameters_values))
-            if len(control_symbols) == 0:
-                equations_subs_all = equations_subs_par
-            else:
-                equations_subs_all = ca.substitute(equations_subs_par, ca.vcat(control_symbols), ca.MX(control_values))
-
-            self.varlist_algebraic_direct.update(**varlist_new_algebraic_i)
-            # equality_constraints.append(equations_subs_all.printme(sim_index))
-            equality_constraints.append(equations_subs_all)
-
-        self.nlpsol_g_direct = ca.cse(ca.vcat(equality_constraints))
-        self.lower_bound_direct = np.array(lower_bound)
-        self.lower_bound_direct_inf = np.array(lower_bound_inf)
-        self.upper_bound_direct = np.array(upper_bound)
-        self.upper_bound_direct_inf = np.array(upper_bound_inf)
-        self.guess_direct = np.array(guess)
-        self.simulate_all_direct = ca.vcat(meas_symbols)
 
     @_consistent_scaling_decorator
     def _setup_simulator(
