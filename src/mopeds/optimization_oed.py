@@ -7,6 +7,8 @@ from collections.abc import Callable
 from itertools import combinations
 from typing import Sequence
 from dataclasses import dataclass
+from functools import partial
+
 
 import casadi as ca
 import numpy as np
@@ -143,54 +145,64 @@ class OED_base(Optimizer):
                 if isinstance(var, VariableParameter):
                     var.lower_bound, var.upper_bound = sorted([var.value[0], -var.value[0]])
 
-    def select_objective_function(self, objective_function_name: str):
+    def select_objective_function(self, objective_function_name: str, direct_optimization: bool):
         if objective_function_name == "A":
-            self._objective = self._objective_A
+            self._objective = partial(self._objective_A, direct_optimization=direct_optimization)
         elif objective_function_name == "A_fd":
-            self._objective = self._objective_A_fd
+            self._objective = partial(self._objective_A_fd, direct_optimization=direct_optimization)
         elif objective_function_name == "D":
-            self._objective = self._objective_D_fd
+            self._objective = partial(self._objective_D_fd, direct_optimization=direct_optimization)
         elif issubclass(objective_function_name, OED_objective):
             self._objective_custom_criteria = objective_function_name
-            self._objective = self._objective_custom
+            self._objective = partial(self._objective_custom, direct_optimization=direct_optimization)
         else:
             raise NotImplementedError(
                 f"Objective function '{objective_function_name}' is not supported"
             )
         return self._objective
 
-    def _objective_custom(self):
+    def _objective_custom(self, direct_optimization: bool):
         """User supplied criteria"""
-        self._objective_func = self._objective_custom_criteria("custom", self.jacobian_scaled_mx, self._parameter_scaling)
-        func_eval = self._objective_func(self.jacobian_scaled_mx)
+        jac = self._select_jacobian(direct_optimization)
+        self._objective_func = self._objective_custom_criteria("custom", jac, self._parameter_scaling)
+        func_eval = self._objective_func(jac)
 
         return func_eval[0], func_eval[1]
 
-    def _objective_A(self):
+    def _select_jacobian(self, direct_optimization: bool):
+        if direct_optimization:
+            jac = self.jacobian_scaled_mx_direct
+        else:
+            jac = self.jacobian_scaled_mx
+        return jac
+
+    def _objective_A(self, direct_optimization: bool):
         """A criteria"""
-        jac = self.jacobian_scaled_mx
+        jac = self._select_jacobian(direct_optimization)
         jac_scaled = jac * self._parameter_scaling
         obj = ca.trace(ca.inv(jac_scaled.T @ jac_scaled))
 
         return obj, jac
 
-    def _objective_A_fd(self):
-        self._objective_func = CriteriaA("A", self.jacobian_scaled_mx, self._parameter_scaling)
-        func_eval = self._objective_func(self.jacobian_scaled_mx)
+    def _objective_A_fd(self, direct_optimization: bool):
+        jac = self._select_jacobian(direct_optimization)
+        self._objective_func = CriteriaA("A", jac, self._parameter_scaling)
+        func_eval = self._objective_func(jac)
 
         return func_eval[0], func_eval[1]
 
-    def _objective_D_fd(self):
-        self._objective_func = CriteriaD("D", self.jacobian_scaled_mx, self._parameter_scaling)
-        func_eval = self._objective_func(self.jacobian_scaled_mx)
+    def _objective_D_fd(self, direct_optimization: bool):
+        jac = self._select_jacobian(direct_optimization)
+        self._objective_func = CriteriaD("D", jac, self._parameter_scaling)
+        func_eval = self._objective_func(jac)
 
         return func_eval[0], func_eval[1]
 
-    def optimize(self, scale:float = 1, objective_function: str | OED_objective = "A"):
+    def optimize(self, scale:float = 1, objective_function: str | OED_objective = "A", direct_optimization: bool = False):
         """Function to select optimization function"""
-        self.select_objective_function(objective_function)
+        self.select_objective_function(objective_function, direct_optimization)
 
-        return self._optimize(scale)
+        return self._optimize(scale, direct_optimization)
 
     @property
     def _parameter_scaling(self):
@@ -209,7 +221,7 @@ class OED_base(Optimizer):
         objective_function: str | OED_objective = "A",
     ) -> dict[str, float | np.ndarray]:
 
-        obj_f = self.select_objective_function(objective_function)()
+        obj_f = self.select_objective_function(objective_function, False)()
 
         decision_variables = self.varlist_decision.get_casadi_variables()
         casadi_function = ca.Function(
@@ -691,9 +703,10 @@ class OptimalExperimentalDesign(OED_base):
         self.equality_constraints = ca.vcat(g)
 
     @_consistent_scaling_decorator
-    def _optimize(self, scale: float) -> dict[str, ca.DM | ca.MX]:
+    def _optimize(self, scale: float, direct_optimization: bool) -> dict[str, ca.DM | ca.MX]:
         """Runs optimizer, uses scaling if needed. Returned values is scaled back.
-        Scaling should be done before setting a solver and solver settings."""
+        Scaling should be done before setting a solver and solver settings.
+        direct_optimization argument is ignored"""
         self.solver: ca.Function = ca.nlpsol(
             "solver",
             self.solver_name,
@@ -797,19 +810,6 @@ class OptimalExperimentalDesign_NLE(OED_base):
 
         self.mapping_simulator_decisions: list[dict[int, int]] = [self.list_simulators[0].mapping_independent_variables]
         self.generate_jacobian_function()
-
-    @_consistent_scaling_decorator
-    def _optimize(self, scale: float) -> dict[str, ca.DM | ca.MX]:
-        """Runs optimizer, uses scaling if needed. Returned values is scaled back.
-        Scaling should be done before setting a solver and solver settings."""
-        res_solver = super(OED_base, self)._optimize(scale)
-        return res_solver
-
-    def optimize(self, scale:float = 1, objective_function: str | OED_objective = "A"):
-        """Function to select optimization function"""
-        self.select_objective_function(objective_function)
-
-        return self._optimize(scale)
 
     @_consistent_scaling_decorator
     def _setup_varlist_decision(self):
