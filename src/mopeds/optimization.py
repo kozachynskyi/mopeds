@@ -389,6 +389,9 @@ class Optimizer(object):
         self.solver_settings = initial_settings
         return result_list_sorted
 
+    def _setup_direct_optimization(self, mode):
+        PE_base._setup_direct_optimization(self, mode)
+
     @_consistent_scaling_decorator
     def check_decision_bounds(self, plot: bool = False) -> None:
         """Method is simulating model on upper and lower bounds of decision variables.
@@ -1285,7 +1288,11 @@ class PE_base(Optimizer):
         return np.count_nonzero(self.array_data_mask) - len(self.varlist_decision)
 
     @_consistent_scaling_decorator
-    def _setup_direct_optimization(self):
+    def _setup_direct_optimization(self, mode:str):
+        """Setup all the variables needed for direct optimization of steady state models.
+        mode is needed to differentiate between PE and OED"""
+        if mode not in ("PE", "OED"):
+            raise NotImplementedError
         self.varlist_algebraic_direct = VariableList()
 
         lower_bound = self.lower_bound.tolist()
@@ -1297,25 +1304,30 @@ class PE_base(Optimizer):
         guess_dict = {}
         for var in self.varlist_decision.values():
             guess_dict[var.name] = var.guess
+        if mode == "OED":
+            for par_name, par_value in zip(self.varlist_parameter.keys(), self.parameter_values_unscaled):
+                guess_dict[par_name] = par_value
 
-        fixed_parameters = []
-        fixed_parameters_values = []
+        parameter_symbols = []
+        parameter_values = []
 
         for variable_name, var in self.model.varlist_independent(self.list_input_varlist[0]).items():
             if isinstance(var, VariableParameter):
-                if var.fixed is True:
-                    fixed_parameters.append(var.casadi_var)
-                    fixed_parameters_values.append(var.scale_from_original(var.value[0]))
+                parameter_symbols.append(var.casadi_var)
+                if (var.fixed is True) or (mode == "OED"):
+                    parameter_values.append(var.scale_from_original(var.value[0]))
                 else:
-                    fixed_parameters.append(var.casadi_var)
-                    fixed_parameters_values.append(var.casadi_var)
+                    parameter_values.append(var.casadi_var)
 
         equality_constraints = []
         meas_symbols = []
+        jacobian_list = []
         self.varlist_decision_direct = copy.deepcopy(self.varlist_decision)
 
         for sim_index, input_varlist in enumerate(self.list_input_varlist):
-            good_initial_guess = self.list_simulators[sim_index].simulate(return_varlist=False, unfixed_variables=guess_dict)[0]["x"].toarray().flatten()
+            simulator_i = self.list_simulators[sim_index] 
+
+            good_initial_guess = simulator_i.simulate(return_varlist=False, unfixed_variables=guess_dict)[0]["x"].toarray().flatten()
             control_symbols = []
             control_values = []
             meas_symbols_sim = []
@@ -1325,7 +1337,10 @@ class PE_base(Optimizer):
                     raise NotImplementedError
                 elif isinstance(var, VariableControl):
                     control_symbols.append(var.casadi_var)
-                    control_values.append(var.scale_from_original(var.value[0]))
+                    if (var.fixed) or (mode == "PE"):
+                        control_values.append(var.scale_from_original(var.value[0]))
+                    else:
+                        control_values.append(var.casadi_var)
 
             varlist_new_algebraic_i = VariableList()
 
@@ -1352,18 +1367,32 @@ class PE_base(Optimizer):
 
             equations_subs_alg = ca.substitute(scaled_equations, self.model.varlist_algebraic(input_varlist).get_casadi_variables(), varlist_new_algebraic_i.get_casadi_variables())
 
-            if len(fixed_parameters) == 0:
+            if len(parameter_symbols) == 0:
                 equations_subs_par = equations_subs_alg
             else:
-                equations_subs_par = ca.substitute(equations_subs_alg, ca.vcat(fixed_parameters), ca.vcat(fixed_parameters_values))
+                equations_subs_par = ca.substitute(equations_subs_alg, ca.vcat(parameter_symbols), ca.vcat(parameter_values))
             if len(control_symbols) == 0:
                 equations_subs_all = equations_subs_par
             else:
-                equations_subs_all = ca.substitute(equations_subs_par, ca.vcat(control_symbols), ca.MX(control_values))
+                equations_subs_all = ca.substitute(equations_subs_par, ca.vcat(control_symbols), ca.vcat(control_values))
 
             self.varlist_algebraic_direct.update(**varlist_new_algebraic_i)
             # equality_constraints.append(equations_subs_all.printme(sim_index))
             equality_constraints.append(equations_subs_all)
+
+            if mode == "OED":
+                jac_function = simulator_i.function.jacobian()
+                independent_variables = ca.substitute(simulator_i._independent_variables, ca.vcat(parameter_symbols), ca.vcat(parameter_values))
+                args = {"x0": varlist_new_algebraic_i.get_casadi_variables(), "p": independent_variables}
+                jac_all = jac_function.call(args)
+                jac_parameters = ca.solve(jac_all["jac_x_x0"], -jac_all["jac_x_p"])
+
+                index_selected_parameters = []
+                for var_name in self.varlist_parameter.keys():
+                    index_selected_parameters.append(simulator_i.mapping_independent_variables[var_name])
+
+                jac_mx_selected_parameters = jac_parameters.get(False, ca.Slice(), index_selected_parameters)
+                jacobian_list.append(jac_mx_selected_parameters.get(False, self.index_measurements_in_sim, ca.Slice()))
 
         self.nlpsol_g_direct = ca.cse(ca.vcat(equality_constraints))
         self.lower_bound_direct = np.array(lower_bound)
@@ -1371,9 +1400,21 @@ class PE_base(Optimizer):
         self.upper_bound_direct = np.array(upper_bound)
         self.upper_bound_direct_inf = np.array(upper_bound_inf)
         self.guess_direct = np.array(guess)
-        self.simulate_all_direct = ca.vcat(meas_symbols)
 
+        if mode == "PE":
+            self.simulate_all_direct = ca.vcat(meas_symbols)
+        elif mode =="OED":
+            jac_mx = ca.vcat(jacobian_list)
+            if not self.jacobian_scaled_mx_constant.is_empty():
+                jac_mx = ca.vcat([self.jacobian_mx_constant, jac_mx])
 
+            number_of_experiments = len(self._previous_measurements) + len(self.list_simulators)
+            std_scaling = ca.repmat(self.array_inverted_scaled_std, number_of_experiments, len(self.varlist_parameter))
+
+            jac_mx_scaled = jac_mx * std_scaling
+
+            self.jacobian_mx_direct = jac_mx
+            self.jacobian_scaled_mx_direct = jac_mx_scaled
 
 
 class ParameterEstimation(PE_base):
@@ -1710,7 +1751,7 @@ class ParameterEstimationNLE(PE_base):
             )
         )
         self._setup_initialization()
-        self._setup_direct_optimization()
+        self._setup_direct_optimization("PE")
 
         self.solver_name = "ipopt"
         self.solver_settings = {

@@ -773,6 +773,7 @@ class OptimalExperimentalDesign_NLE(OED_base):
 
         self._setup_simulator(use_simulator_bounds, SimulatorClass)
         self._setup_initialization()
+        self._setup_direct_optimization("OED")
 
         self.solver_name: str = "ipopt"
         self.solver_settings: dict = {
