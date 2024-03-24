@@ -122,6 +122,27 @@ class CriteriaD(OED_objective):
         return obj, jac
 
 class OED_base(Optimizer):
+    def __init__(
+        self,
+        model: Model,
+        variable_lists: list[VariableList],
+        simulator_name: str,
+        simulator_settings: dict | None,
+    ) -> None:
+        """To scale objective function with parameter values and support mopeds.scaling
+        we need to rewrite lower and upper bounds, such that parameters are always internally
+        scaled to be equal either 1 or -1"""
+        super().__init__(
+            model,
+            variable_lists,
+            simulator_name,
+            simulator_settings,
+        )
+        for varlist_i in self.list_input_varlist:
+            for var in varlist_i.values():
+                if isinstance(var, VariableParameter):
+                    var.lower_bound, var.upper_bound = sorted([var.value[0], -var.value[0]])
+
     def select_objective_function(self, objective_function_name: str):
         if objective_function_name == "A":
             self._objective = self._objective_A
@@ -173,7 +194,12 @@ class OED_base(Optimizer):
 
     @property
     def _parameter_scaling(self):
-        parameter_scaling = ca.repmat(self.parameter_values_unscaled, 1, self.jacobian_scaled_mx.shape[0]).T
+        if self._created_with_options["variable_scaling"]:
+            parameter_values = self.parameter_values
+        else:
+            parameter_values = self.parameter_values_unscaled
+
+        parameter_scaling = ca.repmat(parameter_values, 1, self.jacobian_scaled_mx.shape[0]).T
         return parameter_scaling
 
     @_consistent_scaling_decorator

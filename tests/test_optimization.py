@@ -80,6 +80,12 @@ def test_parameter_jacobian(piecewise, dae, use_constant, scaling):
         var_list["e0_U"].fixed = False
         var_list["e0_E_r1"].fixed = False
 
+        # Needed to compensate for the fact that OED internally scaled parameters to -1 and 1
+        var_list["e0_U"].lower_bound = -1.4
+        var_list["e0_U"].upper_bound = 1.4
+        var_list["e0_E_r1"].lower_bound = -9.6e4
+        var_list["e0_E_r1"].upper_bound = 9.6e4
+
         pe = mopeds.ParameterEstimation(
             model, [var_list]
         )

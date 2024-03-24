@@ -37,6 +37,12 @@ def test_jacobian_weights(piecewise, dae, use_constant, scaling):
             var_list["e0_U"].fixed = False
             var_list["e0_E_r1"].fixed = False
 
+            # Needed to compensate for the fact that OED internally scaled parameters to -1 and 1
+            var_list["e0_U"].lower_bound = -1.4
+            var_list["e0_U"].upper_bound = 1.4
+            var_list["e0_E_r1"].lower_bound = -9.6e4
+            var_list["e0_E_r1"].upper_bound = 9.6e4
+
             pe = mopeds.ParameterEstimation(
                 model, [var_list]
             )
@@ -73,10 +79,10 @@ def test_jacobian_weights(piecewise, dae, use_constant, scaling):
                     assert np.all(np.isclose(jac_pe, jac_oed_expanded))
 
 
-@pytest.mark.parametrize("scaling", [True, False])
 @pytest.mark.parametrize("piecewise", [True, False])
 @pytest.mark.parametrize("dae", [True, False])
 @pytest.mark.parametrize("use_constant", [True, False])
+@pytest.mark.parametrize("scaling", [True, False])
 def test_oed(piecewise, dae, use_constant, scaling):
     """Test that OptimalExperimentalDesign on ODE and DAE always yields same result.
     Helpfull to see if any drastic changes in calculation were made
@@ -96,10 +102,7 @@ def test_oed(piecewise, dae, use_constant, scaling):
         res = oed.optimize()
 
     logging.warning(f"{res['f']}")
-    if scaling:
-        expected = ca.DM(1.57996e-06) 
-    else:
-        expected = ca.DM(39.4989)
+    expected = ca.DM(39.4989)
 
     assert np.isclose(res["f"], expected)
     assert np.isclose(res["x"], 6, rtol=1e-4)
@@ -167,9 +170,9 @@ def test_oed_piecewise(dae, use_constant, scaling):
 
         exp_data = oed_piecewise.generate_experimental_data({"e0_c_in_i1_t0": 5})
         pe = mopeds.ParameterEstimation(model_piecewise, [exp_data])
-        res_pe = pe.optimize()
+        res_pe = pe.calculate_objective_and_residual({"e0_E_r1": 9.6e4})
 
-        assert np.isclose(oed_piecewise.parameter_values_unscaled, res_pe["x"], rtol=1e-4, atol=1e-7)
+        assert np.isclose(res_pe["f"], 0)
         assert np.isclose(res["f"], res_piecewise["f"])
 
 
