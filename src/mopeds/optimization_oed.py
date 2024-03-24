@@ -140,6 +140,9 @@ class OED_base(Optimizer):
             simulator_name,
             simulator_settings,
         )
+
+        self.objective_scaling = 1
+
         for varlist_i in self.list_input_varlist:
             for var in varlist_i.values():
                 if isinstance(var, VariableParameter):
@@ -180,7 +183,7 @@ class OED_base(Optimizer):
         """A criteria"""
         jac = self._select_jacobian(direct_optimization)
         jac_scaled = jac * self._parameter_scaling
-        obj = ca.trace(ca.inv(jac_scaled.T @ jac_scaled))
+        obj = ca.trace(ca.inv(jac_scaled.T @ jac_scaled)) * self.objective_scaling
 
         return obj, jac
 
@@ -189,20 +192,20 @@ class OED_base(Optimizer):
         self._objective_func = CriteriaA("A", jac, self._parameter_scaling)
         func_eval = self._objective_func(jac)
 
-        return func_eval[0], func_eval[1]
+        return func_eval[0] * self.objective_scaling, func_eval[1]
 
     def _objective_D_fd(self, direct_optimization: bool):
         jac = self._select_jacobian(direct_optimization)
         self._objective_func = CriteriaD("D", jac, self._parameter_scaling)
         func_eval = self._objective_func(jac)
 
-        return func_eval[0], func_eval[1]
+        return func_eval[0] * self.objective_scaling, func_eval[1]
 
     def optimize(self, scale:float = 1, objective_function: str | OED_objective = "A", direct_optimization: bool = False):
         """Function to select optimization function"""
         self.select_objective_function(objective_function, direct_optimization)
 
-        return self._optimize(scale, direct_optimization)
+        return self._optimize(None, direct_optimization)
 
     @property
     def _parameter_scaling(self):
@@ -707,12 +710,15 @@ class OptimalExperimentalDesign(OED_base):
         """Runs optimizer, uses scaling if needed. Returned values is scaled back.
         Scaling should be done before setting a solver and solver settings.
         direct_optimization argument is ignored"""
+        if scale is not None:
+            warn("Scale argument is deprecated. Use self.objective", FutureWarning, 5)
+
         self.solver: ca.Function = ca.nlpsol(
             "solver",
             self.solver_name,
             {
                 "x": self.varlist_decision.get_casadi_variables(),
-                "f": self._objective()[0] * scale,
+                "f": self._objective()[0],
                 "g": self.equality_constraints,
             },
             self.solver_settings,
