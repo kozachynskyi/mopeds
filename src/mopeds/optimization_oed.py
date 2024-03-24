@@ -8,6 +8,7 @@ from itertools import combinations
 from typing import Sequence
 from dataclasses import dataclass
 from functools import partial
+from warnings import warn
 
 
 import casadi as ca
@@ -711,7 +712,7 @@ class OptimalExperimentalDesign(OED_base):
         Scaling should be done before setting a solver and solver settings.
         direct_optimization argument is ignored"""
         if scale is not None:
-            warn("Scale argument is deprecated. Use self.objective", FutureWarning, 5)
+            warn("Scale argument is deprecated. Use self.objective_scaling", FutureWarning, 5)
 
         self.solver: ca.Function = ca.nlpsol(
             "solver",
@@ -878,11 +879,12 @@ class OptimalExperimentalDesign_NLE(OED_base):
         )
         self.simulate_all_mx = self.simulate_all_function(parameter_variables, decision_variables)
 
-        jacobian = {}
-        jacobian_scaled = {}
+        jacobian = []
+        jacobian_scaled = []
 
-        jacobian_constant = {}
-        jacobian_scaled_constant = {}
+        jacobian_constant = []
+        jacobian_scaled_constant = []
+
 
         decision_variables_casadi = self.varlist_decision.get_casadi_variables()
 
@@ -896,150 +898,32 @@ class OptimalExperimentalDesign_NLE(OED_base):
         for decision_variables in list_decision_variables:
             previous_measurement_flag = not isinstance(decision_variables, ca.MX)
 
-            for index_measurement, meas_name in enumerate(self.names_of_measurements):
-                if jacobian.get(meas_name, None) is None:
-                    jacobian[meas_name] = []
-                    jacobian_scaled[meas_name] = []
-                    jacobian_constant[meas_name] = []
-                    jacobian_scaled_constant[meas_name] = []
+            jac_meas_mx = ca.jacobian(
+                self.simulate_all_mx, parameter_variables
+            )
+            jac_meas_function = ca.Function(
+                "jac_meas", [parameter_variables, decision_variables_casadi], [jac_meas_mx]
+            )
+            jac_meas_mx = jac_meas_function(self.parameter_values, decision_variables)
 
-                jac_meas_mx = ca.jacobian(
-                    self.simulate_all_mx[:, index_measurement], parameter_variables
-                )
-                jac_meas_function = ca.Function(
-                    "jac_meas", [parameter_variables, decision_variables_casadi], [jac_meas_mx]
-                )
-                jac_meas_mx = jac_meas_function(self.parameter_values, decision_variables)
+            jac_meas_scaled_mx = (
+                jac_meas_mx * self.array_inverted_scaled_std
+            )
 
-                jac_meas_scaled_mx = (
-                    jac_meas_mx * self.array_inverted_scaled_std[index_measurement]
-                )
+            jacobian.append(jac_meas_mx)
+            jacobian_scaled.append(jac_meas_scaled_mx)
 
-                jacobian[meas_name].append(jac_meas_mx)
-                jacobian_scaled[meas_name].append(jac_meas_scaled_mx)
+            if previous_measurement_flag:
+                jacobian_constant.append(jac_meas_mx)
+                jacobian_scaled_constant.append(jac_meas_scaled_mx)
 
-                if previous_measurement_flag:
-                    jacobian_constant[meas_name].append(jac_meas_mx)
-                    jacobian_scaled_constant[meas_name].append(jac_meas_scaled_mx)
+        jac_array = ca.vcat(jacobian)
+        jac_array_scaled = ca.vcat(jacobian_scaled)
 
-
-        for index_measurement, meas_name in enumerate(self.names_of_measurements):
-            jacobian[meas_name] = ca.vcat(jacobian[meas_name])
-            jacobian_scaled[meas_name] = ca.vcat(jacobian_scaled[meas_name])
-            jacobian_constant[meas_name] = ca.vcat(jacobian_constant[meas_name])
-            jacobian_scaled_constant[meas_name] = ca.vcat(jacobian_scaled_constant[meas_name])
-
-        jac_array = ca.vcat(list(jacobian.values()))
-        jac_array_scaled = ca.vcat(list(jacobian_scaled.values()))
-
-        jac_array_constant = ca.vcat(list(jacobian_constant.values()))
-        jac_array_scaled_constant = ca.vcat(list(jacobian_scaled_constant.values()))
+        jac_array_constant = ca.vcat(jacobian_constant)
+        jac_array_scaled_constant = ca.vcat(jacobian_scaled_constant)
 
         self.jacobian_mx = jac_array
         self.jacobian_scaled_mx = jac_array_scaled
         self.jacobian_mx_constant = jac_array_constant
         self.jacobian_scaled_mx_constant = jac_array_scaled_constant
-
-    @_consistent_scaling_decorator
-    def generate_jacobian_function_direct(self) -> None:
-        self.varlist_algebraic_direct = VariableList()
-
-        lower_bound = self.lower_bound.tolist()
-        upper_bound = self.upper_bound.tolist()
-        lower_bound_inf = self.lower_bound.tolist()
-        upper_bound_inf = self.upper_bound.tolist()
-        guess = self.guess.tolist()
-
-        guess_dict = {}
-        for var in self.varlist_decision.values():
-            guess_dict[var.name] = var.guess
-        for par_name, par_value in zip(self.varlist_parameter.keys(), self.parameter_values):
-            guess_dict[par_name] = par_value
-
-        fixed_parameters = []
-        fixed_parameters_values = []
-
-        all_parameters = []
-        all_parameters_values = []
-
-        for variable_name, var in self.model.varlist_independent(self.list_input_varlist[0]).items():
-            if isinstance(var, VariableParameter):
-                all_parameters.append(var.casadi_var)
-                all_parameters_values.append(var.scale_from_original(var.value[0]))
-                if var.fixed is False:
-                    fixed_parameters.append(var.casadi_var)
-                    fixed_parameters_values.append(var.scale_from_original(var.value[0]))
-
-        equality_constraints = []
-        self.varlist_decision_direct = copy.deepcopy(self.varlist_decision)
-
-        for sim_index, input_varlist in enumerate(self.list_input_varlist):
-            good_initial_guess = self.list_simulators[sim_index].simulate(return_varlist=False, unfixed_variables=guess_dict)[0]["x"].toarray().flatten()
-            control_symbols = []
-            control_values = []
-
-
-            for variable_name, var in self.model.varlist_independent(input_varlist).items():
-                if isinstance(var, VariableControlPiecewiseConstant):
-                    raise NotImplementedError
-                elif isinstance(var, VariableControl):
-                    if var.fixed:
-                        control_symbols.append(var.casadi_var)
-                        control_values.append(var.scale_from_original(var.value[0]))
-                    else:
-                        control_symbols.append(var.casadi_var)
-                        control_values.append(var.casadi_var)
-
-            varlist_new_algebraic_i = VariableList()
-
-            for variable_name, var_guess in zip(self.model.varlist_algebraic(input_varlist).keys(), good_initial_guess):
-                var = input_varlist[variable_name]
-
-                new_var = var._create_copy(f"_sim{sim_index}")
-
-                varlist_new_algebraic_i.add_variable(new_var)
-                self.varlist_decision_direct.add_variable(new_var)
-
-                lower_bound.append(new_var.scale_from_original(new_var.lower_bound))
-                upper_bound.append(new_var.scale_from_original(new_var.upper_bound))
-                lower_bound_inf.append(-ca.inf)
-                upper_bound_inf.append(ca.inf)
-                guess.append(var_guess)
-
-
-            scaled_equations = ca.substitute(self.model.equations_algebraic, input_varlist.get_casadi_variables(), input_varlist.get_scaled_casadi_variables())
-
-            equations_subs_alg = ca.substitute(scaled_equations, self.model.varlist_algebraic(input_varlist).get_casadi_variables(), varlist_new_algebraic_i.get_casadi_variables())
-
-            equations_subs_par = ca.substitute(equations_subs_alg, ca.vcat(all_parameters), ca.vcat(all_parameters_values))
-            equations_subs_all = ca.substitute(equations_subs_par, ca.vcat(control_symbols), ca.vcat(control_values))
-            self.varlist_algebraic_direct.update(**varlist_new_algebraic_i)
-            # equality_constraints.append(equations_subs_all.printme(sim_index))
-            equality_constraints.append(equations_subs_all)
-
-            sim = self.list_simulators[sim_index]
-            jac_function = sim.function.jacobian()
-            v = sim._independent_variables
-            vv = ca.substitute(v, ca.vcat(fixed_parameters), ca.vcat(fixed_parameters_values))
-            args = {"x0": varlist_new_algebraic_i.get_casadi_variables(), "p": vv}
-            jac_mx = jac_function.call(args)
-            jac_parameters = ca.solve(jac_mx["jac_x_x0"], -jac_mx["jac_x_p"])
-            # jac_parameters = ca.inv(jac_mx["jac_x_x0"]) @ -jac_mx["jac_x_p"]
-            index_selected_parameters = []
-            for var_name in self.varlist_parameter.keys():
-                index_selected_parameters.append(sim.mapping_independent_variables[var_name])
-
-            jac_mx_selected = jac_parameters.get(False, ca.Slice(), index_selected_parameters)
-            jac_mx_selected = jac_mx_selected.get(False, self.index_measurements_in_sim, ca.Slice())
-
-        if not self.jacobian_scaled_mx_constant.is_empty():
-            jac_mx_selected = ca.vcat([self.jacobian_scaled_mx_constant, jac_mx_selected])
-
-        self.nlpsol_g_direct = ca.cse(ca.vcat(equality_constraints))
-        self.lower_bound_direct = np.array(lower_bound)
-        self.lower_bound_direct_inf = np.array(lower_bound_inf)
-        self.upper_bound_direct = np.array(upper_bound)
-        self.upper_bound_direct_inf = np.array(upper_bound_inf)
-        self.guess_direct = np.array(guess)
-
-        self.jacobian_scaled_mx_direct = jac_mx_selected

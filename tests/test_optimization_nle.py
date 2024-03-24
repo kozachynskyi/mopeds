@@ -37,8 +37,10 @@ def test_parameter_jacobian():
     oed = mopeds.OptimalExperimentalDesign_NLE(model, [list_var_list[0]], previous_measurements=[{"e0_m_Cat": 22, "e0_Q_Feed":30}, {"e0_m_Cat": 18, "e0_Q_Feed":30}], measurable_variables=measurement_names)
 
     jac_oed = oed.calculate_objective_and_jacobian({"e0_m_Cat": 20, "e0_Q_Feed":30})["jac"]
+    
+    rearange_index = [0, 3, 6,1,4,7,2,5,8]
 
-    assert np.all(np.isclose(jac_pe, jac_oed))
+    assert np.all(np.isclose(jac_pe, jac_oed[rearange_index, :]))
 
 def test_pe():
     """Test that ParameterEstimationNLE on NLE always yields same result.
@@ -400,9 +402,81 @@ def test_inference_bounds():
     assert np.allclose(sim_data["f"], sim_data_expected)
 
 
+@pytest.mark.parametrize("meas_var", [None, ["y"]])
+@pytest.mark.parametrize("criteria", ["A", "A_fd", "D"])
+def test_oed_nle(meas_var, criteria):
+    """Just compare the results of the optimization to some baseline.
+    Variate scaling and direct_optimization, come to the same solution."""
+    vl, m = mopeds.examples.linear_example()
+    for var in vl.values():
+        if isinstance(var, mopeds.VariableControl):
+            var.fixed = False
+        if isinstance(var, mopeds.VariableParameter):
+            var.fixed = False
+    vl["a"].fixed = True
+    # vl["b"].fixed = True
+    vl["y"].variance = 0.1
+    vl["z"].variance = 0.3
+    vl["q"].variance = 0.2
+
+    results = []
+    for scaling_flag in [True, False]:
+        with mopeds.options(variable_scaling=scaling_flag):
+            previous_meas = [
+                {"v": 1.5, "u": 1.5},
+                {"v": 2.5, "u": 4.5},
+                {"v": 3.5, "u": 3.5},
+                {"v": 4.5, "u": 3.5},
+            ]
+            oed = mopeds.OptimalExperimentalDesign_NLE(
+                m,
+                [vl],
+                measurable_variables=meas_var,
+                previous_measurements=previous_meas,
+            )
+            oed.solver_settings["ipopt"]["hessian_approximation"] = "exact"
+
+            if criteria == "D":
+                oed.objective_scaling = 1e10
+
+            for direct_optimization_flag in [True, False]:
+                results.append(oed.optimize(direct_optimization=direct_optimization_flag, objective_function=criteria))
+
+
+    if meas_var is None:
+        if "A" in criteria:
+            expected_f = 0.001616787258285354
+            expected_x = [2,4]
+        elif "D" in criteria:
+            expected_f = 0.02699111734101253
+            expected_x = [1,4]
+    else:
+        if "A" in criteria:
+            expected_f = 0.0471016387679191
+            expected_x = [1,4]
+        elif "D" in criteria:
+            expected_f = 1.8867952943284358
+            expected_x = [1,4]
+
+    for res_i in results:
+        res_f_i = res_i["f"]
+        res_x_i = res_i["x"]
+        # print("calc", oed.calculate_objective_and_jacobian(res_i["x_dict"])["f"])
+        print("resf", float(res_f_i))
+        print("resx", res_x_i)
+        assert(np.isclose(expected_f, res_f_i))
+        assert(np.isclose(expected_x, res_x_i.T, atol=1e-4).all())
+
+
 if __name__ == "__main__":
     pass
     # test_pe()
     # test_multivariate_pe()
     # test_inference_bounds()
     test_parameter_jacobian()
+    # test_oed_nle(None, "A")
+    # test_oed_nle(["y"], "A")
+    # test_oed_nle(None, "A_fd")
+    # test_oed_nle(["y"], "A_fd")
+    # test_oed_nle(["y"], "D")
+    # test_oed_nle(None, "D")

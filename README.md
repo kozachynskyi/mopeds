@@ -33,12 +33,14 @@ Considering creating a test to compare the numerical results while migrating.
 - Variables are automatically scaled, if lower and upper bound are provided, use_bounds for rootfinder NLE is deprecated
 - Dynamic and steady state simulators have a consistent API now, sim.simulate() and sim.simulate_fast(), generate_exp_data is deprecated, used sim.simulate()[2] instead, to get a varlist.
 - Model does not contain any variable lists, instead in just holds an order of variables and respecive casadi variables.
-- Parameter Estimation of NLE models supports direct optimization, before only the sequential optimization was used: for every experiment there was a rootfinder that found solution and provided gradient for optimizer.
+- Parameter Estimation and OED of NLE models supports direct optimization, before only the sequential optimization was used: for every experiment there was a rootfinder that found solution and provided gradient for optimizer.
+- OED.optimize() ignore scale argument, use oed.objective_scaling instead
 - VariableConstant allows multiple inputs, which are ignored. Used to easier switch from Independent Variable to constant
 - Add tools.analyze_scaling() and pe.check_results_bounds to help with selection of scaling bounds
 - Added linear example in mopeds.example
 - Added "df_all" when calculating the objective and residual of the PE NLE
 - Rework API of tools. Generate_varlist.. for NLE is now called generate_artificial_data..
+- OED differently arranges jacobian, than before. Before it was sorted from top to bottom by measured variable, as in PE.jacobian. Now sorted simulation by simulation
 
 ### 0.10.1
 
