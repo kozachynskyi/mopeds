@@ -499,6 +499,13 @@ class OED_base(Optimizer):
         self.jacobian_mx = jac_meas_mx
         self.jacobian_scaled_mx = jac_meas_scaled_mx
 
+    @_consistent_scaling_decorator
+    def _unscale_jacobian(self, jacobian):
+        scale_parameters = np.tile(np.array(self.varlist_parameter._get_scaling_constants()[0]), (jacobian.shape[0],1))
+        scaled_jacobian = jacobian / scale_parameters
+
+        return scaled_jacobian
+
 
 class OptimalExperimentalDesign(OED_base):
     def __init__(
@@ -562,13 +569,6 @@ class OptimalExperimentalDesign(OED_base):
                 sim.calculate_algebraic_initials(apply_intials=True)
 
         self._setup_equality_constraints()
-
-    @_consistent_scaling_decorator
-    def _unscale_jacobian(self, jacobian):
-        scale_parameters = np.tile(np.array(self.varlist_parameter._get_scaling_constants()[0]), (jacobian.shape[0],1))
-        scaled_jacobian = jacobian / scale_parameters
-
-        return scaled_jacobian
 
     @_consistent_scaling_decorator
     def _initialize_from_settings(self):
@@ -810,12 +810,6 @@ class OptimalExperimentalDesign_NLE(OED_base):
         self.select_objective_function(objective_function)
 
         return self._optimize(scale)
-
-    @_consistent_scaling_decorator
-    def _unscale_jacobian(self, jacobian):
-        scale_parameters = np.tile(np.array(self.varlist_parameter._get_scaling_constants()[0]), (jacobian.shape[0],1))
-        scaled_jacobian = jacobian / scale_parameters
-        return scaled_jacobian
 
     @_consistent_scaling_decorator
     def _setup_varlist_decision(self):
