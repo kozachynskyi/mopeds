@@ -65,17 +65,17 @@ class SimulatorNLE:
         scaled_equations = ca.substitute(self.model.equations_algebraic, self._input_variable_list.get_casadi_variables(), self._input_variable_list.get_scaled_casadi_variables())
         self._model_equations = ca.cse(scaled_equations)
 
+        self.function: ca.Function = ca.Function(
+            "f",
+            [
+                self.model.varlist_algebraic(self._input_variable_list).get_casadi_variables(),
+                self.model.varlist_independent(self._input_variable_list).get_casadi_variables(),
+            ],
+            [self._model_equations],
+            ["x0", "p"],
+            ["x"],
+        )
         if self._solver_name == "rootfinder":
-            self.function: ca.Function = ca.Function(
-                "f",
-                [
-                    self.model.varlist_algebraic(self._input_variable_list).get_casadi_variables(),
-                    self.model.varlist_independent(self._input_variable_list).get_casadi_variables(),
-                ],
-                [self._model_equations],
-                ["x0", "p"],
-                ["x"],
-            )
             self.simulator: ca.Function = ca.rootfinder(
                 "s", "nlpsol", self.function, self.solver_settings
             )
