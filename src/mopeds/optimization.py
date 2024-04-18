@@ -79,7 +79,6 @@ class Optimizer(object):
         self.simulator_settings: dict | None = simulator_settings
 
         self.list_simulators: Sequence[Simulator | SimulatorNLE]
-        self.mapping_simulator_decisions: list = []
 
     @abstractmethod
     def optimize(self, scale):
@@ -108,28 +107,6 @@ class Optimizer(object):
                     raise KeyError(f"Missing value for {var_name}")
 
         return selected_variables
-
-    def _setup_simulator_mapping(
-        self, simulator: Simulator | SimulatorNLE
-    ) -> dict[int, int]:
-        names_variables_decision = list(self.varlist_decision.keys())
-
-        if isinstance(simulator, Simulator):
-            independent_variables = simulator._independent_variables[0]
-        elif isinstance(simulator, SimulatorNLE):
-            independent_variables = simulator._independent_variables
-        mapping_simulator_decisions = {}
-
-        for count in range(independent_variables.size()[0]):
-            var = independent_variables[count]
-            if var.is_symbolic():
-                if var.name() in names_variables_decision:
-                    index = list(self.varlist_decision.keys()).index(var.name())
-                    mapping_simulator_decisions[count] = index
-                else:
-                    raise NotImplementedError
-
-        return mapping_simulator_decisions
 
     @_consistent_scaling_decorator
     def _setup_initialization(self) -> None:
@@ -1495,7 +1472,6 @@ class ParameterEstimation(PE_base):
         experimental_data = []
         experimental_data_mask = []
 
-        list_simulator_mappings = []
         list_inverted_variances = []
         list_inverted_scaled_variances = []
 
@@ -1552,8 +1528,6 @@ class ParameterEstimation(PE_base):
             )
 
             list_simulators.append(simulator)
-
-            list_simulator_mappings.append(self._setup_simulator_mapping(simulator))
 
             # Generate an array (experiment_data_varlist) with Experimental data with the same dimensions as simulation results.
             new_experiment_data_varlist = data_frame.iloc[1:].to_numpy()
@@ -1641,11 +1615,6 @@ class ParameterEstimation(PE_base):
 
         self.experiments_weights: np.ndarray = np.concatenate(experiments_weights)
 
-        # List of dicts for each Simulation that shows, which index coresponds to each
-        # simulator._independent_variables in self.varlist_ variable
-        # For example [{1: 2}], {1: 3}]: in first simulator._independent_variables[1]
-        # is the same variable as self.varlist_decision[2]
-        self.mapping_simulator_decisions: list[dict[int, int]] = list_simulator_mappings
         self.generate_simulate_all_functions()
 
     def optimize(
@@ -1777,7 +1746,6 @@ class ParameterEstimationNLE(PE_base):
 
         list_data_mask = []
         list_simulators = []
-        list_simulator_mappings = []
         list_data = []
         list_inverted_variances = []
         list_inverted_scaled_variances = []
@@ -1805,8 +1773,6 @@ class ParameterEstimationNLE(PE_base):
                 self.simulator_name,
             )
             list_simulators.append(simulator)
-
-            list_simulator_mappings.append(self._setup_simulator_mapping(simulator))
 
             for var in ordered_varlist_input.get_algebraic().values():
                 if var.value[0] is None or np.isnan(var.value[0]):
@@ -1850,12 +1816,6 @@ class ParameterEstimationNLE(PE_base):
         for name in self.names_of_measurements:
             index = self.list_simulators[0].mapping_algebraic_variables[name]
             self.index_measurements_in_sim.append(index)
-
-        # List of dicts for each Simulation that shows, which index coresponds to each
-        # simulator._independent_variables in self.varlist_ variable
-        # For example [{1: 2}], {1: 3}]: in first simulator._independent_variables[1]
-        # is the same variable as self.varlist_decision[2]
-        self.mapping_simulator_decisions: list[dict[int, int]] = list_simulator_mappings
 
         self.generate_simulate_all_functions()
 
@@ -2084,8 +2044,6 @@ class ParameterEstimationNLE_control(ParameterEstimationNLE):
                 self.simulator_name,
             )
             list_simulators.append(simulator)
-
-            self._setup_simulator_mapping(simulator)
 
             for var in varlist_input.values():
                 if isinstance(var, VariableAlgebraic):

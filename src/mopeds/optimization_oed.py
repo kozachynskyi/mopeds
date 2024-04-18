@@ -685,7 +685,6 @@ class OptimalExperimentalDesign(OED_base):
 
         self._setup_timegrid()
 
-        self.mapping_simulator_decisions: list[dict[int, int]] = [self.list_simulators[0].mapping_independent_variables]
         self.generate_jacobian_function()
 
     def _setup_equality_constraints(self):
@@ -816,7 +815,6 @@ class OptimalExperimentalDesign_NLE(OED_base):
             index = self.list_simulators[0].mapping_algebraic_variables[name]
             self.index_measurements_in_sim.append(index)
 
-        self.mapping_simulator_decisions: list[dict[int, int]] = [self.list_simulators[0].mapping_independent_variables]
         self.generate_jacobian_function()
 
     @_consistent_scaling_decorator
