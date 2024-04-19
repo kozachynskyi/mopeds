@@ -41,6 +41,7 @@ Considering creating a test to compare the numerical results while migrating.
 - Added "df_all" when calculating the objective and residual of the PE NLE
 - Rework API of tools. Generate_varlist.. for NLE is now called generate_artificial_data..
 - OED differently arranges jacobian, than before. Before it was sorted from top to bottom by measured variable, as in PE.jacobian. Now sorted simulation by simulation
+- In PE, self.array_data has become a nlpsol_p parameter, meaning that PE data can be changed without reinitilization of the nlp solver, thus saving time
 
 ### 0.10.1
 
