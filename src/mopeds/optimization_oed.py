@@ -141,6 +141,8 @@ class OED_base(Optimizer):
             simulator_name,
             simulator_settings,
         )
+        self._nlpsol_p_mx: [] | ca.MX = []
+        self._nlpsol_p_values: [] | ca.MX = []
 
         self.objective_scaling = 1
 

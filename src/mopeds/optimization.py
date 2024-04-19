@@ -176,6 +176,7 @@ class Optimizer(object):
         self.nlpsol_dict = {
                 "x": varlist_decision.get_casadi_variables(),
                 "f": self._objective()[0],
+                "p": self._nlpsol_p_mx,
             }
 
         if direct_optimization:
@@ -203,6 +204,7 @@ class Optimizer(object):
                     "lbx": self.lower_bound,
                     "ubx": self.upper_bound,
             }
+        self.nlpsol_args["p"] = self._nlpsol_p_values
 
         res_solver = self.solver.call(self.nlpsol_args)
 
@@ -534,6 +536,14 @@ class Optimizer(object):
 
 
 class PE_base(Optimizer):
+    @property
+    def _nlpsol_p_mx(self):
+        return self.array_data_mx
+
+    @property
+    def _nlpsol_p_values(self):
+        return self.array_data
+
     def _objective_ols(self, direct_optimization: bool):
         """Objective function is a trace(Z.T * Z), where Z is a residual matrix with shape:
         numRows -> amount of supplied experiments, numCol -> amount of variables that have measurements
@@ -545,7 +555,7 @@ class PE_base(Optimizer):
             evaluation = self.simulate_all_mx
 
         residuals = (
-            (evaluation - self.array_data)
+            (evaluation - self.array_data_mx)
             * self.array_data_mask
             * np.sqrt(self.experiments_scale)
         )
@@ -562,7 +572,7 @@ class PE_base(Optimizer):
         else:
             evaluation = self.simulate_all_mx
 
-        residuals = (evaluation - self.array_data) * self.array_data_mask
+        residuals = (evaluation - self.array_data_mx) * self.array_data_mask
         scaled_residuals = (
             residuals * self.array_inverted_scaled_std * np.sqrt(self.experiments_scale)
         )
@@ -690,16 +700,17 @@ class PE_base(Optimizer):
             obj_f = self._objective_wls(direct_optimization=False)
 
         decision_variables = self.varlist_decision.get_casadi_variables()
+
         casadi_function = ca.Function(
             "objective",
-            [decision_variables],
+            [decision_variables, self.array_data_mx],
             [obj_f[0], obj_f[1], self.simulate_all_mx, self._simulate_all_mx],
-            ["x"],
+            ["x", "data_arrays"],
             ["f", "residuals", "y", "y_all"],
         )
 
         selected_parameters = self.variables_dict_to_list(parameters)
-        res = casadi_function(x=selected_parameters)
+        res = casadi_function(x=selected_parameters, data_arrays=self.array_data)
 
         if isinstance(self, ParameterEstimationNLE):
             algebraic_names = self.model.varlist_algebraic(self.list_input_varlist[0]).keys()
@@ -874,17 +885,18 @@ class PE_base(Optimizer):
         jac_array_yao = np.concatenate(list(jacobian_yao.values()))
 
         # Generate jacobian and hessian on obj function
+        obj_func = ca.substitute(self._objective_wls(direct_optimization=False)[0], self.array_data_mx, self.array_data)
         jac_objective = ca.Function(
             "jf",
             [decision_variables],
-            [ca.jacobian(self._objective_wls(direct_optimization=False)[0], decision_variables)],
+            [ca.jacobian(obj_func, decision_variables)],
         )(all_parameter_values)
         # Should be twice as big as fim_matrix_scaled
         try:
             hessian_objective_wls = ca.Function(
                 "jf",
                 [decision_variables],
-                [ca.hessian(self._objective_wls(direct_optimization=False)[0], decision_variables)[0]],
+                [ca.hessian(obj_func, decision_variables)[0]],
             )
             hessian_objective_wls = hessian_objective_wls(all_parameter_values)
         except RuntimeError:
@@ -892,10 +904,11 @@ class PE_base(Optimizer):
             hessian_objective_wls = None
 
         try:
+            obj_func_tikhonov = ca.substitute(self._objective_tikhonov(direct_optimization=False)[0], self.array_data_mx, self.array_data)
             hessian_objective_tikhonov = ca.Function(
                 "jf",
                 [decision_variables],
-                [ca.hessian(self._objective_tikhonov(direct_optimization=False)[0], decision_variables)[0]],
+                [ca.hessian(obj_func_tikhonov)],
             )
             hessian_objective_tikhonov = hessian_objective_tikhonov(all_parameter_values)
         except RuntimeError:
@@ -1590,6 +1603,9 @@ class ParameterEstimation(PE_base):
         self.array_data_mask = np.concatenate(experimental_data_mask)[
             :, ~index_columns_with_all_nans
         ]
+        self.array_data_mx = ca.MX.sym("array_data", self.array_data.shape)
+        self.array_data_mask_mx = ca.MX.sym("array_data_mask", self.array_data.shape)
+
         self.names_of_measurements: list[str] = all_measurements_names[
             ~index_columns_with_all_nans
         ].tolist()
@@ -1800,6 +1816,10 @@ class ParameterEstimationNLE(PE_base):
 
         self.array_data = np.nan_to_num(array_data[:, ~index_columns_with_all_nans])
         self.array_data_mask = np.array(list_data_mask)[:, ~index_columns_with_all_nans]
+
+        self.array_data_mx = ca.MX.sym("array_data", self.array_data.shape)
+        self.array_data_mask_mx = ca.MX.sym("array_data_mask", self.array_data.shape)
+
         self.names_of_measurements: list[str] = all_measurements_names[
             ~index_columns_with_all_nans
         ].tolist()
