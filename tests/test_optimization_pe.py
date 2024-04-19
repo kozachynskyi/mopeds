@@ -166,12 +166,15 @@ def test_pe(piecewise, dae, use_constant, scaling):
             answer_scaled = 2.04875e-18
 
         res = pe.optimize()
+        assert np.isclose(res["f"], ca.DM(answer_scaled))
+        assert np.isclose(pe.optimize(reuse_solver=True)["f"], ca.DM(answer_scaled))
+
         res_tikh = pe.optimize(objective_function="tikh")
         logging.warning(
             f"Model.DAE: {model.DAE}, Result: {res['f']}, Expecting: {answer_scaled}"
         )
-        assert np.isclose(res["f"], ca.DM(answer_scaled))
         assert np.isclose(res_tikh["f"], ca.DM(answer_scaled))
+        assert np.isclose(pe.optimize(reuse_solver=True)["f"], ca.DM(answer_scaled))
 
 
 @pytest.mark.parametrize("piecewise", [True, False])

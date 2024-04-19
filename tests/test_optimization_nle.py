@@ -88,12 +88,16 @@ def test_pe():
                     f"Model.NLE: {model}, Result: {res['f']}, Expecting: {answer_f}"
                 )
                 assert np.isclose(res["f"], ca.DM(answer_f), rtol=0, atol=1.0e-9)
+                assert np.isclose(pe.optimize(direct_optimization=direct, reuse_solver=True)["f"], ca.DM(answer_f), rtol=0, atol=1.0e-9)
 
                 logging.warning(
                     f"Model.NLE: {model}, Result: {res['x']}, Expecting: {answer_param}"
                 )
                 assert np.all(
                     np.isclose(res["x"], ca.DM(answer_param), rtol=0, atol=1.0e-9)
+                )
+                assert np.all(
+                    np.isclose(pe.optimize(direct_optimization=direct, reuse_solver=True)["x"], ca.DM(answer_param), rtol=0, atol=1.0e-9)
                 )
 
         for sim in pe.list_simulators:

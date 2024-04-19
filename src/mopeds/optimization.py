@@ -162,7 +162,7 @@ class Optimizer(object):
         return selected_df
 
     @_consistent_scaling_decorator
-    def _optimize(self, scale: bool = None, direct_optimization: bool = False) -> dict[str, ca.DM | ca.MX]:
+    def _optimize(self, scale: bool = None, direct_optimization: bool = False, *, reuse_solver: bool = False) -> dict[str, ca.DM | ca.MX]:
         """Runs optimizer, uses scaling if needed. Returned values is scaled back.
         """
         if scale is not None:
@@ -182,12 +182,13 @@ class Optimizer(object):
         if direct_optimization:
             self.nlpsol_dict["g"] = self.nlpsol_g_direct
 
-        self.solver: ca.Function = ca.nlpsol(
-            "solver",
-            self.solver_name,
-            self.nlpsol_dict,
-            self.solver_settings,
-        )
+        if not (hasattr(self, "solver") and reuse_solver):
+            self.solver: ca.Function = ca.nlpsol(
+                "solver",
+                self.solver_name,
+                self.nlpsol_dict,
+                self.solver_settings,
+            )
 
         if direct_optimization:
             self.nlpsol_args = {
@@ -656,7 +657,7 @@ class PE_base(Optimizer):
 
         return objective, residuals
 
-    def optimize(self, scale=None, objective_function="wls", direct_optimization=False):
+    def optimize(self, scale=None, objective_function="wls", direct_optimization=False, *, reuse_solver=False):
         if objective_function == "wls":
             self._objective = partial(self._objective_wls, direct_optimization=direct_optimization)
         elif objective_function == "ols":
@@ -670,7 +671,7 @@ class PE_base(Optimizer):
                 f"Objective function '{objective_function}' is not supported"
             )
 
-        return self._optimize(scale, direct_optimization=direct_optimization)
+        return self._optimize(scale, direct_optimization=direct_optimization, reuse_solver=reuse_solver)
 
     def _setup_experiments_scale(self, scale_experiments):
         if isinstance(self, ParameterEstimation):
@@ -1634,7 +1635,7 @@ class ParameterEstimation(PE_base):
         self.generate_simulate_all_functions()
 
     def optimize(
-        self, scale=None, objective_function="wls", *, scale_experiments=False
+        self, scale=None, objective_function="wls", *, scale_experiments=False, reuse_solver=False
     ) -> dict[str, ca.DM]:
         """Solves optimization problem. Scaling decreases amount of iterations,
         and should always almost be used
