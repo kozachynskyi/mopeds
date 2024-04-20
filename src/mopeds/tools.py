@@ -74,7 +74,6 @@ class ErrorAnalyzer():
         cov_mc = self.df_params.cov()
 
         axis = self.df_params.hist(bins=int(self.df_params.shape[0]/20))
-        breakpoint()
         for index, (ax, val) in enumerate(zip(axis.flat, self.true_parameters.values())):
             ax.axvline(val, 0, ax.yaxis.get_data_interval()[1], c="r")
             ax.axvline(val + 2*std_linearized[index], 0, ax.yaxis.get_data_interval()[1], c="r")

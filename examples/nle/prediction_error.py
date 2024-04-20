@@ -4,114 +4,102 @@ import pandas as pd
 import copy
 import matplotlib.pyplot as plt
 
+MODEL_NAME = 3
+NUM = 300
 
-        # v = pe_grid.calculate_sensitivity_and_fim(
-        #     dict_of_params, list(dict_of_params.keys())
-        # )
+def model_selector():
+    if MODEL_NAME == 1:
+        return get_model_poly1()
+    elif MODEL_NAME == 2:
+        return get_model_linear_example()
+    elif MODEL_NAME == 3:
+        return get_model_bod()
+    elif MODEL_NAME == 4:
+        return get_model_vle_wilson()
+        # return get()
 
-        # jj = jac_grid["f"]
-        # hess = pe_artificial.calculate_sensitivity_and_fim(
-        #     dict_of_params, list(dict_of_params.keys())
-        # )["cov_par"]
-        # hess_e = hess.copy()
-        # hess_e[0][1] = 0
-        # hess_e[1][0] = 0
+def scale_df_all(pe, df):
+    varlist_alg = pe.model.varlist_algebraic(pe.list_input_varlist[0])
+    for i, row in df.iterrows():
+        df.iloc[i] = varlist_alg.scale_to_original(row)
+    return df
 
-        # len_exp = len(experimental_data)
-        # len_param = len(dict_of_params)
-        # fisher95 = scipy.stats.f(len_param, self.dof).ppf(0.95)
+def get_model_vle_wilson():
+    vl_original, model = mopeds.examples.vle_wilson()
+    vl_original["e0_T"].variance = (0.1 / 2) ** 2
+    vl_original["e0_y_c1"].variance = (0.01 / 2) ** 2
 
-        # inference_results = {}
-        # for control in dict_of_controls:
-        #     inference_results[control] = np.array(sim_data[control])
+    prediction_grid = {"e0_x_c1": [0.01, 0.99, 20], "e0_P": [1, 2, 1]}
+    meas_grid = {"e0_x_c1": [0.01, 0.99, 6], "e0_P": [1, 2, 1]}
 
-        # for response in dict_of_responses:
-        #     inference_results[response] = {}
-        #     s = np.sqrt(OLS[response] / self.dof)
-        #     R = np.linalg.qr(jac[response], mode="reduced")[1]
-        #     vv =  np.linalg.norm(jac_grid[response] @ np.linalg.inv(R), axis=1)
-        #     my = np.sqrt(np.diag(jj @ hess @ jj.T))
-def get_model():
+    def unfix_parameters(list_vl):
+        for vl in list_vl:
+            vl["e0_greek_lambdaA_c2_j1"].fixed = False
+            vl["e0_greek_lambdaA_c1_j2"].fixed = False
+        return list_vl
+
+    # meas_variables = ["e0_T", "e0_y_c1"]
+    meas_variables = ["e0_y_c1"]
+
+    return vl_original, model, prediction_grid, meas_grid, unfix_parameters, meas_variables
+
+def get_model_bod():
+    vl_original, model, _ = mopeds.examples.bod_model()
+    vl_original["f"].variance = 1.5**2
+    prediction_grid = {"x": [0, 10, 10]}
+    meas_grid = {"x": [0, 10, 6]}
+
+    def unfix_parameters(list_vl):
+        for vl in list_vl:
+            vl["theta1"].fixed = False
+            vl["theta2"].fixed = False
+        return list_vl
+
+    return vl_original, model, prediction_grid, meas_grid, unfix_parameters, None
+
+def get_model_poly1():
     vl_original, model = mopeds.examples.polynomial_1d()
-    vl_original["y"].variance = 0.5**2
-    return vl_original, model
-
-def unfix_parameters(list_vl):
-    for vl in list_vl:
-        vl["a"].fixed = False
-        vl["b"].fixed = False
-    return list_vl
-
-def parameter_covariance_mc():
-    vl_original, model = get_model()
-
+    vl_original["y"].variance = 0.1**2
+    prediction_grid = {"u": [0, 1, 10]}
     meas_grid = {"u": [0, 1, 5]}
-    true_data, true_params = mopeds.tools.generate_artificial_data_from_grid_nle(model, vl_original, meas_grid, perturbate=False)
 
-    true_data = unfix_parameters(true_data)
+    def unfix_parameters(list_vl):
+        for vl in list_vl:
+            vl["a"].fixed = False
+            vl["b"].fixed = False
+        return list_vl
 
-    pe = mopeds.ParameterEstimationNLE(model, true_data)
-    original_data = copy.deepcopy(pe.array_data)
+    return vl_original, model, prediction_grid, meas_grid, unfix_parameters, None
 
-    rng = np.random.default_rng()
+def get_model_linear_example():
+    vl_original, model = mopeds.examples.linear_example()
+    vl_original["y"].variance = 0.5**2
+    # prediction_grid = {"u": [0, 1, 20], "v": [3, 4, 20]}
+    prediction_grid = {"u": [0, 1, 10], "v": [3, 4, 1]}
+    meas_grid = {"u": [0, 1, 5], "v": [3, 4, 5]}
 
-    list_parameters = []
-    for i in range(300):
-        pe.array_data = rng.normal(original_data, (1 / pe.array_inverted_scaled_std))
-        res = pe.optimize(None, "wls", True, reuse_solver=True)
-        list_parameters.append(list(res["x_dict"].values()))
+    def unfix_parameters(list_vl):
+        for vl in list_vl:
+            vl["a"].fixed = False
+            vl["b"].fixed = False
+            vl["c"].fixed = False
+            vl["d"].fixed = False
+        return list_vl
 
-    df_params = pd.DataFrame(list_parameters, columns=pe.varlist_decision.keys())
-    cov_linearized = pe.calculate_sensitivity_and_fim(true_params)["cov_par"]
-    cov_mc = df_params.cov()
+    return vl_original, model, prediction_grid, meas_grid, unfix_parameters, ["y"]
 
-    return df_params, cov_linearized, pe
+def parameter_covariance_mopeds():
+    vl_original, model, prediction_grid, meas_grid, unfix_parameters, meas_variables = model_selector()
+    unfix_parameters = []
+    for var in vl_original.values():
+        if isinstance(var, mopeds.VariableParameter):
+            unfix_parameters.append(var.name)
 
-def model_prediction_error_mc():
-    vl_original, model = get_model()
-    df_params, cov_linearized, pe_covariance = parameter_covariance_mc()
+    analyzer = mopeds.tools.ErrorAnalyzer(vl_original, model, prediction_grid, meas_grid, unfix_parameters, meas_variables)
+    analyzer.parameter_covariance_mc(plot=True, num_samples=NUM)
+    analyzer.model_prediction_error_mc(plot=True)
 
-    prediction_grid = {"u": [0, 1, 20]}
-
-    prediction_data, true_params = mopeds.tools.generate_artificial_data_from_grid_nle(model, vl_original, prediction_grid, perturbate=False)
-
-    prediction_data = unfix_parameters(prediction_data)
-    pe = mopeds.ParameterEstimationNLE(model, prediction_data)
-
-    list_predictions = []
-    for index, row in df_params.iterrows():
-        prediction_i = pe.calculate_objective_and_residual(row.to_dict())["y"].flatten()
-        list_predictions.append(prediction_i)
-
-    df_predictions = pd.DataFrame(list_predictions)
-
-    jac_prediction = pe.calculate_sensitivity_and_fim(true_params)["jac_sorted"]["y"]
-
-    prediction_line = pe.calculate_objective_and_residual(true_params)["y"].flatten()
-    cov_linearized = pe_covariance.calculate_sensitivity_and_fim(row.to_dict())["cov_par"]
-    prediction_linearized = np.sqrt(np.diag(jac_prediction @ cov_linearized @ jac_prediction.T))
-
-
-    std_mc = df_predictions.std()
-
-
-    plt.plot(prediction_line, c="b")
-    plt.plot(prediction_line + prediction_linearized, label="lin", c="r")
-    plt.plot(prediction_line - prediction_linearized, label="lin", c="r")
-    plt.plot(prediction_line + std_mc, label="mc", c="g")
-    plt.plot(prediction_line - std_mc, label="mc", c="g")
-    plt.legend()
     plt.show()
 
-    # df
-    # df.plot()
-    # print(cov_linearized)
-    # print(cov_mc)
-    breakpoint()
-
-
-
-
 if __name__ == "__main__":
-    # parameter_covariance_mc()
-    model_prediction_error_mc()
+    parameter_covariance_mopeds()
