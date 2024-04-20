@@ -11,6 +11,130 @@ import pandas as pd
 from mopeds import Model, Simulator, SimulatorNLE, VariableList, VariableParameter, VariableControl
 
 
+class ErrorAnalyzer():
+    def __init__(self, variable_list, model, prediction_grid, measurement_grid, selected_parameters, measurement_names, *, rng=None):
+        self.variable_list = variable_list
+        self._model = model
+        self.prediction_grid = prediction_grid
+        self.measurement_grid = measurement_grid
+        self.selected_parameters = selected_parameters
+        self.measurement_names = measurement_names
+
+        self.rng = rng
+        if rng is None:
+            self.rng = np.random.default_rng()
+
+        self.create_pe_objects()
+
+    def unfix_parameters(self, list_varlist):
+        for vl in list_varlist:
+            for par_name in self.selected_parameters:
+                vl[par_name].fixed = False
+        return list_varlist
+
+    def create_pe_objects(self):
+        from mopeds import ParameterEstimationNLE
+
+        prediction_data, true_params, measurement_names = generate_artificial_data_from_grid_nle(self._model, self.variable_list, self.prediction_grid, perturbate=False, measurement_names=self.measurement_names, rng=self.rng)
+
+        # Rewrite measurement names, if it was None
+        self.measurement_names = measurement_names
+
+        prediction_data = self.unfix_parameters(prediction_data)
+
+        self.pe_prediction = ParameterEstimationNLE(self._model, prediction_data)
+
+        true_data, true_params, _ = generate_artificial_data_from_grid_nle(self._model, self.variable_list, self.measurement_grid, perturbate=False, measurement_names=self.measurement_names, rng=self.rng)
+
+        true_data = self.unfix_parameters(true_data)
+
+        self.pe_artificial_data = ParameterEstimationNLE(self._model, true_data)
+        self.true_parameters = true_params
+
+    def parameter_covariance_mc(self, num_samples=100, plot=False):
+        original_data = copy.deepcopy(self.pe_artificial_data.array_data)
+        pe = self.pe_artificial_data
+
+        list_parameters = []
+        for i in range(num_samples):
+            pe.array_data = self.rng.normal(original_data, (1 / pe.array_inverted_scaled_std))
+            res = pe.optimize(None, "wls", direct_optimization=True, reuse_solver=True)
+            if pe.solver.stats()["success"]:
+                list_parameters.append(list(res["x_dict"].values()))
+
+        self.df_params = pd.DataFrame(list_parameters, columns=pe.varlist_decision.keys())
+        if plot:
+            self.plot_covariance()
+
+    def plot_covariance(self):
+        import matplotlib.pyplot as plt
+
+        cov_linearized = self.pe_artificial_data.calculate_sensitivity_and_fim(self.true_parameters)["cov_par"]
+        std_linearized = np.sqrt(np.diag(cov_linearized))
+        cov_mc = self.df_params.cov()
+
+        axis = self.df_params.hist(bins=int(self.df_params.shape[0]/20))
+        breakpoint()
+        for index, (ax, val) in enumerate(zip(axis.flat, self.true_parameters.values())):
+            ax.axvline(val, 0, ax.yaxis.get_data_interval()[1], c="r")
+            ax.axvline(val + 2*std_linearized[index], 0, ax.yaxis.get_data_interval()[1], c="r")
+            ax.axvline(val - 2*std_linearized[index], 0, ax.yaxis.get_data_interval()[1], c="r")
+
+        plt.figure()
+        plt.scatter(self.df_params.iloc[:, 0], self.df_params.iloc[:, 1])
+
+        return axis
+
+    def scale_df_all(self, pe, df):
+        varlist_alg = pe.model.varlist_algebraic(pe.list_input_varlist[0])
+        for i, row in df.iterrows():
+            df.iloc[i] = varlist_alg.scale_to_original(row)
+        return df
+
+    def model_prediction_error_mc(self, plot=False, rng=None):
+        self.list_predictions = []
+        for index, row in self.df_params.iterrows():
+            prediction_i = self.pe_prediction.calculate_objective_and_residual(row.to_dict())["df_all"]
+            prediction_df = self.scale_df_all(self.pe_prediction, prediction_i)
+            self.list_predictions.append(prediction_df)
+
+        if plot:
+            self.plot_model_prediction()
+
+    def plot_model_prediction(self):
+        import matplotlib.pyplot as plt
+
+        jac_prediction_all = self.pe_prediction.calculate_sensitivity_and_fim(self.true_parameters)["jac_sorted"]
+        prediction_df = self.pe_prediction.calculate_objective_and_residual(self.true_parameters)["df_all"]
+        prediction_df = self.scale_df_all(self.pe_prediction, prediction_df)
+
+        prediction_original_model = self.pe_artificial_data.calculate_objective_and_residual(self.df_params.iloc[-1].to_dict())["df_all"]
+        prediction_original_model = self.scale_df_all(self.pe_artificial_data, prediction_original_model)
+
+        cov_linearized = self.pe_artificial_data.calculate_sensitivity_and_fim(self.df_params.iloc[-1].to_dict())["cov_par"]
+
+        plt.figure()
+
+        for meas_index, meas_name in enumerate(self.measurement_names):
+            df_predictions = pd.DataFrame(np.array(self.list_predictions)[:,:, meas_index])
+
+            data = self.pe_artificial_data.array_data_unscaled[:, meas_index]
+            jac_prediction = jac_prediction_all[meas_name]
+            prediction_line = prediction_df[meas_name]
+
+            prediction_linearized = np.sqrt(np.diag(jac_prediction @ cov_linearized @ jac_prediction.T))
+            std_mc = df_predictions.std()
+
+
+            plt.scatter(prediction_original_model[meas_name], data, ls="", c="black")
+            plt.plot(prediction_line, prediction_line, c="b")
+            plt.plot(prediction_line + 2*prediction_linearized, prediction_line, label="lin", c="r")
+            plt.plot(prediction_line - 2*prediction_linearized, prediction_line, label="lin", c="r")
+            plt.plot(prediction_line + 2*std_mc, prediction_line, label="mc", c="g")
+            plt.plot(prediction_line - 2*std_mc, prediction_line, label="mc", c="g")
+            plt.legend()
+
+
 def create_grid(bounds: list[list[float]]) -> list[list[float]]:
     """Create a grid in a given bounds. Bounds is dictionary, with variable names as keys(),
     and values() as a list with 3 elements: [lower_bound, upper_bound, num_points]
@@ -139,7 +263,7 @@ def generate_artificial_data_nle(
             variable_list_optimizer[var_name].value = var_value
         varlist_list.append(variable_list_optimizer)
 
-    return varlist_list, true_parameters
+    return varlist_list, true_parameters, measurement_names
 
 def generate_varlist_with_data_NLE(
     model,

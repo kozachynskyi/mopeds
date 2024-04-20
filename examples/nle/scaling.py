@@ -83,7 +83,7 @@ def nle_scaling():
     vl, m = example8dot7()
     sim = mopeds.SimulatorNLE(m, vl)
 
-    exp, truepar = mopeds.tools.generate_artificial_data_from_grid_nle(m, vl, {"x1":[2,3,3]}, perturbate=False)
+    exp, truepar, _ = mopeds.tools.generate_artificial_data_from_grid_nle(m, vl, {"x1":[2,3,3]}, perturbate=False)
     for i in exp:
         print(i.dataframe)
 
@@ -109,7 +109,7 @@ def nle_jac():
     vl, m = example8dot7()
     sim = mopeds.SimulatorNLE(m, vl)
 
-    exp, truepar = mopeds.tools.generate_artificial_data_from_grid_nle(m, vl, {"x1":[2,3,3]}, perturbate=False)
+    exp, truepar, _ = mopeds.tools.generate_artificial_data_from_grid_nle(m, vl, {"x1":[2,3,3]}, perturbate=False)
     for i in exp:
         print(i.dataframe)
 

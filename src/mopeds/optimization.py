@@ -1925,7 +1925,7 @@ class ParameterEstimationNLE(PE_base):
                 if variance is not None:
                     template_varlist[key].variance = variance
 
-            generated_var_lists, true_parameters = tools.generate_artificial_data_from_grid_nle(
+            generated_var_lists, true_parameters, _ = tools.generate_artificial_data_from_grid_nle(
                 self.model,
                 template_varlist,
                 dict_of_controls,

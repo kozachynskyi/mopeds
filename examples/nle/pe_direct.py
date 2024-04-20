@@ -16,7 +16,7 @@ if __name__ == "__main__":
     sim = mopeds.SimulatorNLE(model, varlist_original)
     res = sim.simulate()[2]
 
-    exp_data, true_parameters = mopeds.tools.generate_artificial_data_from_grid_nle(model, varlist_original, control_bounds=controls, measurement_names=["e0_T", "e0_y_c1"], perturbate=False)
+    exp_data, true_parameters, _ = mopeds.tools.generate_artificial_data_from_grid_nle(model, varlist_original, control_bounds=controls, measurement_names=["e0_T", "e0_y_c1"], perturbate=False)
 
     if True:
         parameters = ["e0_greek_lambdaA_c1_j2", "e0_greek_lambdaA_c2_j1"]
