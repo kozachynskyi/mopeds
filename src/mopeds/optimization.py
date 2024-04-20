@@ -604,6 +604,15 @@ class PE_base(Optimizer):
         scaled_jacobian = self._unscale_jacobian_measurement_values(scaled_jacobian)
         return scaled_jacobian
 
+    @property
+    @_consistent_scaling_decorator
+    def array_data_unscaled(self):
+        unscaled_list = []
+        for i, meas_name in enumerate(self.names_of_measurements):
+            scaled_column = self.list_input_varlist[0][meas_name].scale_to_original(self.array_data[:, i])
+            unscaled_list.append(scaled_column) 
+        return np.array(unscaled_list).T
+
     @_consistent_scaling_decorator
     def _unscale_jacobian_parameter_values(self, jacobian):
         scale_parameters = np.tile(np.array(self.varlist_decision._get_scaling_constants()[0]), (jacobian.shape[0],1))
