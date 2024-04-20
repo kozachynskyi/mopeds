@@ -28,15 +28,15 @@ def polynomial_1d() -> [mopeds.VariableList, mopeds.Model]:
 
 def linear_example() -> [mopeds.VariableList, mopeds.Model]:
     variable_list = mopeds.VariableList()
-    variable_list.add_variable(mopeds.VariableAlgebraic("y", 1.0))
-    variable_list.add_variable(mopeds.VariableAlgebraic("z", 1.0))
-    variable_list.add_variable(mopeds.VariableAlgebraic("q", 1.0))
+    variable_list.add_variable(mopeds.VariableAlgebraic("y", 1.0, 0, 100))
+    variable_list.add_variable(mopeds.VariableAlgebraic("z", 1.0, 0, 100))
+    variable_list.add_variable(mopeds.VariableAlgebraic("q", 1.0, 0, 100))
     variable_list.add_variable(mopeds.VariableControl("u", 1.0, 1, 2))
     variable_list.add_variable(mopeds.VariableControl("v", 3.0, 3, 4))
-    variable_list.add_variable(mopeds.VariableParameter("a", 1.0))
-    variable_list.add_variable(mopeds.VariableParameter("b", 2.0))
-    variable_list.add_variable(mopeds.VariableParameter("c", 3.0))
-    variable_list.add_variable(mopeds.VariableParameter("d", 4.0))
+    variable_list.add_variable(mopeds.VariableParameter("a", 1.0, 0, 10))
+    variable_list.add_variable(mopeds.VariableParameter("b", 2.0, 0, 10))
+    variable_list.add_variable(mopeds.VariableParameter("c", 3.0, 0, 10))
+    variable_list.add_variable(mopeds.VariableParameter("d", 4.0, 0, 10))
 
     m = mopeds.Model(variable_list)
 
@@ -929,8 +929,8 @@ def vle_wilson():
 
     variable_list.add_variable(mopeds.VariableControl("e0_x_c1", 0.5, x_bounds[0], x_bounds[1]))  # noqa: E501
     variable_list.add_variable(mopeds.VariableControl("e0_P", 1.013, 0.5, 3))  # noqa: E501
-    variable_list.add_variable(mopeds.VariableParameter("e0_greek_lambdaA_c1_j2", 0.037, 0.001, 0.1))  # noqa: E501
-    variable_list.add_variable(mopeds.VariableParameter("e0_greek_lambdaA_c2_j1", -0.78, -2, -0.2))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableParameter("e0_greek_lambdaA_c1_j2", 0.037, -10, 10))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableParameter("e0_greek_lambdaA_c2_j1", -0.78, -10, 10))  # noqa: E501
 
 
     m = mopeds.Model(variable_list)
