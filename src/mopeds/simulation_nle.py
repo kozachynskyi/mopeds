@@ -47,9 +47,9 @@ class SimulatorNLE:
                 f"Provided integrator name {solver_name} is not supported. Only theese are: {self.supported_solvers}."
             )
         if solver_name == "ipopt":
-            self._call_simulator = self.__call_simulator_ipopt
+            self._call_simulator = self._call_simulator_ipopt
         elif solver_name == "rootfinder":
-            self._call_simulator = self.__call_simulator_rootfinder
+            self._call_simulator = self._call_simulator_rootfinder
 
         self._solver_name: str = solver_name
         self._input_variable_list: VariableList = copy.deepcopy(variable_list)
@@ -206,11 +206,11 @@ class SimulatorNLE:
         warn("generate_exp_data is deprecated. Use simulate()", FutureWarning)
         return self.simulate(unfixed_variables=unfixed_variables, return_varlist=True)[2]
 
-    def __call_simulator_rootfinder(self) -> ca.DM:
+    def _call_simulator_rootfinder(self) -> ca.DM:
         """This method is needed to raise an error, if ipopt simulator fails to converge"""
         return self.simulator.call(self.call_arg)
 
-    def __call_simulator_ipopt(self) -> ca.DM:
+    def _call_simulator_ipopt(self) -> ca.DM:
         """This method is needed to raise an error, if ipopt simulator fails to converge"""
         res = self.simulator.call(self.call_arg)
 
