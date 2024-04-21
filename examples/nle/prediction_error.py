@@ -4,8 +4,8 @@ import pandas as pd
 import copy
 import matplotlib.pyplot as plt
 
-MODEL_NAME = 3
-NUM = 300
+MODEL_NAME = 2
+NUM = 100
 
 def model_selector():
     if MODEL_NAME == 1:
@@ -95,9 +95,14 @@ def parameter_covariance_mopeds():
         if isinstance(var, mopeds.VariableParameter):
             unfix_parameters.append(var.name)
 
-    analyzer = mopeds.tools.ErrorAnalyzer(vl_original, model, prediction_grid, meas_grid, unfix_parameters, meas_variables)
-    analyzer.parameter_covariance_mc(plot=True, num_samples=NUM)
-    analyzer.model_prediction_error_mc(plot=True)
+    # true_parameters = {"a": 20}
+    # unfix_parameters.pop(0)
+    true_parameters = {}
+
+    analyzer = mopeds.tools.ErrorAnalyzer(vl_original, model, prediction_grid, meas_grid, unfix_parameters, meas_variables, true_parameters=true_parameters)
+    analyzer.parameter_covariance_mc(plot=False, num_samples=NUM)
+    analyzer.plot_estimation_accuracy()
+    # analyzer.model_prediction_error_mc(plot=True)
 
     plt.show()
 
