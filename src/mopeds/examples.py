@@ -33,10 +33,10 @@ def linear_example() -> [mopeds.VariableList, mopeds.Model]:
     variable_list.add_variable(mopeds.VariableAlgebraic("q", 1.0, 0, 100))
     variable_list.add_variable(mopeds.VariableControl("u", 1.0, 1, 2))
     variable_list.add_variable(mopeds.VariableControl("v", 3.0, 3, 4))
-    variable_list.add_variable(mopeds.VariableParameter("a", 1.0, 0, 10))
-    variable_list.add_variable(mopeds.VariableParameter("b", 2.0, 0, 10))
-    variable_list.add_variable(mopeds.VariableParameter("c", 3.0, 0, 10))
-    variable_list.add_variable(mopeds.VariableParameter("d", 4.0, 0, 10))
+    variable_list.add_variable(mopeds.VariableParameter("a", 1.0, -10, 10))
+    variable_list.add_variable(mopeds.VariableParameter("b", 2.0, -10, 10))
+    variable_list.add_variable(mopeds.VariableParameter("c", 3.0, -10, 10))
+    variable_list.add_variable(mopeds.VariableParameter("d", 4.0, -10, 10))
 
     m = mopeds.Model(variable_list)
 
