@@ -122,10 +122,21 @@ class ErrorAnalyzer():
         return self.df_params.iloc[0].to_dict()
 
     @property
+    def df_params_normalized(self):
+        """Source min-max scaling of sklearn
+        https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.MinMaxScaler.html#sklearn-preprocessing-minmaxscaler
+        """
+        X = self.df_params
+        min, max = (-1, 1)
+        X_std = (X - X.min(axis=0)) / (X.max(axis=0) - X.min(axis=0))
+        X_scaled = X_std * (max - min) + min
+        return X_scaled
+
+    @property
     def bins_number(self):
         return max(1, int(self.df_params.shape[0]* 0.2))
 
-    def plot_covariance(self):
+    def plot_covariance(self, *, normalize_parameters=True):
         import matplotlib.pyplot as plt
         from matplotlib.axes import Axes
 
@@ -148,13 +159,18 @@ class ErrorAnalyzer():
         comb = list(combinations(range(num_par), 2))
         par_names = list(self.pe_main.varlist_decision.keys())
 
+        if normalize_parameters:
+            df = self.df_params_normalized
+        else:
+            df = self.df_params
+
         for i in comb:
             if len(axes) == 1:
                 ax = axes[0]
             else:
                 ax = axes[i[1] - 1, i[0]]
 
-            ax.scatter(self.df_params.iloc[:, i[0]], self.df_params.iloc[:, i[1]])
+            ax.scatter(df.iloc[:, i[0]], df.iloc[:, i[1]])
 
             if i[0] == 0:
                 ax.set_ylabel(f"{par_names[i[1]]}")
