@@ -140,16 +140,21 @@ class ErrorAnalyzer():
         import matplotlib.pyplot as plt
         from matplotlib.axes import Axes
 
-        cov_linearized = self.pe_main.calculate_sensitivity_and_fim(self.last_estimated_parameters)["cov_par"]
-        std_linearized = np.sqrt(np.diag(cov_linearized))
-
         axis = self.df_params.hist(bins=self.bins_number)
+        fig = axis.flat[0].get_figure()
 
-        for index, (ax, val) in enumerate(zip(axis.flat, self.last_estimated_parameters.values())):
-            ax.axvline(val, 0, ax.yaxis.get_data_interval()[1], c="r")
-            ax.axvline(val + 2*std_linearized[index], 0, ax.yaxis.get_data_interval()[1], c="r")
-            ax.axvline(val - 2*std_linearized[index], 0, ax.yaxis.get_data_interval()[1], c="r")
+        try:
+            cov_linearized = self.pe_main.calculate_sensitivity_and_fim(self.last_estimated_parameters)["cov_par"]
+            std_linearized = np.sqrt(np.diag(cov_linearized))
+            for index, (ax, val) in enumerate(zip(axis.flat, self.last_estimated_parameters.values())):
+                ax.axvline(val, 0, ax.yaxis.get_data_interval()[1], c="r")
+                ax.axvline(val + 2*std_linearized[index], 0, ax.yaxis.get_data_interval()[1], c="r")
+                ax.axvline(val - 2*std_linearized[index], 0, ax.yaxis.get_data_interval()[1], c="r")
 
+        except Exception:
+            pass
+
+        fig.suptitle("Parameter Variance MC")
 
         num_par = len(self.pe_prediction.varlist_decision)
         fig, axes = plt.subplots(ncols=num_par - 1, nrows=num_par - 1, layout="constrained")
@@ -178,6 +183,8 @@ class ErrorAnalyzer():
             if i[1] == len(par_names) - 1:
                 ax.set_xlabel(f"{par_names[i[0]]}")
 
+        fig.suptitle("Parameter Covariance MC")
+
         return axis
 
     def scale_df_all(self, pe, df):
@@ -201,14 +208,16 @@ class ErrorAnalyzer():
         prediction_original_model = self.pe_main.calculate_objective_and_residual(self.last_estimated_parameters)["df_all"]
         prediction_original_model = self.scale_df_all(self.pe_main, prediction_original_model)
 
-        plt.figure()
+        fig = plt.figure()
         for meas_index, meas_name in enumerate(self.measurement_names):
             data = self.pe_artificial_data.array_data_unscaled[:, meas_index]
             plt.scatter(prediction_original_model[meas_name], data, ls="", c="black")
             plt.plot(*[[data.min(), data.max()]]*2)
+        fig.suptitle("Parameter prediction")
 
     def plot_estimation_accuracy(self):
         axis = self.df_s2.hist(bins=self.bins_number)
+        fig = axis.flat[0].get_figure()
         std_s2 = self.df_s2.std()
         mean_s2 = self.df_s2.mean()
         real_s2 = 1 / self.pe_artificial_data.array_inverted_std
@@ -219,6 +228,8 @@ class ErrorAnalyzer():
             ax.axvline(val + 2*std, 0, ax.yaxis.get_data_interval()[1], c="r")
             ax.axvline(val - 2*std, 0, ax.yaxis.get_data_interval()[1], c="r")
             ax.set_title(f"Real s2 {std_real}, estimated {round(val, 5)}")
+        
+        fig.suptitle("Estimation accuracy of parameters")
 
 
     def plot_model_prediction(self):
@@ -231,7 +242,7 @@ class ErrorAnalyzer():
         cov_linearized = self.pe_main.calculate_sensitivity_and_fim(self.last_estimated_parameters)["cov_par"]
         # cov_linearized = np.identity(len(self.selected_parameters)) * cov_linearized
 
-        plt.figure()
+        fig = plt.figure()
 
         for meas_index, meas_name in enumerate(self.measurement_names):
             df_index = self.pe_prediction.list_simulators[0].mapping_algebraic_variables[meas_name]
@@ -250,6 +261,8 @@ class ErrorAnalyzer():
             plt.plot(prediction_line - 2*std_mc, prediction_line, label="mc", c="g")
             plt.title(meas_name)
             plt.legend()
+
+        fig.suptitle("Parameter prediction accuracy")
 
 
 def create_grid(bounds: list[list[float]]) -> list[list[float]]:
