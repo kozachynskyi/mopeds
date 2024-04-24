@@ -79,6 +79,16 @@ class ErrorAnalyzer():
         control_grid = self.unfix_parameters(control_grid)
         self.pe_main = self.PE_class(self._model, control_grid)
         
+    def get_s2_and_df(self, pe, parameters_dict):
+        obj_and_residual = pe.calculate_objective_and_residual(parameters_dict, objective_function="ols")
+        estimation_df = self.scale_df_all(pe, obj_and_residual["df_all"])
+        estimation_df = estimation_df[pe.names_of_measurements]
+
+        scaled_residuals = pe._unscale_resudials(obj_and_residual["residuals"])
+        dof = np.count_nonzero(pe.array_data_mask) - (len(pe.varlist_decision) / len(pe.names_of_measurements))
+        measurement_variance_estimate = np.diag(scaled_residuals.T @ scaled_residuals) / dof
+
+        return np.sqrt(measurement_variance_estimate), estimation_df
 
     def parameter_covariance_mc(self, num_samples=100, plot=False):
         original_data = copy.deepcopy(self.pe_artificial_data.array_data)
@@ -89,32 +99,37 @@ class ErrorAnalyzer():
         self.list_estimation = []
         self.failed_pes = 0
         list_s2 = []
+        list_s2_true = []
 
         for i in range(num_samples):
-            pe.array_data = self.rng.normal(original_data, (1 / pe.array_inverted_scaled_std))
+            perturbated_data = self.rng.normal(original_data, (1 / pe.array_inverted_scaled_std))
+            pe.array_data = perturbated_data
             res = pe.optimize(None, "wls", direct_optimization=True, reuse_solver=True)
+
             if pe.solver.stats()["success"]:
                 list_parameters.append(list(res["x_dict"].values()))
 
-                obj_and_residual = pe.calculate_objective_and_residual(res["x_dict"], objective_function="ols")
-                estimation_df = self.scale_df_all(pe, obj_and_residual["df_all"])
-                estimation_df = estimation_df[pe.names_of_measurements]
+                s2_esimated, df_estimated = self.get_s2_and_df(self.pe_main, res["x_dict"])
+                list_s2.append(s2_esimated)
+                self.list_estimation.append(df_estimated)
 
-                scaled_residuals = pe._unscale_resudials(obj_and_residual["residuals"])
-                dof = np.count_nonzero(pe.array_data_mask) - (len(pe.varlist_decision) / len(pe.names_of_measurements))
-                measurement_variance_estimate = np.diag(scaled_residuals.T @ scaled_residuals) / dof
+                self.pe_artificial_data.array_data = perturbated_data
+                s2_true, _ = self.get_s2_and_df(self.pe_artificial_data, self.true_parameters)
+                list_s2_true.append(s2_true)
 
-                list_s2.append(np.sqrt(measurement_variance_estimate))
-                self.list_estimation.append(estimation_df)
             else:
                 self.failed_pes += 1
 
+        self.pe_artificial_data.array_data = copy.deepcopy(original_data)
 
         self.df_s2 = pd.DataFrame(list_s2, columns=pe.names_of_measurements)
+        self.df_s2_true = pd.DataFrame(list_s2_true, columns=pe.names_of_measurements)
         self.df_params = pd.DataFrame(list_parameters, columns=pe.varlist_decision.keys())
 
         if plot:
-            self.plot_covariance()
+            self.plot_parameter_covariance(normalize_parameters=True)
+            self.plot_parameter_covariance(normalize_parameters=False)
+            self.plot_parameter_variance()
             self.plot_estimation_accuracy()
 
     @property
@@ -130,16 +145,27 @@ class ErrorAnalyzer():
         min, max = (-1, 1)
         X_std = (X - X.min(axis=0)) / (X.max(axis=0) - X.min(axis=0))
         X_scaled = X_std * (max - min) + min
-        return X_scaled
+
+        X_pure = self.df_params[self.no_outliers]
+        min, max = (-1, 1)
+        X_std_pure = (X_pure - X_pure.min(axis=0)) / (X_pure.max(axis=0) - X_pure.min(axis=0))
+        X_scaled_pure = X_std_pure * (max - min) + min
+        return X_scaled, X_scaled_pure
+
+    @property
+    def no_outliers(self):
+        real_s2 = 1 / self.pe_artificial_data.array_inverted_std
+        normalized = self.df_s2 - real_s2[0, :]
+        bound = 3 * self.df_s2_true.std()
+
+        selected_indexes = (normalized >= -bound) & ( normalized <= bound)
+        return selected_indexes.to_numpy()
 
     @property
     def bins_number(self):
         return max(1, int(self.df_params.shape[0]* 0.2))
 
-    def plot_covariance(self, *, normalize_parameters=True):
-        import matplotlib.pyplot as plt
-        from matplotlib.axes import Axes
-
+    def plot_parameter_variance(self):
         axis = self.df_params.hist(bins=self.bins_number)
         fig = axis.flat[0].get_figure()
 
@@ -156,6 +182,10 @@ class ErrorAnalyzer():
 
         fig.suptitle("Parameter Variance MC")
 
+    def plot_parameter_covariance(self, *, normalize_parameters=True, without_outliers=False):
+        import matplotlib.pyplot as plt
+        from matplotlib.axes import Axes
+
         num_par = len(self.pe_prediction.varlist_decision)
         fig, axes = plt.subplots(ncols=num_par - 1, nrows=num_par - 1, layout="constrained")
         if isinstance(axes, Axes) == 1:
@@ -164,28 +194,59 @@ class ErrorAnalyzer():
         comb = list(combinations(range(num_par), 2))
         par_names = list(self.pe_main.varlist_decision.keys())
 
-        if normalize_parameters:
-            df = self.df_params_normalized
-        else:
-            df = self.df_params
+        lb = np.asarray(self.pe_main.varlist_decision.scale_to_original(self.pe_main.lower_bound))
+        ub = np.asarray(self.pe_main.varlist_decision.scale_to_original(self.pe_main.upper_bound))
 
-        for i in comb:
+        if normalize_parameters:
+            df_normalized_all, df_normalized_no_outliers = self.df_params_normalized
+            if without_outliers:
+                df = df_normalized_all
+                count_outliers = df_normalized_no_outliers.shape[0] - df_normalized_no_outliers.shape[0]
+            else:
+                df = df_normalized_all
+        else:
+            if without_outliers:
+                no_outliers = self.no_outliers
+                count_outliers = no_outliers.shape[0] - no_outliers.sum()
+                df = self.df_params[self.no_outliers]
+            else:
+                df = self.df_params
+
+        for (par1_index, par2_index) in comb:
             if len(axes) == 1:
                 ax = axes[0]
             else:
-                ax = axes[i[1] - 1, i[0]]
+                ax = axes[par2_index - 1, par1_index]
 
-            ax.scatter(df.iloc[:, i[0]], df.iloc[:, i[1]])
+            par_1_df = df.iloc[:, par1_index]
+            par_2_df = df.iloc[:, par2_index]
 
-            if i[0] == 0:
-                ax.set_ylabel(f"{par_names[i[1]]}")
+            ax.scatter(par_1_df, par_2_df)
 
-            if i[1] == len(par_names) - 1:
-                ax.set_xlabel(f"{par_names[i[0]]}")
+            if np.isclose(self.df_params.iloc[:, par1_index], lb[par1_index]).any():
+                ax.axvline(par_1_df.min(), 0, 1, c="g")
+            if np.isclose(self.df_params.iloc[:, par1_index], ub[par1_index]).any():
+                ax.axvline(par_1_df.max(), 0, 1, c="g")
+            if np.isclose(self.df_params.iloc[:, par2_index], lb[par2_index]).any():
+                ax.axhline(par_2_df.min(), 0, 1, c="g")
+            if np.isclose(self.df_params.iloc[:, par2_index], ub[par2_index]).any():
+                ax.axhline(par_2_df.max(), 0, 1, c="g")
 
-        fig.suptitle("Parameter Covariance MC")
+            if par1_index == 0:
+                ax.set_ylabel(f"{par_names[par2_index]}")
 
-        return axis
+            if par2_index == len(par_names) - 1:
+                ax.set_xlabel(f"{par_names[par1_index]}")
+
+        fig_name = "Parameter Covariance MC"
+        if normalize_parameters:
+            fig_name = fig_name + ", normalized values"
+
+        if without_outliers:
+            fig.supxlabel(f"Outliers = {count_outliers}")
+
+        fig.suptitle(fig_name)
+
 
     def scale_df_all(self, pe, df):
         varlist_alg = pe.model.varlist_algebraic(pe.list_input_varlist[0])
@@ -215,11 +276,19 @@ class ErrorAnalyzer():
             plt.plot(*[[data.min(), data.max()]]*2)
         fig.suptitle("Parameter prediction")
 
-    def plot_estimation_accuracy(self):
-        axis = self.df_s2.hist(bins=self.bins_number)
+    def plot_estimation_accuracy(self, *, without_outliers=False):
+        if without_outliers:
+            no_outliers = self.no_outliers
+            count_outliers = no_outliers.shape[0] - no_outliers.sum()
+            df = self.df_s2[no_outliers]
+
+        else:
+            df = self.df_s2
+
+        axis = df.hist(bins=self.bins_number)
         fig = axis.flat[0].get_figure()
-        std_s2 = self.df_s2.std()
-        mean_s2 = self.df_s2.mean()
+        std_s2 = df.std()
+        mean_s2 = df.mean()
         real_s2 = 1 / self.pe_artificial_data.array_inverted_std
 
         for ax, val, std, std_real in zip(axis.flat, mean_s2, std_s2, real_s2):
@@ -231,6 +300,8 @@ class ErrorAnalyzer():
         
         fig.suptitle("Estimation accuracy of parameters")
 
+        if without_outliers:
+            fig.supxlabel(f"Outliers = {count_outliers}")
 
     def plot_model_prediction(self):
         import matplotlib.pyplot as plt
