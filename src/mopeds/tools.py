@@ -241,6 +241,8 @@ class ErrorAnalyzer():
         fig_name = "Parameter Covariance MC"
         if normalize_parameters:
             fig_name = fig_name + ", normalized values"
+        if without_outliers:
+            fig_name = fig_name + ", without outliers"
 
         if without_outliers:
             fig.supxlabel(f"Outliers = {count_outliers}")
@@ -319,7 +321,11 @@ class ErrorAnalyzer():
             ax.axvline(val - 2*std, 0, 1, c="r")
             ax.set_title(ax.get_title() + f"\nReal s2 {std_real}, estimated {round(val, 5)}")
         
-        fig.suptitle("Estimation accuracy of parameters")
+        fig_name = "Estimation accuracy of parameters"
+
+        if without_outliers:
+            fig_name = fig_name + ", without outliers"
+        fig.suptitle(fig_name)
 
         if without_outliers:
             fig.supxlabel(f"Outliers = {count_outliers}")
