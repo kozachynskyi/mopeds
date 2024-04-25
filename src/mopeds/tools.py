@@ -247,6 +247,27 @@ class ErrorAnalyzer():
 
         fig.suptitle(fig_name)
 
+    def calculate_cosine_simmilarity(self):
+        raise NotImplementedError
+        from sklearn.metrics.pairwise import cosine_similarity
+        jac_prediction_all = self.pe_prediction.calculate_sensitivity_and_fim(self.true_parameters)["jac_full"]
+        prediction_df = self.pe_prediction.calculate_objective_and_residual(self.true_parameters)["df_all"]
+        prediction_df = self.scale_df_all(self.pe_prediction, prediction_df)
+        list_similarity = []
+
+        list_std_mc = []
+        for meas_index, meas_name in enumerate(self.measurement_names):
+            df_index = self.pe_prediction.list_simulators[0].mapping_algebraic_variables[meas_name]
+            df_predictions = pd.DataFrame(np.array(self.list_predictions)[:,:, df_index])
+            v = df_predictions.std() + df_predictions.mean()
+            for index, row in self.df_params.iterrows():
+                jac_prediction = jac_prediction_all[meas_name]
+                cov_linearized = self.pe_main.calculate_sensitivity_and_fim(row.to_dict())["cov_par"]
+                prediction_linearized = np.sqrt(np.diag(jac_prediction_all @ cov_linearized @ jac_prediction_all.T))
+
+            list_similarity.append(cosine_similarity([std_mc], [prediction_linearized]))
+
+        self.cosine_similarity = np.array(list_similarity)
 
     def scale_df_all(self, pe, df):
         varlist_alg = pe.model.varlist_algebraic(pe.list_input_varlist[0])
@@ -291,12 +312,12 @@ class ErrorAnalyzer():
         mean_s2 = df.mean()
         real_s2 = 1 / self.pe_artificial_data.array_inverted_std
 
-        for ax, val, std, std_real in zip(axis.flat, mean_s2, std_s2, real_s2):
-            ax.axvline(std_real, 0, ax.yaxis.get_data_interval()[1], c="g")
-            ax.axvline(val, 0, ax.yaxis.get_data_interval()[1], c="r")
-            ax.axvline(val + 2*std, 0, ax.yaxis.get_data_interval()[1], c="r")
-            ax.axvline(val - 2*std, 0, ax.yaxis.get_data_interval()[1], c="r")
-            ax.set_title(f"Real s2 {std_real}, estimated {round(val, 5)}")
+        for ax, val, std, std_real in zip(axis.flat, mean_s2, std_s2, real_s2[0,:]):
+            ax.axvline(std_real, 0, 1, c="g")
+            ax.axvline(val, 0, 1, c="r")
+            ax.axvline(val + 2*std, 0, 1, c="r")
+            ax.axvline(val - 2*std, 0, 1, c="r")
+            ax.set_title(ax.get_title() + f"\nReal s2 {std_real}, estimated {round(val, 5)}")
         
         fig.suptitle("Estimation accuracy of parameters")
 
@@ -313,9 +334,9 @@ class ErrorAnalyzer():
         cov_linearized = self.pe_main.calculate_sensitivity_and_fim(self.last_estimated_parameters)["cov_par"]
         # cov_linearized = np.identity(len(self.selected_parameters)) * cov_linearized
 
-        fig = plt.figure()
 
         for meas_index, meas_name in enumerate(self.measurement_names):
+            fig = plt.figure()
             df_index = self.pe_prediction.list_simulators[0].mapping_algebraic_variables[meas_name]
             df_predictions = pd.DataFrame(np.array(self.list_predictions)[:,:, df_index])
 
@@ -333,7 +354,7 @@ class ErrorAnalyzer():
             plt.title(meas_name)
             plt.legend()
 
-        fig.suptitle("Parameter prediction accuracy")
+            fig.suptitle("Parameter prediction accuracy")
 
 
 def create_grid(bounds: list[list[float]]) -> list[list[float]]:

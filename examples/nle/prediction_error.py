@@ -86,7 +86,7 @@ def get_model_linear_example():
             vl["d"].fixed = False
         return list_vl
 
-    return vl_original, model, prediction_grid, meas_grid, unfix_parameters, ["y"]
+    return vl_original, model, prediction_grid, meas_grid, unfix_parameters, ["y", "z"]
 
 def parameter_covariance_mopeds():
     vl_original, model, prediction_grid, meas_grid, unfix_parameters, meas_variables = model_selector()
@@ -102,7 +102,7 @@ def parameter_covariance_mopeds():
     analyzer = mopeds.tools.ErrorAnalyzer(vl_original, model, prediction_grid, meas_grid, unfix_parameters, meas_variables, true_parameters=true_parameters)
     analyzer.parameter_covariance_mc(plot=False, num_samples=NUM)
     analyzer.plot_estimation_accuracy()
-    # analyzer.model_prediction_error_mc(plot=True)
+    analyzer.model_prediction_error_mc(plot=False)
 
     plt.show()
 
