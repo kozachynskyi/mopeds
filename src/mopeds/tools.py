@@ -200,8 +200,8 @@ class ErrorAnalyzer():
         if normalize_parameters:
             df_normalized_all, df_normalized_no_outliers = self.df_params_normalized
             if without_outliers:
-                df = df_normalized_all
-                count_outliers = df_normalized_no_outliers.shape[0] - df_normalized_no_outliers.shape[0]
+                df = df_normalized_no_outliers
+                count_outliers = df_normalized_all.shape[0] - df_normalized_no_outliers.shape[0]
             else:
                 df = df_normalized_all
         else:
@@ -223,13 +223,13 @@ class ErrorAnalyzer():
 
             ax.scatter(par_1_df, par_2_df)
 
-            if np.isclose(self.df_params.iloc[:, par1_index], lb[par1_index]).any():
+            if np.isclose(par_1_df, lb[par1_index]).any():
                 ax.axvline(par_1_df.min(), 0, 1, c="g")
-            if np.isclose(self.df_params.iloc[:, par1_index], ub[par1_index]).any():
+            if np.isclose(par_1_df, ub[par1_index]).any():
                 ax.axvline(par_1_df.max(), 0, 1, c="g")
-            if np.isclose(self.df_params.iloc[:, par2_index], lb[par2_index]).any():
+            if np.isclose(par_2_df, lb[par2_index]).any():
                 ax.axhline(par_2_df.min(), 0, 1, c="g")
-            if np.isclose(self.df_params.iloc[:, par2_index], ub[par2_index]).any():
+            if np.isclose(par_2_df, ub[par2_index]).any():
                 ax.axhline(par_2_df.max(), 0, 1, c="g")
 
             if par1_index == 0:
