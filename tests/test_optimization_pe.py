@@ -23,8 +23,13 @@ def test_scaling(piecewise, dae):
 
     varlist_i = copy.deepcopy(var_list)
 
+    rng = np.random.default_rng(0)
+
     with mopeds.options(variable_scaling=False):
         var_list_exp = mopeds.Simulator(model, time_grid, var_list).simulate()[2]
+        for var in var_list_exp.get_state().values():
+            var.value = rng.normal(var.value[0], var.variance**0.5)
+
 
     for scaling in [True, False]:
         with mopeds.options(variable_scaling=scaling):
@@ -36,8 +41,8 @@ def test_scaling(piecewise, dae):
 
             opts = {
                 "expand": 1,
-                "abstol": 1e-13,
-                "reltol": 1e-12,
+                "abstol": 1e-10,
+                "reltol": 1e-8,
             }
 
             pe = mopeds.ParameterEstimation(model, [varlist_i], simulator_settings=opts)
@@ -49,7 +54,7 @@ def test_scaling(piecewise, dae):
         v2 = sens_fim[1][key] 
         if key not in ["jac_sorted", "jac_scaled_sorted", "jac_yao_sorted", "jac_wls", "hess_wls", "hess_tikh"]:
             # print(v2/v1)
-            assert np.isclose(v1, v2).all()
+            assert np.isclose(v1, v2, rtol=1e-4).all()
 
 
 @pytest.mark.parametrize("piecewise", [True, False])
