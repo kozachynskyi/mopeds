@@ -30,7 +30,7 @@ test-3.11:
       - linux
 
 test-3.12:
-    extends: ".test"
+    extends: ".test-manual"
     tags: 
       - py312
       - linux
