@@ -165,22 +165,40 @@ class ErrorAnalyzer():
     def bins_number(self):
         return max(1, int(self.df_params.shape[0]* 0.2))
 
-    def plot_parameter_variance(self):
+    def get_parameter_df(self, without_outliers):
+        if without_outliers:
+            no_outliers = self.no_outliers
+            count_outliers = no_outliers.shape[0] - no_outliers.sum()
+            df = self.df_params[self.no_outliers]
+        else:
+            count_outliers = 0
+            df = self.df_params
+        return df, count_outliers
+
+    def plot_parameter_variance(self, *, without_outliers=False, parameters=None):
+        df, count_outliers = self.get_parameter_df(without_outliers)
+
         axis = self.df_params.hist(bins=self.bins_number)
         fig = axis.flat[0].get_figure()
 
-        try:
-            cov_linearized = self.pe_main.calculate_sensitivity_and_fim(self.last_estimated_parameters)["cov_par"]
-            std_linearized = np.sqrt(np.diag(cov_linearized))
-            for index, (ax, val) in enumerate(zip(axis.flat, self.last_estimated_parameters.values())):
-                ax.axvline(val, 0, ax.yaxis.get_data_interval()[1], c="r")
-                ax.axvline(val + 2*std_linearized[index], 0, ax.yaxis.get_data_interval()[1], c="r")
-                ax.axvline(val - 2*std_linearized[index], 0, ax.yaxis.get_data_interval()[1], c="r")
+        if parameters is not None:
+            try:
+                cov_linearized = self.pe_main.calculate_sensitivity_and_fim(self.last_estimated_parameters)["cov_par"]
+                std_linearized = np.sqrt(np.diag(cov_linearized))
+                for index, (ax, val) in enumerate(zip(axis.flat, parameters)):
+                    ax.axvline(val, 0, ax.yaxis.get_data_interval()[1], c="r")
+                    ax.axvline(val + 2*std_linearized[index], 0, ax.yaxis.get_data_interval()[1], c="r")
+                    ax.axvline(val - 2*std_linearized[index], 0, ax.yaxis.get_data_interval()[1], c="r")
 
-        except Exception:
-            pass
+            except Exception:
+                pass
 
-        fig.suptitle("Parameter Variance MC")
+        fig_name = "Parameter Variance MC"
+        if without_outliers:
+            fig_name = fig_name + ", without outliers"
+            fig.supxlabel(f"Outliers = {count_outliers}")
+
+        fig.suptitle(fig_name)
 
     def plot_parameter_covariance(self, *, normalize_parameters=True, without_outliers=False):
         import matplotlib.pyplot as plt
@@ -205,12 +223,7 @@ class ErrorAnalyzer():
             else:
                 df = df_normalized_all
         else:
-            if without_outliers:
-                no_outliers = self.no_outliers
-                count_outliers = no_outliers.shape[0] - no_outliers.sum()
-                df = self.df_params[self.no_outliers]
-            else:
-                df = self.df_params
+            df, count_outliers = self.get_parameter_df(without_outliers)
 
         for (par1_index, par2_index) in comb:
             if len(axes) == 1:
@@ -243,8 +256,6 @@ class ErrorAnalyzer():
             fig_name = fig_name + ", normalized values"
         if without_outliers:
             fig_name = fig_name + ", without outliers"
-
-        if without_outliers:
             fig.supxlabel(f"Outliers = {count_outliers}")
 
         fig.suptitle(fig_name)
