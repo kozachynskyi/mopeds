@@ -8,15 +8,17 @@ from itertools import combinations
 
 import numpy as np
 import pandas as pd
+from scipy import stats
 
-from mopeds import Model, Simulator, SimulatorNLE, VariableList, VariableParameter, VariableControl
+import mopeds
+from functools import cached_property
+import tqdm
 
 
 class ErrorAnalyzer():
     def __init__(self, variable_list, model, prediction_grid, measurement_grid, selected_parameters, measurement_names, *, rng=None, true_parameters=None, pe_class=None):
         if pe_class is None:
-            from mopeds import ParameterEstimationNLE
-            self.PE_class = ParameterEstimationNLE
+            self.PE_class = mopeds.ParameterEstimationNLE
         else:
             self.PE_class = pe_class
 
@@ -29,27 +31,23 @@ class ErrorAnalyzer():
 
         self.true_parameters = {}
         for var in self.variable_list_true.get_independent().values():
-            if isinstance(var, VariableParameter):
+            if isinstance(var, mopeds.VariableParameter):
                 self.true_parameters[var.name] = var.value[0]
 
         self._model = model
         self.prediction_grid = prediction_grid
         self.measurement_grid = measurement_grid
         self.selected_parameters = selected_parameters
-        self.measurement_names = measurement_names
 
-        # Used for parameter estimation during MC
-        self.pe_main = None
-        # Used for generation of the perturbated for MC
-        self.pe_artificial_data = None
-        # Used for calculation of predicted values
-        self.pe_prediction = None
+        if measurement_names is None:
+            self.measurement_names = model.varlist_algebraic(variable_list).keys()
+        else:
+            self.measurement_names = measurement_names
 
-        self.rng = rng
         if rng is None:
             self.rng = np.random.default_rng()
-
-        self.create_pe_objects()
+        else:
+            self.rng = rng
 
     def unfix_parameters(self, list_varlist):
         for vl in list_varlist:
@@ -57,27 +55,34 @@ class ErrorAnalyzer():
                 vl[par_name].fixed = False
         return list_varlist
 
-    def create_pe_objects(self):
-
-        prediction_data, true_params, measurement_names = generate_artificial_data_from_grid_nle(self._model, self.variable_list, self.prediction_grid, perturbate=False, measurement_names=self.measurement_names, rng=self.rng)
-
-        # Rewrite measurement names, if it was None
-        self.measurement_names = measurement_names
-
-        prediction_data = self.unfix_parameters(prediction_data)
-
-        self.pe_prediction = self.PE_class(self._model, prediction_data)
-
-        true_data, true_params, _ = generate_artificial_data_from_grid_nle(self._model, self.variable_list_true, self.measurement_grid, perturbate=False, measurement_names=self.measurement_names, rng=self.rng)
-
-        true_data = self.unfix_parameters(true_data)
-
-        self.pe_artificial_data = self.PE_class(self._model, true_data)
-
+    @cached_property
+    def pe_main(self) -> mopeds.ParameterEstimation:
         control_grid, true_params, measurement_names = generate_artificial_data_from_grid_nle(self._model, self.variable_list, self.measurement_grid, perturbate=False, measurement_names=self.measurement_names, rng=self.rng)
 
         control_grid = self.unfix_parameters(control_grid)
-        self.pe_main = self.PE_class(self._model, control_grid)
+        return self.PE_class(self._model, control_grid)
+
+    @cached_property
+    def pe_artificial_data(self) -> mopeds.ParameterEstimation:
+        true_data, true_params, _ = generate_artificial_data_from_grid_nle(self._model, self.variable_list_true, self.measurement_grid, perturbate=False, measurement_names=self.measurement_names, rng=self.rng)
+
+        true_data = self.unfix_parameters(true_data)
+        return self.PE_class(self._model, true_data)
+
+    @cached_property
+    def pe_prediction(self) -> mopeds.ParameterEstimation:
+        prediction_data, true_params, measurement_names = generate_artificial_data_from_grid_nle(self._model, self.variable_list, self.prediction_grid, perturbate=False, measurement_names=self.measurement_names, rng=self.rng)
+
+        prediction_data = self.unfix_parameters(prediction_data)
+        return self.PE_class(self._model, prediction_data)
+
+    @cached_property
+    def pe_true_prediction(self) -> mopeds.ParameterEstimation:
+        prediction_data, true_params, measurement_names = generate_artificial_data_from_grid_nle(self._model, self.variable_list_true, self.prediction_grid, perturbate=False, measurement_names=self.measurement_names, rng=self.rng)
+
+        prediction_data = self.unfix_parameters(prediction_data)
+        return self.PE_class(self._model, prediction_data)
+
         
     def get_s2_and_df(self, pe, parameters_dict):
         obj_and_residual = pe.calculate_objective_and_residual(parameters_dict, objective_function="ols")
@@ -85,8 +90,7 @@ class ErrorAnalyzer():
         estimation_df = estimation_df[pe.names_of_measurements]
 
         scaled_residuals = pe._unscale_resudials(obj_and_residual["residuals"])
-        dof = np.count_nonzero(pe.array_data_mask) - (len(pe.varlist_decision) / len(pe.names_of_measurements))
-        measurement_variance_estimate = np.diag(scaled_residuals.T @ scaled_residuals) / dof
+        measurement_variance_estimate = np.diag(scaled_residuals.T @ scaled_residuals) / pe.dof
 
         return np.sqrt(measurement_variance_estimate), estimation_df
 
@@ -159,7 +163,7 @@ class ErrorAnalyzer():
         bound = 3 * self.df_s2_true.std()
 
         selected_indexes = (normalized >= -bound) & ( normalized <= bound)
-        return selected_indexes.to_numpy()
+        return selected_indexes.to_numpy().all(axis=1)
 
     @property
     def bins_number(self):
@@ -260,28 +264,6 @@ class ErrorAnalyzer():
 
         fig.suptitle(fig_name)
 
-    def calculate_cosine_simmilarity(self):
-        raise NotImplementedError
-        from sklearn.metrics.pairwise import cosine_similarity
-        jac_prediction_all = self.pe_prediction.calculate_sensitivity_and_fim(self.true_parameters)["jac_full"]
-        prediction_df = self.pe_prediction.calculate_objective_and_residual(self.true_parameters)["df_all"]
-        prediction_df = self.scale_df_all(self.pe_prediction, prediction_df)
-        list_similarity = []
-
-        list_std_mc = []
-        for meas_index, meas_name in enumerate(self.measurement_names):
-            df_index = self.pe_prediction.list_simulators[0].mapping_algebraic_variables[meas_name]
-            df_predictions = pd.DataFrame(np.array(self.list_predictions)[:,:, df_index])
-            v = df_predictions.std() + df_predictions.mean()
-            for index, row in self.df_params.iterrows():
-                jac_prediction = jac_prediction_all[meas_name]
-                cov_linearized = self.pe_main.calculate_sensitivity_and_fim(row.to_dict())["cov_par"]
-                prediction_linearized = np.sqrt(np.diag(jac_prediction_all @ cov_linearized @ jac_prediction_all.T))
-
-            list_similarity.append(cosine_similarity([std_mc], [prediction_linearized]))
-
-        self.cosine_similarity = np.array(list_similarity)
-
     def scale_df_all(self, pe, df):
         varlist_alg = pe.model.varlist_algebraic(pe.list_input_varlist[0])
         for i, row in df.iterrows():
@@ -290,7 +272,7 @@ class ErrorAnalyzer():
 
     def model_prediction_error_mc(self, plot=False):
         self.list_predictions = []
-        for index, row in self.df_params.iterrows():
+        for index, row in tqdm.tqdm(self.df_params.iterrows()):
             prediction_i = self.pe_prediction.calculate_objective_and_residual(row.to_dict())["df_all"]
             prediction_df = self.scale_df_all(self.pe_prediction, prediction_i)
             self.list_predictions.append(prediction_df)
@@ -298,17 +280,51 @@ class ErrorAnalyzer():
         if plot:
             self.plot_model_prediction()
 
-    def plot_parameter_prediction(self):
-        import matplotlib.pyplot as plt
-        prediction_original_model = self.pe_main.calculate_objective_and_residual(self.last_estimated_parameters)["df_all"]
-        prediction_original_model = self.scale_df_all(self.pe_main, prediction_original_model)
+    @property
+    def threshold(self):
+        return stats.t.ppf(0.975, self.pe_main.dof)
 
-        fig = plt.figure()
-        for meas_index, meas_name in enumerate(self.measurement_names):
-            data = self.pe_artificial_data.array_data_unscaled[:, meas_index]
-            plt.scatter(prediction_original_model[meas_name], data, ls="", c="black")
-            plt.plot(*[[data.min(), data.max()]]*2)
-        fig.suptitle("Parameter prediction")
+    def analyze_model_prediction(self):
+        true_prediction_all = self.pe_true_prediction.calculate_objective_and_residual(self.true_parameters)["df_all"]
+        true_prediction_all = self.scale_df_all(self.pe_true_prediction, true_prediction_all)
+        true_prediction = true_prediction_all[self.measurement_names]
+
+        list_prediction_quality = []
+        metrics = {}
+        self.list_prediction_std = []
+        
+
+        for meas_name in self.measurement_names:
+            df_predictions = pd.concat(self.list_predictions, axis=1, keys=range(len(self.list_predictions))).swaplevel(axis=1)
+
+            v = df_predictions[meas_name]
+            res = stats.shapiro(v, axis=1, nan_policy="omit")
+            metrics[meas_name + "_shapiro_stat"] = res.statistic.mean()
+            metrics[meas_name + "_shapiro_p"] = res.pvalue.mean()
+
+
+        for index, row in self.df_params.iterrows():
+            try:
+                df_predictions = self.list_predictions[index][self.measurement_names]
+                cov_linearized = self.pe_main.calculate_sensitivity_and_fim(row.to_dict())["cov_par"]
+
+                jac_prediction = self.pe_prediction.calculate_sensitivity_and_fim(row.to_dict())["jac_full"]
+                prediction_std = np.sqrt(np.diag(jac_prediction @ cov_linearized @ jac_prediction.T)).reshape(self.pe_prediction.array_data.shape, order="F")
+                print(prediction_std)
+                lb = df_predictions - self.threshold * prediction_std
+                ub = df_predictions + self.threshold * prediction_std
+                in_bounds = ((lb <= true_prediction) & (ub >= true_prediction)).all()
+            except Exception:
+                pass
+
+            list_prediction_quality.append(in_bounds.all())
+            self.list_prediction_std.append(prediction_std)
+
+        array_quality = np.array(list_prediction_quality)
+        metrics["predictions_in_bounds"] = array_quality.sum() / array_quality.shape[0]
+
+        return metrics
+
 
     def plot_estimation_accuracy(self, *, without_outliers=False):
         if without_outliers:
@@ -341,37 +357,85 @@ class ErrorAnalyzer():
         if without_outliers:
             fig.supxlabel(f"Outliers = {count_outliers}")
 
-    def plot_model_prediction(self):
+    def plot_parameter_prediction(self, parameters):
         import matplotlib.pyplot as plt
+        true_values = self.pe_true_prediction.calculate_objective_and_residual(self.true_parameters)["df_all"]
+        true_values = self.scale_df_all(self.pe_true_prediction, true_values)
 
-        jac_prediction_all = self.pe_prediction.calculate_sensitivity_and_fim(self.true_parameters)["jac_sorted"]
-        prediction_df = self.pe_prediction.calculate_objective_and_residual(self.true_parameters)["df_all"]
+        jac_prediction_all = self.pe_prediction.calculate_sensitivity_and_fim(parameters)["jac_sorted"]
+        prediction_df = self.pe_prediction.calculate_objective_and_residual(parameters)["df_all"]
         prediction_df = self.scale_df_all(self.pe_prediction, prediction_df)
 
-        cov_linearized = self.pe_main.calculate_sensitivity_and_fim(self.last_estimated_parameters)["cov_par"]
-        # cov_linearized = np.identity(len(self.selected_parameters)) * cov_linearized
-
+        cov_linearized = self.pe_main.calculate_sensitivity_and_fim(parameters)["cov_par"]
+        
+        threshold = stats.t.ppf(0.975, self.pe_main.dof)
 
         for meas_index, meas_name in enumerate(self.measurement_names):
             fig = plt.figure()
-            df_index = self.pe_prediction.list_simulators[0].mapping_algebraic_variables[meas_name]
-            df_predictions = pd.DataFrame(np.array(self.list_predictions)[:,:, df_index])
+
+            plt.plot(true_values, true_values, label="true", c="black", ls="dashed")
 
             jac_prediction = jac_prediction_all[meas_name]
-            prediction_line = prediction_df[meas_name]
 
             prediction_linearized = np.sqrt(np.diag(jac_prediction @ cov_linearized @ jac_prediction.T))
-            std_mc = df_predictions.std()
+            prediction_line = prediction_df[meas_name]
+            plt.plot(true_values, prediction_line, label="prediction", c="b")
+            plt.plot(true_values, prediction_line + threshold*prediction_linearized,  label="95% CI", c="r")
+            plt.plot(true_values, prediction_line - threshold*prediction_linearized,label="95% CI", c="r")
 
-            plt.plot(prediction_line, prediction_line, c="b")
-            plt.plot(prediction_line + 2*prediction_linearized, prediction_line, label="lin", c="r")
-            plt.plot(prediction_line - 2*prediction_linearized, prediction_line, label="lin", c="r")
-            plt.plot(prediction_line + 2*std_mc, prediction_line, label="mc", c="g")
-            plt.plot(prediction_line - 2*std_mc, prediction_line, label="mc", c="g")
-            plt.title(meas_name)
             plt.legend()
+            plt.title(meas_name)
 
-            fig.suptitle("Parameter prediction accuracy")
+            fig.suptitle("Predicted model accuracy")
+
+    def plot_model_prediction_MC(self, *, without_outliers=False):
+        import matplotlib.pyplot as plt
+        true_values_all = self.pe_true_prediction.calculate_objective_and_residual(self.true_parameters)["df_all"]
+        true_values_all = self.scale_df_all(self.pe_true_prediction, true_values_all)
+
+        df_predictions = pd.concat(self.list_predictions, axis=1, keys=range(len(self.list_predictions)))
+        if without_outliers:
+            df_params, count_outliers = self.get_parameter_df(without_outliers)
+            if df_params.empty:
+                return
+
+            df_predictions = df_predictions[df_params.index]
+
+        df_predictions = df_predictions.swaplevel(axis=1)
+
+        try:
+            cov_linearized = self.pe_artificial_data.calculate_sensitivity_and_fim(self.true_parameters)["cov_par"]
+            jac_prediction = self.pe_true_prediction.calculate_sensitivity_and_fim(self.true_parameters)["jac_full"]
+            prediction_std_all = np.sqrt(np.diag(jac_prediction @ cov_linearized @ jac_prediction.T)).reshape(self.pe_prediction.array_data.shape, order="F")
+        except Exception:
+            pass
+
+        for meas_index, meas_name in enumerate(self.measurement_names):
+            fig = plt.figure()
+            true_values = true_values_all[meas_name]
+            min = df_predictions[meas_name].min(axis=1)
+            max = df_predictions[meas_name].max(axis=1)
+
+            plt.plot(min - true_values, label="MC, min", c="g")
+            plt.plot(max - true_values, label="MC, max", c="g")
+            plt.plot([0]*true_values.shape[0], label="true", c="black", ls="dashed")
+
+            try:
+                prediction_std = prediction_std_all[:, meas_index]
+                plt.plot(-self.threshold*prediction_std, label="Lin, CI 95%", c="red")
+                plt.plot(self.threshold*prediction_std, label="Lin, CI 95%", c="red")
+            except Exception:
+                pass
+
+            plt.legend()
+            plt.title(meas_name)
+
+            fig_name = "Predicted model accuracy, MC" 
+            if without_outliers:
+                fig_name = fig_name + ", without outliers"
+                fig.supxlabel(f"Outliers = {count_outliers}")
+
+            fig.suptitle(fig_name)
 
 
 def create_grid(bounds: list[list[float]]) -> list[list[float]]:
@@ -389,26 +453,26 @@ def create_grid(bounds: list[list[float]]) -> list[list[float]]:
 
 
 def generate_varlist_with_data(
-    variable_list: VariableList,
-    model: Model,
+    variable_list: mopeds.VariableList,
+    model: mopeds.Model,
     time_grid: np.ndarray,
     algebraic: bool = False,
     perturbate: bool = False,
     rng: np.random.Generator | None = None
-) -> VariableList:
+) -> mopeds.VariableList:
     if rng is None:
         rng = np.random.default_rng()
     # Simulated ODE/DAE and replaces StateVariable values with simulated data
     var_list_fixed = copy.deepcopy(variable_list)
     for var in var_list_fixed.values():
         var.fixed = True
-    sim = Simulator(model, time_grid, var_list_fixed)
+    sim = mopeds.Simulator(model, time_grid, var_list_fixed)
     var_list_exp = sim.simulate(algebraic=True)[2]
 
     # Replace empty state variables with results from simulation
     variable_list_with_data = copy.deepcopy(variable_list)
     for key, var in var_list_exp.items():
-        if not isinstance(var, VariableControl):
+        if not isinstance(var, mopeds.VariableControl):
             df = var.dataframe
             if perturbate:
                 std = var_list_fixed[key].variance ** 0.5
@@ -420,15 +484,15 @@ def generate_varlist_with_data(
     return variable_list_with_data
 
 def generate_artificial_data_from_grid_nle(
-    model: Model,
-    variable_list: VariableList,
+    model: mopeds.Model,
+    variable_list: mopeds.VariableList,
     control_bounds: dict[list[float]],
     perturbate: bool = True,
     rng: np.random.Generator = None,
     measurement_names: list[str] = None,
     *,
     keep_in_bounds: bool = True,
-) -> tuple[list[VariableList], dict[str, float]]:
+) -> tuple[list[mopeds.VariableList], dict[str, float]]:
     """Wrapper around generate_artificial_data_nle, where controls are generated based on uniform grid.
     control_bounds is dictionary, with variable names as keys(),
     and values() as a list with 3 elements: [lower_bound, upper_bound, num_points]
@@ -441,15 +505,15 @@ def generate_artificial_data_from_grid_nle(
 
 
 def generate_artificial_data_nle(
-    model: Model,
-    variable_list: VariableList,
+    model: mopeds.Model,
+    variable_list: mopeds.VariableList,
     controls: list[dict[float]],
     perturbate: bool = True,
     rng: np.random.Generator = None,
     measurement_names: list[str] = None,
     *,
     keep_in_bounds: bool = True,
-    ) -> tuple[list[VariableList], dict[str, float]]:
+    ) -> tuple[list[mopeds.VariableList], dict[str, float]]:
     """Generate artificial data that can immediately be used by Parameter Estimator.
     Returns list of varlists and a dictionary with parameter values that were used
     to generate data.
@@ -476,11 +540,11 @@ def generate_artificial_data_nle(
         var.fixed = True
 
     for var in model.varlist_independent(variable_list).values():
-        if isinstance(var, VariableParameter):
+        if isinstance(var, mopeds.VariableParameter):
             var_varlist = variable_list_original[var.name]
             true_parameters[var_varlist.name] = var_varlist.value[0]
 
-    sim_fixed = SimulatorNLE(model, variable_list)
+    sim_fixed = mopeds.SimulatorNLE(model, variable_list)
 
     varlist_list = []
     for grid_point in controls:
@@ -511,7 +575,7 @@ def generate_varlist_with_data_NLE(
     perturbate: bool = True,
     rng: np.random.Generator = None,
     measurement_names: list[str] = None,
-) -> tuple[list[VariableList], dict[str, float]]:
+) -> tuple[list[mopeds.VariableList], dict[str, float]]:
     warn("Deprecated API, use generate_artificial_data_from_grid_nle", FutureWarning, 2)
     return generate_artificial_data_from_grid_nle(model, variable_list, control_bounds, perturbate, rng, measurement_names)
 

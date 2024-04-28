@@ -74,7 +74,6 @@ def get_model_poly1():
 def get_model_linear_example():
     vl_original, model = mopeds.examples.linear_example()
     vl_original["y"].variance = 0.5**2
-    # prediction_grid = {"u": [0, 1, 20], "v": [3, 4, 20]}
     prediction_grid = {"u": [0, 1, 10], "v": [3, 4, 1]}
     meas_grid = {"u": [0, 1, 5], "v": [3, 4, 5]}
 
@@ -101,8 +100,12 @@ def parameter_covariance_mopeds():
 
     analyzer = mopeds.tools.ErrorAnalyzer(vl_original, model, prediction_grid, meas_grid, unfix_parameters, meas_variables, true_parameters=true_parameters)
     analyzer.parameter_covariance_mc(plot=False, num_samples=NUM)
-    analyzer.plot_estimation_accuracy()
+
+    # analyzer.plot_estimation_accuracy()
     analyzer.model_prediction_error_mc(plot=False)
+    analyzer.plot_model_prediction_MC(without_outliers=True)
+    # analyzer.plot_parameter_prediction(analyzer.last_estimated_parameters)
+    v = analyzer.analyze_model_prediction()
 
     plt.show()
 

@@ -823,10 +823,8 @@ class PE_base(Optimizer):
 
         scaled_residuals = self._unscale_resudials(residuals)
 
-        # Eq 7-13-22 Bard 1974
-        dof = np.count_nonzero(self.array_data_mask) - (len(self.varlist_decision) / len(self.names_of_measurements))
 
-        measurement_variance_estimate = np.diag(scaled_residuals.T @ scaled_residuals) / dof
+        measurement_variance_estimate = np.diag(scaled_residuals.T @ scaled_residuals) / self.dof
         print("OLS std: ", np.sqrt(measurement_variance_estimate))
 
         estimated_inverted_std = copy.deepcopy(self.array_inverted_std)
@@ -1418,8 +1416,8 @@ class PE_base(Optimizer):
 
     @property
     def dof(self):
-        return np.count_nonzero(self.array_data_mask) - len(self.varlist_decision)
-
+        # Eq 7-13-22 Bard 1974
+        return np.count_nonzero(self.array_data_mask) - (len(self.varlist_decision) / len(self.names_of_measurements))
 
 
 class ParameterEstimation(PE_base):
@@ -1485,6 +1483,8 @@ class ParameterEstimation(PE_base):
     def _setup_algebraic_flag(self):
         self._use_algebraic_variables = False
         for varlist_input in self.list_input_varlist:
+            if len(varlist_input.get_algebraic()) == 0:
+                continue
             if varlist_input.get_algebraic().dataframe[1:].empty is False:
                 self._use_algebraic_variables = True
 
