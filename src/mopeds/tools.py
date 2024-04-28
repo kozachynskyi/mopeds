@@ -410,32 +410,33 @@ class ErrorAnalyzer():
         except Exception:
             pass
 
-        for meas_index, meas_name in enumerate(self.measurement_names):
-            fig = plt.figure()
+        fig, axis = plt.subplots(nrows=1, ncols=len(self.measurement_names), squeeze=False)
+
+        for meas_index, (meas_name, ax) in enumerate(zip(self.measurement_names, axis.flat)):
             true_values = true_values_all[meas_name]
             min = df_predictions[meas_name].min(axis=1)
             max = df_predictions[meas_name].max(axis=1)
 
-            plt.plot(min - true_values, label="MC, min", c="g")
-            plt.plot(max - true_values, label="MC, max", c="g")
-            plt.plot([0]*true_values.shape[0], label="true", c="black", ls="dashed")
+            ax.plot(min - true_values, label="MC, min", c="g")
+            ax.plot(max - true_values, label="MC, max", c="g")
+            ax.plot([0]*true_values.shape[0], label="true", c="black", ls="dashed")
 
             try:
                 prediction_std = prediction_std_all[:, meas_index]
-                plt.plot(-self.threshold*prediction_std, label="Lin, CI 95%", c="red")
-                plt.plot(self.threshold*prediction_std, label="Lin, CI 95%", c="red")
+                ax.plot(-self.threshold*prediction_std, label="Lin, CI 95%", c="red")
+                ax.plot(self.threshold*prediction_std, label="Lin, CI 95%", c="red")
             except Exception:
                 pass
 
-            plt.legend()
-            plt.title(meas_name)
+            ax.legend()
+            ax.set_title(meas_name)
 
-            fig_name = "Predicted model accuracy, MC" 
-            if without_outliers:
-                fig_name = fig_name + ", without outliers"
-                fig.supxlabel(f"Outliers = {count_outliers}")
+        fig_name = "Predicted model accuracy, MC" 
+        if without_outliers:
+            fig_name = fig_name + ", without outliers"
+            fig.supxlabel(f"Outliers = {count_outliers}")
 
-            fig.suptitle(fig_name)
+        fig.suptitle(fig_name)
 
 
 def create_grid(bounds: list[list[float]]) -> list[list[float]]:

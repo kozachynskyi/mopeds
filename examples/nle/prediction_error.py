@@ -104,8 +104,7 @@ def parameter_covariance_mopeds():
     # analyzer.plot_estimation_accuracy()
     analyzer.model_prediction_error_mc(plot=False)
     analyzer.plot_model_prediction_MC(without_outliers=True)
-    # analyzer.plot_parameter_prediction(analyzer.last_estimated_parameters)
-    v = analyzer.analyze_model_prediction()
+    # v = analyzer.analyze_model_prediction()
 
     plt.show()
 
