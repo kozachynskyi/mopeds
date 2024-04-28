@@ -252,10 +252,75 @@ def test_pe_regularization(piecewise, dae, scaling):
             warnings.warn("Ranking is scaling dependent")
 
 
+def test_pe_algebraic():
+    """Test if dynamic pe always returns same results and sensitivity, 
+    independently if used with or without algebraic variables.
+    """
+    var_list, model, _ = mopeds.examples.yeast_growth(piecewise=False, duplicate_states=True)
+    sim = mopeds.Simulator(model, np.linspace(0, 20, 5), var_list)
+    exp_data = sim.simulate(algebraic=True)[2]
+    parameters = {"theta1": 0.3, "theta2": 0.17}
+
+    variable_combinations = [
+        ["x1_alg", "x2_alg"],
+        ["x1", "x2"],
+        ["x1", "x2_alg"]
+    ]
+
+    piecewise_options = [True, False]
+    scaling_options = [False, True]
+
+    benchmark_res_pe = None
+    benchmark_sens = None
+
+    for scaling in scaling_options:
+        with mopeds.options(variable_scaling=scaling):
+            for piecewise in piecewise_options:
+                var_list, model, _ = mopeds.examples.yeast_growth(piecewise=piecewise, duplicate_states=True)
+                for var_names in variable_combinations:
+                    var_list_i = copy.deepcopy(var_list)
+                    for var_name in var_names:
+                        var_list_i[var_name] = exp_data[var_name]
+                    var_list_i["theta1"].fixed = False
+                    var_list_i["theta1"].guess = 1
+                    var_list_i["theta2"].fixed = False
+                    var_list_i["theta2"].guess = 1
+
+
+                    pe = mopeds.ParameterEstimation(model, [var_list_i])
+
+                    res_pe = pe.optimize()
+                    if benchmark_res_pe is None:
+                        benchmark_res_pe = res_pe
+                    else:
+                        for key in benchmark_res_pe.keys():
+                            if key in ["lam_p", "lam_x", "x_dict", "x_dict_all", "x_unscaled"]:
+                                continue
+                            v1 = res_pe[key]
+                            v2 = benchmark_res_pe[key]
+                            # print(key)
+                            # print(v1/v2)
+                            assert np.isclose(v1, v2).all()
+
+                    res_sens = pe.calculate_sensitivity_and_fim(parameters)
+                    if benchmark_sens is None:
+                        benchmark_sens = res_sens
+                    else:
+                        for key in benchmark_sens.keys():
+                            if key in ["jac_sorted", "jac_scaled_sorted", "jac_yao_sorted", "jac_wls", "hess_wls", "hess_tikh"]:
+                                continue
+                            v1 = res_sens[key]
+                            v2 = benchmark_sens[key]
+                            # print(key)
+                            # print(v1/v2)
+                            assert np.isclose(v1, v2, rtol=1e-4).all()
+
+
+
 if __name__ == "__main__":
-    pass
+    test_pe_algebraic()
     # test_pe(True,True)
     # test_pe_objective(False)
     # test_pe_intials_algebraic()
     # test_pe_regularization(True, True, True)
-    test_scaling(True, True)
+    # test_scaling(True, True)

@@ -858,7 +858,7 @@ class PE_base(Optimizer):
         jacobian_index = [0, self.simulate_all_mx.shape[0]]
 
         for index_measurement, meas_name in enumerate(self.names_of_measurements):
-            scale_factor = self.list_input_varlist[0][meas_name]._get_scaling_constants()[0]
+            scale_factor = self.list_input_varlist[0][meas_name]._get_scaling_constants()
             jacobian_slice = ca.Slice(jacobian_index[0], jacobian_index[1])
             jac_meas_dm = jac_all_dm[jacobian_slice,:]
             jacobian_index[0] += self.simulate_all_mx.shape[0]
@@ -874,7 +874,7 @@ class PE_base(Optimizer):
                 jac_meas_selected_dm * estimated_inverted_std[:, index_measurement]
             )
             jac_meas_selected_yao_dm = jac_meas_selected_dm * (
-                1 / (res_simulation[:, index_measurement] * scale_factor)
+                1 / (res_simulation[:, index_measurement] * scale_factor[0] + scale_factor[1] )
             )
             if parameter_names is None:
                 jacobian[meas_name] = jac_meas_selected_dm
@@ -1431,7 +1431,6 @@ class ParameterEstimation(PE_base):
         simulator_settings: dict | None = None,
         *,
         use_idas_constraints: bool = None,
-        use_algebraic_vars: bool = False,
         recalculate_algebraic: bool = False,
     ):
         super().__init__(
@@ -1440,6 +1439,8 @@ class ParameterEstimation(PE_base):
             simulator_name,
             simulator_settings,
         )
+
+        self._setup_algebraic_flag()
 
         if self.simulator_name == "acados":
             if self.simulator_settings is None:
@@ -1453,7 +1454,6 @@ class ParameterEstimation(PE_base):
                     "newton_iter": 100,
                     "code_reuse": False,
                 }
-        self._use_algebraic_variables = use_algebraic_vars
 
         self._objective: Callable[
             [], tuple[ca.MX | ca.DM, ca.MX | ca.DM]
@@ -1461,7 +1461,6 @@ class ParameterEstimation(PE_base):
 
         self._setup_simulator(
             use_idas_constraints=use_idas_constraints,
-            use_algebraic_vars=use_algebraic_vars,
             recalculate_algebraic=recalculate_algebraic,
         )
 
@@ -1483,12 +1482,18 @@ class ParameterEstimation(PE_base):
 
         self._setup_experiments_scale(False)
 
+    def _setup_algebraic_flag(self):
+        self._use_algebraic_variables = False
+        for varlist_input in self.list_input_varlist:
+            if varlist_input.get_algebraic().dataframe[1:].empty is False:
+                self._use_algebraic_variables = True
+
+
     @_consistent_scaling_decorator
     def _setup_simulator(
         self,
         *,
         use_idas_constraints: bool,
-        use_algebraic_vars: bool,
         recalculate_algebraic: bool,
     ) -> None:
         # It's not checked if all supplied varlist have same states etc.
@@ -1519,7 +1524,7 @@ class ParameterEstimation(PE_base):
 
             for var in ordered_varlist_input.values():
                 if isinstance(var, VariableState) or (
-                    isinstance(var, VariableAlgebraic) and use_algebraic_vars
+                    isinstance(var, VariableAlgebraic) and self._use_algebraic_variables
                 ):
                     data_frame = data_frame.join(var.scale_from_original(var.dataframe), how="outer")
 

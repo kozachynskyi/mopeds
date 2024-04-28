@@ -660,13 +660,17 @@ def spmma() -> tuple[
 
 
 # Baker yeast growth model Quaglio2018 10.1016/j.cherd.2018.04.041
-def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=False, u1_piecewise_linear=False) -> tuple[
+def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=False, u1_piecewise_linear=False, duplicate_states=False) -> tuple[
     mopeds.VariableList, mopeds.Model, list[mopeds.VariableList]
 ]:
     variable_list = mopeds.variables.VariableList()
 
     variable_list.add_variable(mopeds.VariableState("x1", 5, 0, 10))
     variable_list.add_variable(mopeds.VariableState("x2", 0.01))
+
+    if duplicate_states:
+        variable_list.add_variable(mopeds.VariableAlgebraic("x1_alg", 5, 0, 10))
+        variable_list.add_variable(mopeds.VariableAlgebraic("x2_alg", 0.01))
 
     if u1_piecewise_linear:
         variable_list.add_variable(mopeds.VariableState("u1_dot", 0))
@@ -695,6 +699,10 @@ def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=
     variable_list["x1"].variance = 0.01
     variable_list["x2"].variance = 0.05
 
+    if duplicate_states:
+        variable_list["x1_alg"].variance = 0.01
+        variable_list["x2_alg"].variance = 0.05
+
     m = mopeds.Model(variable_list)  # adding all variables to the model
 
     x1 = m.varlist_all["x1"].casadi_var  # noqa: E501
@@ -710,6 +718,10 @@ def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=
         u1 = m.varlist_all["u1"].casadi_var  # noqa: E501
 
     u2 = m.varlist_all["u2"].casadi_var  # noqa: E501
+
+    if duplicate_states:
+        x1_alg = m.varlist_all["x1_alg"].casadi_var  # noqa: E501
+        x2_alg = m.varlist_all["x2_alg"].casadi_var  # noqa: E501
 
     theta1 = m.varlist_all["theta1"].casadi_var  # noqa: E501
     theta2 = m.varlist_all["theta2"].casadi_var  # noqa: E501
@@ -750,7 +762,10 @@ def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=
     m.add_equations_differential(diff_eq)
 
     if ode is False:
-        m.add_equations_algebraic([eq_alg1])
+        list_alg_eqs = [eq_alg1]
+        if duplicate_states:
+            list_alg_eqs.extend([x1-x1_alg, x2-x2_alg])
+        m.add_equations_algebraic(list_alg_eqs)
 
     data = [
         [5, 7.098, 10.135, 12.108, 12.491],
