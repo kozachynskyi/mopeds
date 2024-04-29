@@ -290,18 +290,21 @@ class ErrorAnalyzer():
         true_prediction = true_prediction_all[self.measurement_names]
 
         list_prediction_quality = []
+        list_prediction_quality_without_outliers = []
         metrics = {}
         self.list_prediction_std = []
         
+        df_all_without_outliers, count_outliers = self.get_parameter_df(True)
 
         for meas_name in self.measurement_names:
-            df_predictions = pd.concat(self.list_predictions, axis=1, keys=range(len(self.list_predictions))).swaplevel(axis=1)
+            df_predictions = pd.concat(self.list_predictions, axis=1, keys=range(len(self.list_predictions)))
+            df_predictions_without_outliers = df_predictions[df_all_without_outliers.index].swaplevel(axis=1)
+            df_predictions = df_predictions.swaplevel(axis=1)
 
-            v = df_predictions[meas_name]
-            res = stats.shapiro(v, axis=1, nan_policy="omit")
-            metrics[meas_name + "_shapiro_stat"] = res.statistic.mean()
-            metrics[meas_name + "_shapiro_p"] = res.pvalue.mean()
-
+            for df, prefix in zip([df_predictions[meas_name], df_predictions_without_outliers[meas_name]], ["", "_without_outliers"]):
+                res = stats.shapiro(df, axis=1, nan_policy="omit")
+                metrics[meas_name + "_shapiro_stat" + prefix] = res.statistic.mean()
+                metrics[meas_name + "_shapiro_p" + prefix] = res.pvalue.mean()
 
         for index, row in self.df_params.iterrows():
             try:
@@ -314,12 +317,16 @@ class ErrorAnalyzer():
                 ub = df_predictions + self.threshold * prediction_std
                 in_bounds = ((lb <= true_prediction) & (ub >= true_prediction)).all()
                 list_prediction_quality.append(in_bounds.all())
+                if index in df_all_without_outliers.index:
+                    list_prediction_quality_without_outliers.append(in_bounds.all())
                 self.list_prediction_std.append(prediction_std)
             except Exception:
                 pass
 
         array_quality = np.array(list_prediction_quality)
+        array_quality_without_outliers = np.array(list_prediction_quality_without_outliers)
         metrics["predictions_in_bounds"] = array_quality.sum() / array_quality.shape[0]
+        metrics["predictions_in_bounds_without_outliers"] = array_quality_without_outliers.sum() / array_quality_without_outliers.shape[0]
 
         return metrics
 
