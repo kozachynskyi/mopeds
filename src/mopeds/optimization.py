@@ -8,7 +8,7 @@ from itertools import combinations
 from typing import Sequence
 from warnings import warn
 import itertools
-from functools import wraps, partial
+from functools import wraps, partial, cached_property
 
 import casadi as ca
 import numpy as np
@@ -788,6 +788,35 @@ class PE_base(Optimizer):
             "sim_all", [free_variables], [ca.vcat(list_simulation_T)]
         )
         self._simulate_all_mx = _simulate_all_function(free_variables)
+
+    @cached_property
+    def _jacobian_function(self):
+        decision_variables = self.varlist_decision.get_casadi_variables()
+        jac_meas_mx = ca.jacobian(
+            self.simulate_all_mx[:, list(range(len(self.names_of_measurements)))], decision_variables
+        )
+        jac_meas_function = ca.Function(
+                "jac_meas", [decision_variables], [jac_meas_mx]
+        )
+        return jac_meas_function
+
+    @cached_property
+    def _jacobian_scaler(self):
+        flattened_std = self.array_inverted_std.flatten(order="F")
+        return np.tile(flattened_std,(len(self.varlist_decision),1)).T
+
+    @_consistent_scaling_decorator
+    def calculate_sensitivity_and_fim_fast(
+        self, parameters: dict[str, float]
+    ) -> dict[str, np.ndarray]:
+        all_parameter_values = self.variables_dict_to_list(parameters)
+        jac_all_dm = self._unscale_jacobian(self._jacobian_function(all_parameter_values))
+        jac_all_scaled = jac_all_dm * self._jacobian_scaler
+
+        fim_matrix_scaled = (jac_all_scaled.T @ jac_all_scaled)
+        parameter_covariance_matrix = np.linalg.inv(fim_matrix_scaled)  # type: ignore
+
+        return jac_all_dm, jac_all_scaled, parameter_covariance_matrix
 
     @_consistent_scaling_decorator
     def calculate_sensitivity_and_fim(

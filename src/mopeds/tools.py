@@ -306,19 +306,17 @@ class ErrorAnalyzer():
         for index, row in self.df_params.iterrows():
             try:
                 df_predictions = self.list_predictions[index][self.measurement_names]
-                cov_linearized = self.pe_main.calculate_sensitivity_and_fim(row.to_dict())["cov_par"]
+                cov_linearized = self.pe_main.calculate_sensitivity_and_fim_fast(row.to_dict())[2]
 
-                jac_prediction = self.pe_prediction.calculate_sensitivity_and_fim(row.to_dict())["jac_full"]
+                jac_prediction = self.pe_prediction.calculate_sensitivity_and_fim_fast(row.to_dict())[0]
                 prediction_std = np.sqrt(np.diag(jac_prediction @ cov_linearized @ jac_prediction.T)).reshape(self.pe_prediction.array_data.shape, order="F")
-                print(prediction_std)
                 lb = df_predictions - self.threshold * prediction_std
                 ub = df_predictions + self.threshold * prediction_std
                 in_bounds = ((lb <= true_prediction) & (ub >= true_prediction)).all()
+                list_prediction_quality.append(in_bounds.all())
+                self.list_prediction_std.append(prediction_std)
             except Exception:
                 pass
-
-            list_prediction_quality.append(in_bounds.all())
-            self.list_prediction_std.append(prediction_std)
 
         array_quality = np.array(list_prediction_quality)
         metrics["predictions_in_bounds"] = array_quality.sum() / array_quality.shape[0]

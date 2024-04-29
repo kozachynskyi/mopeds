@@ -17,6 +17,9 @@ def test_parameter_jacobian():
     measurement_names = ["e0_k", "e0_T", "e0_c_c1"]
     for m_cat in [22, 18, 20]:
         var_list_i = copy.deepcopy(var_list)
+        var_list_i["e0_k"].variance = 0.1**2
+        var_list_i["e0_T"].variance = 0.03 **2
+        var_list_i["e0_c_c1"].variance = 0.001 **2
         var_list_i["e0_m_Cat"].value = m_cat
         var_list_exp = mopeds.SimulatorNLE(model, var_list).simulate()[2]
         var_list_i["e0_cp"].fixed = False
@@ -29,7 +32,14 @@ def test_parameter_jacobian():
         list_var_list.append(var_list_i)
 
     pe = mopeds.ParameterEstimationNLE(model, list_var_list)
-    jac_pe = pe.calculate_sensitivity_and_fim({"e0_cp": 1.75, "e0_E": 135518.2})["jac_scaled_full_theory"]
+    res_sens = pe.calculate_sensitivity_and_fim({"e0_cp": 1.75, "e0_E": 135518.2})
+    jac_pe = res_sens["jac_scaled_full_theory"]
+    jac_pe_unscaled = res_sens["jac_full"]
+    cov_par = res_sens["cov_par"]
+    jac_pe_unscaled_fast, jac_pe_fast, cov_par_fast = pe.calculate_sensitivity_and_fim_fast({"e0_cp": 1.75, "e0_E": 135518.2})
+    assert np.isclose(jac_pe, jac_pe_fast).all()
+    assert np.isclose(jac_pe_unscaled, jac_pe_unscaled_fast).all()
+    assert np.isclose(cov_par, cov_par_fast).all()
 
     list_var_list[0]["e0_m_Cat"].fixed = False
     list_var_list[0]["e0_Q_Feed"].fixed = False
