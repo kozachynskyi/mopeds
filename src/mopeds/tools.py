@@ -301,10 +301,16 @@ class ErrorAnalyzer():
             df_predictions_without_outliers = df_predictions[df_all_without_outliers.index].swaplevel(axis=1)
             df_predictions = df_predictions.swaplevel(axis=1)
 
-            for df, prefix in zip([df_predictions[meas_name], df_predictions_without_outliers[meas_name]], ["", "_without_outliers"]):
-                res = stats.shapiro(df, axis=1, nan_policy="omit")
-                metrics[meas_name + "_shapiro_stat" + prefix] = res.statistic.mean()
-                metrics[meas_name + "_shapiro_p" + prefix] = res.pvalue.mean()
+            res = stats.shapiro(df_predictions[meas_name], axis=1, nan_policy="omit")
+            metrics[meas_name + "_shapiro_stat"] = res.statistic.mean()
+            metrics[meas_name + "_shapiro_p"] = res.pvalue.mean()
+            try:
+                res = stats.shapiro(df_predictions_without_outliers[meas_name], axis=1, nan_policy="omit")
+                metrics[meas_name + "_shapiro_stat_without_outliers"] = res.statistic.mean()
+                metrics[meas_name + "_shapiro_p_without_outliers"] = res.pvalue.mean()
+            except Exception:
+                metrics[meas_name + "_shapiro_stat_without_outliers"] = np.nan
+                metrics[meas_name + "_shapiro_p_without_outliers"] = np.nan
 
         for index, row in self.df_params.iterrows():
             try:
@@ -326,7 +332,10 @@ class ErrorAnalyzer():
         array_quality = np.array(list_prediction_quality)
         array_quality_without_outliers = np.array(list_prediction_quality_without_outliers)
         metrics["predictions_in_bounds"] = array_quality.sum() / array_quality.shape[0]
-        metrics["predictions_in_bounds_without_outliers"] = array_quality_without_outliers.sum() / array_quality_without_outliers.shape[0]
+        try:
+            metrics["predictions_in_bounds_without_outliers"] = array_quality_without_outliers.sum() / array_quality_without_outliers.shape[0]
+        except Exception:
+            metrics["predictions_in_bounds_without_outliers"] = np.nan 
 
         return metrics
 
