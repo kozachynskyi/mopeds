@@ -433,11 +433,10 @@ class ErrorAnalyzer():
 
         for meas_index, (meas_name, ax) in enumerate(zip(self.measurement_names, axis.flat)):
             true_values = true_values_all[meas_name]
-            min = df_predictions[meas_name].min(axis=1)
-            max = df_predictions[meas_name].max(axis=1)
+            std = df_predictions[meas_name].std(axis=1)
 
-            ax.plot(min - true_values, label="MC, min", c="g")
-            ax.plot(max - true_values, label="MC, max", c="g")
+            ax.plot(self.threshold*std, label="MC, CI 95%", c="g")
+            ax.plot(-self.threshold*std, label="MC, CI 95%", c="g")
             ax.plot([0]*true_values.shape[0], label="true", c="black", ls="dashed")
 
             try:
