@@ -179,10 +179,21 @@ class ErrorAnalyzer():
             df = self.df_params
         return df, count_outliers
 
+    def get_s2_df_mc(self, without_outliers):
+        if without_outliers:
+            no_outliers = self.no_outliers
+            count_outliers = no_outliers.shape[0] - no_outliers.sum()
+            df = self.df_s2[no_outliers]
+
+        else:
+            count_outliers = 0
+            df = self.df_s2
+        return df, count_outliers
+
     def plot_parameter_variance(self, *, without_outliers=False, parameters=None):
         df, count_outliers = self.get_parameter_df(without_outliers)
 
-        axis = self.df_params.hist(bins=self.bins_number)
+        axis = df.hist(bins=self.bins_number)
         fig = axis.flat[0].get_figure()
 
         if parameters is not None:
@@ -341,13 +352,7 @@ class ErrorAnalyzer():
 
 
     def plot_estimation_accuracy(self, *, without_outliers=False):
-        if without_outliers:
-            no_outliers = self.no_outliers
-            count_outliers = no_outliers.shape[0] - no_outliers.sum()
-            df = self.df_s2[no_outliers]
-
-        else:
-            df = self.df_s2
+        df, count_outliers = self.get_s2_df_mc(without_outliers)
 
         axis = df.hist(bins=self.bins_number)
         fig = axis.flat[0].get_figure()
