@@ -767,7 +767,7 @@ class PE_base(Optimizer):
                 time = sim.time_grid_relative[1:]
                 index_till += len(time)
                 df_one_simulator = pd.DataFrame(res["y_all"][index_from:index_till, :], columns=all_names, index=time)
-                index_from += index_till
+                index_from += len(time)
                 list_df.append(df_one_simulator)
                                
             df_all = pd.concat(list_df, keys=range(len(self.list_simulators)), names=["sim", "time"])

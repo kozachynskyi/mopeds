@@ -22,6 +22,11 @@ class ErrorAnalyzer():
         else:
             self.PE_class = pe_class
 
+        if issubclass(self.PE_class, mopeds.ParameterEstimationNLE):
+            self.generator_function = generate_artificial_data_from_grid_nle
+        elif issubclass(self.PE_class, mopeds.ParameterEstimation):
+            self.generator_function = generate_artificial_data_dynamic
+
         self.variable_list = variable_list
         self.variable_list_true = copy.deepcopy(variable_list)
 
@@ -57,28 +62,28 @@ class ErrorAnalyzer():
 
     @cached_property
     def pe_main(self) -> mopeds.ParameterEstimation:
-        control_grid, true_params, measurement_names = generate_artificial_data_from_grid_nle(self._model, self.variable_list, self.measurement_grid, perturbate=False, measurement_names=self.measurement_names, rng=self.rng)
+        control_grid, true_params, measurement_names = self.generator_function(self._model, self.variable_list, self.measurement_grid, perturbate=False, measurement_names=self.measurement_names, rng=self.rng)
 
         control_grid = self.unfix_parameters(control_grid)
         return self.PE_class(self._model, control_grid)
 
     @cached_property
     def pe_artificial_data(self) -> mopeds.ParameterEstimation:
-        true_data, true_params, _ = generate_artificial_data_from_grid_nle(self._model, self.variable_list_true, self.measurement_grid, perturbate=False, measurement_names=self.measurement_names, rng=self.rng)
+        true_data, true_params, _ = self.generator_function(self._model, self.variable_list_true, self.measurement_grid, perturbate=False, measurement_names=self.measurement_names, rng=self.rng)
 
         true_data = self.unfix_parameters(true_data)
         return self.PE_class(self._model, true_data)
 
     @cached_property
     def pe_prediction(self) -> mopeds.ParameterEstimation:
-        prediction_data, true_params, measurement_names = generate_artificial_data_from_grid_nle(self._model, self.variable_list, self.prediction_grid, perturbate=False, measurement_names=self.measurement_names, rng=self.rng)
+        prediction_data, true_params, measurement_names = self.generator_function(self._model, self.variable_list, self.prediction_grid, perturbate=False, measurement_names=self.measurement_names, rng=self.rng)
 
         prediction_data = self.unfix_parameters(prediction_data)
         return self.PE_class(self._model, prediction_data)
 
     @cached_property
     def pe_true_prediction(self) -> mopeds.ParameterEstimation:
-        prediction_data, true_params, measurement_names = generate_artificial_data_from_grid_nle(self._model, self.variable_list_true, self.prediction_grid, perturbate=False, measurement_names=self.measurement_names, rng=self.rng)
+        prediction_data, true_params, measurement_names = self.generator_function(self._model, self.variable_list_true, self.prediction_grid, perturbate=False, measurement_names=self.measurement_names, rng=self.rng)
 
         prediction_data = self.unfix_parameters(prediction_data)
         return self.PE_class(self._model, prediction_data)
@@ -90,7 +95,7 @@ class ErrorAnalyzer():
         estimation_df = self.scale_df_all(pe, obj_and_residual["df_all"])
         estimation_df = estimation_df[pe.names_of_measurements]
 
-        scaled_residuals = pe._unscale_resudials(obj_and_residual["residuals"])
+        scaled_residuals = pe._unscale_residuals(obj_and_residual["residuals"])
         measurement_variance_estimate = np.diag(scaled_residuals.T @ scaled_residuals) / pe.dof
 
         return np.sqrt(measurement_variance_estimate), estimation_df
@@ -109,20 +114,29 @@ class ErrorAnalyzer():
         for i in range(num_samples):
             perturbated_data = self.rng.normal(original_data, (1 / pe.array_inverted_scaled_std))
             pe.array_data = perturbated_data
-            res = pe.optimize(None, "wls", direct_optimization=True, reuse_solver=True)
 
-            if pe.solver.stats()["success"]:
-                list_parameters.append(list(res["x_dict"].values()))
+            try:
+                if isinstance(pe, mopeds.ParameterEstimation):
+                    res = pe.optimize(None, "wls", reuse_solver=True)
+                elif isinstance(pe, mopeds.ParameterEstimationNLE):
+                    res = pe.optimize(None, "wls", direct_optimization=True, reuse_solver=True)
 
-                s2_esimated, df_estimated = self.get_s2_and_df(self.pe_main, res["x_dict"])
-                list_s2.append(s2_esimated)
-                self.list_estimation.append(df_estimated)
+                if pe.solver.stats()["success"]:
+                    list_parameters.append(list(res["x_dict"].values()))
 
-                self.pe_artificial_data.array_data = perturbated_data
-                s2_true, _ = self.get_s2_and_df(self.pe_artificial_data, self.true_parameters)
-                list_s2_true.append(s2_true)
+                    s2_esimated, df_estimated = self.get_s2_and_df(self.pe_main, res["x_dict"])
+                    list_s2.append(s2_esimated)
+                    self.list_estimation.append(df_estimated)
 
-            else:
+                    self.pe_artificial_data.array_data = perturbated_data
+                    s2_true, _ = self.get_s2_and_df(self.pe_artificial_data, self.true_parameters)
+                    list_s2_true.append(s2_true)
+                else:
+                    self.failed_pes += 1
+
+            except KeyboardInterrupt:
+                break
+            except Exception:
                 self.failed_pes += 1
 
         self.pe_artificial_data.array_data = copy.deepcopy(original_data)
@@ -277,11 +291,7 @@ class ErrorAnalyzer():
         fig.suptitle(fig_name)
 
     def scale_df_all(self, pe, df):
-        """TODO can go to PE object"""
-        varlist_alg = pe.model.varlist_algebraic(pe.list_input_varlist[0])
-        for i, row in df.iterrows():
-            df.iloc[i] = varlist_alg.scale_to_original(row)
-        return df
+        return pe._unscale_df(df)
 
     def model_prediction_error_mc(self, plot=False):
         self.list_predictions = []
@@ -298,6 +308,9 @@ class ErrorAnalyzer():
         return stats.t.ppf(0.975, self.pe_main.dof)
 
     def analyze_model_prediction(self):
+        if isinstance(self.pe_true_prediction, mopeds.ParameterEstimation):
+            raise NotImplementedError
+
         true_prediction_all = self.pe_true_prediction.calculate_objective_and_residual(self.true_parameters)["df_all"]
         true_prediction_all = self.scale_df_all(self.pe_true_prediction, true_prediction_all)
         true_prediction = true_prediction_all[self.measurement_names]
@@ -410,6 +423,9 @@ class ErrorAnalyzer():
             fig.suptitle("Predicted model accuracy")
 
     def plot_model_prediction_MC(self, *, without_outliers=False):
+        if isinstance(self.pe_true_prediction, mopeds.ParameterEstimation):
+            raise NotImplementedError
+
         import matplotlib.pyplot as plt
         true_values_all = self.pe_true_prediction.calculate_objective_and_residual(self.true_parameters)["df_all"]
         true_values_all = self.scale_df_all(self.pe_true_prediction, true_values_all)
@@ -504,6 +520,13 @@ def generate_varlist_with_data(
 
     return variable_list_with_data
 
+def controls_grid_from_dict(control_bounds):
+    grid, _ = create_grid(list(control_bounds.values()))
+    control_grid = []
+    for grid_point in grid:
+        control_grid.append(dict(zip(control_bounds.keys(), grid_point)))
+    return control_grid
+
 def generate_artificial_data_from_grid_nle(
     model: mopeds.Model,
     variable_list: mopeds.VariableList,
@@ -583,6 +606,80 @@ def generate_artificial_data_nle(
                         value = min(variable.upper_bound, max(variable.lower_bound, value))
                 variable_list_optimizer[variable_name].guess = value
                 variable_list_optimizer[variable_name].value = value
+        for var_name, var_value in grid_point.items():
+            variable_list_optimizer[var_name].value = var_value
+        varlist_list.append(variable_list_optimizer)
+
+    return varlist_list, true_parameters, measurement_names
+
+
+def generate_artificial_data_dynamic(
+    model: mopeds.Model,
+    variable_list: mopeds.VariableList,
+    list_of_scenarios: list[dict[dict[float]]],
+    perturbate: bool = True,
+    rng: np.random.Generator = None,
+    measurement_names: list[str] = None,
+    *,
+    keep_in_bounds: bool = True,
+    ) -> tuple[list[mopeds.VariableList], dict[str, float]]:
+    """Generate artificial data that can immediately be used by Parameter Estimator.
+    Returns list of varlists and a dictionary with parameter values that were used
+    to generate data.
+
+    Parameter values that are used are taken from variable list.
+    list_of_scenarios is a dict with 3 keys: "control", "time_grid", "initials".
+    For example, [{"controls": {"P": 1, "T": 80}, "time_grid": {[0, 10, 20]}, "initials: {"x0": 2}] 
+    will create one set of artificial data, generated at pressure 1 and T 80, with time grid of 0, 10, 20
+    state variable x0 starting from 2.
+    perturbate: if True, generated data is perturbated based on variance in variable_list
+    rng: is a rng object, user can use it to predefine the randomization of the noise
+    measurement_names: list with variable names, for which artificial data should be generated
+    keep_in_bounds: if perturbated value is out of variable bounds -> make it equal to the closes bound
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    if measurement_names is None:
+        measurement_names = list(model.varlist_state(variable_list).keys())
+        measurement_names.extend(model.varlist_algebraic(variable_list).keys())
+
+    variable_list_original = copy.deepcopy(variable_list)
+    true_parameters = {}
+
+    for var in variable_list.values():
+        var.fixed = True
+
+    for var in model.varlist_independent(variable_list).values():
+        if isinstance(var, mopeds.VariableParameter):
+            var_varlist = variable_list_original[var.name]
+            true_parameters[var_varlist.name] = var_varlist.value[0]
+
+    varlist_list = []
+    for scenario in list_of_scenarios:
+        varlist_i = copy.deepcopy(variable_list)
+        time_grid = scenario["time_grid"]
+
+        grid_point = scenario["initials"] | scenario["controls"]
+
+        for var_name, var_value in grid_point.items():
+            varlist_i[var_name].value = var_value
+
+        sim_fixed = mopeds.Simulator(model, time_grid, varlist_i)
+        variable_list_optimizer = copy.deepcopy(variable_list_original)
+
+        varlist_results = sim_fixed.simulate()[2]
+
+        # Set startings values
+        for variable_name, variable in varlist_results.items():
+            if variable_name in measurement_names:
+                value = variable.value
+                if perturbate:
+                    value = rng.normal(value, np.sqrt(variable.variance))
+                    if keep_in_bounds:
+                        value = min(variable.upper_bound, max(variable.lower_bound, value))
+                variable_list_optimizer[variable_name].guess = value[0]
+                variable_list_optimizer[variable_name].set_dataframe_from_value_and_time(value, time_grid)
         for var_name, var_value in grid_point.items():
             variable_list_optimizer[var_name].value = var_value
         varlist_list.append(variable_list_optimizer)

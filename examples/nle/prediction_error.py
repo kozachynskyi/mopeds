@@ -16,6 +16,8 @@ def model_selector():
         return get_model_bod()
     elif MODEL_NAME == 4:
         return get_model_vle_wilson()
+    elif MODEL_NAME == 5:
+        return get_model_dynamic_example()
         # return get()
 
 def scale_df_all(pe, df):
@@ -32,11 +34,10 @@ def get_model_vle_wilson():
     prediction_grid = {"e0_x_c1": [0.01, 0.99, 20], "e0_P": [1, 2, 1]}
     meas_grid = {"e0_x_c1": [0.01, 0.99, 6], "e0_P": [1, 2, 1]}
 
-    def unfix_parameters(list_vl):
-        for vl in list_vl:
-            vl["e0_greek_lambdaA_c2_j1"].fixed = False
-            vl["e0_greek_lambdaA_c1_j2"].fixed = False
-        return list_vl
+    unfix_parameters = []
+    for var in vl_original.values():
+        if isinstance(var, mopeds.VariableParameter):
+            unfix_parameters.append(var.name)
 
     # meas_variables = ["e0_T", "e0_y_c1"]
     meas_variables = ["e0_y_c1"]
@@ -49,11 +50,10 @@ def get_model_bod():
     prediction_grid = {"x": [0, 10, 10]}
     meas_grid = {"x": [0, 10, 6]}
 
-    def unfix_parameters(list_vl):
-        for vl in list_vl:
-            vl["theta1"].fixed = False
-            vl["theta2"].fixed = False
-        return list_vl
+    unfix_parameters = []
+    for var in vl_original.values():
+        if isinstance(var, mopeds.VariableParameter):
+            unfix_parameters.append(var.name)
 
     return vl_original, model, prediction_grid, meas_grid, unfix_parameters, None
 
@@ -63,11 +63,10 @@ def get_model_poly1():
     prediction_grid = {"u": [0, 1, 10]}
     meas_grid = {"u": [0, 1, 5]}
 
-    def unfix_parameters(list_vl):
-        for vl in list_vl:
-            vl["a"].fixed = False
-            vl["b"].fixed = False
-        return list_vl
+    unfix_parameters = []
+    for var in vl_original.values():
+        if isinstance(var, mopeds.VariableParameter):
+            unfix_parameters.append(var.name)
 
     return vl_original, model, prediction_grid, meas_grid, unfix_parameters, None
 
@@ -77,34 +76,59 @@ def get_model_linear_example():
     prediction_grid = {"u": [0, 1, 10], "v": [3, 4, 1]}
     meas_grid = {"u": [0, 1, 5], "v": [3, 4, 5]}
 
-    def unfix_parameters(list_vl):
-        for vl in list_vl:
-            vl["a"].fixed = False
-            vl["b"].fixed = False
-            vl["c"].fixed = False
-            vl["d"].fixed = False
-        return list_vl
-
-    return vl_original, model, prediction_grid, meas_grid, unfix_parameters, ["y", "z"]
-
-def parameter_covariance_mopeds():
-    vl_original, model, prediction_grid, meas_grid, unfix_parameters, meas_variables = model_selector()
     unfix_parameters = []
     for var in vl_original.values():
         if isinstance(var, mopeds.VariableParameter):
             unfix_parameters.append(var.name)
 
+    return vl_original, model, prediction_grid, meas_grid, unfix_parameters, ["y", "z"]
+
+def get_model_dynamic_example():
+    vl_original, model, _ = mopeds.examples.yeast_growth()
+
+    prediction_grid_controls = mopeds.tools.controls_grid_from_dict({"u1": [0.05, 0.2, 10], "u2": [5, 35, 1]})
+    list_scenarios_prediction = []
+    for controls in prediction_grid_controls:
+        list_scenarios_prediction.append({"controls": controls, "time_grid": np.linspace(0,20,6), "initials": {}})
+
+    measurement_grid_controls = mopeds.tools.controls_grid_from_dict({"u1": [0.05, 0.2, 3], "u2": [5, 35, 3]})
+    list_scenarions_measurement = []
+    for inits in [{"x1": 5}, {"x1": 7}]:
+        for controls in measurement_grid_controls:
+            list_scenarions_measurement.append({"controls": controls, "time_grid": np.linspace(0,20,6), "initials": inits})
+
+    unfix_parameters = ["theta1", "theta2", "theta3", "theta4"]
+
+    return vl_original, model, list_scenarios_prediction, list_scenarions_measurement, unfix_parameters, ["x1", "x2"]
+
+
+def parameter_covariance_mopeds():
+    vl_original, model, prediction_grid, meas_grid, unfix_parameters, meas_variables = model_selector()
+
     # true_parameters = {"a": 20}
     # unfix_parameters.pop(0)
     true_parameters = {}
 
-    analyzer = mopeds.tools.ErrorAnalyzer(vl_original, model, prediction_grid, meas_grid, unfix_parameters, meas_variables, true_parameters=true_parameters)
-    analyzer.parameter_covariance_mc(plot=False, num_samples=NUM)
+    if MODEL_NAME == 5:
+        pe = mopeds.ParameterEstimation
+    else:
+        pe = mopeds.ParameterEstimationNLE
+
+    analyzer = mopeds.tools.ErrorAnalyzer(vl_original, model, prediction_grid, meas_grid, unfix_parameters, meas_variables, true_parameters=true_parameters, pe_class=pe)
+    if MODEL_NAME == 5:
+        pe = analyzer.pe_main 
+        pe.solver_settings["ipopt"]["linear_solver"] = "ma57"
+        pe.solver_settings["ipopt"]["tol"] = 1e-2
+        pe.solver_settings["ipopt"]["max_iter"] = 30
+        pe.solver_settings["ipopt"]["hessian_approximation"] = "limited-memory"
+    analyzer.parameter_covariance_mc(plot=True, num_samples=NUM)
 
     # analyzer.plot_estimation_accuracy()
-    analyzer.model_prediction_error_mc(plot=False)
-    analyzer.plot_model_prediction_MC(without_outliers=True)
-    # v = analyzer.analyze_model_prediction()
+    if MODEL_NAME != 5:
+        pass
+        # analyzer.model_prediction_error_mc(plot=False)
+        # analyzer.plot_model_prediction_MC(without_outliers=True)
+        # v = analyzer.analyze_model_prediction()
 
     plt.show()
 
