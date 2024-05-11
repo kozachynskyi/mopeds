@@ -484,7 +484,53 @@ def test_oed_nle(meas_var, criteria):
         assert(np.isclose(expected_x, res_x_i.T, atol=1e-4).all())
 
 
+def test_scaling_calculate_objective():
+    param_dict = {"a1": 5.24125, "a2": 5.09625, "b1": 1592.864, "b2": 1730.630, "c1": -46.9659, "c2": -39.7239,}
+
+    results = []
+
+    for scaling in [False, True]:
+        variable_list, model = mopeds.examples.vle_nle_problem()
+        variable_list["T"].lower_bound = 200
+        variable_list["T"].upper_bound = 500
+        variable_list["a2"].fixed = False
+        variable_list.set_bounds(emerg_val=50)
+        control_bounds = {"x": [0.1, 0.7, 5]}
+
+        with mopeds.options(variable_scaling=scaling):
+            (
+                variable_list_optimizer,
+                true_parameters,
+                _,
+            ) = mopeds.tools.generate_artificial_data_from_grid_nle(
+                model, variable_list, control_bounds, perturbate=False
+            )
+
+            pe = mopeds.optimization.ParameterEstimationNLE(
+                model,
+                variable_list_optimizer,
+            )
+
+            res = pe.calculate_objective_and_residual(param_dict)
+            res["df_all_unscaled"] = pe._unscale_df(res["df_all"])
+            res["residuals_unscaled"] = pe._unscale_residuals(res["residuals"])
+            res["y_unscaled"] = pe._unscale_y(res["y"])
+            results.append(res)
+
+    benchmark_res = results[0]
+    scaled_res = results[1]
+    assert np.isclose(benchmark_res["y"], benchmark_res["y_unscaled"]).all()
+    assert np.isclose(benchmark_res["residuals"], benchmark_res["residuals_unscaled"]).all()
+
+    v1, v2 = benchmark_res["y"], scaled_res["y_unscaled"]
+    assert np.isclose(v1, v2).all()
+    v1, v2 = benchmark_res["residuals"], scaled_res["residuals_unscaled"]
+    assert np.isclose(v1, v2).all()
+    v1, v2 = benchmark_res["df_all"], scaled_res["df_all_unscaled"]
+    assert np.isclose(v1, v2).all()
+
 if __name__ == "__main__":
+    # test_scaling_calculate_objective()
     pass
     # test_pe()
     # test_multivariate_pe()

@@ -599,7 +599,28 @@ class PE_base(Optimizer):
         return objective, residuals
 
     @_consistent_scaling_decorator
-    def _unscale_resudials(self, residuals):
+    def _unscale_y(self, y):
+        return self._unscale_simulator_output(y, self.names_of_measurements)
+
+    @_consistent_scaling_decorator
+    def _unscale_simulator_output(self, y, variables_names):
+        scaling_constants_measurements_v = []
+        scaling_constants_measurements_r = []
+        for meas_name in variables_names:
+            v, r = self.list_input_varlist[0][meas_name]._get_scaling_constants()
+            scaling_constants_measurements_v.append(v)
+            scaling_constants_measurements_r.append(r)
+        scale_factor_v = np.array([scaling_constants_measurements_v])
+        scale_factor_r = np.array([scaling_constants_measurements_r])
+        scaled_y = y * scale_factor_v + scale_factor_r
+        return scaled_y
+
+    @_consistent_scaling_decorator
+    def _unscale_df(self, df_all):
+        return self._unscale_simulator_output(df_all, df_all.columns)
+
+    @_consistent_scaling_decorator
+    def _unscale_residuals(self, residuals):
         scaling_constants_measurements = []
         for meas_name in self.names_of_measurements:
             scaling_constants_measurements.append(self.list_input_varlist[0][meas_name]._get_scaling_constants()[0])
@@ -732,10 +753,24 @@ class PE_base(Optimizer):
         res = casadi_function(x=selected_parameters, data_arrays=self.array_data)
 
         if isinstance(self, ParameterEstimationNLE):
-            algebraic_names = self.model.varlist_algebraic(self.list_input_varlist[0]).keys()
+            algebraic_names = list(self.model.varlist_algebraic(self.list_input_varlist[0]).keys())
             df_all = pd.DataFrame(res["y_all"], columns=algebraic_names)
         else:
-            df_all = None
+            all_names = list(self.model.varlist_state(self.list_input_varlist[0]).keys())
+            if self._use_algebraic_variables:
+                all_names.extend(self.model.varlist_algebraic(self.list_input_varlist[0]).keys())
+
+            index_from = 0
+            index_till = 0
+            list_df = []
+            for sim in self.list_simulators:
+                time = sim.time_grid_relative[1:]
+                index_till += len(time)
+                df_one_simulator = pd.DataFrame(res["y_all"][index_from:index_till, :], columns=all_names, index=time)
+                index_from += index_till
+                list_df.append(df_one_simulator)
+                               
+            df_all = pd.concat(list_df, keys=range(len(self.list_simulators)), names=["sim", "time"])
 
         result_np = {
             "f": float(res["f"]),
@@ -850,7 +885,7 @@ class PE_base(Optimizer):
             parameters, objective_function="ols"
         )["residuals"]
 
-        scaled_residuals = self._unscale_resudials(residuals)
+        scaled_residuals = self._unscale_residuals(residuals)
 
 
         measurement_variance_estimate = np.diag(scaled_residuals.T @ scaled_residuals) / self.dof

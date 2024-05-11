@@ -15,6 +15,7 @@ import pytest
 @pytest.mark.parametrize("dae", [True, False])
 def test_scaling(piecewise, dae):
     sens_fim = []
+    obj_df = []
     time_grid = np.linspace(0, 1000, 4)
     var_list, model = mopeds.examples.cstr(piecewise, dae)
     if piecewise:
@@ -26,8 +27,10 @@ def test_scaling(piecewise, dae):
     rng = np.random.default_rng(0)
 
     with mopeds.options(variable_scaling=False):
-        var_list_exp = mopeds.Simulator(model, time_grid, var_list).simulate()[2]
+        var_list_exp = mopeds.Simulator(model, time_grid, var_list).simulate(algebraic=True)[2]
         for var in var_list_exp.get_state().values():
+            var.value = rng.normal(var.value[0], var.variance**0.5)
+        for var in var_list_exp.get_algebraic().values():
             var.value = rng.normal(var.value[0], var.variance**0.5)
 
 
@@ -47,7 +50,25 @@ def test_scaling(piecewise, dae):
 
             pe = mopeds.ParameterEstimation(model, [varlist_i], simulator_settings=opts)
             sens_fim.append(pe.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_E_r1": 9.6e4}))
+            res_obj_df = pe.calculate_objective_and_residual({"e0_U": 1.2, "e0_E_r1": 9.6e4})
+            res_obj_df["residuals_unscaled"] = pe._unscale_residuals(res_obj_df["residuals"])
+            res_obj_df["y_unscaled"] = pe._unscale_y(res_obj_df["y"])
+            res_obj_df["df_all_unscaled"] = pe._unscale_df(res_obj_df["df_all"])
+            obj_df.append(res_obj_df)
+
     
+    benchmark_res = obj_df[1]
+    scaled_res = obj_df[0]
+    assert np.isclose(benchmark_res["y"], benchmark_res["y_unscaled"]).all()
+    assert np.isclose(benchmark_res["residuals"], benchmark_res["residuals_unscaled"]).all()
+
+    v1, v2 = benchmark_res["y"], scaled_res["y_unscaled"]
+    assert np.isclose(v1, v2).all()
+    v1, v2 = benchmark_res["residuals"], scaled_res["residuals_unscaled"]
+    assert np.isclose(v1, v2).all()
+    v1, v2 = benchmark_res["df_all"], scaled_res["df_all_unscaled"]
+    assert np.isclose(v1, v2).all()
+
     for key in sens_fim[0].keys():
         # print(key)
         v1 = sens_fim[0][key] 
