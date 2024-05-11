@@ -85,6 +85,7 @@ class ErrorAnalyzer():
 
         
     def get_s2_and_df(self, pe, parameters_dict):
+        """TODO can go to the PE object"""
         obj_and_residual = pe.calculate_objective_and_residual(parameters_dict, objective_function="ols")
         estimation_df = self.scale_df_all(pe, obj_and_residual["df_all"])
         estimation_df = estimation_df[pe.names_of_measurements]
@@ -276,6 +277,7 @@ class ErrorAnalyzer():
         fig.suptitle(fig_name)
 
     def scale_df_all(self, pe, df):
+        """TODO can go to PE object"""
         varlist_alg = pe.model.varlist_algebraic(pe.list_input_varlist[0])
         for i, row in df.iterrows():
             df.iloc[i] = varlist_alg.scale_to_original(row)
