@@ -802,6 +802,9 @@ class PE_base(Optimizer):
         list_simulation_T = []
 
         for simulator in self.list_simulators:
+            if isinstance(self.list_simulators[0], Simulator):
+                simulator.calculate_algebraic_initials(apply_intials=True)
+
             res_simulation = simulator.simulate_fast()
 
             if getattr(self, "_use_algebraic_variables", False):
@@ -1538,9 +1541,6 @@ class ParameterEstimation(PE_base):
             "verbose": False,
             "ipopt": {"max_iter": 300},
         }
-
-        for sim in self.list_simulators:
-            sim.calculate_algebraic_initials(apply_intials=True)
 
         self._setup_experiments_scale(False)
 
