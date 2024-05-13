@@ -1600,6 +1600,12 @@ class ParameterEstimation(PE_base):
                         # Column should be dropped, because it's needed only for unique timestamp
                         data_frame.drop(columns=var.name, inplace=True)
 
+            if self._use_algebraic_variables:
+                # TODO in further stepps I always assume that state variables are there, and algebraic are added
+                # Without this sorting steps, self.data_array is not correctly sorted. However, the logic has to be fixed
+                new_order = list(ordered_varlist_input.get_state().keys()) + list(ordered_varlist_input.get_algebraic().keys())
+                data_frame = data_frame[new_order]
+
             time_grid_unique = (
                 (data_frame.index - data_frame.index[0]).total_seconds().tolist()
             )
