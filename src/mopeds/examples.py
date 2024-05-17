@@ -26,6 +26,36 @@ def polynomial_1d() -> [mopeds.VariableList, mopeds.Model]:
 
     return variable_list, m
 
+def polynomial_1d_multivariate() -> [mopeds.VariableList, mopeds.Model]:
+    variable_list = mopeds.VariableList()
+    variable_list.add_variable(mopeds.VariableAlgebraic("y1", 1.0))
+    variable_list.add_variable(mopeds.VariableAlgebraic("y2", 1.0))
+    variable_list.add_variable(mopeds.VariableControl("u1", 1.0, 1, 2))
+    variable_list.add_variable(mopeds.VariableControl("u2", 1.0, 1, 2))
+    variable_list.add_variable(mopeds.VariableParameter("a1", 1.0))
+    variable_list.add_variable(mopeds.VariableParameter("a2", 1.0))
+    variable_list.add_variable(mopeds.VariableParameter("b1", 2.0))
+    variable_list.add_variable(mopeds.VariableParameter("b2", 2.0))
+
+    m = mopeds.Model(variable_list)
+
+    y1 = m.variables_all["y1"]
+    u1 = m.variables_all["u1"]
+    a1 = m.variables_all["a1"]
+    b1 = m.variables_all["b1"]
+
+    y2 = m.variables_all["y2"]
+    u2 = m.variables_all["u2"]
+    a2 = m.variables_all["a2"]
+    b2 = m.variables_all["b2"]
+
+    eq1 = y1 - (a1 + b1 * u1)
+    eq2 = y2 - (a2 + b2 * u2)
+
+    m.add_equations_algebraic([eq1, eq2])
+
+    return variable_list, m
+
 def linear_example() -> [mopeds.VariableList, mopeds.Model]:
     variable_list = mopeds.VariableList()
     variable_list.add_variable(mopeds.VariableAlgebraic("y", 1.0, 0, 100))
