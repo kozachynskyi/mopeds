@@ -1213,7 +1213,11 @@ class PE_base(Optimizer):
         svd = np.linalg.svd(S, full_matrices=True)
         Q, R, P = linalg.qr(S, pivoting=True)
 
-        num_identifiable = list((svd[1][0] / svd[1]) > 1000).index(True)
+        conditional_number = ((svd[1][0] / svd[1]) > 1000)
+        if (~conditional_number).all():
+            num_identifiable = svd[1].shape[0]
+        else:
+            num_identifiable = list(conditional_number).index(True)
         parameters_ranked = np.array(sorted_unfixed_params)[P]
         parameters_identifiable = parameters_ranked[:num_identifiable]
         parameters_not_identifiable = parameters_ranked[num_identifiable:]
