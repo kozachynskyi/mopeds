@@ -1485,7 +1485,7 @@ class PE_base(Optimizer):
     @property
     def dof(self):
         # Eq 7-13-22 Bard 1974
-        return np.count_nonzero(self.array_data_mask) - (len(self.varlist_decision) / len(self.names_of_measurements))
+        return self.array_data.shape[0] - (len(self.varlist_decision) / len(self.names_of_measurements))
 
 
 class ParameterEstimation(PE_base):
