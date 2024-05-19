@@ -501,10 +501,13 @@ class ErrorAnalyzer():
                 prediction_std = np.sqrt(np.diag(jac_prediction @ cov_linearized @ jac_prediction.T)).reshape(self.pe_prediction.array_data.shape, order="F")
                 lb = df_predictions - self.threshold * prediction_std
                 ub = df_predictions + self.threshold * prediction_std
-                in_bounds = ((lb <= true_prediction) & (ub >= true_prediction)).all()
-                list_prediction_quality.append(in_bounds.all())
+
+                in_bounds = ((lb <= true_prediction) & (ub >= true_prediction))
+                in_bounds_ratio = in_bounds.sum().sum() / in_bounds.count().sum()
+
+                list_prediction_quality.append(in_bounds_ratio)
                 if index in df_all_without_outliers.index:
-                    list_prediction_quality_without_outliers.append(in_bounds.all())
+                    list_prediction_quality_without_outliers.append(in_bounds_ratio)
                 self.list_prediction_std.append(prediction_std)
             except Exception:
                 pass
