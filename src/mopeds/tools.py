@@ -514,9 +514,9 @@ class ErrorAnalyzer():
 
         array_quality = np.array(list_prediction_quality)
         array_quality_without_outliers = np.array(list_prediction_quality_without_outliers)
-        metrics["predictions_in_bounds"] = array_quality.sum() / array_quality.shape[0]
+        metrics["predictions_in_bounds"] = array_quality.mean()
         try:
-            metrics["predictions_in_bounds_without_outliers"] = array_quality_without_outliers.sum() / array_quality_without_outliers.shape[0]
+            metrics["predictions_in_bounds_without_outliers"] = array_quality_without_outliers.mean()
         except Exception:
             metrics["predictions_in_bounds_without_outliers"] = np.nan 
 
