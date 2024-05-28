@@ -248,6 +248,15 @@ class ErrorAnalyzer():
             self.plot_parameter_variance()
             self.plot_estimation_accuracy()
 
+    def check_linearization_df_params(self):
+        cov_linearized = self.pe_main.calculate_sensitivity_and_fim_fast(self.true_parameters)[2]
+        true_df = pd.Series(self.true_parameters)
+        true_df = true_df[self.df_params.columns].copy()
+        parameter_diff = (self.df_params - true_df).abs()
+        in_bounds = parameter_diff < self.threshold * np.sqrt(np.diag(cov_linearized))
+        in_bounds_ratio = in_bounds.sum().sum() / in_bounds.count().sum()
+        return in_bounds_ratio
+
     @property
     def last_estimated_parameters(self):
         return self.df_params.iloc[0].to_dict()
@@ -499,6 +508,7 @@ class ErrorAnalyzer():
 
                 jac_prediction = self.pe_prediction.calculate_sensitivity_and_fim_fast(row.to_dict())[0]
                 prediction_std = np.sqrt(np.diag(jac_prediction @ cov_linearized @ jac_prediction.T)).reshape(self.pe_prediction.array_data.shape, order="F")
+                # TODO: sort lb and ub, if meas variable is negative this will not work
                 lb = df_predictions - self.threshold * prediction_std
                 ub = df_predictions + self.threshold * prediction_std
 
