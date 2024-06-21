@@ -625,6 +625,7 @@ class PE_base(Optimizer):
         for meas_name in self.names_of_measurements:
             scaling_constants_measurements.append(self.list_input_varlist[0][meas_name]._get_scaling_constants()[0])
         scale_factor = np.array([scaling_constants_measurements])
+        scale_factor = np.tile(scale_factor,(residuals.shape[0],1))
         scaled_residuals = residuals * scale_factor
         return scaled_residuals
 
