@@ -18,6 +18,8 @@ def model_selector():
         return get_model_vle_wilson()
     elif MODEL_NAME == 5:
         return get_model_dynamic_example()
+    elif MODEL_NAME == 6:
+        return get_model_poly1_multivariate()
         # return get()
 
 def scale_df_all(pe, df):
@@ -67,8 +69,29 @@ def get_model_poly1():
     for var in vl_original.values():
         if isinstance(var, mopeds.VariableParameter):
             unfix_parameters.append(var.name)
+    # unfix_parameters = ["a"]
+    # vl_original["b"].value = 2.01
 
     return vl_original, model, prediction_grid, meas_grid, unfix_parameters, None
+
+def get_model_poly1_multivariate():
+    vl_original, model = mopeds.examples.polynomial_1d_multivariate()
+    vl_original["y1"].variance = 0.1**2
+    vl_original["y2"].variance = 0.1**2
+    prediction_grid = {"u1": [0, 1, 5], "u2": [0, 1, 5]}
+    # meas_grid = {"u": [0, 1, 5]}
+    meas_grid = {"u1": [0, 10, 10], "u2": [0, 10, 10]}
+
+    unfix_parameters = []
+    meas_name = ["y1", "y2"]
+    for var in vl_original.values():
+        if isinstance(var, mopeds.VariableParameter):
+            if "y2" not in meas_name:
+                if "2" in var.name:
+                    continue
+            unfix_parameters.append(var.name)
+
+    return vl_original, model, prediction_grid, meas_grid, unfix_parameters, meas_name
 
 def get_model_linear_example():
     vl_original, model = mopeds.examples.linear_example()
@@ -121,9 +144,24 @@ def parameter_covariance_mopeds():
         pe.solver_settings["ipopt"]["tol"] = 1e-2
         pe.solver_settings["ipopt"]["max_iter"] = 30
         pe.solver_settings["ipopt"]["hessian_approximation"] = "limited-memory"
-    analyzer.parameter_covariance_mc(plot=True, num_samples=NUM)
-
+    analyzer.parameter_covariance_mc(plot=False, num_samples=NUM)
+    analyzer.check_linearization_df_params()
     # analyzer.plot_estimation_accuracy()
+    # fig, axes = analyzer.plot_parameter_covariance(normalize_parameters=False)
+    # analyzer.plot_parameter_covariance_ellipse(normalize_parameters=False)
+    analyzer.model_prediction_error_mc(plot=False)
+    # print(analyzer.df_s2.mean())
+    # print(analyzer.df_s2_true.mean())
+
+    print(res := analyzer.analyze_model_prediction())
+    arr = np.array(analyzer.list_prediction_std)
+    mean =  arr.reshape((arr.shape[0]*arr.shape[1],arr.shape[2])).mean(axis=0)
+    mean =  arr.reshape((arr.shape[0]*arr.shape[1],arr.shape[2])).std(axis=0)
+    print(mean)
+
+    v = analyzer
+    breakpoint()
+
     if MODEL_NAME != 5:
         pass
         # analyzer.model_prediction_error_mc(plot=False)

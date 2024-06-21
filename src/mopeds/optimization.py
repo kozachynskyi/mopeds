@@ -857,6 +857,40 @@ class PE_base(Optimizer):
         return jac_all_dm, jac_all_scaled, parameter_covariance_matrix
 
     @_consistent_scaling_decorator
+    def calculate_jacobian_yao_fast(
+        self, parameters: dict[str, float]
+    ) -> dict[str, np.ndarray]:
+        all_parameter_values = self.variables_dict_to_list(parameters)
+        jac_all_dm = self._unscale_jacobian(self._jacobian_function(all_parameter_values))
+
+        decision_variables = self.varlist_decision.get_casadi_variables()
+        res_simulation = ca.Function(
+            "sim", [decision_variables], [self.simulate_all_mx]
+        )(all_parameter_values)
+        jacobian_index = [0, self.simulate_all_mx.shape[0]]
+        jacs = []
+
+        for index_measurement, meas_name in enumerate(self.names_of_measurements):
+            scale_factor = self.list_input_varlist[0][meas_name]._get_scaling_constants()
+            jacobian_slice = ca.Slice(jacobian_index[0], jacobian_index[1])
+            jac_meas_dm = jac_all_dm[jacobian_slice,:]
+            jacobian_index[0] += self.simulate_all_mx.shape[0]
+            jacobian_index[1] += self.simulate_all_mx.shape[0]
+
+            jac_meas_selected_dm = (
+                jac_meas_dm * self.array_data_mask[:, index_measurement]
+            )
+
+            jac_meas_selected_yao_dm = jac_meas_selected_dm * (
+                1 / (res_simulation[:, index_measurement] * scale_factor[0] + scale_factor[1] )
+            )
+            jacs.append(jac_meas_selected_yao_dm)
+
+        jac_array_yao = np.concatenate(jacs)
+        return jac_array_yao
+
+
+    @_consistent_scaling_decorator
     def calculate_sensitivity_and_fim(
         self, parameters: dict[str, float], parameter_names: list[str] | None = None
     ) -> dict[str, np.ndarray]:
@@ -1050,11 +1084,7 @@ class PE_base(Optimizer):
 
         parameters_index = list(range(len(sorted_unfixed_params)))
 
-        results_sensitivity = self.calculate_sensitivity_and_fim(
-            parameters, unfixed_params
-        )
-
-        S = results_sensitivity["jac_scaled_full_theory"]
+        S = self.calculate_sensitivity_and_fim_fast(parameters)[1].toarray()
         S = S * np.array(self.variables_dict_to_list(parameters, scaling=False))
 
         info = []
@@ -1122,11 +1152,7 @@ class PE_base(Optimizer):
 
         parameters_index = list(range(len(sorted_unfixed_params)))
 
-        results_sensitivity = self.calculate_sensitivity_and_fim(
-            parameters, unfixed_params
-        )
-
-        S = results_sensitivity["jac_scaled_full_theory"]
+        S = self.calculate_sensitivity_and_fim_fast(parameters)[1].toarray()
         S = S * np.array(self.variables_dict_to_list(parameters, scaling=False))
         S_norm = S / np.linalg.norm(S, axis=0)
 
@@ -1203,20 +1229,19 @@ class PE_base(Optimizer):
             if par_name in unfixed_params:
                 sorted_unfixed_params.append(par_name)
 
-        results_sensitivity = self.calculate_sensitivity_and_fim(
-            parameters, unfixed_params
-        )
-
-        S = results_sensitivity["jac_scaled_full_theory"]
+        S = self.calculate_sensitivity_and_fim_fast(parameters)[1].toarray()
         S = S * np.array(self.variables_dict_to_list(parameters, scaling=False))
-
 
         # S = S * np.array(self.variables_dict_to_list(parameters))
 
         svd = np.linalg.svd(S, full_matrices=True)
         Q, R, P = linalg.qr(S, pivoting=True)
 
-        num_identifiable = list((svd[1][0] / svd[1]) > 1000).index(True)
+        conditional_number = ((svd[1][0] / svd[1]) > 1000)
+        if (~conditional_number).all():
+            num_identifiable = svd[1].shape[0]
+        else:
+            num_identifiable = list(conditional_number).index(True)
         parameters_ranked = np.array(sorted_unfixed_params)[P]
         parameters_identifiable = parameters_ranked[:num_identifiable]
         parameters_not_identifiable = parameters_ranked[num_identifiable:]
@@ -1264,11 +1289,7 @@ class PE_base(Optimizer):
             if par_name in unfixed_params:
                 sorted_unfixed_params.append(par_name)
 
-        results_sensitivity = self.calculate_sensitivity_and_fim(
-            parameters, unfixed_params
-        )
-
-        S = results_sensitivity["jac_scaled_full_theory"]
+        S = self.calculate_sensitivity_and_fim_fast(parameters)[1].toarray()
         S = S * np.array(self.variables_dict_to_list(parameters, scaling=False))
         fim_matrix = (S.T @ S)
 
@@ -1326,10 +1347,8 @@ class PE_base(Optimizer):
                 selected_parameters.append(parameters[var_name])
                 unranked_parameters.append(var_name)
 
-        results_sensitivity = self.calculate_sensitivity_and_fim(parameters)
-
-        jacobian_yao = results_sensitivity["jac_yao_full"]
-        jacobian_yao = jacobian_yao * np.array(self.variables_dict_to_list(parameters, scaling=False))
+        results_sensitivity = self.calculate_jacobian_yao_fast(parameters)
+        jacobian_yao = results_sensitivity * np.array(self.variables_dict_to_list(parameters, scaling=False))
 
         XK = np.zeros(jacobian_yao.shape)
 
@@ -1484,7 +1503,7 @@ class PE_base(Optimizer):
     @property
     def dof(self):
         # Eq 7-13-22 Bard 1974
-        return np.count_nonzero(self.array_data_mask) - (len(self.varlist_decision) / len(self.names_of_measurements))
+        return self.array_data.shape[0] - (len(self.varlist_decision) / len(self.names_of_measurements))
 
 
 class ParameterEstimation(PE_base):

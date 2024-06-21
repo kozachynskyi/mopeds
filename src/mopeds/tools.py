@@ -13,7 +13,101 @@ from scipy import stats
 import mopeds
 from functools import cached_property
 import tqdm
+import scipy
 
+
+class CovarianceEllipse():
+    def __init__(self, cov, mean, ci_level=0.95):
+        self.cov = cov
+        self.mean = mean
+        self.ci_level = ci_level
+
+    def get_ellipse_properties(self):
+        """Return important parameters results needed for covariance ellipse"""
+        multiplier = 1
+        # multiplier = scipy.stats.chi2.ppf(self.ci_level, 2)
+        # multiplier = 2 * scipy.stats.f(self.ci_level, 2, )
+        cov = self.cov * multiplier
+
+        lambda_12 = np.linalg.eigvals(cov)
+        lambda_12_sqrt = np.sqrt(np.linalg.eigvals(cov))
+
+        cov_a = cov[0,0]
+        cov_b = cov[0,1]
+        cov_c = cov[1,1]
+
+        if cov_b == 0:
+            if cov_a >= cov_c:
+                theta = 0
+            else:
+                theta = np.pi / 2
+        else:
+            theta = np.arctan2(lambda_12[0] - cov_a, cov_b)
+
+        a = lambda_12_sqrt[0]
+        b = lambda_12_sqrt[1]
+        x0 = self.mean[0]
+        y0 = self.mean[1]
+        return a, b, theta, x0, y0
+
+    def get_ellipse_points(self):
+        # Source https://cookierobotics.com/007/
+        a, b, theta, x0, y0 = self.get_ellipse_properties()
+
+        tau = np.linspace(0, 2*np.pi, 100)
+        xx = a * np.cos(theta) * np.cos(tau) - b * np.sin(theta) * np.sin(tau) + x0 
+        yy = a * np.sin(theta) * np.cos(tau) + b * np.cos(theta) * np.sin(tau) + y0
+
+        return xx, yy
+    
+    def inside_covariance_ellipse(self, x, y):
+        """Test if x and y values are inside of the covariance ellipse.
+        Return true value, for x and y combination that are inside the covariance ellipse.
+        Source https://en.wikipedia.org/wiki/Ellipse#General_ellipse
+        """
+        a, b, theta, x0, y0 = self.get_ellipse_properties()
+
+        A = (a * np.sin(theta)) ** 2 + (b * np.cos(theta)) ** 2
+        B = 2 * (b**2 - a**2) * np.sin(theta) * np.cos(theta)
+        C = (a * np.cos(theta)) ** 2 + (b * np.sin(theta)) ** 2
+        D = -2 * A * x0 - B * y0
+        E = -B * x0 - 2 * C * y0
+        F = A * x0 ** 2 + B * x0 * y0 + C * y0 ** 2 - a**2 * b**2
+
+        if B**2 - 4 * A * C >= 0:
+            raise ValueError
+
+        res = A * x ** 2 + B * x * y + C * y ** 2 + D * x + E * y + F + 1
+
+        return res <= 1
+    
+    def plot(self, x=None, y=None, ax=None):
+        import matplotlib.pyplot as plt
+        if x is None or y is None:
+            x, y = self.generate_artificial_data()
+
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = ax.get_figure()
+        select = self.inside_covariance_ellipse(x, y)
+
+        count_inside = select.sum() / select.shape[0]
+        ax.plot(x[~select], y[~select], '.', alpha=1, c="r")
+        ax.plot(x[select], y[select], '.', alpha=1, c="g")
+        xx, yy = self.get_ellipse_points()
+        ax.plot(xx, yy)
+        ax.set_title(f"CI {self.ci_level * 100} %, count_inside {round(count_inside * 100, 2)} %")
+        plt.grid()
+        return fig, ax, count_inside
+
+    def generate_artificial_data(self, rng=None):
+        if rng is None:
+            rng = np.random.default_rng()
+
+        data = rng.multivariate_normal(self.mean, self.cov, size=10000)
+        return data[:,0], data[:,1]
+    
 
 class ErrorAnalyzer():
     def __init__(self, variable_list, model, prediction_grid, measurement_grid, selected_parameters, measurement_names, *, rng=None, true_parameters=None, pe_class=None):
@@ -110,9 +204,12 @@ class ErrorAnalyzer():
         self.failed_pes = 0
         list_s2 = []
         list_s2_true = []
+        self.list_noise = []
 
         for i in range(num_samples):
             perturbated_data = self.rng.normal(original_data, (1 / pe.array_inverted_scaled_std))
+            self.list_noise.append(perturbated_data - original_data)
+
             pe.array_data = perturbated_data
 
             try:
@@ -150,6 +247,15 @@ class ErrorAnalyzer():
             self.plot_parameter_covariance(normalize_parameters=False)
             self.plot_parameter_variance()
             self.plot_estimation_accuracy()
+
+    def check_linearization_df_params(self):
+        cov_linearized = self.pe_main.calculate_sensitivity_and_fim_fast(self.true_parameters)[2]
+        true_df = pd.Series(self.true_parameters)
+        true_df = true_df[self.df_params.columns].copy()
+        parameter_diff = (self.df_params - true_df).abs()
+        in_bounds = parameter_diff < self.threshold * np.sqrt(np.diag(cov_linearized))
+        in_bounds_ratio = in_bounds.sum().sum() / in_bounds.count().sum()
+        return in_bounds_ratio
 
     @property
     def last_estimated_parameters(self):
@@ -230,6 +336,62 @@ class ErrorAnalyzer():
 
         fig.suptitle(fig_name)
 
+    def plot_parameter_covariance_ellipse(self, *, normalize_parameters=True, without_outliers=False, ci_level=0.95):
+        import matplotlib.pyplot as plt
+        from matplotlib.axes import Axes
+
+        num_par = len(self.pe_main.varlist_decision)
+        fig, axes = plt.subplots(ncols=num_par - 1, nrows=num_par - 1, layout="constrained")
+        if isinstance(axes, Axes) == 1:
+            axes = [axes]
+
+        comb = list(combinations(range(num_par), 2))
+        par_names = list(self.pe_main.varlist_decision.keys())
+
+        lb = np.asarray(self.pe_main.varlist_decision.scale_to_original(self.pe_main.lower_bound))
+        ub = np.asarray(self.pe_main.varlist_decision.scale_to_original(self.pe_main.upper_bound))
+
+        if normalize_parameters:
+            df_normalized_all, df_normalized_no_outliers = self.df_params_normalized
+            if without_outliers:
+                df = df_normalized_no_outliers
+                count_outliers = df_normalized_all.shape[0] - df_normalized_no_outliers.shape[0]
+            else:
+                df = df_normalized_all
+        else:
+            df, count_outliers = self.get_parameter_df(without_outliers)
+
+        covariance_all = self.pe_main.calculate_sensitivity_and_fim_fast(self.true_parameters)[2]
+        covariance_all = covariance_all * (2 * scipy.stats.f.ppf(ci_level, 2, self.pe_main.dof))
+
+        parameter_names = list(self.pe_main.varlist_decision.keys())
+
+        for (par1_index, par2_index) in comb:
+            index_subarray = np.ix_((par1_index, par2_index), (par1_index, par2_index))
+
+            par_values = [self.true_parameters[parameter_names[par1_index]], self.true_parameters[parameter_names[par2_index]]]
+            ellipse = CovarianceEllipse(covariance_all[index_subarray], par_values)
+
+            if len(axes) == 1:
+                ax = axes[0]
+            else:
+                ax = axes[par2_index - 1, par1_index]
+
+            par_1_df = df.iloc[:, par1_index]
+            par_2_df = df.iloc[:, par2_index]
+
+            fig, _, count_inside = ellipse.plot(par_1_df, par_2_df, ax)
+
+        fig_name = "Parameter Covariance MC"
+        if normalize_parameters:
+            fig_name = fig_name + ", normalized values"
+        if without_outliers:
+            fig_name = fig_name + ", without outliers"
+            fig.supxlabel(f"Outliers = {count_outliers}")
+
+        fig.suptitle(fig_name)
+        return fig, axes
+
     def plot_parameter_covariance(self, *, normalize_parameters=True, without_outliers=False):
         import matplotlib.pyplot as plt
         from matplotlib.axes import Axes
@@ -289,6 +451,7 @@ class ErrorAnalyzer():
             fig.supxlabel(f"Outliers = {count_outliers}")
 
         fig.suptitle(fig_name)
+        return fig, ax
 
     def scale_df_all(self, pe, df):
         return pe._unscale_df(df)
@@ -345,21 +508,25 @@ class ErrorAnalyzer():
 
                 jac_prediction = self.pe_prediction.calculate_sensitivity_and_fim_fast(row.to_dict())[0]
                 prediction_std = np.sqrt(np.diag(jac_prediction @ cov_linearized @ jac_prediction.T)).reshape(self.pe_prediction.array_data.shape, order="F")
+                # TODO: sort lb and ub, if meas variable is negative this will not work
                 lb = df_predictions - self.threshold * prediction_std
                 ub = df_predictions + self.threshold * prediction_std
-                in_bounds = ((lb <= true_prediction) & (ub >= true_prediction)).all()
-                list_prediction_quality.append(in_bounds.all())
+
+                in_bounds = ((lb <= true_prediction) & (ub >= true_prediction))
+                in_bounds_ratio = in_bounds.sum().sum() / in_bounds.count().sum()
+
+                list_prediction_quality.append(in_bounds_ratio)
                 if index in df_all_without_outliers.index:
-                    list_prediction_quality_without_outliers.append(in_bounds.all())
+                    list_prediction_quality_without_outliers.append(in_bounds_ratio)
                 self.list_prediction_std.append(prediction_std)
             except Exception:
                 pass
 
         array_quality = np.array(list_prediction_quality)
         array_quality_without_outliers = np.array(list_prediction_quality_without_outliers)
-        metrics["predictions_in_bounds"] = array_quality.sum() / array_quality.shape[0]
+        metrics["predictions_in_bounds"] = array_quality.mean()
         try:
-            metrics["predictions_in_bounds_without_outliers"] = array_quality_without_outliers.sum() / array_quality_without_outliers.shape[0]
+            metrics["predictions_in_bounds_without_outliers"] = array_quality_without_outliers.mean()
         except Exception:
             metrics["predictions_in_bounds_without_outliers"] = np.nan 
 
