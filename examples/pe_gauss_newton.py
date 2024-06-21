@@ -8,7 +8,8 @@ import casadi as ca
 plt.ion()
 
 class PE_GN(mopeds.ParameterEstimation):
-    def _optimize(self, scale):
+    def _optimize(self, scale: bool = None, direct_optimization: bool = False, *, reuse_solver: bool = False) -> dict[str, ca.DM | ca.MX]:
+
         """Runs optimizer, uses scaling if needed. Returned values is scaled back.
         Scaling should be done before setting a solver and solver settings."""
 
@@ -30,12 +31,14 @@ class PE_GN(mopeds.ParameterEstimation):
             {
                 "x": self.varlist_decision.get_casadi_variables(),
                 "f": self._objective()[0],
+                "p": self._nlpsol_p_mx,
+
             },
             self.solver_settings,
         )
 
-        lb_scaled = self.lower_bound / self.scaling
-        ub_scaled = self.upper_bound / self.scaling
+        lb_scaled = self.lower_bound
+        ub_scaled = self.upper_bound
 
         # Scaling of negative numbers requires a switch bounds
         for index, (lb, ub) in enumerate(zip(lb_scaled, ub_scaled)):
@@ -44,12 +47,13 @@ class PE_GN(mopeds.ParameterEstimation):
                 ub_scaled[index] = lb
 
         res_solver = self.solver(
-            x0=self.guess / self.scaling,
+            x0=self.guess,
             lbx=lb_scaled,
             ubx=ub_scaled,
+            p=self._nlpsol_p_values
         )
 
-        res_solver["x"] = res_solver["x"] * self.scaling
+        res_solver["x"] = res_solver["x"]
 
         res_dict = {}
         for solution, var_name in zip(
@@ -58,15 +62,15 @@ class PE_GN(mopeds.ParameterEstimation):
             res_dict[var_name] = float(solution[0])
 
         res_solver["x_dict"] = res_dict
-        self.reset_acados()
 
         return res_solver
 
 
 if __name__ == "__main__":
+    mopeds.set_options(variable_scaling=False)
 
     piecewiseswitch = False
-    variable_list, m = mopeds.examples.cstr_dae(piecewiseswitch)
+    variable_list, m = mopeds.examples.cstr(piecewiseswitch)
     for var in variable_list.values():
         var.fixed = True
 
@@ -108,7 +112,7 @@ if __name__ == "__main__":
     pegn = PE_GN(m, [data1])
     # a = pe_state.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_c_p": 3.5, "e0_E_r1": 9.6e4})
     pe.solver_settings["ipopt"]["hessian_approximation"] = "exact"
-    print(pe.optimize(True))
-    print(pegn.optimize(True))
+    print(pe.optimize())
+    print(pegn.optimize())
     pe.solver_settings["ipopt"]["hessian_approximation"] = "limited-memory"
-    print(pe.optimize(True))
+    print(pe.optimize())
