@@ -123,6 +123,19 @@ class Simulator(object):
             self.__integrator_settings,
         )
 
+        new = copy.deepcopy(self.__integrator_settings)
+        new["calc_ic"] = False
+        new["calc_icB"] = True
+
+        self.integrator_tau_no_calcic: ca.Function = ca.integrator(
+            "integrator_tau",
+            self.__integrator_name,
+            self.ode_system_tau,
+            0,
+            1,
+            new,
+        )
+
         # This integrator is used to output values of algebraic variables at time 0
         # and should be run first to get algebraic variables at time 0 for whole simulation
         self.integrator_tau_with_t0: ca.Function = ca.integrator(
@@ -771,11 +784,19 @@ class Simulator(object):
         alg_init = self._initial_algebraic
 
         num_steps = self.time_grid_relative[1:].shape[0] - 1
+        
+        first_i = True
 
         for time_index in range(num_steps + 1):
             time_step = self.time_grid_relative[time_index + 1]
             independent_variables = self._independent_variables[time_index]
-            res_integration = self.integrator_tau(
+
+            if first_i:
+                integrator = self.integrator_tau
+                first_i = False
+            else:
+                integrator = self.integrator_tau_no_calcic
+            res_integration = integrator(
                 x0=x_init,
                 z0=alg_init,
                 p=ca.vertcat(
