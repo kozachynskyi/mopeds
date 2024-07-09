@@ -195,6 +195,8 @@ class Optimizer(object):
                     "x0": self.guess_direct,
                     "lbx": self.lower_bound_direct,
                     "ubx": self.upper_bound_direct,
+                    # "lbx": self.lower_bound_direct_inf,
+                    # "ubx": self.upper_bound_direct_inf,
                     "lbg": [0]*self.nlpsol_g_direct.shape[0],
                     "ubg": [0]*self.nlpsol_g_direct.shape[0],
             }
@@ -409,7 +411,10 @@ class Optimizer(object):
         for sim_index, input_varlist in enumerate(self.list_input_varlist):
             simulator_i = self.list_simulators[sim_index] 
 
-            good_initial_guess = simulator_i.simulate(return_varlist=False, unfixed_variables=guess_dict)[0]["x"].toarray().flatten()
+            try:
+                good_initial_guess = simulator_i.simulate(return_varlist=False, unfixed_variables=guess_dict)[0]["x"].toarray().flatten()
+            except Exception:
+                good_initial_guess = simulator_i._guess
             control_symbols = []
             control_values = []
             meas_symbols_sim = []
