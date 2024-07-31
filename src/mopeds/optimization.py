@@ -1783,14 +1783,14 @@ class ParameterEstimation(PE_base):
                 algebraic=algebraic,
                 recalculate_algebraic=True,
                 unfixed_variables=dict(zip(self.varlist_decision.keys(), self.guess)),
-            )
+            )[2]
 
             if supplied_parameters is not None:
                 res_supplied = simulator.simulate(
                     algebraic=algebraic,
                     recalculate_algebraic=True,
                     unfixed_variables=supplied_parameters,
-                )
+                )[2]
 
             if plot:
                 if pd.get_option("plotting.backend") == "plotly":
