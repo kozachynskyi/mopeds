@@ -10,8 +10,8 @@ def polynomial_1d() -> [mopeds.VariableList, mopeds.Model]:
     variable_list = mopeds.VariableList()
     variable_list.add_variable(mopeds.VariableAlgebraic("y", 1.0))
     variable_list.add_variable(mopeds.VariableControl("u", 1.0, 1, 2))
-    variable_list.add_variable(mopeds.VariableParameter("a", 1.0))
-    variable_list.add_variable(mopeds.VariableParameter("b", 2.0))
+    variable_list.add_variable(mopeds.VariableParameter("a", 1.0, 0.1, 2))
+    variable_list.add_variable(mopeds.VariableParameter("b", 2.0, 0.1, 4))
 
     m = mopeds.Model(variable_list)
 

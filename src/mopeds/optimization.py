@@ -161,6 +161,18 @@ class Optimizer(object):
         selected_df.columns = ["lb", "value", "ub"]
         return selected_df
 
+    def _change_guess(self, guess_values):
+        """Overwrite the guess correcly both in self.guess and self.guess_direct"""
+        arr = np.asarray(guess_values) 
+        if arr.ndim != 1:
+            raise ValueError
+
+        num_guess = arr.shape[0]
+        self.guess = guess_values
+        if self.model.equations_differential is None:
+            self.guess_direct[:num_guess] = guess_values
+
+
     @_consistent_scaling_decorator
     def _optimize(self, scale: bool = None, direct_optimization: bool = False, *, reuse_solver: bool = False) -> dict[str, ca.DM | ca.MX]:
         """Runs optimizer, uses scaling if needed. Returned values is scaled back.

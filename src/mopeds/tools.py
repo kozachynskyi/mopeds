@@ -14,6 +14,7 @@ import mopeds
 from functools import cached_property
 import tqdm
 import scipy
+from scipy.stats import qmc
 
 
 class CovarianceEllipse():
@@ -247,6 +248,54 @@ class ErrorAnalyzer():
             self.plot_parameter_covariance(normalize_parameters=False)
             self.plot_parameter_variance()
             self.plot_estimation_accuracy()
+
+    def parameter_identifiability(self, num_samples=100, plot=False):
+        original_data = copy.deepcopy(self.pe_artificial_data.array_data)
+
+        pe = self.pe_main
+
+        list_parameters = []
+        list_s2 = []
+        list_s2_true = []
+        failed_pes = 0
+
+
+        sampler = qmc.Sobol(d=len(pe.varlist_decision))
+
+        sample = sampler.random_base2(m=4)
+        list_guess = qmc.scale(sample, pe.lower_bound, pe.upper_bound)
+
+        for guess in list_guess:
+            pe._change_guess(guess)
+
+            try:
+                if isinstance(pe, mopeds.ParameterEstimation):
+                    res = pe.optimize(None, "wls", reuse_solver=True)
+                elif isinstance(pe, mopeds.ParameterEstimationNLE):
+                    res = pe.optimize(None, "wls", direct_optimization=True, reuse_solver=True)
+
+                if pe.solver.stats()["success"]:
+                    list_parameters.append(list(res["x_dict"].values()))
+
+                    s2_esimated, df_estimated = self.get_s2_and_df(self.pe_main, res["x_dict"])
+                    list_s2.append(s2_esimated)
+
+                else:
+                    print("failed pe")
+                    failed_pes += 1
+
+            except KeyboardInterrupt:
+                break
+            except Exception:
+                raise
+                failed_pes += 1
+
+
+        df_s2 = pd.DataFrame(list_s2, columns=pe.names_of_measurements)
+        df_s2_true = pd.DataFrame(list_s2_true, columns=pe.names_of_measurements)
+        df_params = pd.DataFrame(list_parameters, columns=pe.varlist_decision.keys())
+        print(df_params)
+        print(df_params.std())
 
     def check_linearization_df_params(self):
         cov_linearized = self.pe_main.calculate_sensitivity_and_fim_fast(self.true_parameters)[2]
