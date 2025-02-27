@@ -5,15 +5,17 @@ stages:
 .test:
     stage: "test"
     script:
-      - pip install .
-      - pip install pytest
+      - pip install --upgrade pip
+      - pip install --upgrade . --upgrade-strategy="eager" 
+      - pip install --upgrade pytest
       - pytest
 
 .test-manual:
     stage: "test-manual"
     script:
-      - pip install .
-      - pip install pytest
+      - pip install --upgrade pip
+      - pip install --upgrade . --upgrade-strategy="eager" 
+      - pip install --upgrade pytest
       - pytest
     when: manual
 
