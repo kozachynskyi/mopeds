@@ -11,7 +11,7 @@ def raults():
     # fmt:off
     # e0_x_c1 = ca.MX.sym("e0_x_c1")
     variable_list.add_variable(mopeds.VariableState("e0_x_c1", 0.1, 0, 1))  # noqa: E501
-    variable_list.add_variable(mopeds.VariableState("test", 0, 0, 1))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableState("var_state2", 0, 0, 1))  # noqa: E501
 
     variable_list.add_variable(mopeds.VariableAlgebraic("e0_P_LV_o_c1", 1.4144774629101626, 0.1, 10))  # noqa: E501
     variable_list.add_variable(mopeds.VariableAlgebraic("e0_P_LV_o_c2", 0.3584844184269499, 0.1, 10))  # noqa: E501
@@ -66,68 +66,15 @@ def raults():
 
     return variable_list, m
 
+vl, m = raults()
+grid = np.linspace(0, 8, 2)
+sim = mopeds.Simulator(m, grid, vl)
+res_mopeds = sim.simulate(algebraic=True)[2]
 
-# VariableState
-e0_x_c1 = ca.MX.sym("e0_x_c1")
-test = ca.MX.sym("test")
-VariableState_0 = [0.1, 0.0]
-VariableState_mx = [e0_x_c1, test]
-# VariableAlgebraic
-e0_P_LV_o_c1 = ca.MX.sym("e0_P_LV_o_c1")
-e0_P_LV_o_c2 = ca.MX.sym("e0_P_LV_o_c2")
-e0_x_c2 = ca.MX.sym("e0_x_c2")
-e0_y_c1 = ca.MX.sym("e0_y_c1")
-e0_y_c2 = ca.MX.sym("e0_y_c2")
-e0_P = ca.MX.sym("e0_P")
-VariableAlgebraic_0 = [1.4144774629101626, 0.3584844184269499, 0.5, 0.78888, 0.21112, 1.013]
-VariableAlgebraic_mx = [e0_P_LV_o_c1, e0_P_LV_o_c2, e0_x_c2, e0_y_c1, e0_y_c2, e0_P]
-# VariableParameter
-e0_A_c1 = ca.MX.sym("e0_A_c1")
-e0_B_c1 = ca.MX.sym("e0_B_c1")
-e0_C_c1 = ca.MX.sym("e0_C_c1")
-e0_A_c2 = ca.MX.sym("e0_A_c2")
-e0_B_c2 = ca.MX.sym("e0_B_c2")
-e0_C_c2 = ca.MX.sym("e0_C_c2")
-VariableParameter_0 = [3.5595, 643.748, -198.043, 4.92531, 1432.526, -61.819]
-VariableParameter_mx = [e0_A_c1, e0_B_c1, e0_C_c1, e0_A_c2, e0_B_c2, e0_C_c2]
-# VariableControl
-e0_T = ca.MX.sym("e0_T")
-VariableControl_0 = [346.4149]
-VariableControl_mx = [e0_T]
+ISSUE_1_trigger = False
+ISSUE_2_trigger = True
 
-EQ_diff1 = 0.1
-EQ_diff2 = e0_x_c1
-EQ_alg1 = ((e0_y_c1*e0_P)-((e0_x_c1*e0_P_LV_o_c1)))  # noqa: E501,E226
-EQ_alg2 = ((e0_y_c2*e0_P)-((e0_x_c2*e0_P_LV_o_c2)))  # noqa: E501,E226
-EQ_alg3 = (1.0-(((e0_x_c1+e0_x_c2))))  # noqa: E501,E226
-EQ_alg4 = (1.0-(((e0_y_c1+e0_y_c2))))  # noqa: E501,E226
-
-EQ_alg5 = (e0_P_LV_o_c1-10**(e0_A_c1 - e0_B_c1 / (e0_T + e0_C_c1)))  # noqa: E501,E226
-EQ_alg6 = (e0_P_LV_o_c2-10**(e0_A_c2 - e0_B_c2 / (e0_T + e0_C_c2)))  # noqa: E501,E226
-
-list_diff_equations = [EQ_diff1, EQ_diff2]  # noqa: E501
-# list_algebraic_equations = [EQ_alg1, EQ_alg2, EQ_alg3, EQ_alg4, EQ_alg5, EQ_alg6]  # noqa: E501
-list_algebraic_equations = [EQ_alg1, EQ_alg2, EQ_alg3, EQ_alg4, EQ_alg5, EQ_alg6]  # noqa: E501
-
-tau = ca.MX.sym("tau")
-dae_system = {
-    "x": ca.vcat(VariableState_mx),
-    "p": ca.vertcat(tau, *VariableControl_mx, *VariableParameter_mx),
-    "ode": ca.vcat(list_diff_equations) * tau,
-    "alg": ca.vcat(list_algebraic_equations),
-    "z": ca.vcat(VariableAlgebraic_mx),
-}
-
-integrator = ca.integrator(
-    "integrator_tau_with_t0",
-    "idas",
-    dae_system,
-    0,
-    [0, 1],
-    {}
-)
-
-def integrate_over_time_grid(time_grid, integrator, y_0, z_0, c_0, p_0):
+def integrate_over_time_grid(time_grid, integrator, y_0, z_0, p_0):
     x0 = y_0
     z0 = z_0
     res_states = []
@@ -140,7 +87,7 @@ def integrate_over_time_grid(time_grid, integrator, y_0, z_0, c_0, p_0):
         res_integration = integrator(
             x0=x0,
             z0=z0,
-            p=ca.vertcat(time_step - previos_t, *c_0, *p_0),
+            p=ca.vertcat(time_step - previos_t, *p_0),
         )
 
         previos_t = time_step
@@ -160,23 +107,68 @@ def integrate_over_time_grid(time_grid, integrator, y_0, z_0, c_0, p_0):
     res = ca.vcat([res_states, res_algebraic])
     return res
 
-vl, m = raults()
-grid = np.linspace(0, 8, 2)
-sim = mopeds.Simulator(m, grid, vl, integrator_settings={"expand": True})
-res_mopeds = sim.simulate(algebraic=True)[2]
+# VariableState
+e0_x_c1 = ca.MX.sym("e0_x_c1")
+var_state2 = ca.MX.sym("var_state2")
+VariableState_0 = [0.1, 0.0]
+VariableState_mx = [e0_x_c1, var_state2]
+# VariableAlgebraic
+e0_P_LV_o_c1 = ca.MX.sym("e0_P_LV_o_c1")
+e0_P_LV_o_c2 = ca.MX.sym("e0_P_LV_o_c2")
+e0_x_c2 = ca.MX.sym("e0_x_c2")
+e0_y_c1 = ca.MX.sym("e0_y_c1")
+e0_y_c2 = ca.MX.sym("e0_y_c2")
+e0_P = ca.MX.sym("e0_P")
+VariableAlgebraic_0 = [1.4144774629101626, 0.3584844184269499, 0.5, 0.78888, 0.21112, 1.013]
+VariableAlgebraic_mx = [e0_P_LV_o_c1, e0_P_LV_o_c2, e0_x_c2, e0_y_c1, e0_y_c2, e0_P]
+# VariableParameter
+e0_A_c1 = ca.MX.sym("e0_A_c1")
+e0_B_c1 = ca.MX.sym("e0_B_c1")
+e0_C_c1 = ca.MX.sym("e0_C_c1")
+e0_A_c2 = ca.MX.sym("e0_A_c2")
+e0_B_c2 = ca.MX.sym("e0_B_c2")
+e0_C_c2 = ca.MX.sym("e0_C_c2")
+e0_T = ca.MX.sym("e0_T")
+VariableParameter_0 = [3.5595, 643.748, -198.043, 4.92531, 1432.526, -61.819, 346.4149]
+VariableParameter_mx = [e0_A_c1, e0_B_c1, e0_C_c1, e0_A_c2, e0_B_c2, e0_C_c2, e0_T]
 
+EQ_diff1 = 0.1
+if ISSUE_1_trigger:
+    EQ_diff2 = 1
+else:
+    EQ_diff2 = e0_y_c1
+EQ_alg1 = ((e0_y_c1*e0_P)-((e0_x_c1*e0_P_LV_o_c1)))  # noqa: E501,E226
+EQ_alg2 = ((e0_y_c2*e0_P)-((e0_x_c2*e0_P_LV_o_c2)))  # noqa: E501,E226
+EQ_alg3 = (1.0-(((e0_x_c1+e0_x_c2))))  # noqa: E501,E226
+EQ_alg4 = (1.0-(((e0_y_c1+e0_y_c2))))  # noqa: E501,E226
 
-res = integrate_over_time_grid(grid, integrator, VariableState_0, VariableAlgebraic_0, VariableControl_0, VariableParameter_0)
+EQ_alg5 = (e0_P_LV_o_c1-10**(e0_A_c1 - e0_B_c1 / (e0_T + e0_C_c1)))  # noqa: E501,E226
+EQ_alg6 = (e0_P_LV_o_c2-10**(e0_A_c2 - e0_B_c2 / (e0_T + e0_C_c2)))  # noqa: E501,E226
+
+list_diff_equations = [EQ_diff1, EQ_diff2]  # noqa: E501
+list_algebraic_equations = [EQ_alg1, EQ_alg2, EQ_alg3, EQ_alg4, EQ_alg5, EQ_alg6]  # noqa: E501
+
+tau = ca.MX.sym("tau")
+dae_system = {
+    "x": ca.vcat(VariableState_mx),
+    "p": ca.vertcat(tau, *VariableParameter_mx),
+    "ode": ca.vcat(list_diff_equations) * tau,
+    "alg": ca.vcat(list_algebraic_equations),
+    "z": ca.vcat(VariableAlgebraic_mx),
+}
+
+integrator = ca.integrator( "integrator", "idas", dae_system, 0, [0, 1], {})
+
+res = integrate_over_time_grid(grid, integrator, VariableState_0, VariableAlgebraic_0, VariableParameter_0)
 
 unfixed_symbols = copy.deepcopy(VariableParameter_0)
 unfixed_symbols[0] = e0_A_c1
-res_sym = integrate_over_time_grid(grid, integrator, VariableState_0, VariableAlgebraic_0, VariableControl_0, unfixed_symbols)
+res_sym = integrate_over_time_grid(grid, integrator, VariableState_0, VariableAlgebraic_0, unfixed_symbols)
 
-estimated_var = "e0_y_c1"
-if False:  # estimate based on "test" variable
-    index = 1
-else:  # estimated based on "e0_y_c1" variable
+if ISSUE_2_trigger:  # estimated based on "e0_y_c1" algebraic variable
     index = 5
+else:  # estimate based on "var_state2" variable
+    index = 1
 
 exp_data = res[index, :]
 function = ca.Function("f", [e0_A_c1], [res_sym])
@@ -184,74 +176,23 @@ function = ca.Function("f", [e0_A_c1], [res_sym])
 obj_MX = ca.sumsqr(exp_data - function(e0_A_c1)[index, :])
 obj_function = ca.Function("obj", [e0_A_c1], [obj_MX])
 
-nlpsol_dict = {
-        "x": e0_A_c1,
-        "f": obj_MX,
-}
+nlpsol_dict = { "x": e0_A_c1, "f": obj_MX }
 
-solver = ca.nlpsol(
-    "solver",
-    "ipopt",
-    nlpsol_dict,
-    {"monitor": "nlp_grad_f"}
-)
+solver = ca.nlpsol("par_est", "ipopt", nlpsol_dict, {"monitor": "nlp_grad_f", "ipopt": {"max_iter": 1, "print_level": 0}})
 
-nlpsol_args = {
-        "x0": 3.1,
-        "lbx": 3,
-        "ubx": 4,
-}
+nlpsol_args = { "x0": 3.4, "lbx": 3, "ubx": 4}
 
 res = solver.call(nlpsol_args)
 print(f"Expected 3.5595, estimated: {res['x']}")
 
-
 final_res = function(3.5595)
 res_obj = obj_function(3.5595)
 obj_jac = obj_function.jacobian()
-jac = obj_jac(3.95, 0)
+jac = obj_jac(3.4, 0)
+print(jac)
 
 print(res_obj)
-# res_dict = {"xf": final_res[0]}
-# if self.model.DAE:
-#     res_dict["zf"] = final_res[1]
-# assert np.isclose(res.T, final_res.T).all()
 breakpoint()
 
-
-
-
-
-# times = np.linspace(1, 30, 12)
-# data = np.linspace(0.1, 0.9, 12)
-# vl["e0_x_c1"].expand_horizon(times, data)
+# Test if model correctly impelemnted, do not submit to issue
 assert np.isclose(res_mopeds.dataframe.to_numpy(), res.T).all()
-
-
-exp_data = copy.deepcopy(vl)
-rng = np.random.default_rng(0)
-
-names = ["test"]#, "e0_x_c2", "e0_P_LV_o_c1"]
-# names = ["test", "e0_y_c1"]
-# for var_name in names:
-#     exp_data[var_name].dataframe = res[var_name].dataframe
-#     # exp_data["e0_T"].dataframe = exp_data["e0_T"].dataframe.to_numpy() + rng.normal([0]*exp_data.dataframe.shape[0], 1)
-#     v = exp_data[var_name].dataframe
-#     # exp_data["e0_T"].dataframe = (v.T  + rng.normal([0]*exp_data.dataframe.shape[0], 1)).T
-for var in res_mopeds.values():
-    exp_data[var.name].dataframe = res_mopeds[var.name].dataframe
-
-
-exp_data["e0_A_c1"].fixed = False
-# exp_data["e0_A_c2"].fixed = False
-exp_data["e0_A_c1"].guess = 3.5
-# exp_data["e0_A_c2"].guess = 4
-
-pe = mopeds.ParameterEstimation(m, [exp_data], simulator_settings={"expand": True, "enable_fd": False})
-# pe.solver_settings["ipopt"]["hessian_approximation"] = "limited-memory"
-# v = pe.calculate_sensitivity_and_fim({"e0_A_c1": 3.5})
-# vv = pe.calculate_objective_and_residual({"e0_A_c1": 3.1})
-# vvv = pe.calculate_objective_and_residual({"e0_A_c1": 3.5595})
-# breakpoint()
-res = pe.optimize()
-print(res["x_dict"])
