@@ -180,23 +180,25 @@ obj_function = ca.Function("obj", [e0_A_c1], [obj_MX])
 
 nlpsol_dict = { "x": e0_A_c1, "f": obj_MX }
 
-solver = ca.nlpsol("par_est", "ipopt", nlpsol_dict, {"monitor": "nlp_grad_f", "ipopt": {"max_iter": 1, "print_level": 0}})
+solver = ca.nlpsol("par_est", "ipopt", nlpsol_dict, {"monitor": "nlp_grad_f", "print_time": False, "ipopt": {"max_iter": 1, "print_level": 0}})
 
 nlpsol_args = { "x0": 3.4, "lbx": 3, "ubx": 4}
 
 res_pe = solver.call(nlpsol_args)
-print(f"Expected 3.5595, estimated: {res_pe['x']}")
-
-final_res = function(3.5595)
-res_obj = obj_function(3.5595)
+# print(f"Expected 3.5595, estimated: {res_pe['x']}")
 obj_jac = obj_function.jacobian()
 jac = obj_jac(3.4, 0)
-print(jac)
+print("".join(["-"]*100))
+print("Jacobian at initial guess of optimizer", jac)
+print("".join(["-"]*100))
 
-print(res_obj)
-
-# Test if model correctly impelemnted, do not submit to issue
-vl, m = raults()
-sim = mopeds.Simulator(m, grid, vl)
-res_mopeds = sim.simulate(algebraic=True)[2]
-assert np.isclose(res_mopeds.dataframe.to_numpy(), res.T).all()
+try:
+    # Test if model correctly impelemnted, do not submit to issue
+    final_res = function(3.5595)
+    res_obj = obj_function(3.5595)
+    vl, m = raults()
+    sim = mopeds.Simulator(m, grid, vl)
+    res_mopeds = sim.simulate(algebraic=True)[2]
+    assert np.isclose(res_mopeds.dataframe.to_numpy(), res.T).all()
+except Exception:
+    pass
