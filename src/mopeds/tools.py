@@ -925,3 +925,28 @@ def analyze_scaling_nle(model, varlist, control_bounds):
     selected_data = g[algebraic_names]
     return_bounds = dict(zip(algebraic_names, zip(selected_data.min(), selected_data.max())))
     return return_bounds
+
+
+def transform_varlist_to_casadi(vl):
+    """Use to transform mopeds model to casadi, e.g., to submit issue to github"""
+
+    for varclass in mopeds.Variable.get_subclasses():
+        vars = []
+        vars_names = []
+        values = []
+        for name, var in vl.items():
+            print_string = f"{name} = ca.MX.sym(\"{name}\")"
+            if isinstance(var, varclass):
+                vars_names.append(name)
+                vars.append(print_string)
+                if isinstance(var, mopeds.VariableAlgebraic):
+                    values.append(var.guess)
+                else:
+                    values.append(var.value[0])
+
+        if len(vars) != 0:
+            class_name = varclass.__name__
+            print(f"# {class_name}")
+            print("\n".join(vars))
+            print(f"{class_name}_0 = {values}")
+            print(f"{class_name}_mx = [{', '.join(vars_names)}]")
