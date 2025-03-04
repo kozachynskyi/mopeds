@@ -63,10 +63,6 @@ try:
         m.add_equations_algebraic(list_algebraic_equations)
 
         return variable_list, m
-    vl, m = raults()
-    grid = np.linspace(0, 8, 2)
-    sim = mopeds.Simulator(m, grid, vl)
-    res_mopeds = sim.simulate(algebraic=True)[2]
 except Exception:
     pass
 
@@ -75,9 +71,10 @@ import casadi as ca
 import numpy as np
 import copy
 
-
 ISSUE_1_trigger = False
 ISSUE_2_trigger = False
+
+grid = np.linspace(0, 8, 2)
 
 def integrate_over_time_grid(time_grid, integrator, y_0, z_0, p_0):
     x0 = y_0
@@ -199,4 +196,7 @@ print(jac)
 print(res_obj)
 
 # Test if model correctly impelemnted, do not submit to issue
+vl, m = raults()
+sim = mopeds.Simulator(m, grid, vl)
+res_mopeds = sim.simulate(algebraic=True)[2]
 assert np.isclose(res_mopeds.dataframe.to_numpy(), res.T).all()
