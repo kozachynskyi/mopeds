@@ -44,6 +44,10 @@ Considering creating a test to compare the numerical results while migrating.
 - In PE, self.array_data has become a nlpsol_p parameter, meaning that PE data can be changed without reinitilization of the nlp solver, thus saving time
 - Opimizer now support reusing the created .solver. It allows for fast repeated execution of the solver, e.g., for Monte Carlo simulations
 
+### 0.10.2
+
+- Fix the numpy dependency to <2 and casadi<3.7 to avoid errors
+
 ### 0.10.1
 
 - Fixed installation error in Windows python 3.11
