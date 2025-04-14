@@ -25,6 +25,9 @@ stages:
 .test-debian:
     stage: "test"
     image: ghcr.io/astral-sh/uv:debian-slim
+    before_script:
+      - apt-get update
+      - apt-get install libgfortran5
     script:
       - uv venv --python $PYTHON_VERSION
       - uv pip install .
