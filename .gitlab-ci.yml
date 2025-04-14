@@ -2,77 +2,100 @@ stages:
   - test
   - test-manual
 
-.test:
+.test-windows:
     stage: "test"
+    variables:
+      PYTHON_VERSION: "3.8"
+      UV_LINK_MODE: copy
     script:
-      - pip install .
-      - pip install pytest
+      - uv venv --python $PYTHON_VERSION
+      - uv pip install .
+      - uv pip install pytest
+      - .venv\Scripts\activate
       - pytest
+    tags:
+      - windows
+      - $PYTHON_VERSION
 
-.test-manual:
+.test-windows-manual:
+    extends: ".test-windows"
     stage: "test-manual"
-    script:
-      - pip install .
-      - pip install pytest
-      - pytest
     when: manual
 
-test-3.10:
-    extends: ".test-manual"
-    tags: 
-      - py310
-      - linux
+.test-debian:
+    stage: "test"
+    image: ghcr.io/astral-sh/uv:debian-slim
+    script:
+      - uv venv --python $PYTHON_VERSION
+      - uv pip install .
+      - uv pip install pytest
+      - source .venv/bin/activate
+      - pytest
+    tags:
+      - debian
+      - $PYTHON_VERSION
 
-test-3.11:
-    extends: ".test-manual"
-    tags: 
-      - py311
-      - linux
+.test-debian-manual:
+    extends: ".test-debian"
+    stage: "test-manual"
+    when: manual
 
-test-3.12:
-    extends: ".test"
-    tags: 
-      - py312
-      - linux
+test-debian-3.8:
+    extends: ".test-debian-manual"
+    variables:
+      PYTHON_VERSION: "3.8"
+      UV_LINK_MODE: copy
 
-test-3.9:
-    extends: ".test-manual"
-    tags: 
-      - py39
-      - linux
+test-debian-3.9:
+    extends: ".test-debian-manual"
+    variables:
+      PYTHON_VERSION: "3.9"
+      UV_LINK_MODE: copy
 
-test-3.8:
-    extends: ".test-manual"
-    tags: 
-      - py38
-      - linux
+test-debian-3.10:
+    extends: ".test-debian-manual"
+    variables:
+      PYTHON_VERSION: "3.10"
+      UV_LINK_MODE: copy
 
-test-win-3.8:
-    extends: ".test-manual"
-    tags: 
-      - py38
-      - windows
+test-debian-3.11:
+    extends: ".test-debian-manual"
+    variables:
+      PYTHON_VERSION: "3.11"
+      UV_LINK_MODE: copy
 
-test-win-3.9:
-    extends: ".test-manual"
-    tags: 
-      - py39
-      - windows
+test-debian-3.12:
+    extends: ".test-debian"
+    variables:
+      PYTHON_VERSION: "3.12"
+      UV_LINK_MODE: copy
 
-test-win-3.10:
-    extends: ".test-manual"
-    tags: 
-      - py310
-      - windows
+test-windows-3.8:
+    extends: ".test-windows-manual"
+    variables:
+      PYTHON_VERSION: "3.8"
+      UV_LINK_MODE: copy
 
-test-win-3.11:
-    extends: ".test-manual"
-    tags: 
-      - py311
-      - windows
+test-windows-3.9:
+    extends: ".test-windows-manual"
+    variables:
+      PYTHON_VERSION: "3.9"
+      UV_LINK_MODE: copy
 
-test-win-3.12:
-    extends: ".test"
-    tags: 
-      - py312
-      - windows
+test-windows-3.10:
+    extends: ".test-windows-manual"
+    variables:
+      PYTHON_VERSION: "3.10"
+      UV_LINK_MODE: copy
+
+test-windows-3.11:
+    extends: ".test-windows-manual"
+    variables:
+      PYTHON_VERSION: "3.11"
+      UV_LINK_MODE: copy
+
+test-windows-3.12:
+    extends: ".test-windows"
+    variables:
+      PYTHON_VERSION: "3.12"
+      UV_LINK_MODE: copy

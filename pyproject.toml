@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mopeds"
-version = "0.10.1"
+version = "0.10.2"
 description = "Simulate and Optimize (Parameter Estimation, Optimal Experimental Design) NLE, ODE and DAE"
 authors = ["Volodymyr Kozachynskyi <vovakozach@gmail.com>"]
 repository = "https://git.tu-berlin.de/dbta/optimization/mopeds"
@@ -10,8 +10,8 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.13"
-casadi = ">=3.6.4"
-numpy = "*"
+casadi = ">=3.6.4, <3.7.0"
+numpy = "<2"
 scipy = "*"
 matplotlib = "*"
 pandas = "*"
