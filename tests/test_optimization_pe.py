@@ -140,7 +140,7 @@ def test_pe_objective(piecewise):
     obj_weight = np.sum(weight * var * (data * mask) ** 2)
     res = pe.optimize()
     res_weight = pe.optimize(scale_experiments=True)
-    assert res["f"] == obj
+    assert np.isclose(res["f"], obj)
     assert np.isclose(res_weight["f"], obj_weight)
 
 @pytest.mark.parametrize("piecewise", [True, False])
