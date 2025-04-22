@@ -390,7 +390,11 @@ class ErrorAnalyzer():
         from matplotlib.axes import Axes
 
         num_par = len(self.pe_main.varlist_decision)
-        fig, axes = plt.subplots(ncols=num_par - 1, nrows=num_par - 1, layout="constrained")
+
+        if num_par == 1:
+            fig, axes = plt.subplots(ncols=1, nrows=1, layout="constrained")
+        else:
+            fig, axes = plt.subplots(ncols=num_par - 1, nrows=num_par - 1, layout="constrained")
         if isinstance(axes, Axes) == 1:
             axes = [axes]
 
@@ -415,6 +419,27 @@ class ErrorAnalyzer():
 
         parameter_names = list(self.pe_main.varlist_decision.keys())
 
+        if num_par == 1:
+            print(covariance_all)
+            covariance_original = covariance_all / (2 * scipy.stats.f.ppf(ci_level, 2, self.pe_main.dof))
+            print(covariance_original * (scipy.stats.t.ppf(ci_level, 1, self.pe_main.dof)))
+            # print(covariance_all)
+            # print(covariance_original * (2 * scipy.stats.f.ppf(ci_level, 1, self.pe_main.dof)))
+
+            ax = axes[0]
+            par_1_df = df.iloc[:, 0]
+            ax.hist(par_1_df, bins=int(par_1_df.shape[0]/3))
+            ax.axvline(self.true_parameters[parameter_names[0]] + covariance_all**0.5)
+            ax.axvline(self.true_parameters[parameter_names[0]] - covariance_all**0.5)
+            ax.set_xlabel(f"{parameter_names[0]}")
+
+            select = np.abs(par_1_df - self.true_parameters[parameter_names[0]]) <= covariance_all[0][0]**0.5
+            count_inside = select.sum() / select.shape[0]
+            ax.set_title(f"CI {ci_level * 100} %, count_inside {round(count_inside * 100, 2)} %")
+            plt.grid()
+
+
+        # Skipped if num_par == 1
         for (par1_index, par2_index) in comb:
             index_subarray = np.ix_((par1_index, par2_index), (par1_index, par2_index))
 
@@ -446,7 +471,10 @@ class ErrorAnalyzer():
         from matplotlib.axes import Axes
 
         num_par = len(self.pe_prediction.varlist_decision)
-        fig, axes = plt.subplots(ncols=num_par - 1, nrows=num_par - 1, layout="constrained")
+        if num_par == 1:
+            fig, axes = plt.subplots(ncols=1, nrows=1, layout="constrained")
+        else:
+            fig, axes = plt.subplots(ncols=num_par - 1, nrows=num_par - 1, layout="constrained")
         if isinstance(axes, Axes) == 1:
             axes = [axes]
 
@@ -466,6 +494,21 @@ class ErrorAnalyzer():
         else:
             df, count_outliers = self.get_parameter_df(without_outliers)
 
+        # only one parameter
+        if len(comb) == 0:
+            ax = axes[0]
+            par_1_df = df.iloc[:, 0]
+
+            ax.hist(par_1_df, bins="auto")
+
+            if np.isclose(par_1_df, lb[0]).any():
+                ax.axvline(par_1_df.min(), 0, 1, c="g")
+            if np.isclose(par_1_df, ub[0]).any():
+                ax.axvline(par_1_df.max(), 0, 1, c="g")
+
+            ax.set_xlabel(f"{par_names[0]}")
+
+        # skipped if only one parameter
         for (par1_index, par2_index) in comb:
             if len(axes) == 1:
                 ax = axes[0]
