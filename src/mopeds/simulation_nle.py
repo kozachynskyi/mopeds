@@ -26,7 +26,7 @@ from mopeds import (
 
 class SimulatorNLE:
 
-    supported_solvers: list[str] = ["ipopt", "rootfinder"]
+    supported_solvers: list[str] = ["ipopt", "rootfinder","rootfinder_newton"]
 
     def __init__(
         self,
@@ -49,6 +49,8 @@ class SimulatorNLE:
         if solver_name == "ipopt":
             self._call_simulator = self._call_simulator_ipopt
         elif solver_name == "rootfinder":
+            self._call_simulator = self._call_simulator_rootfinder
+        elif solver_name == "rootfinder_newton":
             self._call_simulator = self._call_simulator_rootfinder
 
         self._solver_name: str = solver_name
@@ -78,6 +80,14 @@ class SimulatorNLE:
         if self._solver_name == "rootfinder":
             self.simulator: ca.Function = ca.rootfinder(
                 "s", "nlpsol", self.function, self.solver_settings
+            )
+            self.call_arg: dict = {
+                "x0": ca.DM(self._guess),
+                "p": self._independent_variables,
+            }
+        elif self._solver_name == "rootfinder_newton":
+            self.simulator: ca.Function = ca.rootfinder(
+                "s", "newton", self.function, self.solver_settings
             )
             self.call_arg: dict = {
                 "x0": ca.DM(self._guess),
@@ -121,6 +131,13 @@ class SimulatorNLE:
                     "ipopt.print_level": 0,
                     "print_time": False,
                 },
+            }
+        elif self._solver_name == "rootfinder_newton":
+            solver_settings = {
+                "verbose": False,
+                "print_in": False,
+                "print_out": False,
+                "expand": True,
             }
         elif self._solver_name == "ipopt":
             solver_settings = {
