@@ -543,7 +543,7 @@ class ErrorAnalyzer():
             fig.supxlabel(f"Outliers = {count_outliers}")
 
         fig.suptitle(fig_name)
-        return fig, ax
+        return fig, axes
 
     def scale_df_all(self, pe, df):
         return pe._unscale_df(df)
