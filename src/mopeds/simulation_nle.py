@@ -26,20 +26,24 @@ from mopeds import (
 
 class SimulatorNLE:
 
-    supported_solvers: list[str] = ["ipopt", "rootfinder"]
+    supported_solvers: list[str] = ["ipopt", "rootfinder", "newton", "fast_newton", "nlpsol"]
 
     def __init__(
         self,
         model: Model,
         variable_list: VariableList,
         solver_settings: dict | None = None,
-        solver_name: str = "rootfinder",
+        solver_name: str = "nlpsol",
         *,
         use_bounds: bool = None,
     ):
         self._created_with_options = get_options()
         if use_bounds is not None:
             warn("use_bounds argument is ignored", FutureWarning, 2)
+
+        if solver_name == "rootfinder":
+            warn("solver_name=rootfinder is deprecated, use 'nlpsol'", FutureWarning, 2)
+            solver_name = "nlpsol"
 
         self.model: Model = model
         if solver_name not in self.supported_solvers:
@@ -48,7 +52,7 @@ class SimulatorNLE:
             )
         if solver_name == "ipopt":
             self._call_simulator = self._call_simulator_ipopt
-        elif solver_name == "rootfinder":
+        elif solver_name in ["newton", "nlpsol", "fast_newton"]:
             self._call_simulator = self._call_simulator_rootfinder
 
         self._solver_name: str = solver_name
@@ -75,9 +79,9 @@ class SimulatorNLE:
             ["x0", "p"],
             ["x"],
         )
-        if self._solver_name == "rootfinder":
+        if self._solver_name in ["newton", "nlpsol", "fast_newton"]:
             self.simulator: ca.Function = ca.rootfinder(
-                "s", "nlpsol", self.function, self.solver_settings
+                "s", self._solver_name, self.function, self.solver_settings
             )
             self.call_arg: dict = {
                 "x0": ca.DM(self._guess),
@@ -108,7 +112,7 @@ class SimulatorNLE:
 
     def get_default_simulator_settings(self) -> None:
         """Set default settings, if None are provided"""
-        if self._solver_name == "rootfinder":
+        if self._solver_name == "nlpsol":
             solver_settings = {
                 "nlpsol": "ipopt",
                 "verbose": False,
@@ -121,6 +125,13 @@ class SimulatorNLE:
                     "ipopt.print_level": 0,
                     "print_time": False,
                 },
+            }
+        elif self._solver_name in ["newton", "fast_newton"]:
+            solver_settings = {
+                "verbose": False,
+                "print_in": False,
+                "print_out": False,
+                "expand": True,
             }
         elif self._solver_name == "ipopt":
             solver_settings = {
