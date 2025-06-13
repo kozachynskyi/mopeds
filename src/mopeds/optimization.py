@@ -815,8 +815,8 @@ class PE_base(Optimizer):
         list_simulation_T = []
 
         for simulator in self.list_simulators:
-            # if isinstance(self.list_simulators[0], Simulator):
-            #     simulator.calculate_algebraic_initials(apply_intials=True)
+            if isinstance(self.list_simulators[0], Simulator):
+                simulator.calculate_algebraic_initials(apply_intials=True)
 
             res_simulation = simulator.simulate_fast()
 
