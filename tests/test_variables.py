@@ -71,13 +71,10 @@ def test_variables():
 
     var_1 = mopeds.VariableControlPiecewiseConstant("Var1", 20)
 
-    assert variable_list["Var1"].time_absolute.equals(
-        pd.DatetimeIndex(
-            ["1970-01-01 00:00:00", "1970-01-01 00:00:02"],
-            dtype="datetime64[ns]",
-            freq=None,
-        )
-    )
+    assert list(variable_list["Var1"].time_absolute) == [
+        pd.Timestamp("1970-01-01 00:00:00"),
+        pd.Timestamp("1970-01-01 00:00:02"),
+    ]
     assert variable_list["Var1"].time_relative == [0, 2]
     assert len(var_1.time_relative) == 1
     assert len(var_1.time_absolute) == 1
@@ -88,11 +85,10 @@ def test_variables():
     ) == var_1.get_variable_at_time_absolute("1970-01-01 00:00:00")
     assert var_1.get_variable_at_time_relative(0).fixed is True
     var_1.expand_horizon([11], [4])
-    assert var_1.time_absolute.equals(
-        pd.Series(
-            ["1970-01-01 00:00:00", "1970-01-01 00:00:11"], dtype="datetime64[ns]"
-        )
-    )
+    assert list(var_1.time_absolute) == [
+        pd.Timestamp("1970-01-01 00:00:00"),
+        pd.Timestamp("1970-01-01 00:00:11"),
+    ]
     assert var_1.time_relative == [0, 11]
     assert len(var_1.time_relative) == 2
     assert len(var_1.time_absolute) == 2
@@ -110,12 +106,11 @@ def test_variables():
     assert len(var_2.time_absolute) == 3
     assert len(var_2.time_relative) == 3
     assert var_2.time_relative == [0, 11, 11.3]
-    assert var_2.time_absolute.equals(
-        pd.Series(
-            ["2021-01-01 00:00:00", "2021-01-01 00:00:11", "2021-01-01 00:00:11.300"],
-            dtype="datetime64[ns]",
-        )
-    )
+    assert list(var_2.time_absolute) == [
+        pd.Timestamp("2021-01-01 00:00:00"),
+        pd.Timestamp("2021-01-01 00:00:11"),
+        pd.Timestamp("2021-01-01 00:00:11.300"),
+    ]
     assert var_2.fixed is True
     assert var_2.get_variable_at_time_relative(10).value == [20]
     var_2.value = 19
