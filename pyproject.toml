@@ -1,27 +1,39 @@
-[tool.poetry]
-requires-poetry = '>=2.0,<3.0'
-
-[tool.poetry.group.test.dependencies]
-pytest = "*"
-
-[tool.poetry.group.docs.dependencies]
-notebook = "*"
-
-[build-system]
-requires = ["poetry-core>=2.0"]
-build-backend = "poetry.core.masonry.api"
-
-
 [project]
 name = "mopeds"
-description = "Simulate and Optimize (Parameter Estimation, Optimal Experimental Design) NLE, ODE and DAE"
-license = "MIT"
 version = "0.10.2"
+description = "Simulate and Optimize (Parameter Estimation, Optimal Experimental Design) NLE, ODE and DAE"
+authors = [{ name = "Volodymyr Kozachynskyi", email = "vovakozach@gmail.com" }]
+requires-python = ">=3.8,<3.13"
 readme = "README.md"
-authors = [{name = "Volodymyr Kozachynskyi", email = "vovakozach@gmail.com"}]
-requires-python = '>=3.8,<3.13'
-dependencies = ['casadi (>=3.6.4,<3.7.0)', 'numpy (<2)', 'scipy', 'matplotlib', 'pandas', 'tqdm']
+license = "MIT"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "casadi (>=3.6.4,<3.7.0)",
+    "numpy (<2)",
+    "scipy",
+    "matplotlib",
+    "pandas",
+    "tqdm",
+]
 
 [project.urls]
 homepage = "https://mopeds.readthedocs.io/en/latest/"
 repository = "https://git.tu-berlin.de/dbta/optimization/mopeds"
+
+[dependency-groups]
+test = ["pytest"]
+docs = ["notebook"]
+
+[tool.uv]
+default-groups = "all"
+
+[build-system]
+requires = ["uv_build>=0.11.19,<0.12.0"]
+build-backend = "uv_build"
