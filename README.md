@@ -117,9 +117,16 @@ and many, many others ...
 
 ## Development
 
-- Clone this repo on your computer `git clone https://git.tu-berlin.de/dbta/optimization/mopeds.git`
-- Run `poetry install` (ensure that correct python version is installed ex. pyenv)
-- Run tests via `pytest`, final tests should be run with `tox -r` command
+- Clone this repository:
+  `git clone https://git.tu-berlin.de/dbta/optimization/mopeds.git`
+- Install uv if needed:
+  `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- Install the project and development dependencies:
+  `uv sync --all-groups`
+- Run tests:
+  `uv run pytest`
+- Build the package:
+  `uv build`
 
 ## par_est
 
