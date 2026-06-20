@@ -843,7 +843,7 @@ class Simulator(object):
         if isinstance(time_grid, ca.MX):
             self.time_grid_relative: np.ndarray = time_grid
         else:
-            time_grid = np.asfarray(time_grid)
+            time_grid = np.asarray(time_grid, dtype=np.float64)
             for var in self._input_variable_list.values():
                 if isinstance(var, VariableControlPiecewiseConstant):
                     time_grid = np.append(time_grid, var.time_relative)

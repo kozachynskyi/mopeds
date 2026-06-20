@@ -11,126 +11,95 @@ cache:
   paths:
     - .uv-cache/
 
-.test-macos:
-  stage: test
-  variables:
-    PYTHON_VERSION: "3.12"
+.python-versions: &python-versions
+  - "3.10"
+  - "3.11"
+  - "3.12"
+  - "3.13"
+  - "3.14"
+
+.unix-test:
   script:
     - uv python install $PYTHON_VERSION
     - uv venv --python $PYTHON_VERSION
     - uv pip install .
     - uv pip install pytest
     - uv run pytest
-  tags:
-    - macos
-    - arm64
-    - mopeds
 
-.test-macos-manual:
-  extends: ".test-macos"
-  stage: test-manual
-  when: manual
-
-.test-windows:
-  stage: test
-  variables:
-    PYTHON_VERSION: "3.12"
+.windows-test:
   script:
     - uv python install $env:PYTHON_VERSION
     - uv venv --python $env:PYTHON_VERSION
     - uv pip install .
     - uv pip install pytest
     - uv run pytest
+
+.manual:
+  stage: test-manual
+  when: manual
+
+.test-macos:
+  extends:
+    - .unix-test
+  stage: test
+  tags:
+    - macos
+    - arm64
+    - mopeds
+
+.test-windows:
+  extends:
+    - .windows-test
+  stage: test
   tags:
     - windows
     - mopeds
 
-.test-windows-manual:
-  extends: ".test-windows"
-  stage: test-manual
-  when: manual
-
 .test-debian:
+  extends:
+    - .unix-test
   stage: test
   image: ghcr.io/astral-sh/uv:debian-slim
   before_script:
     - apt-get update
     - apt-get install -y libgfortran5
-  script:
-    - uv python install $PYTHON_VERSION
-    - uv venv --python $PYTHON_VERSION
-    - uv pip install .
-    - uv pip install pytest
-    - uv run pytest
   tags:
     - debian
     - mopeds
 
-.test-debian-manual:
-  extends: ".test-debian"
-  stage: test-manual
-  when: manual
+#
+# Main automatic test
+#
 
-# Main automatic test on your local Mac runner
 test-macos-3.12:
-  extends: ".test-macos"
-  variables:
-    PYTHON_VERSION: "3.12"
-
-# Extra macOS versions, manual for now
-test-macos-3.10:
-  extends: ".test-macos-manual"
-  variables:
-    PYTHON_VERSION: "3.10"
-
-test-macos-3.11:
-  extends: ".test-macos-manual"
-  variables:
-    PYTHON_VERSION: "3.11"
-
-#test-macos-3.13:
-#  extends: ".test-macos-manual"
-#  variables:
-#    PYTHON_VERSION: "3.13"
-
-#test-macos-3.14:
-#  extends: ".test-macos-manual"
-#  variables:
-#    PYTHON_VERSION: "3.14"
-
-# Debian manual jobs
-test-debian-3.10:
-  extends: ".test-debian-manual"
-  variables:
-    PYTHON_VERSION: "3.10"
-
-test-debian-3.11:
-  extends: ".test-debian-manual"
-  variables:
-    PYTHON_VERSION: "3.11"
-
-test-debian-3.12:
-  extends: ".test-debian-manual"
-  variables:
-    PYTHON_VERSION: "3.12"
-
-test-debian-3.13:
-  extends: ".test-debian-manual"
+  extends: .test-macos
   variables:
     PYTHON_VERSION: "3.13"
 
-# Windows manual jobs
-test-windows-3.10:
-  extends: ".test-windows-manual"
-  variables:
-    PYTHON_VERSION: "3.10"
+#
+# Manual matrix jobs
+#
 
-test-windows-3.11:
-  extends: ".test-windows-manual"
-  variables:
-    PYTHON_VERSION: "3.11"
+test-macos:
+  extends:
+    - .test-macos
+    - .manual
+  parallel:
+    matrix:
+      - PYTHON_VERSION: *python-versions
 
-test-windows-3.12:
-  extends: ".test-windows-manual"
-  variables:
-    PYTHON_VERSION: "3.12"
+test-debian:
+  extends:
+    - .test-debian
+    - .manual
+  parallel:
+    matrix:
+      - PYTHON_VERSION: *python-versions
+
+test-windows:
+  extends:
+    - .test-windows
+    - .manual
+  parallel:
+    matrix:
+      - PYTHON_VERSION: *python-versions

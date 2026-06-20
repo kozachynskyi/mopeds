@@ -20,7 +20,7 @@ version = "0.10.2"
 readme = "README.md"
 authors = [{name = "Volodymyr Kozachynskyi", email = "vovakozach@gmail.com"}]
 requires-python = '>=3.8,<3.13'
-dependencies = ['casadi (>=3.6.4,<3.7.0)', 'numpy (<2)', 'scipy', 'matplotlib', 'pandas', 'tqdm']
+dependencies = ['casadi (<3.7.0)', 'numpy', 'scipy', 'matplotlib', 'pandas', 'tqdm']
 
 [project.urls]
 homepage = "https://mopeds.readthedocs.io/en/latest/"
