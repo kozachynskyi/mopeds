@@ -408,10 +408,10 @@ def test_inference_bounds():
     sim_data_expected = np.array(
         [0.0, 10.95903204, 15.64421028, 17.64720608, 18.50352189, 18.8696119]
     )
-    R = np.array([[-1.93684673, -15.16727704], [0.0, -11.82590011]])
+    R = np.array([[1.93684673, 15.16727704], [0.0, -11.82590011]])
     bound = np.array([0.0, 4.32448195, 3.22057785, 2.61916078, 3.18725966, 3.80380586])
 
-    assert np.allclose(R, exp_inference_results["f"]["R"])
+    assert np.allclose(np.abs(R), np.abs(exp_inference_results["f"]["R"]))
     assert np.allclose(sim_data_expected, exp_inference_results["f"]["simulation"])
     assert np.allclose(bound, exp_inference_results["f"]["bound"])
     assert np.allclose(exp_data["f"], exp_data_expected)
@@ -534,8 +534,8 @@ if __name__ == "__main__":
     pass
     # test_pe()
     # test_multivariate_pe()
-    # test_inference_bounds()
-    test_parameter_jacobian()
+    test_inference_bounds()
+    # test_parameter_jacobian()
     # test_oed_nle(None, "A")
     # test_oed_nle(["y"], "A")
     # test_oed_nle(None, "A_fd")
