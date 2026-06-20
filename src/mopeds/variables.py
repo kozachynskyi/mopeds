@@ -3,7 +3,10 @@ from __future__ import annotations
 import sys
 from collections.abc import Generator, Iterable
 from datetime import datetime, timedelta
+import contextlib
 from typing import Any, Union
+import copy
+from functools import wraps
 
 if sys.version_info[1] == 8:
     from typing import OrderedDict
@@ -15,6 +18,41 @@ import numpy as np
 import pandas as pd
 
 import mopeds
+
+# Options logic copied from numpy printoptions
+_options = {
+    "variable_scaling": True,
+    }
+
+def get_options():
+    opts = _options.copy()
+    return opts
+
+@contextlib.contextmanager
+def options(*, variable_scaling: bool):
+    opts = get_options()
+    try:
+        set_options(variable_scaling=variable_scaling)
+        yield get_options()
+    finally:
+        set_options(**opts)
+
+def set_options(*, variable_scaling: bool):
+    if not isinstance(variable_scaling, bool):
+        raise TypeError
+    _options.update({"variable_scaling": variable_scaling})
+
+def _consistent_scaling_decorator(func):
+    """Assures that object method uses scaling that was used while creating the instance"""
+    @wraps(func)
+    def _decorator(self, *args, **kwargs):
+        if get_options()["variable_scaling"] != self._created_with_options["variable_scaling"]:
+            print("User provided scaling is ignored, because object was created with another scaling")
+        with options(variable_scaling=self._created_with_options["variable_scaling"]):
+            return func(self, *args, **kwargs)
+    return _decorator
+
+
 
 ORIGIN_TS: pd.Timestamp = pd.Timestamp(year=1970, month=1, day=1)
 """ Indicats a default zero timestamp for data, if date is irrelevant.
@@ -60,6 +98,7 @@ class Variable(object):
         # attibute used to decide if variable should be plotted
         self.ignore_plotting: bool = True
         self.variable_list: VariableList
+        self.ignore_scaling = False
 
     @classmethod
     def get_subclasses(cls) -> Generator[type[Variable], None, None]:
@@ -75,6 +114,18 @@ class Variable(object):
         plt.show()
         return axis
 
+    def _create_copy(self, prefix: str) -> Variable:
+        """Copies a variable and create a same one with new name. Symbolic variable is newly created. If prefix == '', name stays the same"""
+        if isinstance(self, (VariableConstant, VariableControlPiecewiseConstant)):
+            raise NotImplementedError
+        new_var = copy.deepcopy(self)
+        new_name = self.name + prefix
+
+        new_var.name = new_name
+        new_var.casadi_var: ca.MX = ca.MX.sym(new_name)
+        new_var.dataframe.rename(columns = {self.name: new_name}, inplace=True)
+        return new_var
+
     def __repr__(self) -> str:
         return f"{self.name}\n{type(self)}\n{self.value}\n"
 
@@ -83,7 +134,7 @@ class Variable(object):
         Used in Simulator for readability and less if statements.
         """
         if self.fixed:
-            return self.value[0]
+            return self.scale_from_original(self.value[0])
         else:
             return self.casadi_var
 
@@ -91,9 +142,9 @@ class Variable(object):
         """Return guess or value at time zero. Used further for
         readability"""
         if self.fixed:
-            return self.value[0]
+            return self.scale_from_original(self.value[0])
         else:
-            return self.guess
+            return self.scale_from_original(self.guess)
 
     @property
     def value(self) -> list[float]:
@@ -269,6 +320,38 @@ class Variable(object):
 
     def show(self) -> None:
         mopeds.show_html_from_dataframe(self.dataframe)
+
+    def _get_scaling_constants(self):
+        if isinstance(self, VariableControlPiecewiseConstant):
+            lb = self.lower_bound[0]
+            ub = self.upper_bound[0]
+        else:
+            lb = self.lower_bound
+            ub = self.upper_bound
+
+        if get_options()["variable_scaling"] is False:
+            v, r = (1, 0)
+        elif self.ignore_scaling:
+            v, r = (1, 0)
+        elif np.isinf(lb) or np.isinf(ub):
+            v, r = (1, 0)
+        elif lb == ub:
+            v, r = (1, 0)
+        else:
+            v = (ub - lb) / 2
+            if isinstance(self, VariableState):
+                r = 0
+            else:
+                r = (ub + lb) / 2
+        return v, r
+
+    def scale_to_original(self, value: ca.MX | float | np.array):
+        v, r = self._get_scaling_constants()
+        return (value * v + r)
+
+    def scale_from_original(self, value: ca.MX | float | np.array):
+        v, r = self._get_scaling_constants()
+        return ((value - r) / v)
 
 
 class VariableState(Variable):
@@ -520,6 +603,8 @@ class VariableConstant(Variable):
         name: str,
         value: float | None = None,
         opc_ua_id: int | None = None,
+        *args,
+        **kwargs,
     ):
         super().__init__(name)
         self.dataframe = self._dataframe_from_value(value)
@@ -606,6 +691,8 @@ class VariableList(OrderedDict[str, Union[Variable, VariableControlPiecewiseCons
     def add_variable(self, variable: Variable) -> None:
         if variable.name in self:
             raise SameVariableNameError(variable.name)
+        elif not isinstance(variable, Variable):
+            raise TypeError()
         else:
             self.update({variable.name: variable})
 
@@ -619,8 +706,70 @@ class VariableList(OrderedDict[str, Union[Variable, VariableControlPiecewiseCons
         """Returns a concatanated vector of all variables in a variable_list."""
         casadi_vars = []
         for var in self.values():
-            casadi_vars.append(var.casadi_var)
+            if not isinstance(var, VariableConstant):
+                casadi_vars.append(var.casadi_var)
         return ca.vcat(casadi_vars)
+
+    def _get_sorted_varlist(self, variable_names: list, *, raise_error=True):
+        """Return a variable list that includes only variables from provided list
+        and in the same order as in given varlist. If variable doesn't exist in self,
+        raise an error, if raise_error is False."""
+        return_varlist = VariableList()
+        for variable_name in variable_names:
+            try:
+                var = self[variable_name]
+            except KeyError as e:
+                if raise_error:
+                    raise e
+                else:
+                    continue
+            return_varlist.add_variable(var)
+        return return_varlist
+
+    def get_scaled_casadi_variables(self) -> ca.MX:
+        """Returns a concatanated vector of all variables in a variable_list self while scaling them using bounds for source_variable_list"""
+        casadi_vars = []
+        for var in self.values():
+            if not isinstance(var, VariableConstant):
+                casadi_vars.append(var.scale_to_original(var.casadi_var))
+        return ca.vcat(casadi_vars)
+
+    def scale_to_original(self, values: ca.MX | float | np.array):
+        scaled_value = []
+        for var, value in zip(self.values(), np.asarray(values)):
+            scaled_value.append(var.scale_to_original(value))
+        return scaled_value
+
+    def scale_from_original(self, values: ca.MX | float | np.array):
+        scaled_value = []
+        for var, value in zip(self.values(), values):
+            scaled_value.append(var.scale_from_original(value))
+        return scaled_value
+
+    def _get_scaling_constants(self):
+        scaling_constant_v = []
+        scaling_constant_r = []
+        for var in self.values():
+            v, r = var._get_scaling_constants()
+            scaling_constant_v.append(v)
+            scaling_constant_r.append(r)
+        return scaling_constant_v, scaling_constant_r
+
+    def _get_sublist_of_type(self, variable_type) -> VariableList:
+        sub_varlist = VariableList()
+        for var in self.values():
+            if isinstance(var, variable_type):
+                sub_varlist.add_variable(var)
+        return sub_varlist
+
+    def get_algebraic(self) -> VariableList:
+        return self._get_sublist_of_type(VariableAlgebraic)
+
+    def get_independent(self) -> VariableList:
+        return self._get_sublist_of_type((VariableControl, VariableParameter))
+
+    def get_state(self) -> VariableList:
+        return self._get_sublist_of_type(VariableState)
 
     def get_data_opcua(self, time_start: Any, time_stop: Any) -> None:
         # Older implementation doesn't work anymore, removed on 06-15-2022

@@ -4,6 +4,7 @@ import copy
 import logging
 from typing import Callable, cast
 from numpy.typing import ArrayLike
+from warnings import warn
 
 import casadi as ca
 import numpy as np
@@ -18,96 +19,100 @@ from mopeds import (
     VariableList,
     VariableParameter,
     VariableState,
-    _ACADOS_SUPPORT,
+    get_options,
+    _consistent_scaling_decorator,
 )
-
-if _ACADOS_SUPPORT:
-    from acados_template import AcadosModel
-    from mopeds import casados_integrator
 
 
 class SimulatorNLE:
 
-    supported_solvers: list[str] = ["ipopt", "rootfinder"]
+    supported_solvers: list[str] = ["ipopt", "rootfinder", "newton", "fast_newton", "nlpsol"]
 
     def __init__(
         self,
         model: Model,
         variable_list: VariableList,
         solver_settings: dict | None = None,
-        solver_name: str = "rootfinder",
+        solver_name: str = "nlpsol",
         *,
-        use_bounds: bool = True,
+        use_bounds: bool = None,
     ):
+        self._created_with_options = get_options()
+        if use_bounds is not None:
+            warn("use_bounds argument is ignored", FutureWarning, 2)
+
+        if solver_name == "rootfinder":
+            warn("solver_name=rootfinder is deprecated, use 'nlpsol'", FutureWarning, 2)
+            solver_name = "nlpsol"
+
         self.model: Model = model
         if solver_name not in self.supported_solvers:
             raise TypeError(
                 f"Provided integrator name {solver_name} is not supported. Only theese are: {self.supported_solvers}."
             )
         if solver_name == "ipopt":
-            self._call_simulator = self.__call_simulator_ipopt
-        elif solver_name == "rootfinder":
-            self._call_simulator = self.__call_simulator_rootfinder
+            self._call_simulator = self._call_simulator_ipopt
+        elif solver_name in ["newton", "nlpsol", "fast_newton"]:
+            self._call_simulator = self._call_simulator_rootfinder
 
         self._solver_name: str = solver_name
-        self.__input_variable_list: VariableList = copy.deepcopy(variable_list)
+        self._input_variable_list: VariableList = copy.deepcopy(variable_list)
+        self.model.subsitute_casadi_symbols(self._input_variable_list)
 
         if solver_settings is not None:
             self.solver_settings: dict = solver_settings
         else:
             self.solver_settings = self.get_default_simulator_settings()
 
-        self._setup_variables()
-        self._reset_scaling()
+        self.__setup_variables()
 
-        if self._solver_name == "rootfinder":
-            if use_bounds:
-                self.solver_settings["constraints"] = self._rootfinder_bounds
+        scaled_equations = ca.substitute(self.model.equations_algebraic, self._input_variable_list.get_casadi_variables(), self._input_variable_list.get_scaled_casadi_variables())
+        self._model_equations = ca.cse(scaled_equations)
 
-            self.function: ca.Function = ca.Function(
-                "f",
-                [
-                    self.model.varlist_algebraic.get_casadi_variables(),
-                    self.model.varlist_independent.get_casadi_variables(),
-                ],
-                [self.model.equations_algebraic],
-                ["x0", "p"],
-                ["x"],
-            )
+        self.function: ca.Function = ca.Function(
+            "f",
+            [
+                self.model.varlist_algebraic(self._input_variable_list).get_casadi_variables(),
+                self.model.varlist_independent(self._input_variable_list).get_casadi_variables(),
+            ],
+            [self._model_equations],
+            ["x0", "p"],
+            ["x"],
+        )
+        if self._solver_name in ["newton", "nlpsol", "fast_newton"]:
             self.simulator: ca.Function = ca.rootfinder(
-                "s", "nlpsol", self.function, self.solver_settings
+                "s", self._solver_name, self.function, self.solver_settings
             )
             self.call_arg: dict = {
                 "x0": ca.DM(self._guess),
-                "p": self._independent_variables * self.scaling,
+                "p": self._independent_variables,
             }
         elif self._solver_name == "ipopt":
             self.simulator = ca.nlpsol(
                 "solver",
                 "ipopt",
                 {
-                    "x": self.model.varlist_algebraic.get_casadi_variables(),
-                    "p": self.model.varlist_independent.get_casadi_variables(),
-                    "g": self.model.equations_algebraic,
-                    "f": (ca.sum1(self.model.equations_algebraic) ** 2),
+                    "x": self.model.varlist_algebraic(self._input_variable_list).get_casadi_variables(),
+                    "p": self.model.varlist_independent(self._input_variable_list).get_casadi_variables(),
+                    "g": self._model_equations,
+                    "f": (ca.sum1(self._model_equations) ** 2),
                 },
                 self.solver_settings,
             )
             self.call_arg = {
                 "x0": ca.DM(self._guess),
-                "p": self._independent_variables * self.scaling,
+                "p": self._independent_variables,
                 "lbg": 0,
                 "ubg": 0,
             }
-            if use_bounds:
-                self.call_arg["lbx"] = self._lower_bound
-                self.call_arg["ubx"] = self._upper_bound
+            self.call_arg["lbx"] = self._lower_bound
+            self.call_arg["ubx"] = self._upper_bound
 
         self.jacobian: ca.Function = self.simulator.jacobian()
 
     def get_default_simulator_settings(self) -> None:
         """Set default settings, if None are provided"""
-        if self._solver_name == "rootfinder":
+        if self._solver_name == "nlpsol":
             solver_settings = {
                 "nlpsol": "ipopt",
                 "verbose": False,
@@ -120,6 +125,13 @@ class SimulatorNLE:
                     "ipopt.print_level": 0,
                     "print_time": False,
                 },
+            }
+        elif self._solver_name in ["newton", "fast_newton"]:
+            solver_settings = {
+                "verbose": False,
+                "print_in": False,
+                "print_out": False,
+                "expand": True,
             }
         elif self._solver_name == "ipopt":
             solver_settings = {
@@ -137,7 +149,7 @@ class SimulatorNLE:
 
         return solver_settings
 
-    def _setup_variables(self) -> None:
+    def __setup_variables(self) -> None:
         mapping_independent_variables = {}
         mapping_algebraic_variables = {}
         index_algebraic = 0
@@ -146,26 +158,20 @@ class SimulatorNLE:
         guess = []
         lower_bound = []
         upper_bound = []
-        rootfinder_bounds = []
         independent_variables = []
-        for variable_name in self.model.varlist_all.keys():
-            try:
-                var = self.__input_variable_list[variable_name]
-            except KeyError:
-                continue
-
+        for var in self.model.varlist(self._input_variable_list).values():
             if isinstance(var, VariableAlgebraic):
                 mapping_algebraic_variables[var.name] = index_algebraic
                 index_algebraic += 1
-                guess.append(var.guess)
+                guess.append(var.scale_from_original(var.guess))
                 if var.lower_bound is None:
                     lower_bound.append(-ca.inf)
                 else:
-                    lower_bound.append(var.lower_bound)
+                    lower_bound.append(var.scale_from_original(var.lower_bound))
                 if var.upper_bound is None:
                     upper_bound.append(ca.inf)
                 else:
-                    upper_bound.append(var.upper_bound)
+                    upper_bound.append(var.scale_from_original(var.upper_bound))
             elif isinstance(var, VariableConstant):
                 pass
             elif isinstance(var, (VariableControl, VariableParameter)):
@@ -182,21 +188,7 @@ class SimulatorNLE:
         self._lower_bound: list[float] = lower_bound
         self._upper_bound: list[float] = upper_bound
 
-        for lower_bound_i, upper_bound_i in zip(self._lower_bound, self._upper_bound):
-            rootfinder_bound = 0
-            if lower_bound_i == 0:
-                rootfinder_bound = 1
-            elif lower_bound_i > 0:
-                rootfinder_bound = 2
-            elif upper_bound_i == 0:
-                rootfinder_bound = -1
-            elif upper_bound_i < 0:
-                rootfinder_bound = -2
-
-            rootfinder_bounds.append(rootfinder_bound)
-
         self._guess: list[float] = guess
-        self._rootfinder_bounds: list[int] = rootfinder_bounds
         self._independent_variables: ca.MX | ca.DM = ca.vcat(independent_variables)
 
         if isinstance(self._independent_variables, ca.MX):
@@ -206,6 +198,7 @@ class SimulatorNLE:
         else:
             raise NotImplementedError
 
+    @_consistent_scaling_decorator
     def change_independent_variables(self, ind_variables: dict[str, float]):
         """Use this method to change either Controls or Parameters of the Simulation. ind_variables is a dictionary
         with VariableNames as dict.keys(), and their respective values, as dict.values(). Example:
@@ -215,37 +208,20 @@ class SimulatorNLE:
                 "All variables should be fixed, to use this method"
             )
         for var_name, var_value in ind_variables.items():
+            var = self._input_variable_list[var_name]
             index_var = self.mapping_independent_variables[var_name]
-            self._independent_variables[index_var] = var_value
+            self._independent_variables[index_var] = var.scale_from_original(var_value)
 
+    @_consistent_scaling_decorator
     def generate_exp_data(self, unfixed_variables: dict[str, float] = None) -> VariableList:
-        res_array = self.simulate_sym_unfixed(unfixed_variables)
+        warn("generate_exp_data is deprecated. Use simulate()", FutureWarning)
+        return self.simulate(unfixed_variables=unfixed_variables, return_varlist=True)[2]
 
-        variables = VariableList()
-
-        for count, var in enumerate(self.model.varlist_algebraic.values()):
-            new_var = copy.deepcopy(var)
-            new_var.casadi_var = None
-            new_var.lower_bound = self._lower_bound[count]
-            new_var.upper_bound = self._upper_bound[count]
-            new_var.set_dataframe_from_value_and_time([float(res_array[count])], [0])
-            new_var.ignore_plotting = self.__input_variable_list[
-                var.name
-            ].ignore_plotting
-            new_var.variance = self.__input_variable_list[var.name].variance
-            variables.add_variable(new_var)
-
-        return variables
-
-    def _reset_scaling(self) -> None:
-        self.scaling: ca.DM = ca.DM.ones(self._independent_variables.size())
-
-    def __call_simulator_rootfinder(self) -> ca.DM:
+    def _call_simulator_rootfinder(self) -> ca.DM:
         """This method is needed to raise an error, if ipopt simulator fails to converge"""
-        res = self.simulator.call(self.call_arg)
-        return res
+        return self.simulator.call(self.call_arg)
 
-    def __call_simulator_ipopt(self) -> ca.DM:
+    def _call_simulator_ipopt(self) -> ca.DM:
         """This method is needed to raise an error, if ipopt simulator fails to converge"""
         res = self.simulator.call(self.call_arg)
 
@@ -254,65 +230,79 @@ class SimulatorNLE:
                 raise ValueError(f"IPOPT failed as NLE solver:\n{self.simulator.stats()}")
         return res
 
-    def simulate_sym_unfixed(self, unfixed_variables: dict[str, float] = None) -> ca.DM:
-        """This is slower version of simulate_sym but it allows user to supply values
-        for unfixed variables"""
-        self.call_arg["p"] = self._independent_variables * self.scaling
-        res_array = self._call_simulator()["x"]
-
-        if not isinstance(res_array, ca.DM):
-            if unfixed_variables is None:
-                raise ValueError("You need to supply values for unfixed variables")
-            else:
-                unfixed_symbols = ca.symvar(res_array["xf"])
-                values = []
-                for symbol in unfixed_symbols:
-                    values.append(unfixed_variables[symbol.name()])
-
-                function = ca.Function("f", ca.symvar(unfixed_symbols), [res_array])
-                res_array = function(*values)
-
-        return res_array
-
     def select_simulation_result(
-        self, result: ca.DM | ca.MX, return_var_indexes: list[int]
+        self, result: dict[str, ca.DM], return_var_names: list[str] | None
     ) -> ca.DM | ca.MX:
-        """Take result from self.simulate_sym() and return only a subset of results, defined by column
-        index in return_var_names"""
-        return result.get(False, return_var_indexes, 0)
-
-    def simulate(self, return_var_names: list[str] | None = None) -> ca.DM | ca.MX:
-        """Wrapper for simulate_sym, that returns only results for variables, specified in return_var_names"""
-        res = self.simulate_sym()["x"]
+        """Take result from self.simulate_fast() and return only a subset of results, defined by
+        list of variable names"""
         if return_var_names is not None:
             return_var_index = []
             for var_name in return_var_names:
                 return_var_index.append(self.mapping_algebraic_variables[var_name])
-            res = self.select_simulation_result(res, return_var_index)
-        return res
+            res_selected = result["x"].get(False, return_var_index, 0)
+        else:
+            res_selected = {"x": None}
+
+        return res_selected
+
+    @_consistent_scaling_decorator
+    def simulate(self, *, return_var_names: list[str] | None = None, unfixed_variables: dict[str, float] | None = None, return_varlist: bool = True) -> (dict(str, ca.MX), ca.MX | None, VariableList | None):
+        """Wrapper for simulate_fast, that returns scaled results.
+        res is returned as dict to be consistent with Dynamic simulations."""
+        res = self.simulate_fast()
+        res_selected = self.select_simulation_result(res, return_var_names)
+
+        if not isinstance(res["x"], ca.DM):
+            if unfixed_variables is None:
+                raise ValueError("You need to supply values for unfixed variables")
+            else:
+                unfixed_symbols = ca.symvar(res["x"])
+                values = []
+                for symbol in unfixed_symbols:
+                    var_name = symbol.name()
+                    values.append(self._input_variable_list[var_name].scale_from_original(unfixed_variables[var_name]))
+
+                function = ca.Function("f", unfixed_symbols, [res["x"]])
+                res = {"x": function(*values)}
+        else:
+            res = {"x": res["x"]}
+
+        if return_varlist:
+            variables = VariableList()
+            for var_name, res_var in zip(self.model.varlist_algebraic(self._input_variable_list).keys(), res["x"].toarray()):
+                if return_var_names is not None:
+                    if var_name not in return_var_names:
+                        continue
+                var = self._input_variable_list[var_name]
+                new_var = copy.deepcopy(var)
+                new_var.casadi_var = None
+
+                value = var.scale_to_original(res_var)
+                new_var.value = float(value[0])
+                variables.add_variable(new_var)
+        else:
+            variables = None
+
+        return res, res_selected, variables
+
+    @_consistent_scaling_decorator
+    def simulate_sym_unfixed(self, unfixed_variables: dict[str, float] = None) -> dict[str, ca.DM]:
+        warn("simulate_sym_unfixed is deprecated. Use simulate(unfixed_variables=unfixed_variables, return_varlist=False)", FutureWarning)
+        return self.simulate(unfixed_variables=unfixed_variables, return_varlist=False)[0]
 
     def simulate_sym(self) -> dict[str, ca.MX | ca.DM]:
-        self.call_arg["p"] = self._independent_variables * self.scaling
+        warn("simulate_sym is deprecated. Use simulate_fast", FutureWarning, 2)
+        return self.simulate_fast()
+
+    def simulate_fast(self) -> dict[str, ca.MX | ca.DM]:
+        """Should be used internally for fast calculations. Output of the solution is not scaled"""
+        self.call_arg["p"] = self._independent_variables
 
         res = self._call_simulator()
         return res
 
     def calculate_jac(self) -> dict[str, ca.MX | ca.DM]:
-        self.call_arg["p"] = self._independent_variables * self.scaling
+        self.call_arg["p"] = self._independent_variables
 
         res = self.jacobian.call(self.call_arg)
         return res
-
-    def get_variance_array(self) -> np.ndarray:
-        variance_list = []
-        for variable_name in self.model.varlist_all.keys():
-            try:
-                var = self.__input_variable_list[variable_name]
-            except KeyError:
-                continue
-
-            if isinstance(var, VariableAlgebraic):
-                variance_list.append(var.variance)
-
-        variance = np.array(variance_list)
-        return variance

@@ -9,7 +9,7 @@ plt.ion()
 if __name__ == "__main__":
 
     piecewiseswitch = False
-    variable_list, m = mopeds.examples.cstr_dae(piecewiseswitch)
+    variable_list, m = mopeds.examples.cstr()
     for var in variable_list.values():
         var.fixed = True
 
@@ -46,9 +46,9 @@ if __name__ == "__main__":
     a = data2["e0_c_tot"].dataframe
     data2["e0_c_tot"].dataframe = data2["e0_c_tot"].dataframe * 1.05
 
-    # pe_state = mopeds.ParameterEstimation(m, [data1, data2])
-    pe_state = mopeds.ParameterEstimation(m, [data1])
-    # a = pe_state.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_c_p": 3.5, "e0_E_r1": 9.6e4})
+    pe_state = mopeds.ParameterEstimation(m, [data1, data2])
+    # pe_state = mopeds.ParameterEstimation(m, [data1])
+    v = pe_state.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_c_p": 3.5, "e0_E_r1": 9.6e4})
     print(a)
     # print(pe_state.optimize(True))
 

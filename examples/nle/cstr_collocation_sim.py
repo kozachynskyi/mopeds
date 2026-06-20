@@ -370,9 +370,9 @@ if __name__ == "__main__":
     # Create simulation Object
     sim_fixed = SimulatorNLE(m, var_list_fixed)
     # Run simulation and get simple results as array of numbers, but information about state variables and timestamp is lost
-    res_simple = sim_fixed.simulate_sym()
+    res_simple = sim_fixed.simulate_fast()
     # Run simulation and connect results with actual state variables, which can be plotted based on available data
-    res = sim_fixed.generate_exp_data()
+    res = sim_fixed.simulate()[2]
     Val_Res = res_simple['x']
 
     Time = np.array([0, 600, 1200, 1800, 2400, 3000, 3600])

@@ -6,6 +6,87 @@ import casadi as ca
 
 import mopeds
 
+def polynomial_1d() -> [mopeds.VariableList, mopeds.Model]:
+    variable_list = mopeds.VariableList()
+    variable_list.add_variable(mopeds.VariableAlgebraic("y", 1.0))
+    variable_list.add_variable(mopeds.VariableControl("u", 1.0, 1, 2))
+    variable_list.add_variable(mopeds.VariableParameter("a", 1.0, 0.1, 2))
+    variable_list.add_variable(mopeds.VariableParameter("b", 2.0, 0.1, 4))
+
+    m = mopeds.Model(variable_list)
+
+    y = m.variables_all["y"]
+    u = m.variables_all["u"]
+    a = m.variables_all["a"]
+    b = m.variables_all["b"]
+
+    eq1 = y - (a + b * u)
+
+    m.add_equations_algebraic([eq1])
+
+    return variable_list, m
+
+def polynomial_1d_multivariate() -> [mopeds.VariableList, mopeds.Model]:
+    variable_list = mopeds.VariableList()
+    variable_list.add_variable(mopeds.VariableAlgebraic("y1", 1.0))
+    variable_list.add_variable(mopeds.VariableAlgebraic("y2", 1.0))
+    variable_list.add_variable(mopeds.VariableControl("u1", 1.0, 1, 2))
+    variable_list.add_variable(mopeds.VariableControl("u2", 1.0, 1, 2))
+    variable_list.add_variable(mopeds.VariableParameter("a1", 1.0))
+    variable_list.add_variable(mopeds.VariableParameter("a2", 1.0))
+    variable_list.add_variable(mopeds.VariableParameter("b1", 2.0))
+    variable_list.add_variable(mopeds.VariableParameter("b2", 2.0))
+
+    m = mopeds.Model(variable_list)
+
+    y1 = m.variables_all["y1"]
+    u1 = m.variables_all["u1"]
+    a1 = m.variables_all["a1"]
+    b1 = m.variables_all["b1"]
+
+    y2 = m.variables_all["y2"]
+    u2 = m.variables_all["u2"]
+    a2 = m.variables_all["a2"]
+    b2 = m.variables_all["b2"]
+
+    eq1 = y1 - (a1 + b1 * u1)
+    eq2 = y2 - (a2 + b2 * u2)
+
+    m.add_equations_algebraic([eq1, eq2])
+
+    return variable_list, m
+
+def linear_example() -> [mopeds.VariableList, mopeds.Model]:
+    variable_list = mopeds.VariableList()
+    variable_list.add_variable(mopeds.VariableAlgebraic("y", 1.0, 0, 100))
+    variable_list.add_variable(mopeds.VariableAlgebraic("z", 1.0, 0, 100))
+    variable_list.add_variable(mopeds.VariableAlgebraic("q", 1.0, 0, 100))
+    variable_list.add_variable(mopeds.VariableControl("u", 1.0, 1, 2))
+    variable_list.add_variable(mopeds.VariableControl("v", 3.0, 3, 4))
+    variable_list.add_variable(mopeds.VariableParameter("a", 1.0, -10, 10))
+    variable_list.add_variable(mopeds.VariableParameter("b", 2.0, -10, 10))
+    variable_list.add_variable(mopeds.VariableParameter("c", 3.0, -10, 10))
+    variable_list.add_variable(mopeds.VariableParameter("d", 4.0, -10, 10))
+
+    m = mopeds.Model(variable_list)
+
+    y = m.variables_all["y"]
+    z = m.variables_all["z"]
+    q = m.variables_all["q"]
+    u = m.variables_all["u"]
+    v = m.variables_all["v"]
+    a = m.variables_all["a"]
+    b = m.variables_all["b"]
+    c = m.variables_all["c"]
+    d = m.variables_all["d"]
+
+    eq1 = y - (a + z + q + d * u**2)
+    eq2 = z - (b * u)
+    eq3 = q - (c * v)
+
+    m.add_equations_algebraic([eq1, eq2, eq3])
+
+    return variable_list, m
 
 def empy_dae(
     piecewise_control: bool = False,
@@ -55,20 +136,20 @@ def pendulum_dae_1(
     if variable_list is None:
         variable_list = mopeds.VariableList()
 
-        variable_list.add_variable(mopeds.VariableState("x", 3.0))
-        variable_list.add_variable(mopeds.VariableState("u", -1.0 / 3))
+        variable_list.add_variable(mopeds.VariableState("x", 3.0, 3,10))
+        variable_list.add_variable(mopeds.VariableState("u", -1.0 / 3, -0.5, 3))
 
-        variable_list.add_variable(mopeds.VariableAlgebraic("y", 4.0))
-        variable_list.add_variable(mopeds.VariableAlgebraic("v", 1.0 / 4))
-        variable_list.add_variable(mopeds.VariableAlgebraic("lambda", 1147.0 / 720))
+        variable_list.add_variable(mopeds.VariableAlgebraic("y", 4.0, 4, 0))
+        variable_list.add_variable(mopeds.VariableAlgebraic("v", 1.0 / 4, -10, 1))
+        variable_list.add_variable(mopeds.VariableAlgebraic("lambda", 1147.0 / 720, -4, 2))
 
         if piecewise_control:
             variable_list.add_variable(
-                mopeds.VariableControlPiecewiseConstant("L", 5.0)
+                mopeds.VariableControlPiecewiseConstant("L", 5.0, 2, 9)
             )
         else:
-            variable_list.add_variable(mopeds.VariableControl("L", 5.0))
-        variable_list.add_variable(mopeds.VariableParameter("g", 10.0))
+            variable_list.add_variable(mopeds.VariableControl("L", 5.0, 4,7))
+        variable_list.add_variable(mopeds.VariableParameter("g", 10.0, 9, 12))
 
     m = mopeds.Model(variable_list)
 
@@ -87,172 +168,21 @@ def pendulum_dae_1(
     return variable_list, m
 
 
-def cstr_ode(
+def cstr(
     piecewise_control: bool = False,
+    dae: bool = True,
+    use_constant: bool = True,
 ) -> tuple[mopeds.VariableList, mopeds.Model]:
-    e0_greek_nu_i1_r1 = -1.0
-    e0_greek_nu_i1_r2 = 1.0
-    e0_greek_nu_i2_r2 = -1.0
-    e0_greek_nu_i3_r1 = 1.0
-    e0_greek_nu_i1_r3 = -1.0
-    e0_greek_nu_i4_r3 = 1.0
-    e0_greek_rho = 800.0
-    e0_A = 1.0
-    e0_R = 8.314
-    e0_V = 1.0
-
-    variable_list = mopeds.VariableList()
-
-    variable_list.add_variable(mopeds.VariableState("e0_T", 273.0))
-    variable_list.add_variable(mopeds.VariableState("e0_c_i1", 3.0))
-    variable_list.add_variable(mopeds.VariableState("e0_c_i2", 10.0))
-    variable_list.add_variable(mopeds.VariableState("e0_c_i3", 0.0))
-    variable_list.add_variable(mopeds.VariableState("e0_c_i4", 0.0))
-
-    # fmt: off
-    variable_list.add_variable(mopeds.VariableParameter("e0_E_r1", 9.6e4, 9.0e4, 10.0e4))
-    variable_list.add_variable(mopeds.VariableParameter("e0_E_r2", 7.2e4, 6.8e4, 7.6e4))
-    variable_list.add_variable(mopeds.VariableParameter("e0_E_r3", 6.9e4, 6.5e4, 7.3e4))
-    variable_list.add_variable(mopeds.VariableParameter("e0_k_pre_r1", 5.0e6, 4.5e6, 5.5e6))
-    variable_list.add_variable(mopeds.VariableParameter("e0_k_pre_r2", 1.0e7, 0.5e7, 1.5e7))
-    variable_list.add_variable(mopeds.VariableParameter("e0_k_pre_r3", 5.0e5, 4.5e5, 5.5e5))
-    variable_list.add_variable(mopeds.VariableParameter("e0_U", 1.4, 1.0, 1.8))
-    variable_list.add_variable(mopeds.VariableParameter("e0_c_p", 3.5, 3.0, 4.0))
-    variable_list.add_variable(mopeds.VariableParameter("e0_greek_Deltah_r1", 4.5e-3, 4.0e-3, 5.0e-3))
-    variable_list.add_variable(mopeds.VariableParameter("e0_greek_Deltah_r2", -5.5e-3, -6.0e-3, -5.0e-3))
-    variable_list.add_variable(mopeds.VariableParameter("e0_greek_Deltah_r3", 4.5e-3, 4.0e-3, 5.0e-3))
-
-    if piecewise_control:
-        variable_list.add_variable(mopeds.VariableControlPiecewiseConstant("e0_c_in_i1", 5.0, 4.0, 6.0))
-    else:
-        variable_list.add_variable(mopeds.VariableControl("e0_c_in_i1", 5.0, 4.0, 6.0))
-    variable_list.add_variable(mopeds.VariableControl("e0_c_in_i2", 10.0, 9.0, 11.0))
-    variable_list.add_variable(mopeds.VariableControl("e0_c_in_i3", 0.0, 0.0, 1.0))
-    variable_list.add_variable(mopeds.VariableControl("e0_c_in_i4", 0.0, 0.0, 1.0))
-    if piecewise_control:
-        variable_list.add_variable(mopeds.VariableControlPiecewiseConstant("e0_T_in", 373.0, 353.0, 393.0))
-    else:
-        variable_list.add_variable(mopeds.VariableControl("e0_T_in", 373.0, 353.0, 393.0))
-    variable_list.add_variable(mopeds.VariableControl("e0_T_j", 373.0, 353.0, 393.0))
-    variable_list.add_variable(mopeds.VariableControl("e0_F", 6.5e-4, 6.0e-4, 7.0e-4))
-    # fmt: on
-
-    for var in variable_list.values():
-        if isinstance(var, (mopeds.VariableParameter, mopeds.VariableControl)):
-            var.guess = var.lower_bound
-
-    if piecewise_control:
-        var = variable_list["e0_T_in"].variable_list.index(0)
-        var.guess = var.lower_bound
-        var = variable_list["e0_c_in_i1"].variable_list.index(0)
-        var.guess = var.lower_bound
-
-    m = mopeds.Model(variable_list)
-
-    # fmt: off
-    tdot = (((((m.varlist_all["e0_F"].casadi_var / e0_V) * ((m.varlist_all["e0_T_in"].casadi_var - m.varlist_all["e0_T"].casadi_var))) + (((m.varlist_all["e0_U"].casadi_var * e0_A) / (e0_greek_rho * (m.varlist_all["e0_c_p"].casadi_var * e0_V))) * ((m.varlist_all["e0_T_j"].casadi_var - m.varlist_all["e0_T"].casadi_var)))) + (((-m.varlist_all["e0_greek_Deltah_r1"].casadi_var) / (e0_greek_rho * m.varlist_all["e0_c_p"].casadi_var)) * (m.varlist_all["e0_k_pre_r1"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r1"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))) + (((-m.varlist_all["e0_greek_Deltah_r2"].casadi_var) / (e0_greek_rho * m.varlist_all["e0_c_p"].casadi_var)) * (m.varlist_all["e0_k_pre_r2"].casadi_var * (m.varlist_all["e0_c_i2"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r2"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))) + (((-m.varlist_all["e0_greek_Deltah_r3"].casadi_var) / (e0_greek_rho * m.varlist_all["e0_c_p"].casadi_var)) * (m.varlist_all["e0_k_pre_r3"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r3"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))
-    c1dot = ((((m.varlist_all["e0_F"].casadi_var / e0_V) * ((m.varlist_all["e0_c_in_i1"].casadi_var - m.varlist_all["e0_c_i1"].casadi_var))) + (e0_greek_nu_i1_r1 * (m.varlist_all["e0_k_pre_r1"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r1"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))) + (e0_greek_nu_i1_r2 * (m.varlist_all["e0_k_pre_r2"].casadi_var * (m.varlist_all["e0_c_i2"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r2"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))) + (e0_greek_nu_i1_r3 * (m.varlist_all["e0_k_pre_r3"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r3"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))
-    c2dot = ((m.varlist_all["e0_F"].casadi_var / e0_V) * ((m.varlist_all["e0_c_in_i2"].casadi_var - m.varlist_all["e0_c_i2"].casadi_var))) + (e0_greek_nu_i2_r2 * (m.varlist_all["e0_k_pre_r2"].casadi_var * (m.varlist_all["e0_c_i2"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r2"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))
-    c3dot = ((m.varlist_all["e0_F"].casadi_var / e0_V) * ((m.varlist_all["e0_c_in_i3"].casadi_var - m.varlist_all["e0_c_i3"].casadi_var))) + (e0_greek_nu_i3_r1 * (m.varlist_all["e0_k_pre_r1"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r1"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))
-    c4dot = ((m.varlist_all["e0_F"].casadi_var / e0_V) * ((m.varlist_all["e0_c_in_i4"].casadi_var - m.varlist_all["e0_c_i4"].casadi_var))) + (e0_greek_nu_i4_r3 * (m.varlist_all["e0_k_pre_r3"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r3"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))
-    # fmt: on
-
-    m.add_equations_differential([tdot, c1dot, c2dot, c3dot, c4dot])
-
-    return variable_list, m
-
-
-def cstr_dae(
-    piecewise_control: bool = False,
-) -> tuple[mopeds.VariableList, mopeds.Model]:
-    e0_greek_nu_i1_r1 = -1.0
-    e0_greek_nu_i1_r2 = 1.0
-    e0_greek_nu_i2_r2 = -1.0
-    e0_greek_nu_i3_r1 = 1.0
-    e0_greek_nu_i1_r3 = -1.0
-    e0_greek_nu_i4_r3 = 1.0
-    e0_greek_rho = 800.0
-    e0_A = 1.0
-    e0_R = 8.314
-    e0_V = 1.0
-
     variable_list = mopeds.VariableList()
 
     # fmt: off
-    variable_list.add_variable(mopeds.VariableState("e0_T", 273.0))
-    variable_list.add_variable(mopeds.VariableState("e0_c_i1", 3.0))
-    variable_list.add_variable(mopeds.VariableState("e0_c_i2", 10.0))
-    variable_list.add_variable(mopeds.VariableState("e0_c_i3", 0.0))
-    variable_list.add_variable(mopeds.VariableState("e0_c_i4", 0.0))
-    variable_list.add_variable(mopeds.VariableAlgebraic("e0_c_tot", 13.0))
-
-    variable_list.add_variable(mopeds.VariableParameter("e0_E_r1", 9.6e4, 9.0e4, 10.0e4))
-    variable_list.add_variable(mopeds.VariableParameter("e0_E_r2", 7.2e4, 6.8e4, 7.6e4))
-    variable_list.add_variable(mopeds.VariableParameter("e0_E_r3", 6.9e4, 6.5e4, 7.3e4))
-    variable_list.add_variable(mopeds.VariableParameter("e0_k_pre_r1", 5.0e6, 4.5e6, 5.5e6))
-    variable_list.add_variable(mopeds.VariableParameter("e0_k_pre_r2", 1.0e7, 0.5e7, 1.5e7))
-    variable_list.add_variable(mopeds.VariableParameter("e0_k_pre_r3", 5.0e5, 4.5e5, 5.5e5))
-    variable_list.add_variable(mopeds.VariableParameter("e0_U", 1.4, 1.0, 1.8))
-    variable_list.add_variable(mopeds.VariableParameter("e0_c_p", 3.5, 3.0, 4.0))
-    variable_list.add_variable(mopeds.VariableParameter("e0_greek_Deltah_r1", 4.5e-3, 4.0e-3, 5.0e-3))
-    variable_list.add_variable(mopeds.VariableParameter("e0_greek_Deltah_r2", -5.5e-3, -6.0e-3, -5.0e-3))
-    variable_list.add_variable(mopeds.VariableParameter("e0_greek_Deltah_r3", 4.5e-3, 4.0e-3, 5.0e-3))
-
-    if piecewise_control:
-        variable_list.add_variable(mopeds.VariableControlPiecewiseConstant("e0_c_in_i1", 5.0, 4.0, 6.0))
-    else:
-        variable_list.add_variable(mopeds.VariableControl("e0_c_in_i1", 5.0, 4.0, 6.0))
-    variable_list.add_variable(mopeds.VariableControl("e0_c_in_i2", 10.0, 9.0, 11.0))
-    variable_list.add_variable(mopeds.VariableControl("e0_c_in_i3", 0.0, 0.0, 1.0))
-    variable_list.add_variable(mopeds.VariableControl("e0_c_in_i4", 0.0, 0.0, 1.0))
-    if piecewise_control:
-        variable_list.add_variable(mopeds.VariableControlPiecewiseConstant("e0_T_in", 373.0, 353.0, 393.0))
-    else:
-        variable_list.add_variable(mopeds.VariableControl("e0_T_in", 373.0, 353.0, 393.0))
-    variable_list.add_variable(mopeds.VariableControl("e0_T_j", 373.0, 353.0, 393.0))
-    variable_list.add_variable(mopeds.VariableControl("e0_F", 6.5e-4, 6.0e-4, 7.0e-4))
-    # fmt: on
-
-    for var in variable_list.values():
-        if isinstance(var, (mopeds.VariableParameter, mopeds.VariableControl)):
-            var.guess = var.lower_bound
-
-    if piecewise_control:
-        var = variable_list["e0_T_in"].variable_list.index(0)
-        var.guess = var.lower_bound
-        var = variable_list["e0_c_in_i1"].variable_list.index(0)
-        var.guess = var.lower_bound
-
-    m = mopeds.Model(variable_list)
-
-    # fmt: off
-    tdot = (((((m.varlist_all["e0_F"].casadi_var / e0_V) * ((m.varlist_all["e0_T_in"].casadi_var - m.varlist_all["e0_T"].casadi_var))) + (((m.varlist_all["e0_U"].casadi_var * e0_A) / (e0_greek_rho * (m.varlist_all["e0_c_p"].casadi_var * e0_V))) * ((m.varlist_all["e0_T_j"].casadi_var - m.varlist_all["e0_T"].casadi_var)))) + (((-m.varlist_all["e0_greek_Deltah_r1"].casadi_var) / (e0_greek_rho * m.varlist_all["e0_c_p"].casadi_var)) * (m.varlist_all["e0_k_pre_r1"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r1"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))) + (((-m.varlist_all["e0_greek_Deltah_r2"].casadi_var) / (e0_greek_rho * m.varlist_all["e0_c_p"].casadi_var)) * (m.varlist_all["e0_k_pre_r2"].casadi_var * (m.varlist_all["e0_c_i2"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r2"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))) + (((-m.varlist_all["e0_greek_Deltah_r3"].casadi_var) / (e0_greek_rho * m.varlist_all["e0_c_p"].casadi_var)) * (m.varlist_all["e0_k_pre_r3"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r3"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))
-    c1dot = ((((m.varlist_all["e0_F"].casadi_var / e0_V) * ((m.varlist_all["e0_c_in_i1"].casadi_var - m.varlist_all["e0_c_i1"].casadi_var))) + (e0_greek_nu_i1_r1 * (m.varlist_all["e0_k_pre_r1"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r1"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))) + (e0_greek_nu_i1_r2 * (m.varlist_all["e0_k_pre_r2"].casadi_var * (m.varlist_all["e0_c_i2"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r2"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))) + (e0_greek_nu_i1_r3 * (m.varlist_all["e0_k_pre_r3"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r3"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))
-    c2dot = ((m.varlist_all["e0_F"].casadi_var / e0_V) * ((m.varlist_all["e0_c_in_i2"].casadi_var - m.varlist_all["e0_c_i2"].casadi_var))) + (e0_greek_nu_i2_r2 * (m.varlist_all["e0_k_pre_r2"].casadi_var * (m.varlist_all["e0_c_i2"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r2"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))
-    c3dot = ((m.varlist_all["e0_F"].casadi_var / e0_V) * ((m.varlist_all["e0_c_in_i3"].casadi_var - m.varlist_all["e0_c_i3"].casadi_var))) + (e0_greek_nu_i3_r1 * (m.varlist_all["e0_k_pre_r1"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r1"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))
-    c4dot = ((m.varlist_all["e0_F"].casadi_var / e0_V) * ((m.varlist_all["e0_c_in_i4"].casadi_var - m.varlist_all["e0_c_i4"].casadi_var))) + (e0_greek_nu_i4_r3 * (m.varlist_all["e0_k_pre_r3"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r3"].casadi_var) / (e0_R * m.varlist_all["e0_T"].casadi_var))))))
-
-    ctot = m.varlist_all["e0_c_tot"].casadi_var - m.varlist_all["e0_c_i1"].casadi_var - m.varlist_all["e0_c_i2"].casadi_var - m.varlist_all["e0_c_i3"].casadi_var - m.varlist_all["e0_c_i4"].casadi_var
-    # fmt: on
-
-    m.add_equations_differential([tdot, c1dot, c2dot, c3dot, c4dot])
-    m.add_equations_algebraic([ctot])
-
-    return variable_list, m
-
-
-def cstr_ode_constant(
-    piecewise_control: bool = False,
-) -> tuple[mopeds.VariableList, mopeds.Model]:
-
-    variable_list = mopeds.VariableList()
-
-    # fmt: off
-    variable_list.add_variable(mopeds.VariableState("e0_T", 273.0))
-    variable_list.add_variable(mopeds.VariableState("e0_c_i1", 3.0))
-    variable_list.add_variable(mopeds.VariableState("e0_c_i2", 10.0))
-    variable_list.add_variable(mopeds.VariableState("e0_c_i3", 0.0))
-    variable_list.add_variable(mopeds.VariableState("e0_c_i4", 0.0))
+    variable_list.add_variable(mopeds.VariableState("e0_T", 273.0, 250, 450))
+    variable_list.add_variable(mopeds.VariableState("e0_c_i1", 3.0, 3, 10))
+    variable_list.add_variable(mopeds.VariableState("e0_c_i2", 10.0, 0, 20))
+    variable_list.add_variable(mopeds.VariableState("e0_c_i3", 0.00, 0, 3))
+    variable_list.add_variable(mopeds.VariableState("e0_c_i4", 0.00, 0, 2))
+    if dae:
+        variable_list.add_variable(mopeds.VariableAlgebraic("e0_c_tot", 13.0, 10, 20))
 
     variable_list.add_variable(mopeds.VariableParameter("e0_E_r1", 9.6e4, 9.0e4, 10.0e4))
     variable_list.add_variable(mopeds.VariableParameter("e0_E_r2", 7.2e4, 6.8e4, 7.6e4))
@@ -280,91 +210,28 @@ def cstr_ode_constant(
     variable_list.add_variable(mopeds.VariableControl("e0_T_j", 373.0, 353.0, 393.0))
     variable_list.add_variable(mopeds.VariableControl("e0_F", 6.5e-4, 6.0e-4, 7.0e-4))
 
-    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i1_r1", -1.0))
-    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i1_r2", 1.0))
-    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i2_r2", -1.0))
-    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i3_r1", 1.0))
-    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i1_r3", -1.0))
-    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i4_r3", 1.0))
-    variable_list.add_variable(mopeds.VariableConstant("e0_greek_rho", 800.0))
-    variable_list.add_variable(mopeds.VariableConstant("e0_A", 1.0))
-    variable_list.add_variable(mopeds.VariableConstant("e0_R", 8.314))
-    variable_list.add_variable(mopeds.VariableConstant("e0_V", 1.0))
-    # fmt: on
-
-    for var in variable_list.values():
-        var.guess = var.lower_bound
-
-    if piecewise_control:
-        var = variable_list["e0_T_in"].variable_list.index(0)
-        var.guess = var.lower_bound
-        var = variable_list["e0_c_in_i1"].variable_list.index(0)
-        var.guess = var.lower_bound
-
-    m = mopeds.Model(variable_list)
-
-    # fmt: off
-    tdot = (((((m.varlist_all["e0_F"].casadi_var / m.varlist_all["e0_V"].casadi_var) * ((m.varlist_all["e0_T_in"].casadi_var - m.varlist_all["e0_T"].casadi_var))) + (((m.varlist_all["e0_U"].casadi_var * m.varlist_all["e0_A"].casadi_var) / (m.varlist_all["e0_greek_rho"].casadi_var * (m.varlist_all["e0_c_p"].casadi_var * m.varlist_all["e0_V"].casadi_var))) * ((m.varlist_all["e0_T_j"].casadi_var - m.varlist_all["e0_T"].casadi_var)))) + (((-m.varlist_all["e0_greek_Deltah_r1"].casadi_var) / (m.varlist_all["e0_greek_rho"].casadi_var * m.varlist_all["e0_c_p"].casadi_var)) * (m.varlist_all["e0_k_pre_r1"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r1"].casadi_var) / (m.varlist_all["e0_R"].casadi_var * m.varlist_all["e0_T"].casadi_var))))))) + (((-m.varlist_all["e0_greek_Deltah_r2"].casadi_var) / (m.varlist_all["e0_greek_rho"].casadi_var * m.varlist_all["e0_c_p"].casadi_var)) * (m.varlist_all["e0_k_pre_r2"].casadi_var * (m.varlist_all["e0_c_i2"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r2"].casadi_var) / (m.varlist_all["e0_R"].casadi_var * m.varlist_all["e0_T"].casadi_var))))))) + (((-m.varlist_all["e0_greek_Deltah_r3"].casadi_var) / (m.varlist_all["e0_greek_rho"].casadi_var * m.varlist_all["e0_c_p"].casadi_var)) * (m.varlist_all["e0_k_pre_r3"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r3"].casadi_var) / (m.varlist_all["e0_R"].casadi_var * m.varlist_all["e0_T"].casadi_var))))))
-    c1dot = ((((m.varlist_all["e0_F"].casadi_var / m.varlist_all["e0_V"].casadi_var) * ((m.varlist_all["e0_c_in_i1"].casadi_var - m.varlist_all["e0_c_i1"].casadi_var))) + (m.varlist_all["e0_greek_nu_i1_r1"].casadi_var * (m.varlist_all["e0_k_pre_r1"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r1"].casadi_var) / (m.varlist_all["e0_R"].casadi_var * m.varlist_all["e0_T"].casadi_var))))))) + (m.varlist_all["e0_greek_nu_i1_r2"].casadi_var * (m.varlist_all["e0_k_pre_r2"].casadi_var * (m.varlist_all["e0_c_i2"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r2"].casadi_var) / (m.varlist_all["e0_R"].casadi_var * m.varlist_all["e0_T"].casadi_var))))))) + (m.varlist_all["e0_greek_nu_i1_r3"].casadi_var * (m.varlist_all["e0_k_pre_r3"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r3"].casadi_var) / (m.varlist_all["e0_R"].casadi_var * m.varlist_all["e0_T"].casadi_var))))))
-    c2dot = ((m.varlist_all["e0_F"].casadi_var / m.varlist_all["e0_V"].casadi_var) * ((m.varlist_all["e0_c_in_i2"].casadi_var - m.varlist_all["e0_c_i2"].casadi_var))) + (m.varlist_all["e0_greek_nu_i2_r2"].casadi_var * (m.varlist_all["e0_k_pre_r2"].casadi_var * (m.varlist_all["e0_c_i2"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r2"].casadi_var) / (m.varlist_all["e0_R"].casadi_var * m.varlist_all["e0_T"].casadi_var))))))
-    c3dot = ((m.varlist_all["e0_F"].casadi_var / m.varlist_all["e0_V"].casadi_var) * ((m.varlist_all["e0_c_in_i3"].casadi_var - m.varlist_all["e0_c_i3"].casadi_var))) + (m.varlist_all["e0_greek_nu_i3_r1"].casadi_var * (m.varlist_all["e0_k_pre_r1"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r1"].casadi_var) / (m.varlist_all["e0_R"].casadi_var * m.varlist_all["e0_T"].casadi_var))))))
-    c4dot = ((m.varlist_all["e0_F"].casadi_var / m.varlist_all["e0_V"].casadi_var) * ((m.varlist_all["e0_c_in_i4"].casadi_var - m.varlist_all["e0_c_i4"].casadi_var))) + (m.varlist_all["e0_greek_nu_i4_r3"].casadi_var * (m.varlist_all["e0_k_pre_r3"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r3"].casadi_var) / (m.varlist_all["e0_R"].casadi_var * m.varlist_all["e0_T"].casadi_var))))))
-    # fmt: on
-
-    m.add_equations_differential([tdot, c1dot, c2dot, c3dot, c4dot])
-
-    return variable_list, m
-
-
-def cstr_dae_constant(
-    piecewise_control: bool = False,
-) -> tuple[mopeds.VariableList, mopeds.Model]:
-    variable_list = mopeds.VariableList()
-
-    # fmt: off
-    variable_list.add_variable(mopeds.VariableState("e0_T", 273.0))
-    variable_list.add_variable(mopeds.VariableState("e0_c_i1", 3.0))
-    variable_list.add_variable(mopeds.VariableState("e0_c_i2", 10.0))
-    variable_list.add_variable(mopeds.VariableState("e0_c_i3", 0.0))
-    variable_list.add_variable(mopeds.VariableState("e0_c_i4", 0.0))
-    variable_list.add_variable(mopeds.VariableAlgebraic("e0_c_tot", 13.0))
-
-    variable_list.add_variable(mopeds.VariableParameter("e0_E_r1", 9.6e4, 9.0e4, 10.0e4))
-    variable_list.add_variable(mopeds.VariableParameter("e0_E_r2", 7.2e4, 6.8e4, 7.6e4))
-    variable_list.add_variable(mopeds.VariableParameter("e0_E_r3", 6.9e4, 6.5e4, 7.3e4))
-    variable_list.add_variable(mopeds.VariableParameter("e0_k_pre_r1", 5.0e6, 4.5e6, 5.5e6))
-    variable_list.add_variable(mopeds.VariableParameter("e0_k_pre_r2", 1.0e7, 0.5e7, 1.5e7))
-    variable_list.add_variable(mopeds.VariableParameter("e0_k_pre_r3", 5.0e5, 4.5e5, 5.5e5))
-    variable_list.add_variable(mopeds.VariableParameter("e0_U", 1.4, 1.0, 1.8))
-    variable_list.add_variable(mopeds.VariableParameter("e0_c_p", 3.5, 3.0, 4.0))
-    variable_list.add_variable(mopeds.VariableParameter("e0_greek_Deltah_r1", 4.5e-3, 4.0e-3, 5.0e-3))
-    variable_list.add_variable(mopeds.VariableParameter("e0_greek_Deltah_r2", -5.5e-3, -6.0e-3, -5.0e-3))
-    variable_list.add_variable(mopeds.VariableParameter("e0_greek_Deltah_r3", 4.5e-3, 4.0e-3, 5.0e-3))
-
-    if piecewise_control:
-        variable_list.add_variable(mopeds.VariableControlPiecewiseConstant("e0_c_in_i1", 5.0, 4.0, 6.0))
+    if use_constant:
+        variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i1_r1", -1.0))
+        variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i1_r2", 1.0))
+        variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i2_r2", -1.0))
+        variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i3_r1", 1.0))
+        variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i1_r3", -1.0))
+        variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i4_r3", 1.0))
+        variable_list.add_variable(mopeds.VariableConstant("e0_greek_rho", 800.0))
+        variable_list.add_variable(mopeds.VariableConstant("e0_A", 1.0))
+        variable_list.add_variable(mopeds.VariableConstant("e0_R", 8.314))
+        variable_list.add_variable(mopeds.VariableConstant("e0_V", 1.0))
     else:
-        variable_list.add_variable(mopeds.VariableControl("e0_c_in_i1", 5.0, 4.0, 6.0))
-    variable_list.add_variable(mopeds.VariableControl("e0_c_in_i2", 10.0, 9.0, 11.0))
-    variable_list.add_variable(mopeds.VariableControl("e0_c_in_i3", 0.0, 0.0, 1.0))
-    variable_list.add_variable(mopeds.VariableControl("e0_c_in_i4", 0.0, 0.0, 1.0))
-    if piecewise_control:
-        variable_list.add_variable(mopeds.VariableControlPiecewiseConstant("e0_T_in", 373.0, 353.0, 393.0))
-    else:
-        variable_list.add_variable(mopeds.VariableControl("e0_T_in", 373.0, 353.0, 393.0))
-    variable_list.add_variable(mopeds.VariableControl("e0_T_j", 373.0, 353.0, 393.0))
-    variable_list.add_variable(mopeds.VariableControl("e0_F", 6.5e-4, 6.0e-4, 7.0e-4))
-
-    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i1_r1", -1.0))
-    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i1_r2", 1.0))
-    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i2_r2", -1.0))
-    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i3_r1", 1.0))
-    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i1_r3", -1.0))
-    variable_list.add_variable(mopeds.VariableConstant("e0_greek_nu_i4_r3", 1.0))
-    variable_list.add_variable(mopeds.VariableConstant("e0_greek_rho", 800.0))
-    variable_list.add_variable(mopeds.VariableConstant("e0_A", 1.0))
-    variable_list.add_variable(mopeds.VariableConstant("e0_R", 8.314))
-    variable_list.add_variable(mopeds.VariableConstant("e0_V", 1.0))
+        variable_list.add_variable(mopeds.VariableParameter("e0_greek_nu_i1_r1", -1.0))
+        variable_list.add_variable(mopeds.VariableParameter("e0_greek_nu_i1_r2", 1.0))
+        variable_list.add_variable(mopeds.VariableParameter("e0_greek_nu_i2_r2", -1.0))
+        variable_list.add_variable(mopeds.VariableParameter("e0_greek_nu_i3_r1", 1.0))
+        variable_list.add_variable(mopeds.VariableParameter("e0_greek_nu_i1_r3", -1.0))
+        variable_list.add_variable(mopeds.VariableParameter("e0_greek_nu_i4_r3", 1.0))
+        variable_list.add_variable(mopeds.VariableParameter("e0_greek_rho", 800.0))
+        variable_list.add_variable(mopeds.VariableParameter("e0_A", 1.0))
+        variable_list.add_variable(mopeds.VariableParameter("e0_R", 8.314))
+        variable_list.add_variable(mopeds.VariableParameter("e0_V", 1.0))
     # fmt: on
 
     for var in variable_list.values():
@@ -386,11 +253,12 @@ def cstr_dae_constant(
     c3dot = ((m.varlist_all["e0_F"].casadi_var / m.varlist_all["e0_V"].casadi_var) * ((m.varlist_all["e0_c_in_i3"].casadi_var - m.varlist_all["e0_c_i3"].casadi_var))) + (m.varlist_all["e0_greek_nu_i3_r1"].casadi_var * (m.varlist_all["e0_k_pre_r1"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r1"].casadi_var) / (m.varlist_all["e0_R"].casadi_var * m.varlist_all["e0_T"].casadi_var))))))
     c4dot = ((m.varlist_all["e0_F"].casadi_var / m.varlist_all["e0_V"].casadi_var) * ((m.varlist_all["e0_c_in_i4"].casadi_var - m.varlist_all["e0_c_i4"].casadi_var))) + (m.varlist_all["e0_greek_nu_i4_r3"].casadi_var * (m.varlist_all["e0_k_pre_r3"].casadi_var * (m.varlist_all["e0_c_i1"].casadi_var * ca.exp(((-m.varlist_all["e0_E_r3"].casadi_var) / (m.varlist_all["e0_R"].casadi_var * m.varlist_all["e0_T"].casadi_var))))))
 
-    ctot = m.varlist_all["e0_c_tot"].casadi_var - m.varlist_all["e0_c_i1"].casadi_var - m.varlist_all["e0_c_i2"].casadi_var - m.varlist_all["e0_c_i3"].casadi_var - m.varlist_all["e0_c_i4"].casadi_var
+    if dae:
+        ctot = m.varlist_all["e0_c_tot"].casadi_var - m.varlist_all["e0_c_i1"].casadi_var - m.varlist_all["e0_c_i2"].casadi_var - m.varlist_all["e0_c_i3"].casadi_var - m.varlist_all["e0_c_i4"].casadi_var
+        m.add_equations_algebraic([ctot])
     # fmt: on
 
     m.add_equations_differential([tdot, c1dot, c2dot, c3dot, c4dot])
-    m.add_equations_algebraic([ctot])
 
     return variable_list, m
 
@@ -822,13 +690,17 @@ def spmma() -> tuple[
 
 
 # Baker yeast growth model Quaglio2018 10.1016/j.cherd.2018.04.041
-def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=False, u1_piecewise_linear=False) -> tuple[
+def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=False, u1_piecewise_linear=False, duplicate_states=False) -> tuple[
     mopeds.VariableList, mopeds.Model, list[mopeds.VariableList]
 ]:
     variable_list = mopeds.variables.VariableList()
 
     variable_list.add_variable(mopeds.VariableState("x1", 5, 0, 10))
     variable_list.add_variable(mopeds.VariableState("x2", 0.01))
+
+    if duplicate_states:
+        variable_list.add_variable(mopeds.VariableAlgebraic("x1_alg", 5, 0, 10))
+        variable_list.add_variable(mopeds.VariableAlgebraic("x2_alg", 0.01))
 
     if u1_piecewise_linear:
         variable_list.add_variable(mopeds.VariableState("u1_dot", 0))
@@ -857,6 +729,10 @@ def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=
     variable_list["x1"].variance = 0.01
     variable_list["x2"].variance = 0.05
 
+    if duplicate_states:
+        variable_list["x1_alg"].variance = 0.01
+        variable_list["x2_alg"].variance = 0.05
+
     m = mopeds.Model(variable_list)  # adding all variables to the model
 
     x1 = m.varlist_all["x1"].casadi_var  # noqa: E501
@@ -872,6 +748,10 @@ def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=
         u1 = m.varlist_all["u1"].casadi_var  # noqa: E501
 
     u2 = m.varlist_all["u2"].casadi_var  # noqa: E501
+
+    if duplicate_states:
+        x1_alg = m.varlist_all["x1_alg"].casadi_var  # noqa: E501
+        x2_alg = m.varlist_all["x2_alg"].casadi_var  # noqa: E501
 
     theta1 = m.varlist_all["theta1"].casadi_var  # noqa: E501
     theta2 = m.varlist_all["theta2"].casadi_var  # noqa: E501
@@ -912,7 +792,10 @@ def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=
     m.add_equations_differential(diff_eq)
 
     if ode is False:
-        m.add_equations_algebraic([eq_alg1])
+        list_alg_eqs = [eq_alg1]
+        if duplicate_states:
+            list_alg_eqs.extend([x1-x1_alg, x2-x2_alg])
+        m.add_equations_algebraic(list_alg_eqs)
 
     data = [
         [5, 7.098, 10.135, 12.108, 12.491],
@@ -1032,6 +915,145 @@ def cstr_nle():
     list_algebraic_equations = [EQ_alg1, EQ_alg2, EQ_alg3, EQ_alg4, EQ_alg5, ]  # noqa: E501
 
     # fmt:on
+
+    m.add_equations_algebraic(list_algebraic_equations)
+
+    return variable_list, m
+
+def vle_wilson():
+    variable_list = mopeds.VariableList()
+    # fmt:off
+    def fun_167310__fun_DIPPR101(std_X,std_A_pLV_d101,std_B_pLV_d101,std_C_pLV_d101,std_D_pLV_d101,std_E_pLV_d101):  # noqa: E501,E231,E306
+        std_Z = ca.exp((((std_A_pLV_d101+(std_B_pLV_d101/std_X))+(std_C_pLV_d101*ca.log(std_X)))+(std_D_pLV_d101*((std_X))**(1.0*std_E_pLV_d101))))  # noqa: E501,E226
+        return std_Z
+
+    variable_list.add_variable(mopeds.VariableConstant("e0_A_c1", 71.205))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_A_c2", 62.136))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_B_c1", -6904.5))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_B_c2", -7258.2))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_C_c1", -8.8622))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_C_c2", -7.3037))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_D_c1", 7.4664E-6))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_D_c2", 4.1653E-6))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_E_c1", 2.0))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_E_c2", 2.0))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_lambdaA_c1_j1", 0.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_lambdaA_c2_j2", 0.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_lambdaB_c1_j1", 0.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_lambdaB_c1_j2", 0.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_lambdaB_c2_j1", 0.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_lambdaB_c2_j2", 0.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_lambdaC_c1_j1", 0.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_lambdaC_c1_j2", 0.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_lambdaC_c2_j1", 0.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_lambdaC_c2_j2", 0.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_lambdaD_c1_j1", 0.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_lambdaD_c1_j2", 0.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_lambdaD_c2_j1", 0.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_lambdaD_c2_j2", 0.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_lambdaE_c1_j1", 0.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_lambdaE_c1_j2", 0.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_lambdaE_c2_j1", 0.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_greek_lambdaE_c2_j2", 0.0, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_v_c1", 4.04E-5, -1.0E9, 1.0E9))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableConstant("e0_v_c2", 1.8E-5, -1.0E9, 1.0E9))  # noqa: E501
+
+    x_bounds = (0, 1)
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_P_LV_o_c1", 1.4144774629101626, 0.1, 10))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_P_LV_o_c2", 0.3584844184269499, 0.1, 10))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_greek_gamma_c1", 1.1299, 1, 5))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_greek_gamma_c2", 1.1932, 1, 5))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_greek_Lambda_c1_j2", 0.46234, 0.1, 5))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_greek_Lambda_c2_j1", 1.0289, 0.1, 5))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_greek_Lambda_c2_j2", 1.0, -1, 1))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_greek_Lambda_c1_j1", 1.0, -1, 1))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_T", 346.4149, 300, 500))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_x_c2", 0.5, x_bounds[0], x_bounds[1]))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_y_c1", 0.78888, x_bounds[0], x_bounds[1]))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_y_c2", 0.21112, x_bounds[0], x_bounds[1]))  # noqa: E501
+
+    variable_list.add_variable(mopeds.VariableControl("e0_x_c1", 0.5, x_bounds[0], x_bounds[1]))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableControl("e0_P", 1.013, 0.5, 3))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableParameter("e0_greek_lambdaA_c1_j2", 0.037, -10, 10))  # noqa: E501
+    variable_list.add_variable(mopeds.VariableParameter("e0_greek_lambdaA_c2_j1", -0.78, -10, 10))  # noqa: E501
+
+
+    m = mopeds.Model(variable_list)
+
+    e0_greek_lambdaA_c1_j1 = m.varlist_all["e0_greek_lambdaA_c1_j1"].casadi_var  # noqa: E501
+    e0_greek_lambdaA_c1_j2 = m.varlist_all["e0_greek_lambdaA_c1_j2"].casadi_var  # noqa: E501
+    e0_greek_lambdaA_c2_j1 = m.varlist_all["e0_greek_lambdaA_c2_j1"].casadi_var  # noqa: E501
+    e0_greek_lambdaA_c2_j2 = m.varlist_all["e0_greek_lambdaA_c2_j2"].casadi_var  # noqa: E501
+    e0_greek_lambdaB_c1_j1 = m.varlist_all["e0_greek_lambdaB_c1_j1"].casadi_var  # noqa: E501
+    e0_greek_lambdaB_c1_j2 = m.varlist_all["e0_greek_lambdaB_c1_j2"].casadi_var  # noqa: E501
+    e0_greek_lambdaB_c2_j1 = m.varlist_all["e0_greek_lambdaB_c2_j1"].casadi_var  # noqa: E501
+    e0_P = m.varlist_all["e0_P"].casadi_var  # noqa: E501
+    e0_greek_lambdaB_c2_j2 = m.varlist_all["e0_greek_lambdaB_c2_j2"].casadi_var  # noqa: E501
+    e0_greek_lambdaC_c1_j1 = m.varlist_all["e0_greek_lambdaC_c1_j1"].casadi_var  # noqa: E501
+    e0_greek_lambdaC_c1_j2 = m.varlist_all["e0_greek_lambdaC_c1_j2"].casadi_var  # noqa: E501
+    e0_greek_lambdaC_c2_j1 = m.varlist_all["e0_greek_lambdaC_c2_j1"].casadi_var  # noqa: E501
+    e0_greek_lambdaC_c2_j2 = m.varlist_all["e0_greek_lambdaC_c2_j2"].casadi_var  # noqa: E501
+    e0_greek_lambdaD_c1_j1 = m.varlist_all["e0_greek_lambdaD_c1_j1"].casadi_var  # noqa: E501
+    e0_greek_lambdaD_c1_j2 = m.varlist_all["e0_greek_lambdaD_c1_j2"].casadi_var  # noqa: E501
+    e0_greek_lambdaD_c2_j1 = m.varlist_all["e0_greek_lambdaD_c2_j1"].casadi_var  # noqa: E501
+    e0_greek_lambdaD_c2_j2 = m.varlist_all["e0_greek_lambdaD_c2_j2"].casadi_var  # noqa: E501
+    e0_greek_lambdaE_c1_j1 = m.varlist_all["e0_greek_lambdaE_c1_j1"].casadi_var  # noqa: E501
+    e0_greek_lambdaE_c1_j2 = m.varlist_all["e0_greek_lambdaE_c1_j2"].casadi_var  # noqa: E501
+    e0_greek_lambdaE_c2_j1 = m.varlist_all["e0_greek_lambdaE_c2_j1"].casadi_var  # noqa: E501
+    e0_greek_lambdaE_c2_j2 = m.varlist_all["e0_greek_lambdaE_c2_j2"].casadi_var  # noqa: E501
+    e0_v_c1 = m.varlist_all["e0_v_c1"].casadi_var  # noqa: E501
+    e0_v_c2 = m.varlist_all["e0_v_c2"].casadi_var  # noqa: E501
+    e0_x_c1 = m.varlist_all["e0_x_c1"].casadi_var  # noqa: E501
+    e0_P_LV_o_c1 = m.varlist_all["e0_P_LV_o_c1"].casadi_var  # noqa: E501
+    e0_P_LV_o_c2 = m.varlist_all["e0_P_LV_o_c2"].casadi_var  # noqa: E501
+    e0_A_c1 = m.varlist_all["e0_A_c1"].casadi_var  # noqa: E501
+    e0_A_c2 = m.varlist_all["e0_A_c2"].casadi_var  # noqa: E501
+    e0_B_c1 = m.varlist_all["e0_B_c1"].casadi_var  # noqa: E501
+    e0_B_c2 = m.varlist_all["e0_B_c2"].casadi_var  # noqa: E501
+    e0_C_c1 = m.varlist_all["e0_C_c1"].casadi_var  # noqa: E501
+    e0_C_c2 = m.varlist_all["e0_C_c2"].casadi_var  # noqa: E501
+    e0_D_c1 = m.varlist_all["e0_D_c1"].casadi_var  # noqa: E501
+    e0_D_c2 = m.varlist_all["e0_D_c2"].casadi_var  # noqa: E501
+    e0_E_c1 = m.varlist_all["e0_E_c1"].casadi_var  # noqa: E501
+    e0_E_c2 = m.varlist_all["e0_E_c2"].casadi_var  # noqa: E501
+    e0_greek_gamma_c1 = m.varlist_all["e0_greek_gamma_c1"].casadi_var  # noqa: E501
+    e0_greek_gamma_c2 = m.varlist_all["e0_greek_gamma_c2"].casadi_var  # noqa: E501
+    e0_greek_Lambda_c1_j2 = m.varlist_all["e0_greek_Lambda_c1_j2"].casadi_var  # noqa: E501
+    e0_greek_Lambda_c2_j1 = m.varlist_all["e0_greek_Lambda_c2_j1"].casadi_var  # noqa: E501
+    e0_greek_Lambda_c2_j2 = m.varlist_all["e0_greek_Lambda_c2_j2"].casadi_var  # noqa: E501
+    e0_T = m.varlist_all["e0_T"].casadi_var  # noqa: E501
+    e0_x_c2 = m.varlist_all["e0_x_c2"].casadi_var  # noqa: E501
+    e0_y_c1 = m.varlist_all["e0_y_c1"].casadi_var  # noqa: E501
+    e0_y_c2 = m.varlist_all["e0_y_c2"].casadi_var  # noqa: E501
+    e0_greek_Lambda_c1_j1 = m.varlist_all["e0_greek_Lambda_c1_j1"].casadi_var  # noqa: E501
+
+    EQ_alg1 = ((e0_y_c1*e0_P)-((e0_x_c1*(e0_greek_gamma_c1*e0_P_LV_o_c1))))  # noqa: E501,E226
+    EQ_alg2 = ((e0_y_c2*e0_P)-((e0_x_c2*(e0_greek_gamma_c2*e0_P_LV_o_c2))))  # noqa: E501,E226
+    EQ_alg3 = (e0_greek_gamma_c1-(((1.0/(((e0_x_c1*e0_greek_Lambda_c1_j1)+(e0_x_c2*e0_greek_Lambda_c1_j2))))*ca.exp((1.0-((((e0_x_c1*e0_greek_Lambda_c1_j1)/(((e0_x_c1*e0_greek_Lambda_c1_j1)+(e0_x_c2*e0_greek_Lambda_c1_j2))))+((e0_x_c2*e0_greek_Lambda_c2_j1)/(((e0_x_c1*e0_greek_Lambda_c2_j1)+(e0_x_c2*e0_greek_Lambda_c2_j2)))))))))))  # noqa: E501,E226
+    EQ_alg4 = (e0_greek_gamma_c2-(((1.0/(((e0_x_c1*e0_greek_Lambda_c2_j1)+(e0_x_c2*e0_greek_Lambda_c2_j2))))*ca.exp((1.0-((((e0_x_c1*e0_greek_Lambda_c1_j2)/(((e0_x_c1*e0_greek_Lambda_c1_j1)+(e0_x_c2*e0_greek_Lambda_c1_j2))))+((e0_x_c2*e0_greek_Lambda_c2_j2)/(((e0_x_c1*e0_greek_Lambda_c2_j1)+(e0_x_c2*e0_greek_Lambda_c2_j2)))))))))))  # noqa: E501,E226
+    EQ_alg5 = (e0_greek_Lambda_c1_j1-(((e0_v_c1/e0_v_c1)*ca.exp(((((e0_greek_lambdaA_c1_j1+(e0_greek_lambdaB_c1_j1/e0_T))+(e0_greek_lambdaC_c1_j1*ca.log(e0_T)))+(e0_greek_lambdaD_c1_j1*e0_T))+(e0_greek_lambdaE_c1_j1*((e0_T))**(1.0*2.0)))))))  # noqa: E501,E226
+    EQ_alg6 = (e0_greek_Lambda_c1_j2-(((e0_v_c2/e0_v_c1)*ca.exp(((((e0_greek_lambdaA_c1_j2+(e0_greek_lambdaB_c1_j2/e0_T))+(e0_greek_lambdaC_c1_j2*ca.log(e0_T)))+(e0_greek_lambdaD_c1_j2*e0_T))+(e0_greek_lambdaE_c1_j2*((e0_T))**(1.0*2.0)))))))  # noqa: E501,E226
+    EQ_alg7 = (e0_greek_Lambda_c2_j1-(((e0_v_c1/e0_v_c2)*ca.exp(((((e0_greek_lambdaA_c2_j1+(e0_greek_lambdaB_c2_j1/e0_T))+(e0_greek_lambdaC_c2_j1*ca.log(e0_T)))+(e0_greek_lambdaD_c2_j1*e0_T))+(e0_greek_lambdaE_c2_j1*((e0_T))**(1.0*2.0)))))))  # noqa: E501,E226
+    EQ_alg8 = (e0_greek_Lambda_c2_j2-(((e0_v_c2/e0_v_c2)*ca.exp(((((e0_greek_lambdaA_c2_j2+(e0_greek_lambdaB_c2_j2/e0_T))+(e0_greek_lambdaC_c2_j2*ca.log(e0_T)))+(e0_greek_lambdaD_c2_j2*e0_T))+(e0_greek_lambdaE_c2_j2*((e0_T))**(1.0*2.0)))))))  # noqa: E501,E226
+    EQ_alg9 = (1.0-(((e0_x_c1+e0_x_c2))))  # noqa: E501,E226
+    EQ_alg10 = (1.0-(((e0_y_c1+e0_y_c2))))  # noqa: E501,E226
+
+    list_algebraic_equations = [EQ_alg1, EQ_alg2, EQ_alg3, EQ_alg4, EQ_alg5, EQ_alg6, EQ_alg7, EQ_alg8, EQ_alg9, EQ_alg10, ]  # noqa: E501
+    try:
+        Eq_fun_e0_P_LV_o_c1 = m.varlist_all["e0_P_LV_o_c1"].casadi_var - fun_167310__fun_DIPPR101(e0_T,e0_A_c1,e0_B_c1,e0_C_c1,e0_D_c1,e0_E_c1)  # noqa: E501,E231
+        list_algebraic_equations.append(Eq_fun_e0_P_LV_o_c1)  # noqa: E501
+    except KeyError:
+        pass
+    try:
+        Eq_fun_e0_P_LV_o_c2 = m.varlist_all["e0_P_LV_o_c2"].casadi_var - fun_167310__fun_DIPPR101(e0_T,e0_A_c2,e0_B_c2,e0_C_c2,e0_D_c2,e0_E_c2)  # noqa: E501,E231
+        list_algebraic_equations.append(Eq_fun_e0_P_LV_o_c2)  # noqa: E501
+    except KeyError:
+        pass
+
+    # fmt:on
+
+    variable_list["e0_T"].variance = (0.1 / 2) ** 2
+    variable_list["e0_y_c1"].variance = (0.001 / 2) ** 2
 
     m.add_equations_algebraic(list_algebraic_equations)
 

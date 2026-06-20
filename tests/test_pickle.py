@@ -9,8 +9,10 @@ import casadi as ca
 
 
 @pytest.mark.parametrize("piecewise", [True, False])
-def test_pickling_objects(tmp_path, piecewise):
-    variable_list, model = mopeds.examples.cstr_dae(piecewise)
+@pytest.mark.parametrize("dae", [True, False])
+@pytest.mark.parametrize("use_constant", [True, False])
+def test_pickling_objects(tmp_path, piecewise, dae, use_constant):
+    variable_list, model = mopeds.examples.cstr(piecewise, dae, use_constant)
     variable = variable_list["e0_T"]
     time_grid = np.linspace(10, 10000, 4)
     time_grid = np.insert(time_grid, 0, 0)
@@ -18,7 +20,7 @@ def test_pickling_objects(tmp_path, piecewise):
     for var in var_list_fixed.values():
         var.fixed = True
     simulation = mopeds.Simulator(model, time_grid, var_list_fixed)
-    var_list_exp = simulation.generate_exp_data()
+    var_list_exp = simulation.simulate()[2]
 
     for key, var in var_list_exp.items():
         variable_list[key] = var
@@ -47,7 +49,7 @@ def test_varlist_simulation_reusability(tmp_path, piecewise):
     time_grid = np.linspace(0, 1, 3)
     variable_list["g"].value = 12.0
     simulation = mopeds.Simulator(model, time_grid, variable_list)
-    res_before_pickle = simulation.simulate_sym()
+    res_before_pickle = simulation.simulate_fast()
 
     file_write = open(tmp_path / "tmp.pkl", "wb")
     pickler = mopeds.MXPickler(file_write)
@@ -56,7 +58,7 @@ def test_varlist_simulation_reusability(tmp_path, piecewise):
     file_read = open(tmp_path / "tmp.pkl", "rb")
     variable_list_after = pickle.load(file_read)
     simulation = mopeds.Simulator(model, time_grid, variable_list_after)
-    res_after_pickle = simulation.simulate_sym()
+    res_after_pickle = simulation.simulate_fast()
 
     assert np.isclose(
         ca.vertcat(res_before_pickle["xf"], res_before_pickle["zf"]),
@@ -65,7 +67,7 @@ def test_varlist_simulation_reusability(tmp_path, piecewise):
 
     variable_list, model = mopeds.examples.pendulum_dae_1(piecewise, variable_list)
     simulation = mopeds.Simulator(model, time_grid, variable_list)
-    res_after_pickle = simulation.simulate_sym()
+    res_after_pickle = simulation.simulate_fast()
 
     assert np.isclose(
         ca.vertcat(res_before_pickle["xf"], res_before_pickle["zf"]),
@@ -74,5 +76,5 @@ def test_varlist_simulation_reusability(tmp_path, piecewise):
 
 
 if __name__ == "__main__":
-    test_pickling_objects(pathlib.Path.cwd())
+    test_pickling_objects(pathlib.Path.cwd(), True, True, True)
     # test_varlist_reusability(pathlib.Path.cwd(), True)

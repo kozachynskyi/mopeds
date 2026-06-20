@@ -12,7 +12,7 @@ import pandas as pd
 if __name__ == "__main__":
 
     piecewiseswitch = False
-    variable_list, m = mopeds.examples.cstr_dae(piecewiseswitch)
+    variable_list, m = mopeds.examples.cstr(piecewiseswitch)
 
     T_in = variable_list["e0_T_in"]
     if isinstance(T_in, mopeds.VariableControlPiecewiseConstant):
@@ -31,8 +31,7 @@ if __name__ == "__main__":
     var_list_fixed["e0_T"].fixed = False
     # Create simulation Object
     sim_fixed = mopeds.Simulator(
-        m, time_grid, var_list_fixed, use_idas_constraints=True, simulate_jac=False
+        m, time_grid, var_list_fixed, simulate_jac=False
     )
     # Run simulation and get simple results as array of numbers, but information about state variables and timestamp is lost
-    print(sim_fixed.simulate_sym())
-    print(sim_fixed.simulate_sym_unfixed({"e0_T": 273}))
+    print(sim_fixed.simulate(unfixed_variables={"e0_T": 273})[0])

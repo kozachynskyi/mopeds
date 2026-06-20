@@ -56,5 +56,4 @@ if __name__ == "__main__":
     plt.show()
     # print(sim_fixed.simulate_jac())
     # for sim in [sim_acados, sim_idas]:
-    #     res_simple = sim.simulate_sym()
     #     print(res_simple)

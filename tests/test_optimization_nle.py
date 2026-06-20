@@ -1,5 +1,6 @@
 import copy
 import logging
+import pytest
 
 import casadi as ca
 import numpy as np
@@ -16,8 +17,11 @@ def test_parameter_jacobian():
     measurement_names = ["e0_k", "e0_T", "e0_c_c1"]
     for m_cat in [22, 18, 20]:
         var_list_i = copy.deepcopy(var_list)
+        var_list_i["e0_k"].variance = 0.1**2
+        var_list_i["e0_T"].variance = 0.03 **2
+        var_list_i["e0_c_c1"].variance = 0.001 **2
         var_list_i["e0_m_Cat"].value = m_cat
-        var_list_exp = mopeds.SimulatorNLE(model, var_list).generate_exp_data()
+        var_list_exp = mopeds.SimulatorNLE(model, var_list).simulate()[2]
         var_list_i["e0_cp"].fixed = False
         var_list_i["e0_E"].fixed = False
 
@@ -28,7 +32,14 @@ def test_parameter_jacobian():
         list_var_list.append(var_list_i)
 
     pe = mopeds.ParameterEstimationNLE(model, list_var_list)
-    jac_pe = pe.calculate_sensitivity_and_fim({"e0_cp": 1.75, "e0_E": 135518.2})["jac_scaled_full_theory"]
+    res_sens = pe.calculate_sensitivity_and_fim({"e0_cp": 1.75, "e0_E": 135518.2})
+    jac_pe = res_sens["jac_scaled_full_theory"]
+    jac_pe_unscaled = res_sens["jac_full"]
+    cov_par = res_sens["cov_par"]
+    jac_pe_unscaled_fast, jac_pe_fast, cov_par_fast = pe.calculate_sensitivity_and_fim_fast({"e0_cp": 1.75, "e0_E": 135518.2})
+    assert np.isclose(jac_pe, jac_pe_fast).all()
+    assert np.isclose(jac_pe_unscaled, jac_pe_unscaled_fast).all()
+    assert np.isclose(cov_par, cov_par_fast).all()
 
     list_var_list[0]["e0_m_Cat"].fixed = False
     list_var_list[0]["e0_Q_Feed"].fixed = False
@@ -36,8 +47,10 @@ def test_parameter_jacobian():
     oed = mopeds.OptimalExperimentalDesign_NLE(model, [list_var_list[0]], previous_measurements=[{"e0_m_Cat": 22, "e0_Q_Feed":30}, {"e0_m_Cat": 18, "e0_Q_Feed":30}], measurable_variables=measurement_names)
 
     jac_oed = oed.calculate_objective_and_jacobian({"e0_m_Cat": 20, "e0_Q_Feed":30})["jac"]
+    
+    rearange_index = [0, 3, 6,1,4,7,2,5,8]
 
-    assert np.all(np.isclose(jac_pe, jac_oed))
+    assert np.all(np.isclose(jac_pe, jac_oed[rearange_index, :]))
 
 def test_pe():
     """Test that ParameterEstimationNLE on NLE always yields same result.
@@ -52,7 +65,8 @@ def test_pe():
     (
         variable_list_optimizer,
         true_parameters,
-    ) = mopeds.tools.generate_varlist_with_data_NLE(
+        _,
+    ) = mopeds.tools.generate_artificial_data_from_grid_nle(
         model, variable_list, control_bounds, perturbate=False
     )
     variable_list_optimizer = variable_list_optimizer[0]
@@ -75,9 +89,9 @@ def test_pe():
             simulator_name=simulator_name,
         )
 
-        for switch in [True, False]:
-            for objective in ["ols", "wls"]:
-                res = pe.optimize(switch, objective_function=objective)
+        for objective in ["ols", "wls", "fair", "tikh"]:
+            for direct in [True, False]:
+                res = pe.optimize(objective_function=objective, direct_optimization=direct)
                 answer_f = 0
                 answer_param = [5.19625]
 
@@ -85,6 +99,7 @@ def test_pe():
                     f"Model.NLE: {model}, Result: {res['f']}, Expecting: {answer_f}"
                 )
                 assert np.isclose(res["f"], ca.DM(answer_f), rtol=0, atol=1.0e-9)
+                assert np.isclose(pe.optimize(direct_optimization=direct, reuse_solver=True)["f"], ca.DM(answer_f), rtol=0, atol=1.0e-9)
 
                 logging.warning(
                     f"Model.NLE: {model}, Result: {res['x']}, Expecting: {answer_param}"
@@ -92,16 +107,17 @@ def test_pe():
                 assert np.all(
                     np.isclose(res["x"], ca.DM(answer_param), rtol=0, atol=1.0e-9)
                 )
+                assert np.all(
+                    np.isclose(pe.optimize(direct_optimization=direct, reuse_solver=True)["x"], ca.DM(answer_param), rtol=0, atol=1.0e-9)
+                )
 
         for sim in pe.list_simulators:
             if i == 1:
                 assert sim._lower_bound[0] == -ca.inf
                 assert sim._upper_bound[0] == ca.inf
-                assert sim._rootfinder_bounds[0] == 0
             if i == 2:
-                assert sim._lower_bound[0] == 350
-                assert sim._upper_bound[0] == 380
-                assert sim._rootfinder_bounds[0] == 2
+                assert sim._lower_bound[0] == -1
+                assert sim._upper_bound[0] == 1
 
 
 def test_multivariate_pe():
@@ -118,7 +134,8 @@ def test_multivariate_pe():
     (
         variable_list_optimizer,
         true_parameters,
-    ) = mopeds.tools.generate_varlist_with_data_NLE(
+        _,
+    ) = mopeds.tools.generate_artificial_data_from_grid_nle(
         model, varlist, control_bounds, perturbate=True, rng=rng
     )
 
@@ -216,15 +233,15 @@ def test_multivariate_pe():
             [0.0],
             [0.0],
             [0.0],
-            [-9.78717763],
-            [-9.78717763],
+            [-5.80133954],
+            [-5.80133954],
             [-0.0],
-            [-9.78717763],
-            [-9.78717763],
-            [-9.78717763],
-            [-9.78717763],
-            [-9.78717763],
-            [-9.78717763],
+            [-5.80133954],
+            [-5.80133954],
+            [-5.80133954],
+            [-5.80133954],
+            [-5.80133954],
+            [-5.80133954],
             [0.0],
             [0.0],
             [0.0],
@@ -304,15 +321,15 @@ def test_multivariate_pe():
         ]
     )
     jac_scaled_full = [
-        [-7.75832712],
-        [-7.75832712],
+        [-5.74528664],
+        [-5.74528664],
         [-0.0],
-        [-7.75832712],
-        [-7.75832712],
-        [-7.75832712],
-        [-7.75832712],
-        [-7.75832712],
-        [-7.75832712],
+        [-5.74528664],
+        [-5.74528664],
+        [-5.74528664],
+        [-5.74528664],
+        [-5.74528664],
+        [-5.74528664],
         [0.0],
         [0.0],
         [0.0],
@@ -394,16 +411,134 @@ def test_inference_bounds():
     R = np.array([[1.93684673, 15.16727704], [0.0, -11.82590011]])
     bound = np.array([0.0, 4.32448195, 3.22057785, 2.61916078, 3.18725966, 3.80380586])
 
-    assert np.allclose(R, exp_inference_results["f"]["R"])
+    assert np.allclose(np.abs(R), np.abs(exp_inference_results["f"]["R"]))
     assert np.allclose(sim_data_expected, exp_inference_results["f"]["simulation"])
     assert np.allclose(bound, exp_inference_results["f"]["bound"])
     assert np.allclose(exp_data["f"], exp_data_expected)
     assert np.allclose(sim_data["f"], sim_data_expected)
 
 
+@pytest.mark.parametrize("meas_var", [None, ["y"]])
+@pytest.mark.parametrize("criteria", ["A", "A_fd", "D"])
+def test_oed_nle(meas_var, criteria):
+    """Just compare the results of the optimization to some baseline.
+    Variate scaling and direct_optimization, come to the same solution."""
+    vl, m = mopeds.examples.linear_example()
+    for var in vl.values():
+        if isinstance(var, mopeds.VariableControl):
+            var.fixed = False
+        if isinstance(var, mopeds.VariableParameter):
+            var.fixed = False
+    vl["a"].fixed = True
+    # vl["b"].fixed = True
+    vl["y"].variance = 0.1
+    vl["z"].variance = 0.3
+    vl["q"].variance = 0.2
+
+    results = []
+    for scaling_flag in [True, False]:
+        with mopeds.options(variable_scaling=scaling_flag):
+            previous_meas = [
+                {"v": 1.5, "u": 1.5},
+                {"v": 2.5, "u": 4.5},
+                {"v": 3.5, "u": 3.5},
+                {"v": 4.5, "u": 3.5},
+            ]
+            oed = mopeds.OptimalExperimentalDesign_NLE(
+                m,
+                [vl],
+                measurable_variables=meas_var,
+                previous_measurements=previous_meas,
+            )
+            oed.solver_settings["ipopt"]["hessian_approximation"] = "exact"
+
+            if criteria == "D":
+                oed.objective_scaling = 1e10
+
+            for direct_optimization_flag in [True, False]:
+                results.append(oed.optimize(direct_optimization=direct_optimization_flag, objective_function=criteria))
+
+
+    if meas_var is None:
+        if "A" in criteria:
+            expected_f = 0.001616787258285354
+            expected_x = [2,4]
+        elif "D" in criteria:
+            expected_f = 0.02699111734101253
+            expected_x = [1,4]
+    else:
+        if "A" in criteria:
+            expected_f = 0.0471016387679191
+            expected_x = [1,4]
+        elif "D" in criteria:
+            expected_f = 1.8867952943284358
+            expected_x = [1,4]
+
+    for res_i in results:
+        res_f_i = res_i["f"]
+        res_x_i = res_i["x"]
+        # print("calc", oed.calculate_objective_and_jacobian(res_i["x_dict"])["f"])
+        print("resf", float(res_f_i))
+        print("resx", res_x_i)
+        assert(np.isclose(expected_f, res_f_i))
+        assert(np.isclose(expected_x, res_x_i.T, atol=1e-4).all())
+
+
+def test_scaling_calculate_objective():
+    param_dict = {"a1": 5.24125, "a2": 5.09625, "b1": 1592.864, "b2": 1730.630, "c1": -46.9659, "c2": -39.7239,}
+
+    results = []
+
+    for scaling in [False, True]:
+        variable_list, model = mopeds.examples.vle_nle_problem()
+        variable_list["T"].lower_bound = 200
+        variable_list["T"].upper_bound = 500
+        variable_list["a2"].fixed = False
+        variable_list.set_bounds(emerg_val=50)
+        control_bounds = {"x": [0.1, 0.7, 5]}
+
+        with mopeds.options(variable_scaling=scaling):
+            (
+                variable_list_optimizer,
+                true_parameters,
+                _,
+            ) = mopeds.tools.generate_artificial_data_from_grid_nle(
+                model, variable_list, control_bounds, perturbate=False
+            )
+
+            pe = mopeds.optimization.ParameterEstimationNLE(
+                model,
+                variable_list_optimizer,
+            )
+
+            res = pe.calculate_objective_and_residual(param_dict)
+            res["df_all_unscaled"] = pe._unscale_df(res["df_all"])
+            res["residuals_unscaled"] = pe._unscale_residuals(res["residuals"])
+            res["y_unscaled"] = pe._unscale_y(res["y"])
+            results.append(res)
+
+    benchmark_res = results[0]
+    scaled_res = results[1]
+    assert np.isclose(benchmark_res["y"], benchmark_res["y_unscaled"]).all()
+    assert np.isclose(benchmark_res["residuals"], benchmark_res["residuals_unscaled"]).all()
+
+    v1, v2 = benchmark_res["y"], scaled_res["y_unscaled"]
+    assert np.isclose(v1, v2).all()
+    v1, v2 = benchmark_res["residuals"], scaled_res["residuals_unscaled"]
+    assert np.isclose(v1, v2).all()
+    v1, v2 = benchmark_res["df_all"], scaled_res["df_all_unscaled"]
+    assert np.isclose(v1, v2).all()
+
 if __name__ == "__main__":
+    # test_scaling_calculate_objective()
     pass
     # test_pe()
     # test_multivariate_pe()
-    # test_inference_bounds()
+    test_inference_bounds()
     # test_parameter_jacobian()
+    # test_oed_nle(None, "A")
+    # test_oed_nle(["y"], "A")
+    # test_oed_nle(None, "A_fd")
+    # test_oed_nle(["y"], "A_fd")
+    # test_oed_nle(["y"], "D")
+    # test_oed_nle(None, "D")

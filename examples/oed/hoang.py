@@ -56,7 +56,7 @@ if __name__ == "__main__":
     varlist["x2"].value = 0.1
 
     sim_monod = mopeds.Simulator(m_monod, time_grid, varlist)
-    sim_monod.generate_exp_data().plot(show=True)
+    sim_monod.simulate()[2].plot(show=True)
 
     pe = mopeds.ParameterEstimation(m_monod, exp_data)
     p_preliminary = {

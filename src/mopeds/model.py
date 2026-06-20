@@ -1,16 +1,14 @@
 from __future__ import annotations
 
 import casadi as ca
+from dataclasses import dataclass
+from functools import cached_property
 
-from mopeds import (
-    Variable,
-    VariableAlgebraic,
-    VariableConstant,
-    VariableControl,
-    VariableList,
-    VariableParameter,
-    VariableState,
-)
+from mopeds import VariableList, VariableConstant
+
+@dataclass
+class DummyClass():
+    casadi_var: ca.MX
 
 
 class Model(object):
@@ -19,43 +17,16 @@ class Model(object):
     """
 
     def __init__(self, variable_list: VariableList, name: str = "default") -> None:
-        self.varlist_state: VariableList = VariableList()
-        self.varlist_algebraic: VariableList = VariableList()
-        # Includes Parameters and Controls
-        self.varlist_independent: VariableList = VariableList()
-        self._varlist_constant: VariableList = VariableList()
-
-        # This varlist should be used to consistently iterate over all variables in Simulation and Optimization
-        self.varlist_all: VariableList = VariableList()
         self.equations_differential: ca.MX = None
         self.equations_algebraic: ca.MX = None
         self.DAE: bool = False
 
+        casadi_vars = []
         for var in variable_list.values():
-            if isinstance(var, Variable):
-                if isinstance(var, VariableState):
-                    self.varlist_state.add_variable(VariableState(var.name))
-                elif isinstance(var, VariableAlgebraic):
-                    self.varlist_algebraic.add_variable(
-                        VariableAlgebraic(var.name, var.guess)
-                    )
-                elif isinstance(var, VariableParameter) or isinstance(
-                    var, VariableControl
-                ):
-                    self.varlist_independent.add_variable(type(var)(var.name))
-                elif isinstance(var, VariableConstant):
-                    self._varlist_constant.add_variable(
-                        VariableConstant(var.name, var.value[0])
-                    )
-                else:
-                    raise VariableTypeError(var.name)
-            else:
-                raise VariableTypeError(var.name)
+            casadi_vars.append(var.casadi_var)
 
-        self.varlist_all.update(self.varlist_state)
-        self.varlist_all.update(self.varlist_algebraic)
-        self.varlist_all.update(self.varlist_independent)
-        self.varlist_all.update(self._varlist_constant)
+        # This dictionary is used to to consistently iterate over all variables in Simulation and Optimization that use the same model
+        self.variables_all = dict(zip(variable_list.keys(), casadi_vars))
 
         self.name = name
 
@@ -74,8 +45,29 @@ class Model(object):
             # Adding additional equations is not implemented
             raise (NotImplementedError)
 
+    @cached_property
+    def varlist_all(self):
+        return_dict = {}
+        for name, casadi_var in self.variables_all.items():
+            return_dict[name] = DummyClass(casadi_var)
+        return return_dict
 
-class VariableTypeError(Exception):
-    def __init__(self, name) -> None:
-        message = f"Not a supported mopeds variable class! Wrong variable with name: {name}"
-        super().__init__(message)
+    def subsitute_casadi_symbols(self, variable_list: VariableList) -> VariableList:
+        """Replace casadi symbols of the valist with the ones from model"""
+        for var in variable_list.values():
+            if not isinstance(var, VariableConstant):
+                var.casadi_var = self.variables_all[var.name]
+        return variable_list
+
+    def varlist(self, variable_list: VariableList) -> VariableList:
+        """Returns model-ordered varible list with variables included in model"""
+        return variable_list._get_sorted_varlist(list(self.variables_all.keys()), raise_error=False)
+
+    def varlist_state(self, variable_list: VariableList) -> VariableList:
+        return self.varlist(variable_list).get_state()
+
+    def varlist_algebraic(self, variable_list: VariableList) -> VariableList:
+        return self.varlist(variable_list).get_algebraic()
+
+    def varlist_independent(self, variable_list: VariableList) -> VariableList:
+        return self.varlist(variable_list).get_independent()

@@ -2,7 +2,7 @@ import copy
 
 import mopeds
 from mopeds.examples import vle_nle_problem
-from mopeds.tools import generate_varlist_with_data_NLE
+from mopeds.tools import generate_artificial_data_from_grid_nle
 
 if __name__ == "__main__":
 
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     # Define changing mole fraction x
     x_bounds = {"x": [0, 1, 9]}
 
-    variable_list_optimizer, true_parameters = generate_varlist_with_data_NLE(model, var_list_fixed, x_bounds)
+    variable_list_optimizer, true_parameters = generate_artificial_data_from_grid_nle(model, var_list_fixed, x_bounds)
 
     for varlist in variable_list_optimizer:
         varlist.set_variable_list_unfixed(param_list)

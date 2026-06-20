@@ -1,17 +1,20 @@
 import pytest
 import casadi as ca
 import mopeds.examples
-from mopeds.model import VariableTypeError
 import numpy as np
 
 
-def test_model():
+@pytest.mark.parametrize("piecewise", [True, False])
+@pytest.mark.parametrize("dae", [True, False])
+@pytest.mark.parametrize("use_constant", [True, False])
+@pytest.mark.parametrize("scaling", [True, False])
+def test_model(piecewise, dae, use_constant, scaling):
+    var_list, model = mopeds.examples.cstr(use_constant=True)
 
-    var_list, model = mopeds.examples.cstr_ode()
-
-    assert len(model.varlist_state) == 5
-    assert len(model.varlist_independent) == 18
-    assert len(model.varlist_all) == 23
+    assert len(model.varlist_state(var_list)) == 5
+    assert len(model.varlist_independent(var_list)) == 18
+    assert len(model.varlist(var_list)) == 34
+    assert len(model.varlist_all) == 34
 
     assert model.equations_differential.size() == (5, 1)
 
@@ -20,9 +23,10 @@ def test_model():
 
     var_list, model = mopeds.examples.pendulum_dae_1()
 
-    assert len(model.varlist_state) == 2
-    assert len(model.varlist_independent) == 2
-    assert len(model.varlist_algebraic) == 3
+    assert len(model.varlist_state(var_list)) == 2
+    assert len(model.varlist_independent(var_list)) == 2
+    assert len(model.varlist_algebraic(var_list)) == 3
+    assert len(model.varlist(var_list)) == 7
     assert len(model.varlist_all) == 7
 
     assert model.equations_differential.size() == (2, 1)
@@ -33,19 +37,12 @@ def test_model():
 
     var_list = mopeds.VariableList()
     var_list.add_variable(mopeds.Variable("a_test"))
-    with pytest.raises(VariableTypeError):
-        model = mopeds.Model(var_list)
 
-    for model in [
-        mopeds.examples.cstr_ode,
-        mopeds.examples.cstr_dae,
-        mopeds.examples.cstr_dae_constant,
-        mopeds.examples.cstr_ode_constant,
-    ]:
-        var_list, model = model()
+    with mopeds.options(variable_scaling=scaling):
+        var_list, model = mopeds.examples.cstr(piecewise, dae, use_constant)
         ode_system = {
-            "x": model.varlist_state.get_casadi_variables(),
-            "p": ca.vertcat(model.varlist_independent.get_casadi_variables()),
+            "x": model.varlist_state(var_list).get_casadi_variables(),
+            "p": ca.vertcat(model.varlist_independent(var_list).get_casadi_variables()),
             "ode": model.equations_differential,
         }
 
@@ -58,7 +55,7 @@ def test_model():
         )
 
         if model.DAE:
-            ode_system["z"] = model.varlist_algebraic.get_casadi_variables()
+            ode_system["z"] = model.varlist_algebraic(var_list).get_casadi_variables()
             ode_system["alg"] = model.equations_algebraic
 
             function = ca.Function(
@@ -78,11 +75,11 @@ def test_varlist_model_reusability():
     time_grid = np.linspace(0, 1, 3)
     variable_list["g"].value = 12.0
     simulation = mopeds.Simulator(model, time_grid, variable_list)
-    res_before = simulation.simulate_sym()
+    res_before = simulation.simulate_fast()
 
     variable_list, model = mopeds.examples.pendulum_dae_1(False, variable_list)
     simulation = mopeds.Simulator(model, time_grid, variable_list)
-    res_after_pickle = simulation.simulate_sym()
+    res_after_pickle = simulation.simulate_fast()
 
     assert np.isclose(
         ca.vertcat(res_before["xf"], res_before["zf"]),
@@ -91,5 +88,5 @@ def test_varlist_model_reusability():
 
 
 if __name__ == "__main__":
-    # test_model()
+    test_model(True, True, True, True)
     test_varlist_model_reusability()

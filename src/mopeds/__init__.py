@@ -13,6 +13,9 @@ except ImportError:
 
 from .utilities import MXPickler, show_html_from_dataframe
 from .variables import (
+    get_options,
+    set_options,
+    options,
     Variable,
     VariableParameter,
     VariableAlgebraic,
@@ -21,6 +24,7 @@ from .variables import (
     VariableControlPiecewiseConstant,
     VariableControl,
     VariableList,
+    _consistent_scaling_decorator,
 )
 from .variables import BadVariableError
 from .variables import ORIGIN_TS

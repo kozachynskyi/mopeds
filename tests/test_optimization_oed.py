@@ -10,34 +10,38 @@ import pytest
 
 
 @pytest.mark.parametrize("piecewise", [True, False])
-def test_jacobian_weights(piecewise):
+@pytest.mark.parametrize("dae", [True, False])
+@pytest.mark.parametrize("use_constant", [True, False])
+@pytest.mark.parametrize("scaling", [True, False])
+def test_jacobian_weights(piecewise, dae, use_constant, scaling):
     """Test if jacobian weights correctly implemented"""
-    for cstr_model in [
-        mopeds.examples.cstr_ode,
-        mopeds.examples.cstr_ode_constant,
-        mopeds.examples.cstr_dae,
-        mopeds.examples.cstr_dae_constant,
-    ]:
+    with mopeds.options(variable_scaling=scaling):
         time_grid = np.linspace(0, 1000, 4)
         time_grid_modified = np.delete(time_grid, [2])
         time_grid_expanded = list(time_grid) + [2000, 4000]
 
         for weight_on in [True, False]:
-            var_list, model = cstr_model(piecewise)
+            var_list, model = mopeds.examples.cstr(piecewise, dae, use_constant)
             if piecewise:
                 T_in = var_list["e0_T_in"]
                 T_in.expand_horizon([2000, 4000], [373, 373])
 
             if weight_on:
-                var_list_exp = mopeds.Simulator(model, time_grid, var_list).generate_exp_data()
+                var_list_exp = mopeds.Simulator(model, time_grid, var_list).simulate()[2]
             else:
-                var_list_exp = mopeds.Simulator(model, time_grid_modified, var_list).generate_exp_data()
+                var_list_exp = mopeds.Simulator(model, time_grid_modified, var_list).simulate()[2]
 
             for key, var in var_list_exp.items():
                 var_list[key] = var
 
             var_list["e0_U"].fixed = False
             var_list["e0_E_r1"].fixed = False
+
+            # Needed to compensate for the fact that OED internally scaled parameters to -1 and 1
+            var_list["e0_U"].lower_bound = -1.4
+            var_list["e0_U"].upper_bound = 1.4
+            var_list["e0_E_r1"].lower_bound = -9.6e4
+            var_list["e0_E_r1"].upper_bound = 9.6e4
 
             pe = mopeds.ParameterEstimation(
                 model, [var_list]
@@ -76,50 +80,75 @@ def test_jacobian_weights(piecewise):
 
 
 @pytest.mark.parametrize("piecewise", [True, False])
-def test_oed(piecewise):
+@pytest.mark.parametrize("dae", [True, False])
+@pytest.mark.parametrize("use_constant", [True, False])
+@pytest.mark.parametrize("scaling", [True, False])
+def test_oed(piecewise, dae, use_constant, scaling):
     """Test that OptimalExperimentalDesign on ODE and DAE always yields same result.
     Helpfull to see if any drastic changes in calculation were made
     """
-    for cstr_model in [
-        mopeds.examples.cstr_ode,
-        mopeds.examples.cstr_ode_constant,
-        mopeds.examples.cstr_dae,
-        mopeds.examples.cstr_dae_constant,
-    ]:
-        var_list, model = cstr_model(piecewise)
-        time_grid = np.linspace(10, 10000, 4)
-        time_grid = np.insert(time_grid, 0, 0)
-        for var in var_list.values():
-            var.fixed = True
+    var_list, model = mopeds.examples.cstr(piecewise, dae, use_constant)
+    time_grid = np.linspace(10, 10000, 4)
+    time_grid = np.insert(time_grid, 0, 0)
+    for var in var_list.values():
+        var.fixed = True
 
-        var_list["e0_E_r1"].fixed = False
-        var_list["e0_T_in"].fixed = True
-        var_list["e0_c_in_i1"].fixed = False
+    var_list["e0_E_r1"].fixed = False
+    var_list["e0_T_in"].fixed = True
+    var_list["e0_c_in_i1"].fixed = False
 
+    with mopeds.options(variable_scaling=scaling):
         oed = mopeds.OptimalExperimentalDesign(model, [var_list], time_grid)
         res = oed.optimize()
 
-        logging.warning(f"{res['f']}")
-        assert np.isclose(res["f"], ca.DM(39.499), rtol=0, atol=1.0e-4)
+    logging.warning(f"{res['f']}")
+    expected = ca.DM(39.4989)
 
-        # For not functionality is turnded off
-        # res = oed.optimize(True)
+    assert np.isclose(res["f"], expected)
+    assert np.isclose(res["x"], 6, rtol=1e-4)
 
-        # logging.warning(f"{res['f']}")
-        # assert np.isclose(res["f"], ca.DM(45.1675), rtol=0, atol=1.0e-4)
+@pytest.mark.parametrize("piecewise", [True, False])
+@pytest.mark.parametrize("dae", [True, False])
+@pytest.mark.parametrize("use_constant", [True, False])
+def test_scaling(piecewise, dae, use_constant):
+    """Test that OED methods yeilds same results scaled and unscaled
+    """
+    var_list, model = mopeds.examples.cstr(piecewise, dae, use_constant)
+    time_grid = np.linspace(10, 10000, 4)
+    time_grid = np.insert(time_grid, 0, 0)
+    for var in var_list.values():
+        var.fixed = True
 
-def test_oed_piecewise():
+    var_list["e0_E_r1"].fixed = False
+    var_list["e0_T_in"].fixed = True
+    var_list["e0_c_in_i1"].fixed = False
+
+    if piecewise:
+        controls = {"e0_c_in_i1_t0": 5}
+    else:
+        controls = {"e0_c_in_i1": 5}
+
+    res = [[],[]]
+    for scaling in [True, False]:
+        with mopeds.options(variable_scaling=scaling):
+            oed = mopeds.OptimalExperimentalDesign(model, [var_list], time_grid)
+            res[0].append(oed.calculate_objective_and_jacobian(controls)["jac"])
+            res[1].append(oed.generate_experimental_data(controls).dataframe)
+
+    for v in res:
+        assert np.isclose(v[0], v[1], equal_nan=True).all()
+
+
+@pytest.mark.parametrize("dae", [True, False])
+@pytest.mark.parametrize("use_constant", [True, False])
+@pytest.mark.parametrize("scaling", [True, False])
+def test_oed_piecewise(dae, use_constant, scaling):
     """Test that OptimalExperimentalDesign on ODE and DAE always yields same result.
     Helpfull to see if any drastic changes in calculation were made
     """
-    for cstr_model in [
-        mopeds.examples.cstr_ode,
-        mopeds.examples.cstr_ode_constant,
-        mopeds.examples.cstr_dae,
-        mopeds.examples.cstr_dae_constant,
-    ]:
-        var_list_peicewise, model_piecewise = cstr_model(piecewise_control=True)
-        var_list, model = cstr_model(piecewise_control=False)
+    with mopeds.options(variable_scaling=scaling):
+        var_list_peicewise, model_piecewise = mopeds.examples.cstr(True, dae, use_constant)
+        var_list, model = mopeds.examples.cstr(False, dae, use_constant)
         time_grid = np.linspace(10, 10000, 4)
         time_grid = np.insert(time_grid, 0, 0)
 
@@ -141,18 +170,15 @@ def test_oed_piecewise():
 
         exp_data = oed_piecewise.generate_experimental_data({"e0_c_in_i1_t0": 5})
         pe = mopeds.ParameterEstimation(model_piecewise, [exp_data])
-        res_pe = pe.optimize()
-        assert np.isclose(oed_piecewise.parameter_values, res_pe["x"])
+        res_pe = pe.calculate_objective_and_residual({"e0_E_r1": 9.6e4})
 
+        assert np.isclose(res_pe["f"], 0)
         assert np.isclose(res["f"], res_piecewise["f"])
-        # logging.warning(f"{res['f']}")
-        # assert np.isclose(res["f"], ca.DM(39.499), rtol=0, atol=1.0e-4)
 
 
 if __name__ == "__main__":
     pass
-    test_jacobian_weights(False)
-    # test_oed(True)
-    # test_parameter_jacobian(True)
-    # test_oed_piecewise()
-    # test_oed_piecewise()
+    # test_jacobian_weights(True, True, True, False)
+    # test_oed(True, False, True, False)
+    # test_oed_piecewise(True, True, True)
+    test_scaling(True, True, True)

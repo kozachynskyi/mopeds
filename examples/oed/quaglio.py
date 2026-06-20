@@ -111,7 +111,7 @@ def espie1989():
 
     if False:
         sim = mopeds.Simulator(m_monod, time_grid, varlist)
-        sim.generate_exp_data().plot()
+        sim.simulate()[2].plot()
 
     unfix_variables = ["theta1", "theta2", "theta3","theta4", "u2"]
     varlist_oed = copy.deepcopy(varlist)
@@ -206,7 +206,7 @@ def asprey2002(plot=False):
     if plot:
         time_grid = np.linspace(0, 32, 1000)
         sim = mopeds.Simulator(m_monod, time_grid, varlist)
-        sim.generate_exp_data().plot()
+        sim.simulate()[2].plot()
 
 def hoang2013():
     varlist, m_monod, exp_data = mopeds.examples.yeast_growth("monod", piecewise=True, u1_piecewise_linear=True)
@@ -340,7 +340,7 @@ def hoang2013():
     if True:
         time_grid = np.linspace(0, 12, 100)
         sim = mopeds.Simulator(m_monod, time_grid, varlist)
-        a = sim.generate_exp_data()
+        a = sim.simulate()[2]
         breakpoint()
         a.plot()
 
@@ -437,7 +437,7 @@ def magnusson2015():
     if True:
         time_grid = np.linspace(0, 20, 100)
         sim = mopeds.Simulator(m_monod, time_grid, varlist)
-        a = sim.generate_exp_data()
+        a = sim.simulate()[2]
         a.plot()
 
 def quaglio2018(plot=False):
@@ -487,7 +487,7 @@ def quaglio2018(plot=False):
     if plot:
         time_grid = np.linspace(0, 20, 100)
         sim = mopeds.Simulator(m_monod, time_grid, varlist)
-        a = sim.generate_exp_data()
+        a = sim.simulate()[2]
         a.plot()
 
 def deluca2016(mode="A", plot=False, normalized=False):
@@ -622,7 +622,7 @@ def deluca2016(mode="A", plot=False, normalized=False):
     if plot:
         time_grid = np.linspace(0, 48, 270)
         sim = mopeds.Simulator(m_monod, time_grid, varlist)
-        a = sim.generate_exp_data()
+        a = sim.simulate()[2]
         a.plot()
 
 

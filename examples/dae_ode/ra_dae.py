@@ -1239,7 +1239,7 @@ if __name__ == "__main__":
     # Create simulation Object
     sim_fixed = mopeds.Simulator(m, time_grid, var_list_fixed, "collocation")
     # sim_fixed.analyze_WIP()
-    res = sim_fixed.generate_exp_data()
+    res = sim_fixed.simulate()[2]
 
     # variable_list["e0_E_r1"].fixed = False
     variable_list["e0_k_ref_r1"].fixed = False

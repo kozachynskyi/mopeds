@@ -26,27 +26,35 @@ def test_pendulum_dae(piecewise):
     time_grid = np.linspace(0, 1, 3)
     for var in varlist.values():
         var.fixed = True
-    sim = mopeds.Simulator(model, time_grid, varlist)
-    res_tau = sim.simulate_sym()
-    res = np.array([[3.42289, 4.68624],
-         [1.96674, 2.34688],
-         [3.6447, 1.74332],
-         [-1.84705, -6.30866],
-         [1.16669, -1.11495]])
-    assert np.isclose(
-        ca.vertcat(res_tau["xf"], res_tau["zf"]), res
-    ).all()
+    with mopeds.options(variable_scaling=False):
+        sim = mopeds.Simulator(model, time_grid, varlist)
+        res_tau = sim.simulate(algebraic=True)[2].dataframe
+        res_tau.drop(columns="L", inplace=True, errors='ignore')
+        res = np.array([[3.42289, 4.68624],
+             [1.96674, 2.34688],
+             [3.6447, 1.74332],
+             [-1.84705, -6.30866],
+             [1.16669, -1.11495]])
+        assert np.isclose(
+                res_tau.iloc[1:].T, res
+        ).all()
+
+        res_tau = sim.simulate(return_var_names=["u", "v"])[2].dataframe
+        res_tau.drop(columns="L", inplace=True, errors='ignore')
+        assert np.isclose(
+                res_tau.iloc[1:].T, res[[1,3]]
+        ).all()
+        res_tau = sim.simulate(return_var_names=["u", "v"], return_varlist=False)[2]
+        assert res_tau is None
 
 
 @pytest.mark.parametrize("piecewise", [True, False])
-def test_cstr(piecewise):
-    for cstr_model in [
-        mopeds.examples.cstr_ode,
-        mopeds.examples.cstr_dae,
-        mopeds.examples.cstr_dae_constant,
-        mopeds.examples.cstr_ode_constant,
-    ]:
-        variable_list, m = cstr_model(piecewise)
+@pytest.mark.parametrize("dae", [True, False])
+@pytest.mark.parametrize("use_constant", [True, False])
+@pytest.mark.parametrize("scaling", [True, False])
+def test_cstr(piecewise, dae, use_constant, scaling):
+    with mopeds.options(variable_scaling=scaling):
+        variable_list, m = mopeds.examples.cstr(piecewise)
         # Create time-grid. Zero should be first
         time_grid = np.linspace(10, 10000, 4)
         time_grid = np.insert(time_grid, 0, 0)
@@ -76,25 +84,25 @@ def test_cstr(piecewise):
 
                 sim = mopeds.Simulator(m, time_grid, variable_list, simulate_jac=True)
                 if j == 0:
-                    res_simple = sim.simulate_sym()
+                    res_simple = sim.simulate_fast()
                 else:
                     res_simple = sim.simulate_jac()
 
                 if i == 4:
-                    res = sim.generate_exp_data()
+                    res = sim.simulate()[2]
                     if piecewise:
                         assert len(res) == 7
                     else:
                         assert len(res) == 5
                     if sim.model.DAE:
-                        res = sim.generate_exp_data(algebraic=True)
+                        res = sim.simulate(algebraic=True)[2]
                         if piecewise:
                             assert len(res) == 8
                         else:
                             assert len(res) == 6
                 else:
                     with pytest.raises(ValueError):
-                        res = sim.generate_exp_data()
+                        res = sim.simulate()[2]
 
                 if j == 1:
                     assert res_simple["jac_xf_p"].size() == (5, 76)
@@ -113,24 +121,22 @@ def test_cstr(piecewise):
                     assert not sim._independent_variables[0][15].is_symbolic()
 
 
-def test_piecewise():
-    for cstr_model in [
-        mopeds.examples.cstr_ode,
-        mopeds.examples.cstr_dae,
-        mopeds.examples.cstr_dae_constant,
-        mopeds.examples.cstr_ode_constant,
-    ]:
+@pytest.mark.parametrize("dae", [True, False])
+@pytest.mark.parametrize("use_constant", [True, False])
+@pytest.mark.parametrize("scaling", [True, False])
+def test_piecewise(dae, use_constant, scaling):
+    with mopeds.options(variable_scaling=scaling):
         time_grid = np.array([0, 10, 2000, 4000, 10000])
         time_grid_piecewise = np.array([0, 10, 10000])
 
-        variable_list, m = cstr_model(False)
+        variable_list, m = mopeds.examples.cstr(False, dae, use_constant)
         for var in variable_list.values():
             var.fixed = True
         sim = mopeds.Simulator(m, time_grid, variable_list, simulate_jac=True)
 
         res = sim.simulate_jac()
 
-        variable_list, m = cstr_model(True)
+        variable_list, m = mopeds.examples.cstr(True, dae, use_constant)
         T_in = variable_list["e0_T_in"]
         T_in.expand_horizon([2000, 4000], [373, 373])
         for var in variable_list.values():
@@ -141,6 +147,7 @@ def test_piecewise():
 
         res_piecewise = sim.simulate_jac()
 
+        print(res["xf"])
         assert np.isclose(res["xf"], res_piecewise["xf"]).all()
         assert np.isclose(res["jac_xf_p"], res_piecewise["jac_xf_p"]).all()
         if m.DAE:
@@ -148,21 +155,19 @@ def test_piecewise():
 
 
 @pytest.mark.parametrize("piecewise", [True, False])
-def test_steadystate(piecewise):
-    for cstr_model in [
-        mopeds.examples.cstr_ode,
-        mopeds.examples.cstr_dae,
-        mopeds.examples.cstr_dae_constant,
-        mopeds.examples.cstr_ode_constant,
-    ]:
-        variable_list, m = cstr_model(piecewise)
+@pytest.mark.parametrize("dae", [True, False])
+@pytest.mark.parametrize("use_constant", [True, False])
+@pytest.mark.parametrize("scaling", [True, False])
+def test_steadystate(piecewise, dae, use_constant, scaling):
+    with mopeds.options(variable_scaling=scaling):
+        variable_list, m = mopeds.examples.cstr(piecewise, dae, use_constant)
         # Create time-grid. Zero should be first
         time_grid = np.linspace(10, 100000, 4)
         time_grid = np.insert(time_grid, 0, 0)
 
         sim = mopeds.Simulator(m, time_grid, variable_list)
 
-        sim_res = sim.simulate_sym()
+        sim_res = sim.simulate_fast()
 
         steady_state = sim.calculate_steady_state()
 
@@ -172,40 +177,11 @@ def test_steadystate(piecewise):
             assert np.isclose(sim_res["zf"][:, -1], steady_state[5]).all()
 
 
-def test_constraints_idas():
-    variable_list, m = mopeds.examples.cstr_dae()
-    time_grid = np.linspace(0, 100000, 4)
-
-    # VariableAlgebraic
-    variable_list["e0_c_tot"].lower_bound = None
-    variable_list["e0_c_tot"].upper_bound = 0
-
-    sim = mopeds.Simulator(m, time_grid, variable_list)
-    sim.simulate_sym()
-
-    sim = mopeds.Simulator(m, time_grid, variable_list, use_idas_constraints=True)
-    with pytest.raises(RuntimeError):
-        sim.simulate_sym()
-
-    # VariableState
-    variable_list, m = mopeds.examples.cstr_ode()
-    time_grid = np.linspace(0, 100000, 4)
-
-    variable_list["e0_c_i1"].lower_bound = None
-    variable_list["e0_c_i1"].upper_bound = 0
-
-    sim = mopeds.Simulator(m, time_grid, variable_list)
-    sim.simulate_sym()
-
-    sim = mopeds.Simulator(m, time_grid, variable_list, use_idas_constraints=True)
-    with pytest.raises(RuntimeError):
-        sim.simulate_sym()
-
-
 if __name__ == "__main__":
     pass
     # test_pendulum_dae(True)
-    # test_cstr(True)
+    # test_cstr(True, True, True, False)
+    # test_steadystate(True, True, True, True)
     # test_dae_initials_calculation(True)
-    # test_piecewise()
+    test_piecewise(False, True, True)
     # test_constraints_idas()

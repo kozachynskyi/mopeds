@@ -549,7 +549,7 @@ if __name__ == "__main__":
     - Set results of the simulation to var.value of the Variable Objects
     (So you can see the simulation results by printng print(res.values())
     """
-    res = sim_fixed.generate_exp_data()
+    res = sim_fixed.simulate()[2]
 
     # 6. Now create a variable list that would tell PE that there is "experimental data to be optimized". It's done by setting algebraic variables in variable_optimizer_dictionary to variable in res dictionary
     variable_list_optimizer = copy.deepcopy(variable_list)
@@ -574,7 +574,7 @@ if __name__ == "__main__":
     # 7. This variable_list_optimizer conssists now of one experiment. If you want to create another experiment, repeat steps 3 till 7: example below. Of course you can create a function to repeat steps 4-7 for you
     var_list_fixed["e0_T_j2"].value = 500
     sim_fixed = mopeds.SimulatorNLE(m, var_list_fixed, solver_name="ipopt")
-    res = sim_fixed.generate_exp_data()
+    res = sim_fixed.simulate()[2]
     variable_list_optimizer_2 = copy.deepcopy(variable_list)
     for key, var in res.items():
         var.guess = var.value[0]

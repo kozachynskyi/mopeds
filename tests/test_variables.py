@@ -5,6 +5,16 @@ from mopeds.variables import SameVariableNameError, PlottingError
 import casadi as ca
 import pytest
 
+def test_options():
+    mopeds.set_options(variable_scaling=True)
+    assert mopeds.get_options()["variable_scaling"]
+    with mopeds.options(variable_scaling = False):
+        assert mopeds.get_options()["variable_scaling"] is False
+    assert mopeds.get_options()["variable_scaling"]
+    mopeds.set_options(variable_scaling=False)
+    assert mopeds.get_options()["variable_scaling"] is False
+    mopeds.set_options(variable_scaling=True)
+    assert mopeds.get_options()["variable_scaling"]
 
 def test_variables():
     # Test VariableList() and subclasses
@@ -61,13 +71,10 @@ def test_variables():
 
     var_1 = mopeds.VariableControlPiecewiseConstant("Var1", 20)
 
-    assert variable_list["Var1"].time_absolute.equals(
-        pd.DatetimeIndex(
-            ["1970-01-01 00:00:00", "1970-01-01 00:00:02"],
-            dtype="datetime64[ns]",
-            freq=None,
-        )
-    )
+    assert list(variable_list["Var1"].time_absolute) == [
+        pd.Timestamp("1970-01-01 00:00:00"),
+        pd.Timestamp("1970-01-01 00:00:02"),
+    ]
     assert variable_list["Var1"].time_relative == [0, 2]
     assert len(var_1.time_relative) == 1
     assert len(var_1.time_absolute) == 1
@@ -78,11 +85,10 @@ def test_variables():
     ) == var_1.get_variable_at_time_absolute("1970-01-01 00:00:00")
     assert var_1.get_variable_at_time_relative(0).fixed is True
     var_1.expand_horizon([11], [4])
-    assert var_1.time_absolute.equals(
-        pd.Series(
-            ["1970-01-01 00:00:00", "1970-01-01 00:00:11"], dtype="datetime64[ns]"
-        )
-    )
+    assert list(var_1.time_absolute) == [
+        pd.Timestamp("1970-01-01 00:00:00"),
+        pd.Timestamp("1970-01-01 00:00:11"),
+    ]
     assert var_1.time_relative == [0, 11]
     assert len(var_1.time_relative) == 2
     assert len(var_1.time_absolute) == 2
@@ -100,12 +106,11 @@ def test_variables():
     assert len(var_2.time_absolute) == 3
     assert len(var_2.time_relative) == 3
     assert var_2.time_relative == [0, 11, 11.3]
-    assert var_2.time_absolute.equals(
-        pd.Series(
-            ["2021-01-01 00:00:00", "2021-01-01 00:00:11", "2021-01-01 00:00:11.300"],
-            dtype="datetime64[ns]",
-        )
-    )
+    assert list(var_2.time_absolute) == [
+        pd.Timestamp("2021-01-01 00:00:00"),
+        pd.Timestamp("2021-01-01 00:00:11"),
+        pd.Timestamp("2021-01-01 00:00:11.300"),
+    ]
     assert var_2.fixed is True
     assert var_2.get_variable_at_time_relative(10).value == [20]
     var_2.value = 19
@@ -150,6 +155,27 @@ def test_variables():
     var = mopeds.VariableAlgebraic("var", None, None, 0)
     assert var.get_constraint_idas == -1
 
+def test_varlist():
+    var_1 = mopeds.VariableControlPiecewiseConstant("v1", 20)
+    var_2 = mopeds.VariableControlPiecewiseConstant("v2", 20)
+    var_3 = mopeds.VariableControlPiecewiseConstant("v3", 20)
+    vl = mopeds.VariableList()
+    vl_unordered = mopeds.VariableList()
+
+    vl.add_variable(var_1)
+    vl.add_variable(var_2)
+
+    vl_unordered.add_variable(var_2)
+    vl_unordered.add_variable(var_1)
+    vl_unordered.add_variable(var_3)
+
+    assert list(vl.keys()) == ["v1", "v2"]
+    with pytest.raises(KeyError):
+        vl._get_sorted_varlist(vl_unordered).keys()
+    assert list(vl._get_sorted_varlist(vl_unordered, raise_error=False).keys()) == ["v2", "v1"]
+
 
 if __name__ == "__main__":
-    test_variables()
+    test_options()
+    # test_variables()
+    test_varlist()

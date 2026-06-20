@@ -28,7 +28,7 @@ equation = y - (theta1 * (C - ca.exp(-theta2 * x)))
 model.add_equations_algebraic([equation])
 
 simulator = mopeds.SimulatorNLE(model, variable_list)
-result = simulator.generate_exp_data()
+result = simulator.simulate()[2]
 
 print(result["y"].value)
 # >>> [4.267442778668931]
@@ -38,7 +38,7 @@ print(result["y"].dataframe)
 
 variable_list["x"].value = 20
 simulator = mopeds.SimulatorNLE(model, variable_list)
-result = simulator.generate_exp_data()
+result = simulator.simulate()[2]
 
 print(result["y"].value)
 # >>> [19.8354050590196]
