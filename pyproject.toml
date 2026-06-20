@@ -16,7 +16,7 @@ build-backend = "poetry.core.masonry.api"
 name = "mopeds"
 description = "Simulate and Optimize (Parameter Estimation, Optimal Experimental Design) NLE, ODE and DAE"
 license = "MIT"
-version = "0.10.2"
+version = "0.10.3"
 readme = "README.md"
 authors = [{name = "Volodymyr Kozachynskyi", email = "vovakozach@gmail.com"}]
 requires-python = '>=3.8,<3.14'
