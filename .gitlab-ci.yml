@@ -2,103 +2,130 @@ stages:
   - test
   - test-manual
 
+variables:
+  UV_LINK_MODE: copy
+  UV_CACHE_DIR: "$CI_PROJECT_DIR/.uv-cache"
+
+cache:
+  key: "uv-$CI_JOB_NAME"
+  paths:
+    - .uv-cache/
+
+.test-macos:
+  stage: test
+  variables:
+    PYTHON_VERSION: "3.12"
+  script:
+    - uv python install $PYTHON_VERSION
+    - uv venv --python $PYTHON_VERSION
+    - uv pip install .
+    - uv pip install pytest
+    - uv run pytest
+  tags:
+    - macos
+    - arm64
+    - mopeds
+
+.test-macos-manual:
+  extends: ".test-macos"
+  stage: test-manual
+  when: manual
+
 .test-windows:
-    stage: "test"
-    variables:
-      PYTHON_VERSION: "3.8"
-      UV_LINK_MODE: copy
-    script:
-      - uv venv --python $PYTHON_VERSION
-      - uv pip install .
-      - uv pip install pytest
-      - .venv\Scripts\activate
-      - pytest
-    tags:
-      - windows
-      - $PYTHON_VERSION
+  stage: test
+  variables:
+    PYTHON_VERSION: "3.12"
+  script:
+    - uv python install $env:PYTHON_VERSION
+    - uv venv --python $env:PYTHON_VERSION
+    - uv pip install .
+    - uv pip install pytest
+    - uv run pytest
+  tags:
+    - windows
+    - mopeds
 
 .test-windows-manual:
-    extends: ".test-windows"
-    stage: "test-manual"
-    when: manual
+  extends: ".test-windows"
+  stage: test-manual
+  when: manual
 
 .test-debian:
-    stage: "test"
-    image: ghcr.io/astral-sh/uv:debian-slim
-    before_script:
-      - apt-get update
-      - apt-get install libgfortran5
-    script:
-      - uv venv --python $PYTHON_VERSION
-      - uv pip install .
-      - uv pip install pytest
-      - source .venv/bin/activate
-      - pytest
-    tags:
-      - debian
-      - $PYTHON_VERSION
+  stage: test
+  image: ghcr.io/astral-sh/uv:debian-slim
+  before_script:
+    - apt-get update
+    - apt-get install -y libgfortran5
+  script:
+    - uv python install $PYTHON_VERSION
+    - uv venv --python $PYTHON_VERSION
+    - uv pip install .
+    - uv pip install pytest
+    - uv run pytest
+  tags:
+    - debian
+    - mopeds
 
 .test-debian-manual:
-    extends: ".test-debian"
-    stage: "test-manual"
-    when: manual
+  extends: ".test-debian"
+  stage: test-manual
+  when: manual
 
-test-debian-3.8:
-    extends: ".test-debian-manual"
-    variables:
-      PYTHON_VERSION: "3.8"
-      UV_LINK_MODE: copy
+# Main automatic test on your local Mac runner
+test-macos-3.12:
+  extends: ".test-macos"
+  variables:
+    PYTHON_VERSION: "3.12"
 
-test-debian-3.9:
-    extends: ".test-debian-manual"
-    variables:
-      PYTHON_VERSION: "3.9"
-      UV_LINK_MODE: copy
+# Extra macOS versions, manual for now
+test-macos-3.10:
+  extends: ".test-macos-manual"
+  variables:
+    PYTHON_VERSION: "3.10"
 
+test-macos-3.11:
+  extends: ".test-macos-manual"
+  variables:
+    PYTHON_VERSION: "3.11"
+
+test-macos-3.13:
+  extends: ".test-macos-manual"
+  variables:
+    PYTHON_VERSION: "3.13"
+
+# Debian manual jobs
 test-debian-3.10:
-    extends: ".test-debian-manual"
-    variables:
-      PYTHON_VERSION: "3.10"
-      UV_LINK_MODE: copy
+  extends: ".test-debian-manual"
+  variables:
+    PYTHON_VERSION: "3.10"
 
 test-debian-3.11:
-    extends: ".test-debian-manual"
-    variables:
-      PYTHON_VERSION: "3.11"
-      UV_LINK_MODE: copy
+  extends: ".test-debian-manual"
+  variables:
+    PYTHON_VERSION: "3.11"
 
 test-debian-3.12:
-    extends: ".test-debian"
-    variables:
-      PYTHON_VERSION: "3.12"
-      UV_LINK_MODE: copy
+  extends: ".test-debian-manual"
+  variables:
+    PYTHON_VERSION: "3.12"
 
-test-windows-3.8:
-    extends: ".test-windows-manual"
-    variables:
-      PYTHON_VERSION: "3.8"
-      UV_LINK_MODE: copy
+test-debian-3.13:
+  extends: ".test-debian-manual"
+  variables:
+    PYTHON_VERSION: "3.13"
 
-test-windows-3.9:
-    extends: ".test-windows-manual"
-    variables:
-      PYTHON_VERSION: "3.9"
-      UV_LINK_MODE: copy
-
+# Windows manual jobs
 test-windows-3.10:
-    extends: ".test-windows-manual"
-    variables:
-      PYTHON_VERSION: "3.10"
-      UV_LINK_MODE: copy
+  extends: ".test-windows-manual"
+  variables:
+    PYTHON_VERSION: "3.10"
 
 test-windows-3.11:
-    extends: ".test-windows-manual"
-    variables:
-      PYTHON_VERSION: "3.11"
-      UV_LINK_MODE: copy
+  extends: ".test-windows-manual"
+  variables:
+    PYTHON_VERSION: "3.11"
 
 test-windows-3.12:
-    extends: ".test-windows"
-    variables:
-      PYTHON_VERSION: "3.12"
-      UV_LINK_MODE: copy
+  extends: ".test-windows-manual"
+  variables:
+    PYTHON_VERSION: "3.12"
