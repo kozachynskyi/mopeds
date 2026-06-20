@@ -1,9 +1,9 @@
 [project]
 name = "mopeds"
-version = "0.10.3"
+version = "0.11.0"
 description = "Simulate and Optimize (Parameter Estimation, Optimal Experimental Design) NLE, ODE and DAE"
 authors = [{ name = "Volodymyr Kozachynskyi", email = "vovakozach@gmail.com" }]
-requires-python = ">=3.8,<3.14"
+requires-python = ">=3.8,<3.15"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE*"]
@@ -15,6 +15,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
     "casadi (<3.7.0)",
