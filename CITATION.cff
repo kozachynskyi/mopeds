@@ -1,0 +1,43 @@
+cff-version: 1.2.0
+title: MOPEDS
+message: "If you use MOPEDS in your work, please cite the paper below."
+
+authors:
+  - family-names: Kozachynskyi
+    given-names: Volodymyr
+
+repository-code: https://git.tu-berlin.de/dbta/optimization/mopeds
+
+keywords:
+  - parameter estimation
+  - optimal experimental design
+  - nonlinear programming
+  - process systems engineering
+  - CasADi
+  - Python
+
+preferred-citation:
+  type: article
+  authors:
+    - family-names: Kozachynskyi
+      given-names: Volodymyr
+    - family-names: Illner
+      given-names: Markus
+    - family-names: Esche
+      given-names: Erik
+    - family-names: Repke
+      given-names: Jens-Uwe
+  title: The optimal experiment? Influence of solution strategies on model-based optimal experimental design
+  journal: Computers & Chemical Engineering
+  volume: 187
+  year: 2024
+  start: 108746
+  doi: 10.1016/j.compchemeng.2024.108746
+  url: https://doi.org/10.1016/j.compchemeng.2024.108746
+
+abstract: >
+  MOPEDS is an open-source Python package for model-based parameter
+  estimation and optimal experimental design of dynamic and steady-state
+  models. The recommended citation is the accompanying publication
+  describing the underlying optimal experimental design framework and
+  solution strategies.

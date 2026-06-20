@@ -26,6 +26,15 @@ pip install mopeds
 If you used `par_est` before, in order to move to `mopeds` you need to replace the name, API did not change. In comparison to `par_est`, `mopeds` uses `casadi == 3.6.4`, so different results might be expected.
 Considering creating a test to compare the numerical results while migrating.
 
+## Citation
+
+If you use MOPEDS in academic work, please cite:
+
+Kozachynskyi, V., Illner, M., Esche, E., Repke, J.-U.
+"The optimal experiment? Influence of solution strategies on model-based optimal experimental design"
+Computers & Chemical Engineering, 2024.
+https://doi.org/10.1016/j.compchemeng.2024.108746
+
 ## What's New?
 
 ### Upcoming
