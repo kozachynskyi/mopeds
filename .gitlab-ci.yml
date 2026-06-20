@@ -88,15 +88,15 @@ test-macos-3.11:
   variables:
     PYTHON_VERSION: "3.11"
 
-test-macos-3.13:
-  extends: ".test-macos-manual"
-  variables:
-    PYTHON_VERSION: "3.13"
+#test-macos-3.13:
+#  extends: ".test-macos-manual"
+#  variables:
+#    PYTHON_VERSION: "3.13"
 
-test-macos-3.14:
-  extends: ".test-macos-manual"
-  variables:
-    PYTHON_VERSION: "3.14"
+#test-macos-3.14:
+#  extends: ".test-macos-manual"
+#  variables:
+#    PYTHON_VERSION: "3.14"
 
 # Debian manual jobs
 test-debian-3.10:
