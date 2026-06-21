@@ -43,3 +43,6 @@ plugins:
   - mkdocs-jupyter:
       ignore: [".ipynb_checkpoints/*.ipynb"]
   - include-markdown
+
+extra_css:
+  - stylesheets/extra.css

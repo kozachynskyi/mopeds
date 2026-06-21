@@ -1,0 +1,14 @@
+.md-grid {
+    max-width: 90%;
+}
+
+.jp-Cell,
+.jp-InputArea,
+.jp-OutputArea {
+    max-width: 100%;
+}
+
+.highlight pre {
+    white-space: pre;
+    overflow-x: auto;
+}
