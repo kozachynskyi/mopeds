@@ -7,6 +7,7 @@ stages:
 variables:
   UV_LINK_MODE: copy
   UV_CACHE_DIR: "$CI_PROJECT_DIR/.uv-cache"
+  UV_PYTHON_INSTALL_DIR: "$CI_PROJECT_DIR/.uv-python"
 
 cache:
   key: "uv-${PYTHON_VERSION}"
