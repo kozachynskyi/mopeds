@@ -10,6 +10,7 @@ def test_wrong_solver():
     with pytest.raises(TypeError):
         sim = mopeds.SimulatorNLE(model, variable_list, solver_name="unsupported")
 
+
 def test_vle_nle():
     for solver in ["rootfinder", "nlpsol", "newton", "fast_newton", "ipopt"]:
         for i in [True, False]:
@@ -30,14 +31,30 @@ def test_vle_nle():
                 f"Model.NLE: {model}, Result: {res['x']}, Expecting: {true_answer_T}"
             )
             assert np.isclose(res["x"], ca.DM(true_answer_T), rtol=0, atol=1.0e-3)
-            assert np.isclose(res_unfixed["x"], ca.DM(true_answer_T), rtol=0, atol=1.0e-3)
+            assert np.isclose(
+                res_unfixed["x"], ca.DM(true_answer_T), rtol=0, atol=1.0e-3
+            )
 
-            jac_x_p = ca.DM([[-20.6712, 0.000263212, -42.2027, -18.404, 0.135055, 0.0575617, -0.688429, -0.311571]])
+            jac_x_p = ca.DM(
+                [
+                    [
+                        -20.6712,
+                        0.000263212,
+                        -42.2027,
+                        -18.404,
+                        0.135055,
+                        0.0575617,
+                        -0.688429,
+                        -0.311571,
+                    ]
+                ]
+            )
             jac_x_x0 = ca.DM([[00]])
 
             jac = sim.calculate_jac()
             assert np.isclose(jac["jac_x_p"], jac_x_p, rtol=0, atol=1.0e-3).all()
             assert np.isclose(jac["jac_x_x0"], jac_x_x0, rtol=0, atol=1.0e-3).all()
+
 
 def test_utilities_methods():
     variable_list, model = mopeds.examples.simple_mixer()

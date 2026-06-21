@@ -28,7 +28,15 @@ from .optimization import (
     ParameterEstimationNLE,
     ParameterEstimationNLE_control,
 )
-from .optimization_oed import OptimalExperimentalDesign, OED_objective, OptimalSampling, AdaptiveOptimalSampling, AdaptiveSampling, FixedGridSampling, OptimalExperimentalDesign_NLE
+from .optimization_oed import (
+    OptimalExperimentalDesign,
+    OED_objective,
+    OptimalSampling,
+    AdaptiveOptimalSampling,
+    AdaptiveSampling,
+    FixedGridSampling,
+    OptimalExperimentalDesign_NLE,
+)
 
 import mopeds.examples
 import mopeds.tools

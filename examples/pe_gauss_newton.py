@@ -9,26 +9,54 @@ from functools import wraps, partial, cached_property
 
 plt.ion()
 
+
 class PE_GN(mopeds.ParameterEstimation):
-    def optimize(self, scale=None, objective_function="wls", direct_optimization=False, *, reuse_solver=False, gauss_newton=False):
+    def optimize(
+        self,
+        scale=None,
+        objective_function="wls",
+        direct_optimization=False,
+        *,
+        reuse_solver=False,
+        gauss_newton=False,
+    ):
         if objective_function == "wls":
-            self._objective = partial(self._objective_wls, direct_optimization=direct_optimization)
+            self._objective = partial(
+                self._objective_wls, direct_optimization=direct_optimization
+            )
         elif objective_function == "ols":
-            self._objective = partial(self._objective_ols, direct_optimization=direct_optimization)
+            self._objective = partial(
+                self._objective_ols, direct_optimization=direct_optimization
+            )
         elif objective_function == "fair":
-            self._objective = partial(self._objective_fair, direct_optimization=direct_optimization)
+            self._objective = partial(
+                self._objective_fair, direct_optimization=direct_optimization
+            )
         elif objective_function == "tikh":
-            self._objective = partial(self._objective_tikhonov, direct_optimization=direct_optimization)
+            self._objective = partial(
+                self._objective_tikhonov, direct_optimization=direct_optimization
+            )
         else:
             raise NotImplementedError(
                 f"Objective function '{objective_function}' is not supported"
             )
 
-        return self._optimize(scale, direct_optimization=direct_optimization, reuse_solver=reuse_solver, gauss_newton=gauss_newton)
+        return self._optimize(
+            scale,
+            direct_optimization=direct_optimization,
+            reuse_solver=reuse_solver,
+            gauss_newton=gauss_newton,
+        )
 
-    def _optimize(self, scale: bool = None, direct_optimization: bool = False, *, reuse_solver: bool = False, gauss_newton = False) -> dict[str, ca.DM | ca.MX]:
-        """Runs optimizer, uses scaling if needed. Returned values is scaled back.
-        """
+    def _optimize(
+        self,
+        scale: bool = None,
+        direct_optimization: bool = False,
+        *,
+        reuse_solver: bool = False,
+        gauss_newton=False,
+    ) -> dict[str, ca.DM | ca.MX]:
+        """Runs optimizer, uses scaling if needed. Returned values is scaled back."""
         if scale is not None:
             warn("Scale argument is deprecated", FutureWarning, 5)
 
@@ -40,10 +68,10 @@ class PE_GN(mopeds.ParameterEstimation):
             varlist_decision = self.varlist_decision
 
         self.nlpsol_dict = {
-                "x": varlist_decision.get_casadi_variables(),
-                "f": self._objective()[0],
-                "p": self._nlpsol_p_mx,
-            }
+            "x": varlist_decision.get_casadi_variables(),
+            "f": self._objective()[0],
+            "p": self._nlpsol_p_mx,
+        }
 
         if direct_optimization:
             self.nlpsol_dict["g"] = self.nlpsol_g_direct
@@ -55,8 +83,10 @@ class PE_GN(mopeds.ParameterEstimation):
             J = ca.jacobian(F, x)
             p = self._nlpsol_p_mx
             lam_f = ca.MX.sym("x")
-            lam_g = ca.MX.sym("x",0,1)
-            GN = ca.Function('GN',[x,p,lam_f,lam_g],[lam_f*ca.triu(2*ca.mtimes(J.T,J))])
+            lam_g = ca.MX.sym("x", 0, 1)
+            GN = ca.Function(
+                "GN", [x, p, lam_f, lam_g], [lam_f * ca.triu(2 * ca.mtimes(J.T, J))]
+            )
 
             self.solver_settings["hess_lag"] = GN
         else:
@@ -73,27 +103,29 @@ class PE_GN(mopeds.ParameterEstimation):
 
         if direct_optimization:
             self.nlpsol_args = {
-                    "x0": self.guess_direct,
-                    "lbx": self.lower_bound_direct,
-                    "ubx": self.upper_bound_direct,
-                    "lbg": [0]*self.nlpsol_g_direct.shape[0],
-                    "ubg": [0]*self.nlpsol_g_direct.shape[0],
+                "x0": self.guess_direct,
+                "lbx": self.lower_bound_direct,
+                "ubx": self.upper_bound_direct,
+                "lbg": [0] * self.nlpsol_g_direct.shape[0],
+                "ubg": [0] * self.nlpsol_g_direct.shape[0],
             }
 
         else:
             self.nlpsol_args = {
-                    "x0": self.guess,
-                    "lbx": self.lower_bound,
-                    "ubx": self.upper_bound,
+                "x0": self.guess,
+                "lbx": self.lower_bound,
+                "ubx": self.upper_bound,
             }
         self.nlpsol_args["p"] = self._nlpsol_p_values
 
         res_solver = self.solver.call(self.nlpsol_args)
 
         res_solver["x_unscaled"] = res_solver["x"].toarray()
-        res_solver["x_all"] = np.asarray(varlist_decision.scale_to_original(res_solver["x"]))
+        res_solver["x_all"] = np.asarray(
+            varlist_decision.scale_to_original(res_solver["x"])
+        )
         if direct_optimization:
-            res_solver["x"] = res_solver["x_all"][:len(self.varlist_decision)]
+            res_solver["x"] = res_solver["x_all"][: len(self.varlist_decision)]
         else:
             res_solver["x"] = res_solver["x_all"]
 

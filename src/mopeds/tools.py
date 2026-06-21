@@ -1,5 +1,6 @@
-""" Here come methods that use mopeds as import.
+"""Here come methods that use mopeds as import.
 Separated from utilities to avoid dependency hell"""
+
 from __future__ import annotations
 
 import copy
@@ -17,7 +18,7 @@ import scipy
 from scipy.stats import qmc
 
 
-class CovarianceEllipse():
+class CovarianceEllipse:
     def __init__(self, cov, mean, ci_level=0.95):
         self.cov = cov
         self.mean = mean
@@ -33,9 +34,9 @@ class CovarianceEllipse():
         lambda_12 = np.linalg.eigvals(cov)
         lambda_12_sqrt = np.sqrt(np.linalg.eigvals(cov))
 
-        cov_a = cov[0,0]
-        cov_b = cov[0,1]
-        cov_c = cov[1,1]
+        cov_a = cov[0, 0]
+        cov_b = cov[0, 1]
+        cov_c = cov[1, 1]
 
         if cov_b == 0:
             if cov_a >= cov_c:
@@ -55,12 +56,12 @@ class CovarianceEllipse():
         # Source https://cookierobotics.com/007/
         a, b, theta, x0, y0 = self.get_ellipse_properties()
 
-        tau = np.linspace(0, 2*np.pi, 100)
-        xx = a * np.cos(theta) * np.cos(tau) - b * np.sin(theta) * np.sin(tau) + x0 
+        tau = np.linspace(0, 2 * np.pi, 100)
+        xx = a * np.cos(theta) * np.cos(tau) - b * np.sin(theta) * np.sin(tau) + x0
         yy = a * np.sin(theta) * np.cos(tau) + b * np.cos(theta) * np.sin(tau) + y0
 
         return xx, yy
-    
+
     def inside_covariance_ellipse(self, x, y):
         """Test if x and y values are inside of the covariance ellipse.
         Return true value, for x and y combination that are inside the covariance ellipse.
@@ -73,17 +74,18 @@ class CovarianceEllipse():
         C = (a * np.cos(theta)) ** 2 + (b * np.sin(theta)) ** 2
         D = -2 * A * x0 - B * y0
         E = -B * x0 - 2 * C * y0
-        F = A * x0 ** 2 + B * x0 * y0 + C * y0 ** 2 - a**2 * b**2
+        F = A * x0**2 + B * x0 * y0 + C * y0**2 - a**2 * b**2
 
         if B**2 - 4 * A * C >= 0:
             raise ValueError
 
-        res = A * x ** 2 + B * x * y + C * y ** 2 + D * x + E * y + F + 1
+        res = A * x**2 + B * x * y + C * y**2 + D * x + E * y + F + 1
 
         return res <= 1
-    
+
     def plot(self, x=None, y=None, ax=None):
         import matplotlib.pyplot as plt
+
         if x is None or y is None:
             x, y = self.generate_artificial_data()
 
@@ -94,11 +96,13 @@ class CovarianceEllipse():
         select = self.inside_covariance_ellipse(x, y)
 
         count_inside = select.sum() / select.shape[0]
-        ax.plot(x[~select], y[~select], '.', alpha=1, c="r")
-        ax.plot(x[select], y[select], '.', alpha=1, c="g")
+        ax.plot(x[~select], y[~select], ".", alpha=1, c="r")
+        ax.plot(x[select], y[select], ".", alpha=1, c="g")
         xx, yy = self.get_ellipse_points()
         ax.plot(xx, yy)
-        ax.set_title(f"CI {self.ci_level * 100} %, count_inside {round(count_inside * 100, 2)} %")
+        ax.set_title(
+            f"CI {self.ci_level * 100} %, count_inside {round(count_inside * 100, 2)} %"
+        )
         plt.grid()
         return fig, ax, count_inside
 
@@ -107,11 +111,23 @@ class CovarianceEllipse():
             rng = np.random.default_rng()
 
         data = rng.multivariate_normal(self.mean, self.cov, size=10000)
-        return data[:,0], data[:,1]
-    
+        return data[:, 0], data[:, 1]
 
-class ErrorAnalyzer():
-    def __init__(self, variable_list, model, prediction_grid, measurement_grid, selected_parameters, measurement_names, *, rng=None, true_parameters=None, pe_class=None):
+
+class ErrorAnalyzer:
+    def __init__(
+        self,
+        variable_list,
+        model,
+        prediction_grid,
+        measurement_grid,
+        selected_parameters,
+        measurement_names,
+        *,
+        rng=None,
+        true_parameters=None,
+        pe_class=None,
+    ):
         if pe_class is None:
             self.PE_class = mopeds.ParameterEstimationNLE
         else:
@@ -157,41 +173,72 @@ class ErrorAnalyzer():
 
     @cached_property
     def pe_main(self) -> mopeds.ParameterEstimation:
-        control_grid, true_params, measurement_names = self.generator_function(self._model, self.variable_list, self.measurement_grid, perturbate=False, measurement_names=self.measurement_names, rng=self.rng)
+        control_grid, true_params, measurement_names = self.generator_function(
+            self._model,
+            self.variable_list,
+            self.measurement_grid,
+            perturbate=False,
+            measurement_names=self.measurement_names,
+            rng=self.rng,
+        )
 
         control_grid = self.unfix_parameters(control_grid)
         return self.PE_class(self._model, control_grid)
 
     @cached_property
     def pe_artificial_data(self) -> mopeds.ParameterEstimation:
-        true_data, true_params, _ = self.generator_function(self._model, self.variable_list_true, self.measurement_grid, perturbate=False, measurement_names=self.measurement_names, rng=self.rng)
+        true_data, true_params, _ = self.generator_function(
+            self._model,
+            self.variable_list_true,
+            self.measurement_grid,
+            perturbate=False,
+            measurement_names=self.measurement_names,
+            rng=self.rng,
+        )
 
         true_data = self.unfix_parameters(true_data)
         return self.PE_class(self._model, true_data)
 
     @cached_property
     def pe_prediction(self) -> mopeds.ParameterEstimation:
-        prediction_data, true_params, measurement_names = self.generator_function(self._model, self.variable_list, self.prediction_grid, perturbate=False, measurement_names=self.measurement_names, rng=self.rng)
+        prediction_data, true_params, measurement_names = self.generator_function(
+            self._model,
+            self.variable_list,
+            self.prediction_grid,
+            perturbate=False,
+            measurement_names=self.measurement_names,
+            rng=self.rng,
+        )
 
         prediction_data = self.unfix_parameters(prediction_data)
         return self.PE_class(self._model, prediction_data)
 
     @cached_property
     def pe_true_prediction(self) -> mopeds.ParameterEstimation:
-        prediction_data, true_params, measurement_names = self.generator_function(self._model, self.variable_list_true, self.prediction_grid, perturbate=False, measurement_names=self.measurement_names, rng=self.rng)
+        prediction_data, true_params, measurement_names = self.generator_function(
+            self._model,
+            self.variable_list_true,
+            self.prediction_grid,
+            perturbate=False,
+            measurement_names=self.measurement_names,
+            rng=self.rng,
+        )
 
         prediction_data = self.unfix_parameters(prediction_data)
         return self.PE_class(self._model, prediction_data)
 
-        
     def get_s2_and_df(self, pe, parameters_dict):
         """TODO can go to the PE object"""
-        obj_and_residual = pe.calculate_objective_and_residual(parameters_dict, objective_function="ols")
+        obj_and_residual = pe.calculate_objective_and_residual(
+            parameters_dict, objective_function="ols"
+        )
         estimation_df = self.scale_df_all(pe, obj_and_residual["df_all"])
         estimation_df = estimation_df[pe.names_of_measurements]
 
         scaled_residuals = pe._unscale_residuals(obj_and_residual["residuals"])
-        measurement_variance_estimate = np.diag(scaled_residuals.T @ scaled_residuals) / pe.dof
+        measurement_variance_estimate = (
+            np.diag(scaled_residuals.T @ scaled_residuals) / pe.dof
+        )
 
         return np.sqrt(measurement_variance_estimate), estimation_df
 
@@ -208,7 +255,9 @@ class ErrorAnalyzer():
         self.list_noise = []
 
         for i in range(num_samples):
-            perturbated_data = self.rng.normal(original_data, (1 / pe.array_inverted_scaled_std))
+            perturbated_data = self.rng.normal(
+                original_data, (1 / pe.array_inverted_scaled_std)
+            )
             self.list_noise.append(perturbated_data - original_data)
 
             pe.array_data = perturbated_data
@@ -217,17 +266,23 @@ class ErrorAnalyzer():
                 if isinstance(pe, mopeds.ParameterEstimation):
                     res = pe.optimize(None, "wls", reuse_solver=True)
                 elif isinstance(pe, mopeds.ParameterEstimationNLE):
-                    res = pe.optimize(None, "wls", direct_optimization=True, reuse_solver=True)
+                    res = pe.optimize(
+                        None, "wls", direct_optimization=True, reuse_solver=True
+                    )
 
                 if pe.solver.stats()["success"]:
                     list_parameters.append(list(res["x_dict"].values()))
 
-                    s2_esimated, df_estimated = self.get_s2_and_df(self.pe_main, res["x_dict"])
+                    s2_esimated, df_estimated = self.get_s2_and_df(
+                        self.pe_main, res["x_dict"]
+                    )
                     list_s2.append(s2_esimated)
                     self.list_estimation.append(df_estimated)
 
                     self.pe_artificial_data.array_data = perturbated_data
-                    s2_true, _ = self.get_s2_and_df(self.pe_artificial_data, self.true_parameters)
+                    s2_true, _ = self.get_s2_and_df(
+                        self.pe_artificial_data, self.true_parameters
+                    )
                     list_s2_true.append(s2_true)
                 else:
                     self.failed_pes += 1
@@ -241,7 +296,9 @@ class ErrorAnalyzer():
 
         self.df_s2 = pd.DataFrame(list_s2, columns=pe.names_of_measurements)
         self.df_s2_true = pd.DataFrame(list_s2_true, columns=pe.names_of_measurements)
-        self.df_params = pd.DataFrame(list_parameters, columns=pe.varlist_decision.keys())
+        self.df_params = pd.DataFrame(
+            list_parameters, columns=pe.varlist_decision.keys()
+        )
 
         if plot:
             self.plot_parameter_covariance(normalize_parameters=True)
@@ -259,7 +316,6 @@ class ErrorAnalyzer():
         list_s2_true = []
         failed_pes = 0
 
-
         sampler = qmc.Sobol(d=len(pe.varlist_decision))
 
         sample = sampler.random_base2(m=4)
@@ -272,12 +328,16 @@ class ErrorAnalyzer():
                 if isinstance(pe, mopeds.ParameterEstimation):
                     res = pe.optimize(None, "wls", reuse_solver=True)
                 elif isinstance(pe, mopeds.ParameterEstimationNLE):
-                    res = pe.optimize(None, "wls", direct_optimization=True, reuse_solver=True)
+                    res = pe.optimize(
+                        None, "wls", direct_optimization=True, reuse_solver=True
+                    )
 
                 if pe.solver.stats()["success"]:
                     list_parameters.append(list(res["x_dict"].values()))
 
-                    s2_esimated, df_estimated = self.get_s2_and_df(self.pe_main, res["x_dict"])
+                    s2_esimated, df_estimated = self.get_s2_and_df(
+                        self.pe_main, res["x_dict"]
+                    )
                     list_s2.append(s2_esimated)
 
                 else:
@@ -290,7 +350,6 @@ class ErrorAnalyzer():
                 raise
                 failed_pes += 1
 
-
         df_s2 = pd.DataFrame(list_s2, columns=pe.names_of_measurements)
         df_s2_true = pd.DataFrame(list_s2_true, columns=pe.names_of_measurements)
         df_params = pd.DataFrame(list_parameters, columns=pe.varlist_decision.keys())
@@ -298,7 +357,9 @@ class ErrorAnalyzer():
         print(df_params.std())
 
     def check_linearization_df_params(self):
-        cov_linearized = self.pe_main.calculate_sensitivity_and_fim_fast(self.true_parameters)[2]
+        cov_linearized = self.pe_main.calculate_sensitivity_and_fim_fast(
+            self.true_parameters
+        )[2]
         true_df = pd.Series(self.true_parameters)
         true_df = true_df[self.df_params.columns].copy()
         parameter_diff = (self.df_params - true_df).abs()
@@ -322,7 +383,9 @@ class ErrorAnalyzer():
 
         X_pure = self.df_params[self.no_outliers]
         min, max = (-1, 1)
-        X_std_pure = (X_pure - X_pure.min(axis=0)) / (X_pure.max(axis=0) - X_pure.min(axis=0))
+        X_std_pure = (X_pure - X_pure.min(axis=0)) / (
+            X_pure.max(axis=0) - X_pure.min(axis=0)
+        )
         X_scaled_pure = X_std_pure * (max - min) + min
         return X_scaled, X_scaled_pure
 
@@ -332,12 +395,12 @@ class ErrorAnalyzer():
         normalized = self.df_s2 - real_s2[0, :]
         bound = 3 * self.df_s2_true.std()
 
-        selected_indexes = (normalized >= -bound) & ( normalized <= bound)
+        selected_indexes = (normalized >= -bound) & (normalized <= bound)
         return selected_indexes.to_numpy().all(axis=1)
 
     @property
     def bins_number(self):
-        return max(1, int(self.df_params.shape[0]* 0.2))
+        return max(1, int(self.df_params.shape[0] * 0.2))
 
     def get_parameter_df(self, without_outliers):
         if without_outliers:
@@ -368,12 +431,24 @@ class ErrorAnalyzer():
 
         if parameters is not None:
             try:
-                cov_linearized = self.pe_main.calculate_sensitivity_and_fim(self.last_estimated_parameters)["cov_par"]
+                cov_linearized = self.pe_main.calculate_sensitivity_and_fim(
+                    self.last_estimated_parameters
+                )["cov_par"]
                 std_linearized = np.sqrt(np.diag(cov_linearized))
                 for index, (ax, val) in enumerate(zip(axis.flat, parameters)):
                     ax.axvline(val, 0, ax.yaxis.get_data_interval()[1], c="r")
-                    ax.axvline(val + 2*std_linearized[index], 0, ax.yaxis.get_data_interval()[1], c="r")
-                    ax.axvline(val - 2*std_linearized[index], 0, ax.yaxis.get_data_interval()[1], c="r")
+                    ax.axvline(
+                        val + 2 * std_linearized[index],
+                        0,
+                        ax.yaxis.get_data_interval()[1],
+                        c="r",
+                    )
+                    ax.axvline(
+                        val - 2 * std_linearized[index],
+                        0,
+                        ax.yaxis.get_data_interval()[1],
+                        c="r",
+                    )
 
             except Exception:
                 pass
@@ -385,7 +460,9 @@ class ErrorAnalyzer():
 
         fig.suptitle(fig_name)
 
-    def plot_parameter_covariance_ellipse(self, *, normalize_parameters=True, without_outliers=False, ci_level=0.95):
+    def plot_parameter_covariance_ellipse(
+        self, *, normalize_parameters=True, without_outliers=False, ci_level=0.95
+    ):
         import matplotlib.pyplot as plt
         from matplotlib.axes import Axes
 
@@ -394,56 +471,79 @@ class ErrorAnalyzer():
         if num_par == 1:
             fig, axes = plt.subplots(ncols=1, nrows=1, layout="constrained")
         else:
-            fig, axes = plt.subplots(ncols=num_par - 1, nrows=num_par - 1, layout="constrained")
+            fig, axes = plt.subplots(
+                ncols=num_par - 1, nrows=num_par - 1, layout="constrained"
+            )
         if isinstance(axes, Axes) == 1:
             axes = [axes]
 
         comb = list(combinations(range(num_par), 2))
         par_names = list(self.pe_main.varlist_decision.keys())
 
-        lb = np.asarray(self.pe_main.varlist_decision.scale_to_original(self.pe_main.lower_bound))
-        ub = np.asarray(self.pe_main.varlist_decision.scale_to_original(self.pe_main.upper_bound))
+        lb = np.asarray(
+            self.pe_main.varlist_decision.scale_to_original(self.pe_main.lower_bound)
+        )
+        ub = np.asarray(
+            self.pe_main.varlist_decision.scale_to_original(self.pe_main.upper_bound)
+        )
 
         if normalize_parameters:
             df_normalized_all, df_normalized_no_outliers = self.df_params_normalized
             if without_outliers:
                 df = df_normalized_no_outliers
-                count_outliers = df_normalized_all.shape[0] - df_normalized_no_outliers.shape[0]
+                count_outliers = (
+                    df_normalized_all.shape[0] - df_normalized_no_outliers.shape[0]
+                )
             else:
                 df = df_normalized_all
         else:
             df, count_outliers = self.get_parameter_df(without_outliers)
 
-        covariance_all = self.pe_main.calculate_sensitivity_and_fim_fast(self.true_parameters)[2]
-        covariance_all = covariance_all * (2 * scipy.stats.f.ppf(ci_level, 2, self.pe_main.dof))
+        covariance_all = self.pe_main.calculate_sensitivity_and_fim_fast(
+            self.true_parameters
+        )[2]
+        covariance_all = covariance_all * (
+            2 * scipy.stats.f.ppf(ci_level, 2, self.pe_main.dof)
+        )
 
         parameter_names = list(self.pe_main.varlist_decision.keys())
 
         if num_par == 1:
             print(covariance_all)
-            covariance_original = covariance_all / (2 * scipy.stats.f.ppf(ci_level, 2, self.pe_main.dof))
-            print(covariance_original * (scipy.stats.t.ppf(ci_level, 1, self.pe_main.dof)))
+            covariance_original = covariance_all / (
+                2 * scipy.stats.f.ppf(ci_level, 2, self.pe_main.dof)
+            )
+            print(
+                covariance_original * (scipy.stats.t.ppf(ci_level, 1, self.pe_main.dof))
+            )
             # print(covariance_all)
             # print(covariance_original * (2 * scipy.stats.f.ppf(ci_level, 1, self.pe_main.dof)))
 
             ax = axes[0]
             par_1_df = df.iloc[:, 0]
-            ax.hist(par_1_df, bins=int(par_1_df.shape[0]/3))
+            ax.hist(par_1_df, bins=int(par_1_df.shape[0] / 3))
             ax.axvline(self.true_parameters[parameter_names[0]] + covariance_all**0.5)
             ax.axvline(self.true_parameters[parameter_names[0]] - covariance_all**0.5)
             ax.set_xlabel(f"{parameter_names[0]}")
 
-            select = np.abs(par_1_df - self.true_parameters[parameter_names[0]]) <= covariance_all[0][0]**0.5
+            select = (
+                np.abs(par_1_df - self.true_parameters[parameter_names[0]])
+                <= covariance_all[0][0] ** 0.5
+            )
             count_inside = select.sum() / select.shape[0]
-            ax.set_title(f"CI {ci_level * 100} %, count_inside {round(count_inside * 100, 2)} %")
+            ax.set_title(
+                f"CI {ci_level * 100} %, count_inside {round(count_inside * 100, 2)} %"
+            )
             plt.grid()
 
-
         # Skipped if num_par == 1
-        for (par1_index, par2_index) in comb:
+        for par1_index, par2_index in comb:
             index_subarray = np.ix_((par1_index, par2_index), (par1_index, par2_index))
 
-            par_values = [self.true_parameters[parameter_names[par1_index]], self.true_parameters[parameter_names[par2_index]]]
+            par_values = [
+                self.true_parameters[parameter_names[par1_index]],
+                self.true_parameters[parameter_names[par2_index]],
+            ]
             ellipse = CovarianceEllipse(covariance_all[index_subarray], par_values)
 
             if len(axes) == 1:
@@ -466,7 +566,9 @@ class ErrorAnalyzer():
         fig.suptitle(fig_name)
         return fig, axes
 
-    def plot_parameter_covariance(self, *, normalize_parameters=True, without_outliers=False):
+    def plot_parameter_covariance(
+        self, *, normalize_parameters=True, without_outliers=False
+    ):
         import matplotlib.pyplot as plt
         from matplotlib.axes import Axes
 
@@ -474,21 +576,29 @@ class ErrorAnalyzer():
         if num_par == 1:
             fig, axes = plt.subplots(ncols=1, nrows=1, layout="constrained")
         else:
-            fig, axes = plt.subplots(ncols=num_par - 1, nrows=num_par - 1, layout="constrained")
+            fig, axes = plt.subplots(
+                ncols=num_par - 1, nrows=num_par - 1, layout="constrained"
+            )
         if isinstance(axes, Axes) == 1:
             axes = [axes]
 
         comb = list(combinations(range(num_par), 2))
         par_names = list(self.pe_main.varlist_decision.keys())
 
-        lb = np.asarray(self.pe_main.varlist_decision.scale_to_original(self.pe_main.lower_bound))
-        ub = np.asarray(self.pe_main.varlist_decision.scale_to_original(self.pe_main.upper_bound))
+        lb = np.asarray(
+            self.pe_main.varlist_decision.scale_to_original(self.pe_main.lower_bound)
+        )
+        ub = np.asarray(
+            self.pe_main.varlist_decision.scale_to_original(self.pe_main.upper_bound)
+        )
 
         if normalize_parameters:
             df_normalized_all, df_normalized_no_outliers = self.df_params_normalized
             if without_outliers:
                 df = df_normalized_no_outliers
-                count_outliers = df_normalized_all.shape[0] - df_normalized_no_outliers.shape[0]
+                count_outliers = (
+                    df_normalized_all.shape[0] - df_normalized_no_outliers.shape[0]
+                )
             else:
                 df = df_normalized_all
         else:
@@ -509,7 +619,7 @@ class ErrorAnalyzer():
             ax.set_xlabel(f"{par_names[0]}")
 
         # skipped if only one parameter
-        for (par1_index, par2_index) in comb:
+        for par1_index, par2_index in comb:
             if len(axes) == 1:
                 ax = axes[0]
             else:
@@ -551,7 +661,9 @@ class ErrorAnalyzer():
     def model_prediction_error_mc(self, plot=False):
         self.list_predictions = []
         for index, row in tqdm.tqdm(self.df_params.iterrows()):
-            prediction_i = self.pe_prediction.calculate_objective_and_residual(row.to_dict())["df_all"]
+            prediction_i = self.pe_prediction.calculate_objective_and_residual(
+                row.to_dict()
+            )["df_all"]
             prediction_df = self.scale_df_all(self.pe_prediction, prediction_i)
             self.list_predictions.append(prediction_df)
 
@@ -566,28 +678,42 @@ class ErrorAnalyzer():
         if isinstance(self.pe_true_prediction, mopeds.ParameterEstimation):
             raise NotImplementedError
 
-        true_prediction_all = self.pe_true_prediction.calculate_objective_and_residual(self.true_parameters)["df_all"]
-        true_prediction_all = self.scale_df_all(self.pe_true_prediction, true_prediction_all)
+        true_prediction_all = self.pe_true_prediction.calculate_objective_and_residual(
+            self.true_parameters
+        )["df_all"]
+        true_prediction_all = self.scale_df_all(
+            self.pe_true_prediction, true_prediction_all
+        )
         true_prediction = true_prediction_all[self.measurement_names]
 
         list_prediction_quality = []
         list_prediction_quality_without_outliers = []
         metrics = {}
         self.list_prediction_std = []
-        
+
         df_all_without_outliers, count_outliers = self.get_parameter_df(True)
 
         for meas_name in self.measurement_names:
-            df_predictions = pd.concat(self.list_predictions, axis=1, keys=range(len(self.list_predictions)))
-            df_predictions_without_outliers = df_predictions[df_all_without_outliers.index].swaplevel(axis=1)
+            df_predictions = pd.concat(
+                self.list_predictions, axis=1, keys=range(len(self.list_predictions))
+            )
+            df_predictions_without_outliers = df_predictions[
+                df_all_without_outliers.index
+            ].swaplevel(axis=1)
             df_predictions = df_predictions.swaplevel(axis=1)
 
             res = stats.shapiro(df_predictions[meas_name], axis=1, nan_policy="omit")
             metrics[meas_name + "_shapiro_stat"] = res.statistic.mean()
             metrics[meas_name + "_shapiro_p"] = res.pvalue.mean()
             try:
-                res = stats.shapiro(df_predictions_without_outliers[meas_name], axis=1, nan_policy="omit")
-                metrics[meas_name + "_shapiro_stat_without_outliers"] = res.statistic.mean()
+                res = stats.shapiro(
+                    df_predictions_without_outliers[meas_name],
+                    axis=1,
+                    nan_policy="omit",
+                )
+                metrics[meas_name + "_shapiro_stat_without_outliers"] = (
+                    res.statistic.mean()
+                )
                 metrics[meas_name + "_shapiro_p_without_outliers"] = res.pvalue.mean()
             except Exception:
                 metrics[meas_name + "_shapiro_stat_without_outliers"] = np.nan
@@ -596,15 +722,21 @@ class ErrorAnalyzer():
         for index, row in self.df_params.iterrows():
             try:
                 df_predictions = self.list_predictions[index][self.measurement_names]
-                cov_linearized = self.pe_main.calculate_sensitivity_and_fim_fast(row.to_dict())[2]
+                cov_linearized = self.pe_main.calculate_sensitivity_and_fim_fast(
+                    row.to_dict()
+                )[2]
 
-                jac_prediction = self.pe_prediction.calculate_sensitivity_and_fim_fast(row.to_dict())[0]
-                prediction_std = np.sqrt(np.diag(jac_prediction @ cov_linearized @ jac_prediction.T)).reshape(self.pe_prediction.array_data.shape, order="F")
+                jac_prediction = self.pe_prediction.calculate_sensitivity_and_fim_fast(
+                    row.to_dict()
+                )[0]
+                prediction_std = np.sqrt(
+                    np.diag(jac_prediction @ cov_linearized @ jac_prediction.T)
+                ).reshape(self.pe_prediction.array_data.shape, order="F")
                 # TODO: sort lb and ub, if meas variable is negative this will not work
                 lb = df_predictions - self.threshold * prediction_std
                 ub = df_predictions + self.threshold * prediction_std
 
-                in_bounds = ((lb <= true_prediction) & (ub >= true_prediction))
+                in_bounds = (lb <= true_prediction) & (ub >= true_prediction)
                 in_bounds_ratio = in_bounds.sum().sum() / in_bounds.count().sum()
 
                 list_prediction_quality.append(in_bounds_ratio)
@@ -615,15 +747,18 @@ class ErrorAnalyzer():
                 pass
 
         array_quality = np.array(list_prediction_quality)
-        array_quality_without_outliers = np.array(list_prediction_quality_without_outliers)
+        array_quality_without_outliers = np.array(
+            list_prediction_quality_without_outliers
+        )
         metrics["predictions_in_bounds"] = array_quality.mean()
         try:
-            metrics["predictions_in_bounds_without_outliers"] = array_quality_without_outliers.mean()
+            metrics["predictions_in_bounds_without_outliers"] = (
+                array_quality_without_outliers.mean()
+            )
         except Exception:
-            metrics["predictions_in_bounds_without_outliers"] = np.nan 
+            metrics["predictions_in_bounds_without_outliers"] = np.nan
 
         return metrics
-
 
     def plot_estimation_accuracy(self, *, without_outliers=False):
         df, count_outliers = self.get_s2_df_mc(without_outliers)
@@ -634,13 +769,15 @@ class ErrorAnalyzer():
         mean_s2 = df.mean()
         real_s2 = 1 / self.pe_artificial_data.array_inverted_std
 
-        for ax, val, std, std_real in zip(axis.flat, mean_s2, std_s2, real_s2[0,:]):
+        for ax, val, std, std_real in zip(axis.flat, mean_s2, std_s2, real_s2[0, :]):
             ax.axvline(std_real, 0, 1, c="g")
             ax.axvline(val, 0, 1, c="r")
-            ax.axvline(val + 2*std, 0, 1, c="r")
-            ax.axvline(val - 2*std, 0, 1, c="r")
-            ax.set_title(ax.get_title() + f"\nReal s2 {std_real}, estimated {round(val, 5)}")
-        
+            ax.axvline(val + 2 * std, 0, 1, c="r")
+            ax.axvline(val - 2 * std, 0, 1, c="r")
+            ax.set_title(
+                ax.get_title() + f"\nReal s2 {std_real}, estimated {round(val, 5)}"
+            )
+
         fig_name = "Estimation accuracy of parameters"
 
         if without_outliers:
@@ -652,15 +789,24 @@ class ErrorAnalyzer():
 
     def plot_parameter_prediction(self, parameters):
         import matplotlib.pyplot as plt
-        true_values = self.pe_true_prediction.calculate_objective_and_residual(self.true_parameters)["df_all"]
+
+        true_values = self.pe_true_prediction.calculate_objective_and_residual(
+            self.true_parameters
+        )["df_all"]
         true_values = self.scale_df_all(self.pe_true_prediction, true_values)
 
-        jac_prediction_all = self.pe_prediction.calculate_sensitivity_and_fim(parameters)["jac_sorted"]
-        prediction_df = self.pe_prediction.calculate_objective_and_residual(parameters)["df_all"]
+        jac_prediction_all = self.pe_prediction.calculate_sensitivity_and_fim(
+            parameters
+        )["jac_sorted"]
+        prediction_df = self.pe_prediction.calculate_objective_and_residual(parameters)[
+            "df_all"
+        ]
         prediction_df = self.scale_df_all(self.pe_prediction, prediction_df)
 
-        cov_linearized = self.pe_main.calculate_sensitivity_and_fim(parameters)["cov_par"]
-        
+        cov_linearized = self.pe_main.calculate_sensitivity_and_fim(parameters)[
+            "cov_par"
+        ]
+
         threshold = stats.t.ppf(0.975, self.pe_main.dof)
 
         for meas_index, meas_name in enumerate(self.measurement_names):
@@ -670,11 +816,23 @@ class ErrorAnalyzer():
 
             jac_prediction = jac_prediction_all[meas_name]
 
-            prediction_linearized = np.sqrt(np.diag(jac_prediction @ cov_linearized @ jac_prediction.T))
+            prediction_linearized = np.sqrt(
+                np.diag(jac_prediction @ cov_linearized @ jac_prediction.T)
+            )
             prediction_line = prediction_df[meas_name]
             plt.plot(true_values, prediction_line, label="prediction", c="b")
-            plt.plot(true_values, prediction_line + threshold*prediction_linearized,  label="95% CI", c="r")
-            plt.plot(true_values, prediction_line - threshold*prediction_linearized,label="95% CI", c="r")
+            plt.plot(
+                true_values,
+                prediction_line + threshold * prediction_linearized,
+                label="95% CI",
+                c="r",
+            )
+            plt.plot(
+                true_values,
+                prediction_line - threshold * prediction_linearized,
+                label="95% CI",
+                c="r",
+            )
 
             plt.legend()
             plt.title(meas_name)
@@ -686,10 +844,15 @@ class ErrorAnalyzer():
             raise NotImplementedError
 
         import matplotlib.pyplot as plt
-        true_values_all = self.pe_true_prediction.calculate_objective_and_residual(self.true_parameters)["df_all"]
+
+        true_values_all = self.pe_true_prediction.calculate_objective_and_residual(
+            self.true_parameters
+        )["df_all"]
         true_values_all = self.scale_df_all(self.pe_true_prediction, true_values_all)
 
-        df_predictions = pd.concat(self.list_predictions, axis=1, keys=range(len(self.list_predictions)))
+        df_predictions = pd.concat(
+            self.list_predictions, axis=1, keys=range(len(self.list_predictions))
+        )
         if without_outliers:
             df_params, count_outliers = self.get_parameter_df(without_outliers)
             if df_params.empty:
@@ -700,33 +863,43 @@ class ErrorAnalyzer():
         df_predictions = df_predictions.swaplevel(axis=1)
 
         try:
-            cov_linearized = self.pe_artificial_data.calculate_sensitivity_and_fim(self.true_parameters)["cov_par"]
-            jac_prediction = self.pe_true_prediction.calculate_sensitivity_and_fim(self.true_parameters)["jac_full"]
-            prediction_std_all = np.sqrt(np.diag(jac_prediction @ cov_linearized @ jac_prediction.T)).reshape(self.pe_prediction.array_data.shape, order="F")
+            cov_linearized = self.pe_artificial_data.calculate_sensitivity_and_fim(
+                self.true_parameters
+            )["cov_par"]
+            jac_prediction = self.pe_true_prediction.calculate_sensitivity_and_fim(
+                self.true_parameters
+            )["jac_full"]
+            prediction_std_all = np.sqrt(
+                np.diag(jac_prediction @ cov_linearized @ jac_prediction.T)
+            ).reshape(self.pe_prediction.array_data.shape, order="F")
         except Exception:
             pass
 
-        fig, axis = plt.subplots(nrows=1, ncols=len(self.measurement_names), squeeze=False)
+        fig, axis = plt.subplots(
+            nrows=1, ncols=len(self.measurement_names), squeeze=False
+        )
 
-        for meas_index, (meas_name, ax) in enumerate(zip(self.measurement_names, axis.flat)):
+        for meas_index, (meas_name, ax) in enumerate(
+            zip(self.measurement_names, axis.flat)
+        ):
             true_values = true_values_all[meas_name]
             std = df_predictions[meas_name].std(axis=1)
 
-            ax.plot(self.threshold*std, label="MC, CI 95%", c="g")
-            ax.plot(-self.threshold*std, label="MC, CI 95%", c="g")
-            ax.plot([0]*true_values.shape[0], label="true", c="black", ls="dashed")
+            ax.plot(self.threshold * std, label="MC, CI 95%", c="g")
+            ax.plot(-self.threshold * std, label="MC, CI 95%", c="g")
+            ax.plot([0] * true_values.shape[0], label="true", c="black", ls="dashed")
 
             try:
                 prediction_std = prediction_std_all[:, meas_index]
-                ax.plot(-self.threshold*prediction_std, label="Lin, CI 95%", c="red")
-                ax.plot(self.threshold*prediction_std, label="Lin, CI 95%", c="red")
+                ax.plot(-self.threshold * prediction_std, label="Lin, CI 95%", c="red")
+                ax.plot(self.threshold * prediction_std, label="Lin, CI 95%", c="red")
             except Exception:
                 pass
 
             ax.legend()
             ax.set_title(meas_name)
 
-        fig_name = "Predicted model accuracy, MC" 
+        fig_name = "Predicted model accuracy, MC"
         if without_outliers:
             fig_name = fig_name + ", without outliers"
             fig.supxlabel(f"Outliers = {count_outliers}")
@@ -754,7 +927,7 @@ def generate_varlist_with_data(
     time_grid: np.ndarray,
     algebraic: bool = False,
     perturbate: bool = False,
-    rng: np.random.Generator | None = None
+    rng: np.random.Generator | None = None,
 ) -> mopeds.VariableList:
     if rng is None:
         rng = np.random.default_rng()
@@ -779,12 +952,14 @@ def generate_varlist_with_data(
 
     return variable_list_with_data
 
+
 def controls_grid_from_dict(control_bounds):
     grid, _ = create_grid(list(control_bounds.values()))
     control_grid = []
     for grid_point in grid:
         control_grid.append(dict(zip(control_bounds.keys(), grid_point)))
     return control_grid
+
 
 def generate_artificial_data_from_grid_nle(
     model: mopeds.Model,
@@ -804,7 +979,15 @@ def generate_artificial_data_from_grid_nle(
     control_grid = []
     for grid_point in grid:
         control_grid.append(dict(zip(control_bounds.keys(), grid_point)))
-    return generate_artificial_data_nle(model, variable_list, control_grid, perturbate, rng, measurement_names, keep_in_bounds=keep_in_bounds)
+    return generate_artificial_data_nle(
+        model,
+        variable_list,
+        control_grid,
+        perturbate,
+        rng,
+        measurement_names,
+        keep_in_bounds=keep_in_bounds,
+    )
 
 
 def generate_artificial_data_nle(
@@ -816,7 +999,7 @@ def generate_artificial_data_nle(
     measurement_names: list[str] = None,
     *,
     keep_in_bounds: bool = True,
-    ) -> tuple[list[mopeds.VariableList], dict[str, float]]:
+) -> tuple[list[mopeds.VariableList], dict[str, float]]:
     """Generate artificial data that can immediately be used by Parameter Estimator.
     Returns list of varlists and a dictionary with parameter values that were used
     to generate data.
@@ -862,7 +1045,9 @@ def generate_artificial_data_nle(
                 if perturbate:
                     value = rng.normal(value, np.sqrt(variable.variance))
                     if keep_in_bounds:
-                        value = min(variable.upper_bound, max(variable.lower_bound, value))
+                        value = min(
+                            variable.upper_bound, max(variable.lower_bound, value)
+                        )
                 variable_list_optimizer[variable_name].guess = value
                 variable_list_optimizer[variable_name].value = value
         for var_name, var_value in grid_point.items():
@@ -881,14 +1066,14 @@ def generate_artificial_data_dynamic(
     measurement_names: list[str] = None,
     *,
     keep_in_bounds: bool = True,
-    ) -> tuple[list[mopeds.VariableList], dict[str, float]]:
+) -> tuple[list[mopeds.VariableList], dict[str, float]]:
     """Generate artificial data that can immediately be used by Parameter Estimator.
     Returns list of varlists and a dictionary with parameter values that were used
     to generate data.
 
     Parameter values that are used are taken from variable list.
     list_of_scenarios is a dict with 3 keys: "control", "time_grid", "initials".
-    For example, [{"controls": {"P": 1, "T": 80}, "time_grid": {[0, 10, 20]}, "initials: {"x0": 2}] 
+    For example, [{"controls": {"P": 1, "T": 80}, "time_grid": {[0, 10, 20]}, "initials: {"x0": 2}]
     will create one set of artificial data, generated at pressure 1 and T 80, with time grid of 0, 10, 20
     state variable x0 starting from 2.
     perturbate: if True, generated data is perturbated based on variance in variable_list
@@ -936,14 +1121,19 @@ def generate_artificial_data_dynamic(
                 if perturbate:
                     value = rng.normal(value, np.sqrt(variable.variance))
                     if keep_in_bounds:
-                        value = min(variable.upper_bound, max(variable.lower_bound, value))
+                        value = min(
+                            variable.upper_bound, max(variable.lower_bound, value)
+                        )
                 variable_list_optimizer[variable_name].guess = value[0]
-                variable_list_optimizer[variable_name].set_dataframe_from_value_and_time(value, time_grid)
+                variable_list_optimizer[
+                    variable_name
+                ].set_dataframe_from_value_and_time(value, time_grid)
         for var_name, var_value in grid_point.items():
             variable_list_optimizer[var_name].value = var_value
         varlist_list.append(variable_list_optimizer)
 
     return varlist_list, true_parameters, measurement_names
+
 
 def generate_varlist_with_data_NLE(
     model,
@@ -954,19 +1144,25 @@ def generate_varlist_with_data_NLE(
     measurement_names: list[str] = None,
 ) -> tuple[list[mopeds.VariableList], dict[str, float]]:
     warn("Deprecated API, use generate_artificial_data_from_grid_nle", FutureWarning, 2)
-    return generate_artificial_data_from_grid_nle(model, variable_list, control_bounds, perturbate, rng, measurement_names)
+    return generate_artificial_data_from_grid_nle(
+        model, variable_list, control_bounds, perturbate, rng, measurement_names
+    )
 
 
 def analyze_scaling_nle(model, varlist, control_bounds):
     """Change the control variables in a given bounds, calculate all algeraic variables and provide lower and upper bounds for them"""
-    all_data, true_parameters = generate_varlist_with_data_NLE(model, varlist, control_bounds=control_bounds, perturbate=False)
+    all_data, true_parameters = generate_varlist_with_data_NLE(
+        model, varlist, control_bounds=control_bounds, perturbate=False
+    )
     v = all_data[0].dataframe
     vv = all_data[1].dataframe
     g = pd.concat([vl.dataframe for vl in all_data])
 
     algebraic_names = varlist.get_algebraic().keys()
     selected_data = g[algebraic_names]
-    return_bounds = dict(zip(algebraic_names, zip(selected_data.min(), selected_data.max())))
+    return_bounds = dict(
+        zip(algebraic_names, zip(selected_data.min(), selected_data.max()))
+    )
     return return_bounds
 
 
@@ -978,7 +1174,7 @@ def transform_varlist_to_casadi(vl):
         vars_names = []
         values = []
         for name, var in vl.items():
-            print_string = f"{name} = ca.MX.sym(\"{name}\")"
+            print_string = f'{name} = ca.MX.sym("{name}")'
             if isinstance(var, varclass):
                 vars_names.append(name)
                 vars.append(print_string)

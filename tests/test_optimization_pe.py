@@ -26,12 +26,13 @@ def test_scaling(piecewise, dae):
     rng = np.random.default_rng(0)
 
     with mopeds.options(variable_scaling=False):
-        var_list_exp = mopeds.Simulator(model, time_grid, var_list).simulate(algebraic=True)[2]
+        var_list_exp = mopeds.Simulator(model, time_grid, var_list).simulate(
+            algebraic=True
+        )[2]
         for var in var_list_exp.get_state().values():
             var.value = rng.normal(var.value[0], var.variance**0.5)
         for var in var_list_exp.get_algebraic().values():
             var.value = rng.normal(var.value[0], var.variance**0.5)
-
 
     for scaling in [True, False]:
         with mopeds.options(variable_scaling=scaling):
@@ -48,18 +49,25 @@ def test_scaling(piecewise, dae):
             }
 
             pe = mopeds.ParameterEstimation(model, [varlist_i], simulator_settings=opts)
-            sens_fim.append(pe.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_E_r1": 9.6e4}))
-            res_obj_df = pe.calculate_objective_and_residual({"e0_U": 1.2, "e0_E_r1": 9.6e4})
-            res_obj_df["residuals_unscaled"] = pe._unscale_residuals(res_obj_df["residuals"])
+            sens_fim.append(
+                pe.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_E_r1": 9.6e4})
+            )
+            res_obj_df = pe.calculate_objective_and_residual(
+                {"e0_U": 1.2, "e0_E_r1": 9.6e4}
+            )
+            res_obj_df["residuals_unscaled"] = pe._unscale_residuals(
+                res_obj_df["residuals"]
+            )
             res_obj_df["y_unscaled"] = pe._unscale_y(res_obj_df["y"])
             res_obj_df["df_all_unscaled"] = pe._unscale_df(res_obj_df["df_all"])
             obj_df.append(res_obj_df)
 
-    
     benchmark_res = obj_df[1]
     scaled_res = obj_df[0]
     assert np.isclose(benchmark_res["y"], benchmark_res["y_unscaled"]).all()
-    assert np.isclose(benchmark_res["residuals"], benchmark_res["residuals_unscaled"]).all()
+    assert np.isclose(
+        benchmark_res["residuals"], benchmark_res["residuals_unscaled"]
+    ).all()
 
     v1, v2 = benchmark_res["y"], scaled_res["y_unscaled"]
     assert np.isclose(v1, v2).all()
@@ -70,9 +78,16 @@ def test_scaling(piecewise, dae):
 
     for key in sens_fim[0].keys():
         # print(key)
-        v1 = sens_fim[0][key] 
-        v2 = sens_fim[1][key] 
-        if key not in ["jac_sorted", "jac_scaled_sorted", "jac_yao_sorted", "jac_wls", "hess_wls", "hess_tikh"]:
+        v1 = sens_fim[0][key]
+        v2 = sens_fim[1][key]
+        if key not in [
+            "jac_sorted",
+            "jac_scaled_sorted",
+            "jac_yao_sorted",
+            "jac_wls",
+            "hess_wls",
+            "hess_tikh",
+        ]:
             # print(v2/v1)
             assert np.isclose(v1, v2, rtol=1e-4).all()
 
@@ -125,9 +140,9 @@ def test_pe_objective(piecewise):
         },
     }
 
-    weight = np.array([[1.5, 1.5], [1. , 1.], [1. , 1.]])
-    var = np.array([[1., 0.1], [0.05 , 0.025], [0.05 , 0.025]])
-    data = np.array([[1., 0], [3., 0], [0, 4.]])
+    weight = np.array([[1.5, 1.5], [1.0, 1.0], [1.0, 1.0]])
+    var = np.array([[1.0, 0.1], [0.05, 0.025], [0.05, 0.025]])
+    data = np.array([[1.0, 0], [3.0, 0], [0, 4.0]])
     mask = np.array([[1, 0], [1, 0], [0, 1]])
 
     assert_numpy = np.testing.assert_array_equal
@@ -141,6 +156,7 @@ def test_pe_objective(piecewise):
     res_weight = pe.optimize(scale_experiments=True)
     assert np.isclose(res["f"], obj)
     assert np.isclose(res_weight["f"], obj_weight)
+
 
 @pytest.mark.parametrize("piecewise", [True, False])
 @pytest.mark.parametrize("dae", [True, False])
@@ -164,9 +180,7 @@ def test_pe(piecewise, dae, use_constant, scaling):
         var_list_fixed = copy.deepcopy(var_list)
         for var in var_list_fixed.values():
             var.fixed = True
-        var_list_exp = mopeds.Simulator(
-            model, time_grid, var_list_fixed
-        ).simulate()[2]
+        var_list_exp = mopeds.Simulator(model, time_grid, var_list_fixed).simulate()[2]
 
         for key, var in var_list_exp.items():
             var_list[key] = var
@@ -180,9 +194,7 @@ def test_pe(piecewise, dae, use_constant, scaling):
         var_list["e0_c_i1"].lower_bound = 0
         var_list["e0_c_i1"].upper_bound = None
 
-        pe = mopeds.ParameterEstimation(
-            model, [var_list]
-        )
+        pe = mopeds.ParameterEstimation(model, [var_list])
         pe.setup_regularization(0, np.array([95000]))
 
         if model.DAE:
@@ -225,9 +237,7 @@ def test_pe_regularization(piecewise, dae, scaling):
         var_list_fixed = copy.deepcopy(var_list)
         for var in var_list_fixed.values():
             var.fixed = True
-        var_list_exp = mopeds.Simulator(
-            model, time_grid, var_list_fixed
-        ).simulate()[2]
+        var_list_exp = mopeds.Simulator(model, time_grid, var_list_fixed).simulate()[2]
 
         for key, var in var_list_exp.items():
             if isinstance(var, mopeds.VariableControlPiecewiseConstant):
@@ -235,28 +245,80 @@ def test_pe_regularization(piecewise, dae, scaling):
             else:
                 var_list[key].dataframe = var.dataframe
 
-        pe = mopeds.ParameterEstimation(
-            model, [var_list]
+        pe = mopeds.ParameterEstimation(model, [var_list])
+        a = pe.parameter_identifiability_chu2012(
+            true_parameters, true_parameters.keys()
         )
-        a = pe.parameter_identifiability_chu2012(true_parameters, true_parameters.keys())
-        b = pe.parameter_identifiability_yao2003(true_parameters, true_parameters.keys())
-        c = pe.parameter_identifiability_lopez2013(true_parameters, true_parameters.keys())
-        d = pe.parameter_identifiability_quaiser2009(true_parameters, true_parameters.keys())
+        b = pe.parameter_identifiability_yao2003(
+            true_parameters, true_parameters.keys()
+        )
+        c = pe.parameter_identifiability_lopez2013(
+            true_parameters, true_parameters.keys()
+        )
+        d = pe.parameter_identifiability_quaiser2009(
+            true_parameters, true_parameters.keys()
+        )
 
         with pytest.raises(NotImplementedError):
-            e = pe.parameter_identifiability_brun2001(true_parameters, true_parameters.keys())
+            e = pe.parameter_identifiability_brun2001(
+                true_parameters, true_parameters.keys()
+            )
 
         with mopeds.options(variable_scaling=False):
             pe = mopeds.ParameterEstimation(model, [var_list])
-            e = pe.parameter_identifiability_brun2001(true_parameters, true_parameters.keys())
+            e = pe.parameter_identifiability_brun2001(
+                true_parameters, true_parameters.keys()
+            )
 
-        identifiable_a = ['e0_E_r2', 'e0_c_p']
-        identifiable_b = ['e0_E_r1', 'e0_E_r3', 'e0_c_p']
-        identifiable_d = ['e0_c_p', 'e0_E_r2', 'e0_E_r3']
-        ranked_c = ['e0_c_p', 'e0_E_r2', 'e0_E_r3', 'e0_k_pre_r2', 'e0_k_pre_r3', 'e0_E_r1', 'e0_greek_Deltah_r2', 'e0_k_pre_r1', 'e0_U', 'e0_greek_Deltah_r3', 'e0_greek_Deltah_r1']
-        ranked_d = ['e0_c_p', 'e0_E_r2', 'e0_E_r3', 'e0_k_pre_r2', 'e0_k_pre_r3', 'e0_E_r1', 'e0_U', 'e0_greek_Deltah_r2', 'e0_k_pre_r1', 'e0_greek_Deltah_r3', 'e0_greek_Deltah_r1']
-        ranked_e = ['e0_greek_Deltah_r1', 'e0_greek_Deltah_r3', 'e0_greek_Deltah_r2', 'e0_k_pre_r1', 'e0_E_r1', 'e0_k_pre_r3', 'e0_k_pre_r2', 'e0_E_r3', 'e0_E_r2', 'e0_U', 'e0_c_p']
-        identifiable_e = ['e0_E_r1', 'e0_E_r3', 'e0_k_pre_r2', 'e0_U', 'e0_greek_Deltah_r1']
+        identifiable_a = ["e0_E_r2", "e0_c_p"]
+        identifiable_b = ["e0_E_r1", "e0_E_r3", "e0_c_p"]
+        identifiable_d = ["e0_c_p", "e0_E_r2", "e0_E_r3"]
+        ranked_c = [
+            "e0_c_p",
+            "e0_E_r2",
+            "e0_E_r3",
+            "e0_k_pre_r2",
+            "e0_k_pre_r3",
+            "e0_E_r1",
+            "e0_greek_Deltah_r2",
+            "e0_k_pre_r1",
+            "e0_U",
+            "e0_greek_Deltah_r3",
+            "e0_greek_Deltah_r1",
+        ]
+        ranked_d = [
+            "e0_c_p",
+            "e0_E_r2",
+            "e0_E_r3",
+            "e0_k_pre_r2",
+            "e0_k_pre_r3",
+            "e0_E_r1",
+            "e0_U",
+            "e0_greek_Deltah_r2",
+            "e0_k_pre_r1",
+            "e0_greek_Deltah_r3",
+            "e0_greek_Deltah_r1",
+        ]
+        ranked_e = [
+            "e0_greek_Deltah_r1",
+            "e0_greek_Deltah_r3",
+            "e0_greek_Deltah_r2",
+            "e0_k_pre_r1",
+            "e0_E_r1",
+            "e0_k_pre_r3",
+            "e0_k_pre_r2",
+            "e0_E_r3",
+            "e0_E_r2",
+            "e0_U",
+            "e0_c_p",
+        ]
+        identifiable_e = [
+            "e0_E_r1",
+            "e0_E_r3",
+            "e0_k_pre_r2",
+            "e0_U",
+            "e0_greek_Deltah_r1",
+        ]
 
         assert a["estimable"] == identifiable_a
         assert b["estimable"] == identifiable_b
@@ -273,19 +335,17 @@ def test_pe_regularization(piecewise, dae, scaling):
 
 
 def test_pe_algebraic():
-    """Test if dynamic pe always returns same results and sensitivity, 
+    """Test if dynamic pe always returns same results and sensitivity,
     independently if used with or without algebraic variables.
     """
-    var_list, model, _ = mopeds.examples.yeast_growth(piecewise=False, duplicate_states=True)
+    var_list, model, _ = mopeds.examples.yeast_growth(
+        piecewise=False, duplicate_states=True
+    )
     sim = mopeds.Simulator(model, np.linspace(0, 20, 5), var_list)
     exp_data = sim.simulate(algebraic=True)[2]
     parameters = {"theta1": 0.3, "theta2": 0.17}
 
-    variable_combinations = [
-        ["x1_alg", "x2_alg"],
-        ["x1", "x2"],
-        ["x1", "x2_alg"]
-    ]
+    variable_combinations = [["x1_alg", "x2_alg"], ["x1", "x2"], ["x1", "x2_alg"]]
 
     piecewise_options = [True, False]
     scaling_options = [False, True]
@@ -296,7 +356,9 @@ def test_pe_algebraic():
     for scaling in scaling_options:
         with mopeds.options(variable_scaling=scaling):
             for piecewise in piecewise_options:
-                var_list, model, _ = mopeds.examples.yeast_growth(piecewise=piecewise, duplicate_states=True)
+                var_list, model, _ = mopeds.examples.yeast_growth(
+                    piecewise=piecewise, duplicate_states=True
+                )
                 for var_names in variable_combinations:
                     var_list_i = copy.deepcopy(var_list)
                     for var_name in var_names:
@@ -306,7 +368,6 @@ def test_pe_algebraic():
                     var_list_i["theta2"].fixed = False
                     var_list_i["theta2"].guess = 1
 
-
                     pe = mopeds.ParameterEstimation(model, [var_list_i])
 
                     res_pe = pe.optimize()
@@ -314,7 +375,13 @@ def test_pe_algebraic():
                         benchmark_res_pe = res_pe
                     else:
                         for key in benchmark_res_pe.keys():
-                            if key in ["lam_p", "lam_x", "x_dict", "x_dict_all", "x_unscaled"]:
+                            if key in [
+                                "lam_p",
+                                "lam_x",
+                                "x_dict",
+                                "x_dict_all",
+                                "x_unscaled",
+                            ]:
                                 continue
                             v1 = res_pe[key]
                             v2 = benchmark_res_pe[key]
@@ -327,14 +394,20 @@ def test_pe_algebraic():
                         benchmark_sens = res_sens
                     else:
                         for key in benchmark_sens.keys():
-                            if key in ["jac_sorted", "jac_scaled_sorted", "jac_yao_sorted", "jac_wls", "hess_wls", "hess_tikh"]:
+                            if key in [
+                                "jac_sorted",
+                                "jac_scaled_sorted",
+                                "jac_yao_sorted",
+                                "jac_wls",
+                                "hess_wls",
+                                "hess_tikh",
+                            ]:
                                 continue
                             v1 = res_sens[key]
                             v2 = benchmark_sens[key]
                             # print(key)
                             # print(v1/v2)
                             assert np.isclose(v1, v2, rtol=1e-4).all()
-
 
 
 if __name__ == "__main__":

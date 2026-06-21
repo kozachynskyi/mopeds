@@ -6,9 +6,11 @@ import matplotlib.pyplot as plt
 import mopeds
 import numpy as np
 
+
 def initialize_problem(mode="old"):  # noqa: C901
 
     variable_list = mopeds.VariableList()
+
     # fmt:off
     def fun_175223__arrhenius(std_T,std_E_A,std_R,std_k_pre):  # noqa: E501,E231,E306
         std_k = (std_k_pre*ca.exp((-(std_E_A/(std_R*std_T)))))  # noqa: E501,E226
@@ -166,7 +168,6 @@ def initialize_problem(mode="old"):  # noqa: C901
 
 
 if __name__ == "__main__":
-
     mode = "old"
     # mode = "gc"
     variable_list, m = initialize_problem(mode)
@@ -213,23 +214,28 @@ if __name__ == "__main__":
     variable_list["e0_k_for_pre"].guess = 1e7
 
     for var_name in meas_names:
-        variable_list[var_name].variance = 0.0005 ** 2
+        variable_list[var_name].variance = 0.0005**2
 
     grid = mopeds.tools.create_grid(list(controls.values()))
 
     rng = np.random.default_rng(0)
     list_varlist, true_par = mopeds.tools.generate_varlist_with_data_NLE(
-        m, variable_list, controls, perturbate=True, measurement_names=meas_names, rng=rng
+        m,
+        variable_list,
+        controls,
+        perturbate=True,
+        measurement_names=meas_names,
+        rng=rng,
     )
 
     pe = mopeds.ParameterEstimationNLE(m, list_varlist)
 
     if False:
         residuals = pe.calculate_objective_and_residual(true_par)["residuals"]
-        data = np.column_stack((np.array(grid), residuals[:,0]))
+        data = np.column_stack((np.array(grid), residuals[:, 0]))
         fig = plt.figure()
-        ax = fig.add_subplot(projection='3d')
-        ax.scatter(*np.hsplit(data,3))
+        ax = fig.add_subplot(projection="3d")
+        ax.scatter(*np.hsplit(data, 3))
         plt.show()
         breakpoint()
 
@@ -240,6 +246,6 @@ if __name__ == "__main__":
     for var_name in unfix_names:
         new = x_dict[var_name]
         true = true_par[var_name]
-        print(var_name, new, true, f"{(new-true)*100/true}%")
+        print(var_name, new, true, f"{(new - true) * 100 / true}%")
 
     breakpoint()

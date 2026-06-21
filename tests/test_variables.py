@@ -5,16 +5,18 @@ from mopeds.variables import SameVariableNameError
 import casadi as ca
 import pytest
 
+
 def test_options():
     mopeds.set_options(variable_scaling=True)
     assert mopeds.get_options()["variable_scaling"]
-    with mopeds.options(variable_scaling = False):
+    with mopeds.options(variable_scaling=False):
         assert mopeds.get_options()["variable_scaling"] is False
     assert mopeds.get_options()["variable_scaling"]
     mopeds.set_options(variable_scaling=False)
     assert mopeds.get_options()["variable_scaling"] is False
     mopeds.set_options(variable_scaling=True)
     assert mopeds.get_options()["variable_scaling"]
+
 
 def test_variables():
     # Test VariableList() and subclasses
@@ -155,6 +157,7 @@ def test_variables():
     var = mopeds.VariableAlgebraic("var", None, None, 0)
     assert var.get_constraint_idas == -1
 
+
 def test_varlist():
     var_1 = mopeds.VariableControlPiecewiseConstant("v1", 20)
     var_2 = mopeds.VariableControlPiecewiseConstant("v2", 20)
@@ -172,7 +175,10 @@ def test_varlist():
     assert list(vl.keys()) == ["v1", "v2"]
     with pytest.raises(KeyError):
         vl._get_sorted_varlist(vl_unordered).keys()
-    assert list(vl._get_sorted_varlist(vl_unordered, raise_error=False).keys()) == ["v2", "v1"]
+    assert list(vl._get_sorted_varlist(vl_unordered, raise_error=False).keys()) == [
+        "v2",
+        "v1",
+    ]
 
 
 if __name__ == "__main__":

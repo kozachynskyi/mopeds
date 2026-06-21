@@ -18,8 +18,13 @@ from mopeds import (
 
 
 class SimulatorNLE:
-
-    supported_solvers: list[str] = ["ipopt", "rootfinder", "newton", "fast_newton", "nlpsol"]
+    supported_solvers: list[str] = [
+        "ipopt",
+        "rootfinder",
+        "newton",
+        "fast_newton",
+        "nlpsol",
+    ]
 
     def __init__(
         self,
@@ -59,14 +64,22 @@ class SimulatorNLE:
 
         self.__setup_variables()
 
-        scaled_equations = ca.substitute(self.model.equations_algebraic, self._input_variable_list.get_casadi_variables(), self._input_variable_list.get_scaled_casadi_variables())
+        scaled_equations = ca.substitute(
+            self.model.equations_algebraic,
+            self._input_variable_list.get_casadi_variables(),
+            self._input_variable_list.get_scaled_casadi_variables(),
+        )
         self._model_equations = ca.cse(scaled_equations)
 
         self.function: ca.Function = ca.Function(
             "f",
             [
-                self.model.varlist_algebraic(self._input_variable_list).get_casadi_variables(),
-                self.model.varlist_independent(self._input_variable_list).get_casadi_variables(),
+                self.model.varlist_algebraic(
+                    self._input_variable_list
+                ).get_casadi_variables(),
+                self.model.varlist_independent(
+                    self._input_variable_list
+                ).get_casadi_variables(),
             ],
             [self._model_equations],
             ["x", "p"],
@@ -85,8 +98,12 @@ class SimulatorNLE:
                 "solver",
                 "ipopt",
                 {
-                    "x": self.model.varlist_algebraic(self._input_variable_list).get_casadi_variables(),
-                    "p": self.model.varlist_independent(self._input_variable_list).get_casadi_variables(),
+                    "x": self.model.varlist_algebraic(
+                        self._input_variable_list
+                    ).get_casadi_variables(),
+                    "p": self.model.varlist_independent(
+                        self._input_variable_list
+                    ).get_casadi_variables(),
                     "g": self._model_equations,
                     "f": (ca.sum1(self._model_equations) ** 2),
                 },
@@ -174,9 +191,9 @@ class SimulatorNLE:
             else:
                 raise TypeError(f"{type(var)} is not supported")
 
-        self.mapping_independent_variables: dict[
-            str, int
-        ] = mapping_independent_variables
+        self.mapping_independent_variables: dict[str, int] = (
+            mapping_independent_variables
+        )
         self.mapping_algebraic_variables: dict[str, int] = mapping_algebraic_variables
         self._lower_bound: list[float] = lower_bound
         self._upper_bound: list[float] = upper_bound
@@ -206,9 +223,13 @@ class SimulatorNLE:
             self._independent_variables[index_var] = var.scale_from_original(var_value)
 
     @_consistent_scaling_decorator
-    def generate_exp_data(self, unfixed_variables: dict[str, float] = None) -> VariableList:
+    def generate_exp_data(
+        self, unfixed_variables: dict[str, float] = None
+    ) -> VariableList:
         warn("generate_exp_data is deprecated. Use simulate()", FutureWarning)
-        return self.simulate(unfixed_variables=unfixed_variables, return_varlist=True)[2]
+        return self.simulate(unfixed_variables=unfixed_variables, return_varlist=True)[
+            2
+        ]
 
     def _call_simulator_rootfinder(self) -> ca.DM:
         """This method is needed to raise an error, if ipopt simulator fails to converge"""
@@ -220,7 +241,9 @@ class SimulatorNLE:
 
         if isinstance(res["x"], ca.DM):
             if not self.simulator.stats()["success"]:
-                raise ValueError(f"IPOPT failed as NLE solver:\n{self.simulator.stats()}")
+                raise ValueError(
+                    f"IPOPT failed as NLE solver:\n{self.simulator.stats()}"
+                )
         return res
 
     def select_simulation_result(
@@ -239,7 +262,13 @@ class SimulatorNLE:
         return res_selected
 
     @_consistent_scaling_decorator
-    def simulate(self, *, return_var_names: list[str] | None = None, unfixed_variables: dict[str, float] | None = None, return_varlist: bool = True) -> (dict(str, ca.MX), ca.MX | None, VariableList | None):
+    def simulate(
+        self,
+        *,
+        return_var_names: list[str] | None = None,
+        unfixed_variables: dict[str, float] | None = None,
+        return_varlist: bool = True,
+    ) -> (dict(str, ca.MX), ca.MX | None, VariableList | None):
         """Wrapper for simulate_fast, that returns scaled results.
         res is returned as dict to be consistent with Dynamic simulations."""
         res = self.simulate_fast()
@@ -253,7 +282,11 @@ class SimulatorNLE:
                 values = []
                 for symbol in unfixed_symbols:
                     var_name = symbol.name()
-                    values.append(self._input_variable_list[var_name].scale_from_original(unfixed_variables[var_name]))
+                    values.append(
+                        self._input_variable_list[var_name].scale_from_original(
+                            unfixed_variables[var_name]
+                        )
+                    )
 
                 function = ca.Function("f", unfixed_symbols, [res["x"]])
                 res = {"x": function(*values)}
@@ -262,7 +295,10 @@ class SimulatorNLE:
 
         if return_varlist:
             variables = VariableList()
-            for var_name, res_var in zip(self.model.varlist_algebraic(self._input_variable_list).keys(), res["x"].toarray()):
+            for var_name, res_var in zip(
+                self.model.varlist_algebraic(self._input_variable_list).keys(),
+                res["x"].toarray(),
+            ):
                 if return_var_names is not None:
                     if var_name not in return_var_names:
                         continue
@@ -279,9 +315,16 @@ class SimulatorNLE:
         return res, res_selected, variables
 
     @_consistent_scaling_decorator
-    def simulate_sym_unfixed(self, unfixed_variables: dict[str, float] = None) -> dict[str, ca.DM]:
-        warn("simulate_sym_unfixed is deprecated. Use simulate(unfixed_variables=unfixed_variables, return_varlist=False)", FutureWarning)
-        return self.simulate(unfixed_variables=unfixed_variables, return_varlist=False)[0]
+    def simulate_sym_unfixed(
+        self, unfixed_variables: dict[str, float] = None
+    ) -> dict[str, ca.DM]:
+        warn(
+            "simulate_sym_unfixed is deprecated. Use simulate(unfixed_variables=unfixed_variables, return_varlist=False)",
+            FutureWarning,
+        )
+        return self.simulate(unfixed_variables=unfixed_variables, return_varlist=False)[
+            0
+        ]
 
     def simulate_sym(self) -> dict[str, ca.MX | ca.DM]:
         warn("simulate_sym is deprecated. Use simulate_fast", FutureWarning, 2)

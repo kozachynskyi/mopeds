@@ -5,13 +5,15 @@ import copy
 
 import mopeds
 
+
 def unfix_parameters(varlist):
-    unfix_variables = ["theta1", "theta2", "theta3","theta4"]
+    unfix_variables = ["theta1", "theta2", "theta3", "theta4"]
     varlist_oed = copy.deepcopy(varlist)
 
     for par_name in unfix_variables:
         varlist_oed[par_name].fixed = False
     return varlist_oed
+
 
 def plot_res(pe, parameters):
     data = pe.calculate_objective_and_residual(parameters, "wls")
@@ -28,6 +30,7 @@ def plot_res(pe, parameters):
         axis.plot(x, y)
         axis.scatter(x, y_m)
     fig.show()
+
 
 def plot_fig3(oed, obj_f_name):
     varlist = oed.list_input_varlist[0]

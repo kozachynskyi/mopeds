@@ -63,24 +63,48 @@ class Simulator(object):
 
         self.__setup_time_grid(input_time_grid)
 
-        scaled_equations_diff = ca.substitute(self.model.equations_differential, self._input_variable_list.get_casadi_variables(), self._input_variable_list.get_scaled_casadi_variables())
-        scaled_equations_diff = ca.cse(scaled_equations_diff / self._input_variable_list.get_state()._get_scaling_constants()[0])
+        scaled_equations_diff = ca.substitute(
+            self.model.equations_differential,
+            self._input_variable_list.get_casadi_variables(),
+            self._input_variable_list.get_scaled_casadi_variables(),
+        )
+        scaled_equations_diff = ca.cse(
+            scaled_equations_diff
+            / self._input_variable_list.get_state()._get_scaling_constants()[0]
+        )
 
         if self.model.DAE:
-            scaled_equations_alg = ca.cse(ca.substitute(self.model.equations_algebraic, self._input_variable_list.get_casadi_variables(), self._input_variable_list.get_scaled_casadi_variables()))
+            scaled_equations_alg = ca.cse(
+                ca.substitute(
+                    self.model.equations_algebraic,
+                    self._input_variable_list.get_casadi_variables(),
+                    self._input_variable_list.get_scaled_casadi_variables(),
+                )
+            )
 
         self.ode_system: dict[str, ca.MX] = {
-            "x": self.model.varlist_state(self._input_variable_list).get_casadi_variables(),
-            "p": ca.vertcat(self.model.varlist_independent(self._input_variable_list).get_casadi_variables()),
+            "x": self.model.varlist_state(
+                self._input_variable_list
+            ).get_casadi_variables(),
+            "p": ca.vertcat(
+                self.model.varlist_independent(
+                    self._input_variable_list
+                ).get_casadi_variables()
+            ),
             "ode": scaled_equations_diff,
         }
 
         # Tau variable is used to specify a length of iteration step externally, via tau variable
         self.tau: ca.MX = ca.MX.sym("tau")
         self.ode_system_tau: dict[str, ca.MX] = {
-            "x": self.model.varlist_state(self._input_variable_list).get_casadi_variables(),
+            "x": self.model.varlist_state(
+                self._input_variable_list
+            ).get_casadi_variables(),
             "p": ca.vertcat(
-                self.tau, self.model.varlist_independent(self._input_variable_list).get_casadi_variables()
+                self.tau,
+                self.model.varlist_independent(
+                    self._input_variable_list
+                ).get_casadi_variables(),
             ),
             "ode": scaled_equations_diff * self.tau,
         }
@@ -88,10 +112,12 @@ class Simulator(object):
         if self.model.DAE:
             self.ode_system["alg"] = scaled_equations_alg
             self.ode_system_tau["alg"] = scaled_equations_alg
-            self.ode_system["z"] = self.model.varlist_algebraic(self._input_variable_list).get_casadi_variables()
-            self.ode_system_tau[
-                "z"
-            ] = self.model.varlist_algebraic(self._input_variable_list).get_casadi_variables()
+            self.ode_system["z"] = self.model.varlist_algebraic(
+                self._input_variable_list
+            ).get_casadi_variables()
+            self.ode_system_tau["z"] = self.model.varlist_algebraic(
+                self._input_variable_list
+            ).get_casadi_variables()
 
         if self.model.DAE:
             self.function_algebraic_equations = ca.Function(
@@ -142,7 +168,15 @@ class Simulator(object):
         # .factory() method is very expensive so should be requested externally
         if simulate_jac:
             if self.model.DAE is True:
-                factory_names = ["xf", "qf", "zf", "adj_x0", "adj_p", "adj_z0", "jac:xf:p"]
+                factory_names = [
+                    "xf",
+                    "qf",
+                    "zf",
+                    "adj_x0",
+                    "adj_p",
+                    "adj_z0",
+                    "jac:xf:p",
+                ]
             else:
                 factory_names = ["xf", "qf", "adj_x0", "adj_p", "jac:xf:p"]
 
@@ -205,7 +239,15 @@ class Simulator(object):
         return res_selected
 
     @_consistent_scaling_decorator
-    def simulate(self, *, return_var_names: list[str] | None = None, unfixed_variables: dict[str, float] | None = None, return_varlist: bool = True, algebraic: bool = False, recalculate_algebraic: bool = True) -> (dict(str, ca.MX), ca.MX | None, VariableList | None):
+    def simulate(
+        self,
+        *,
+        return_var_names: list[str] | None = None,
+        unfixed_variables: dict[str, float] | None = None,
+        return_varlist: bool = True,
+        algebraic: bool = False,
+        recalculate_algebraic: bool = True,
+    ) -> (dict(str, ca.MX), ca.MX | None, VariableList | None):
         """Wrapper for simulate_fast, that returns scaled results."""
         if recalculate_algebraic and self.model.DAE:
             self.calculate_algebraic_initials(apply_intials=True)
@@ -232,7 +274,11 @@ class Simulator(object):
                 values = []
                 for symbol in unfixed_symbols:
                     var_name = symbol.name()
-                    values.append(self._input_variable_list[var_name].scale_from_original(unfixed_variables[var_name]))
+                    values.append(
+                        self._input_variable_list[var_name].scale_from_original(
+                            unfixed_variables[var_name]
+                        )
+                    )
 
                 return_values = [res["xf"]]
                 if self.model.DAE:
@@ -253,11 +299,15 @@ class Simulator(object):
             all_variables = [copy.deepcopy(self._input_variable_list.get_state())]
             res_names = ["xf"]
             if algebraic and self.model.DAE:
-                all_variables.append(copy.deepcopy(self._input_variable_list.get_algebraic()))
+                all_variables.append(
+                    copy.deepcopy(self._input_variable_list.get_algebraic())
+                )
                 res_names.append("zf")
 
             for varlist, res_name in zip(all_variables, res_names):
-                for var_name, res_var in zip(self.model.varlist(varlist).keys(), res_dict[res_name].toarray()):
+                for var_name, res_var in zip(
+                    self.model.varlist(varlist).keys(), res_dict[res_name].toarray()
+                ):
                     if return_var_names is not None:
                         if var_name not in return_var_names:
                             continue
@@ -273,20 +323,28 @@ class Simulator(object):
 
                     final_varlist.add_variable(new_var)
 
-            for var in self.model.varlist_independent(self._input_variable_list).values():
+            for var in self.model.varlist_independent(
+                self._input_variable_list
+            ).values():
                 if isinstance(var, VariableControlPiecewiseConstant):
                     new_var = copy.deepcopy(self._input_variable_list[var.name])
                     final_varlist.add_variable(new_var)
         else:
             final_varlist = None
 
-
         return res_dict, res_selected, final_varlist
 
     @_consistent_scaling_decorator
-    def simulate_sym_unfixed(self, unfixed_variables: dict[str, float]  = None) -> dict[str, ca.DM]:
-        warn("simulate_sym_unfixed is deprecated. Use simulate(unfixed_variables=unfixed_variables))", FutureWarning)
-        return self.simulate(unfixed_variables=unfixed_variables, return_varlist=False, algebraic=True)[0]
+    def simulate_sym_unfixed(
+        self, unfixed_variables: dict[str, float] = None
+    ) -> dict[str, ca.DM]:
+        warn(
+            "simulate_sym_unfixed is deprecated. Use simulate(unfixed_variables=unfixed_variables))",
+            FutureWarning,
+        )
+        return self.simulate(
+            unfixed_variables=unfixed_variables, return_varlist=False, algebraic=True
+        )[0]
 
     @_consistent_scaling_decorator
     def __setup_variables(self) -> None:
@@ -350,9 +408,9 @@ class Simulator(object):
 
                 independent_variables.append(independent_variable)
 
-        self.mapping_independent_variables: dict[
-            str, int
-        ] = mapping_independent_variables
+        self.mapping_independent_variables: dict[str, int] = (
+            mapping_independent_variables
+        )
         self.mapping_algebraic_variables: dict[str, int] = mapping_algebraic_variables
         self.mapping_state_variables: dict[str, int] = mapping_state_variables
         """ This nested list holds either a value or a casadi variable of
@@ -398,7 +456,9 @@ class Simulator(object):
             var = self._input_variable_list[var_name]
             index_var = self.mapping_independent_variables[var_name]
             for index in range(len(self._independent_variables)):
-                self._independent_variables[index][index_var] = var.scale_from_original(var_value)
+                self._independent_variables[index][index_var] = var.scale_from_original(
+                    var_value
+                )
 
     def get_default_simulator_settings(self) -> None:
         """Sane default settings for integrators"""
@@ -668,9 +728,7 @@ class Simulator(object):
             res_integration = self.integrator_tau_jac(
                 x0=x_init,
                 z0=alg_init,
-                p=ca.vertcat(
-                    time_step - prev_time_step, independent_variables 
-                ),
+                p=ca.vertcat(time_step - prev_time_step, independent_variables),
             )
 
             prev_time_step = time_step
@@ -703,9 +761,7 @@ class Simulator(object):
         ):
             res_integration = self.integrator_tau_jac(
                 x0=x_init,
-                p=ca.vertcat(
-                    time_step - prev_time_step, independent_variables
-                ),
+                p=ca.vertcat(time_step - prev_time_step, independent_variables),
             )
 
             prev_time_step = time_step
@@ -777,9 +833,7 @@ class Simulator(object):
             res_integration = self.integrator_tau(
                 x0=x_init,
                 z0=alg_init,
-                p=ca.vertcat(
-                    time_step - prev_time_step, independent_variables
-                ),
+                p=ca.vertcat(time_step - prev_time_step, independent_variables),
             )
 
             prev_time_step = time_step
@@ -811,9 +865,7 @@ class Simulator(object):
             independent_variables = self._independent_variables[time_index]
             res_integration = self.integrator_tau(
                 x0=x_init,
-                p=ca.vertcat(
-                    time_step - prev_time_step, independent_variables
-                ),
+                p=ca.vertcat(time_step - prev_time_step, independent_variables),
             )
 
             prev_time_step = time_step
@@ -834,7 +886,11 @@ class Simulator(object):
         unfixed_variables: dict[str, float] | None = None,
     ) -> VariableList:
         warn("generate_exp_data deprecated, use simulate()", FutureWarning)
-        return self.simulate(algebraic=algebraic, recalculate_algebraic=recalculate_algebraic, unfixed_variables=unfixed_variables)[2]
+        return self.simulate(
+            algebraic=algebraic,
+            recalculate_algebraic=recalculate_algebraic,
+            unfixed_variables=unfixed_variables,
+        )[2]
 
     def __setup_time_grid(self, time_grid: ArrayLike) -> None:
         """Time_grid provided by user may not take into account piecewise controls.

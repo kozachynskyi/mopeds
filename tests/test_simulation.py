@@ -28,21 +28,21 @@ def test_pendulum_dae(piecewise):
     with mopeds.options(variable_scaling=False):
         sim = mopeds.Simulator(model, time_grid, varlist)
         res_tau = sim.simulate(algebraic=True)[2].dataframe
-        res_tau.drop(columns="L", inplace=True, errors='ignore')
-        res = np.array([[3.42289, 4.68624],
-             [1.96674, 2.34688],
-             [3.6447, 1.74332],
-             [-1.84705, -6.30866],
-             [1.16669, -1.11495]])
-        assert np.isclose(
-                res_tau.iloc[1:].T, res
-        ).all()
+        res_tau.drop(columns="L", inplace=True, errors="ignore")
+        res = np.array(
+            [
+                [3.42289, 4.68624],
+                [1.96674, 2.34688],
+                [3.6447, 1.74332],
+                [-1.84705, -6.30866],
+                [1.16669, -1.11495],
+            ]
+        )
+        assert np.isclose(res_tau.iloc[1:].T, res).all()
 
         res_tau = sim.simulate(return_var_names=["u", "v"])[2].dataframe
-        res_tau.drop(columns="L", inplace=True, errors='ignore')
-        assert np.isclose(
-                res_tau.iloc[1:].T, res[[1,3]]
-        ).all()
+        res_tau.drop(columns="L", inplace=True, errors="ignore")
+        assert np.isclose(res_tau.iloc[1:].T, res[[1, 3]]).all()
         res_tau = sim.simulate(return_var_names=["u", "v"], return_varlist=False)[2]
         assert res_tau is None
 
@@ -140,9 +140,7 @@ def test_piecewise(dae, use_constant, scaling):
         T_in.expand_horizon([2000, 4000], [373, 373])
         for var in variable_list.values():
             var.fixed = True
-        sim = mopeds.Simulator(
-            m, time_grid_piecewise, variable_list, simulate_jac=True
-        )
+        sim = mopeds.Simulator(m, time_grid_piecewise, variable_list, simulate_jac=True)
 
         res_piecewise = sim.simulate_jac()
 

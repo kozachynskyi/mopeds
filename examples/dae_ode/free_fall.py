@@ -11,7 +11,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
-
     variable_list, m, exp_data = mopeds.examples.free_fall_example()
 
     # Create time-grid. Zero should be first
@@ -51,7 +50,10 @@ if __name__ == "__main__":
 
     res = pe.calculate_objective_and_residual(par)
     plt.plot(pe.list_simulators[0].time_grid_relative[1:], res["y"])
-    plt.scatter(pe.list_simulators[0].time_grid_relative[1:], exp_data[0].dataframe["s"].iloc[1:])
+    plt.scatter(
+        pe.list_simulators[0].time_grid_relative[1:],
+        exp_data[0].dataframe["s"].iloc[1:],
+    )
     plt.scatter(pe.list_simulators[0].time_grid_relative[1:], orig["s"].iloc[1:])
     plt.show()
     # print(sim_fixed.simulate_jac())

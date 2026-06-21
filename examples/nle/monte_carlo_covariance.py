@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from tqdm import tqdm
 
+
 def parameter_analysis_monte_carlo(pe, parameters):
     original_solver_settings = copy.deepcopy(pe.solver_settings)
     original_data = copy.deepcopy(pe.array_data)

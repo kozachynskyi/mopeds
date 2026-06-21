@@ -27,9 +27,13 @@ def test_jacobian_weights(piecewise, dae, use_constant, scaling):
                 T_in.expand_horizon([2000, 4000], [373, 373])
 
             if weight_on:
-                var_list_exp = mopeds.Simulator(model, time_grid, var_list).simulate()[2]
+                var_list_exp = mopeds.Simulator(model, time_grid, var_list).simulate()[
+                    2
+                ]
             else:
-                var_list_exp = mopeds.Simulator(model, time_grid_modified, var_list).simulate()[2]
+                var_list_exp = mopeds.Simulator(
+                    model, time_grid_modified, var_list
+                ).simulate()[2]
 
             for key, var in var_list_exp.items():
                 var_list[key] = var
@@ -43,12 +47,17 @@ def test_jacobian_weights(piecewise, dae, use_constant, scaling):
             var_list["e0_E_r1"].lower_bound = -9.6e4
             var_list["e0_E_r1"].upper_bound = 9.6e4
 
-            pe = mopeds.ParameterEstimation(
-                model, [var_list]
-            )
-            jac_pe = pe.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_E_r1": 9.6e4})["jac_scaled_full_theory"].flatten()
+            pe = mopeds.ParameterEstimation(model, [var_list])
+            jac_pe = pe.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_E_r1": 9.6e4})[
+                "jac_scaled_full_theory"
+            ].flatten()
 
-            controls_dict = {"e0_T_in": 373, "weight_0": 1, "weight_1": 1, "weight_2": 1}
+            controls_dict = {
+                "e0_T_in": 373,
+                "weight_0": 1,
+                "weight_1": 1,
+                "weight_2": 1,
+            }
 
             controls_dict_expanded = copy.deepcopy(controls_dict)
             controls_dict_expanded["weight_3"] = 1
@@ -60,11 +69,17 @@ def test_jacobian_weights(piecewise, dae, use_constant, scaling):
                 controls_dict_expanded["weight_1"] = 0
 
             oed_settings = mopeds.OptimalSampling(num_sampling_times=3)
-            oed = mopeds.OptimalExperimentalDesign(model, [var_list], time_grid, oed_settings)
-            oed_expanded = mopeds.OptimalExperimentalDesign(model, [var_list], time_grid_expanded, oed_settings)
+            oed = mopeds.OptimalExperimentalDesign(
+                model, [var_list], time_grid, oed_settings
+            )
+            oed_expanded = mopeds.OptimalExperimentalDesign(
+                model, [var_list], time_grid_expanded, oed_settings
+            )
 
             jac_oed = oed.calculate_objective_and_jacobian(controls_dict)["jac"]
-            jac_oed_expanded = oed_expanded.calculate_objective_and_jacobian(controls_dict_expanded)["jac"]
+            jac_oed_expanded = oed_expanded.calculate_objective_and_jacobian(
+                controls_dict_expanded
+            )["jac"]
 
             jac_oed = jac_oed[jac_oed != 0]
             jac_oed_expanded = jac_oed_expanded[jac_oed_expanded != 0]
@@ -107,12 +122,12 @@ def test_oed(piecewise, dae, use_constant, scaling):
     assert np.isclose(res["f"], expected)
     assert np.isclose(res["x"], 6, rtol=1e-4)
 
+
 @pytest.mark.parametrize("piecewise", [True, False])
 @pytest.mark.parametrize("dae", [True, False])
 @pytest.mark.parametrize("use_constant", [True, False])
 def test_scaling(piecewise, dae, use_constant):
-    """Test that OED methods yeilds same results scaled and unscaled
-    """
+    """Test that OED methods yeilds same results scaled and unscaled"""
     var_list, model = mopeds.examples.cstr(piecewise, dae, use_constant)
     time_grid = np.linspace(10, 10000, 4)
     time_grid = np.insert(time_grid, 0, 0)
@@ -128,7 +143,7 @@ def test_scaling(piecewise, dae, use_constant):
     else:
         controls = {"e0_c_in_i1": 5}
 
-    res = [[],[]]
+    res = [[], []]
     for scaling in [True, False]:
         with mopeds.options(variable_scaling=scaling):
             oed = mopeds.OptimalExperimentalDesign(model, [var_list], time_grid)
@@ -147,7 +162,9 @@ def test_oed_piecewise(dae, use_constant, scaling):
     Helpfull to see if any drastic changes in calculation were made
     """
     with mopeds.options(variable_scaling=scaling):
-        var_list_peicewise, model_piecewise = mopeds.examples.cstr(True, dae, use_constant)
+        var_list_peicewise, model_piecewise = mopeds.examples.cstr(
+            True, dae, use_constant
+        )
         var_list, model = mopeds.examples.cstr(False, dae, use_constant)
         time_grid = np.linspace(10, 10000, 4)
         time_grid = np.insert(time_grid, 0, 0)
@@ -162,10 +179,14 @@ def test_oed_piecewise(dae, use_constant, scaling):
 
         oed_settings = None
 
-        oed_piecewise = mopeds.OptimalExperimentalDesign(model_piecewise, [var_list_peicewise], time_grid, oed_settings)
+        oed_piecewise = mopeds.OptimalExperimentalDesign(
+            model_piecewise, [var_list_peicewise], time_grid, oed_settings
+        )
         res_piecewise = oed_piecewise.optimize()
 
-        oed = mopeds.OptimalExperimentalDesign(model, [var_list], time_grid, oed_settings)
+        oed = mopeds.OptimalExperimentalDesign(
+            model, [var_list], time_grid, oed_settings
+        )
         res = oed.optimize()
 
         exp_data = oed_piecewise.generate_experimental_data({"e0_c_in_i1_t0": 5})

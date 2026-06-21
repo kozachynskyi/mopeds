@@ -4,7 +4,6 @@ import mopeds
 
 
 def initialize_problem():  # noqa: C901
-
     variable_list = mopeds.VariableList()
     # fmt:off
 
@@ -34,7 +33,6 @@ def initialize_problem():  # noqa: C901
 
 
 if __name__ == "__main__":
-
     variable_list, m = initialize_problem()
 
     # Set parameters and controls to fixed state so their values are used for simulation

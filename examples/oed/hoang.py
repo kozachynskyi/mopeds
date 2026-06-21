@@ -4,6 +4,7 @@ from matplotlib import ticker, cm
 
 import mopeds
 
+
 def plot_res(pe, parameters):
     data = pe.calculate_objective_and_residual(p_wls, "wls")
     y_all = data["y"]
@@ -19,6 +20,7 @@ def plot_res(pe, parameters):
         axis.plot(x, y)
         axis.scatter(x, y_m)
     fig.show()
+
 
 def plot_fig3(oed, obj_f_name):
     varlist = oed.list_input_varlist[0]
@@ -41,6 +43,7 @@ def plot_fig3(oed, obj_f_name):
     plt.colorbar()
     plt.show()
     print(obj_f)
+
 
 if __name__ == "__main__":
     time_grid = np.linspace(0, 12, 5)
@@ -69,7 +72,12 @@ if __name__ == "__main__":
     # pe.solver_settings["ipopt"]["linear_solver"] = "ma57"
 
     # print(pe.optimize(True, objective_function="wls"))
-    p_wls = {'theta1': 0.5490962817206284, 'theta2': 8.359345508729714, 'theta3': 0.47235866666073845, 'theta4': 0.018064211744886684}
+    p_wls = {
+        "theta1": 0.5490962817206284,
+        "theta2": 8.359345508729714,
+        "theta3": 0.47235866666073845,
+        "theta4": 0.018064211744886684,
+    }
     # print(pe.optimize(True, objective_function="ols"))
     # p_ols = {'theta1': 0.37625871088136736, 'theta2': 4.273832042202273, 'theta3': 0.46807664082825035, 'theta4': 0.017818492265246618}
 
@@ -77,7 +85,6 @@ if __name__ == "__main__":
 
     # plot_res(pe, p_wls)
     # plot_res(pe, p_preliminary)
-
 
     for var_name, var_value in p_preliminary.items():
         varlist[var_name].value = var_value
@@ -89,7 +96,6 @@ if __name__ == "__main__":
 
     # varlist["u2"].expand_horizon([1], [35])
 
-
     controls = {"u1": 0.12, "u2": 35, "x1": 5}
     # oed = mopeds.OptimalExperimentalDesign(m_monod, [varlist], time_grid)
     # oed.optimize()
@@ -100,7 +106,9 @@ if __name__ == "__main__":
     # oed_settings = mopeds.OEDsettings(20, 0.1, 4, 2)
     oed_settings = mopeds.OEDsettings(20, 0.1, 4, 2)
 
-    oed = mopeds.OptimalExperimentalDesign(m_monod, [varlist], time_grid)#, oed_settings)
+    oed = mopeds.OptimalExperimentalDesign(
+        m_monod, [varlist], time_grid
+    )  # , oed_settings)
     # a = oed.optimize(1e-3)
     # print(a)
 

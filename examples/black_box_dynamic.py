@@ -14,48 +14,57 @@ import copy
 
 mopeds.set_options(variable_scaling=False)
 
+
 def get_jacobian_from_sympy():
-    symbols = [ "p", "T", "a", "b", "c"]
+    symbols = ["p", "T", "a", "b", "c"]
     p, T, a, b, c = sympy.symbols(symbols)
     vars = [p, T, a, b, c]
-    eq = (p-10**(a - b / (T + c)))
+    eq = p - 10 ** (a - b / (T + c))
 
     for v in vars:
         print(sympy.simplify(sympy.diff(eq, v)))
 
+
 # print(get_jacobian_from_sympy())
 # breakpoint()
+
 
 class ArhenuisJac(ca.Callback):
     def __init__(self, opts={}):
         ca.Callback.__init__(self)
         self.construct("jac_f", opts)
 
-    def get_n_in(self): return 2
-    def get_n_out(self): return 1
+    def get_n_in(self):
+        return 2
 
-    def get_sparsity_in(self,i):
-        if i==0: # nominal input
-          return ca.Sparsity.dense(5,1)
-        elif i==1: # nominal output
-          return ca.Sparsity(1,1)
+    def get_n_out(self):
+        return 1
 
-    def get_sparsity_out(self,i):
-        return ca.Sparsity.dense(1,5)
+    def get_sparsity_in(self, i):
+        if i == 0:  # nominal input
+            return ca.Sparsity.dense(5, 1)
+        elif i == 1:  # nominal output
+            return ca.Sparsity(1, 1)
+
+    def get_sparsity_out(self, i):
+        return ca.Sparsity.dense(1, 5)
 
     def eval(self, arg):
         p, T, a, b, c = ca.vertsplit(arg[0])
-        res = ca.DM(1,5)
-        res[0,0] = 1
-        res[0,1] = -10**(a - b/(T + c))*b*np.log(10)/(T + c)**2
-        res[0,2] = -10**(a - b/(T + c))*np.log(10)
-        res[0,3] = 10**(a - b/(T + c))*np.log(10)/(T + c)
-        res[0,4] = -10**(a - b/(T + c))*b*np.log(10)/(T + c)**2
+        res = ca.DM(1, 5)
+        res[0, 0] = 1
+        res[0, 1] = -(10 ** (a - b / (T + c))) * b * np.log(10) / (T + c) ** 2
+        res[0, 2] = -(10 ** (a - b / (T + c))) * np.log(10)
+        res[0, 3] = 10 ** (a - b / (T + c)) * np.log(10) / (T + c)
+        res[0, 4] = -(10 ** (a - b / (T + c))) * b * np.log(10) / (T + c) ** 2
 
         return [res]
 
+
 # print(ca.log(10))
 fun_jac = ArhenuisJac()
+
+
 class Arhenius(ca.Callback):
     def __init__(self, name, opts={"enable_fd": False}):
         # opts = {"enable_fd":True}
@@ -68,19 +77,21 @@ class Arhenius(ca.Callback):
     def get_n_out(self):
         return 1
 
-    def get_sparsity_in(self,i):
-        return ca.Sparsity.dense(5,1)
+    def get_sparsity_in(self, i):
+        return ca.Sparsity.dense(5, 1)
 
-    def get_sparsity_out(self,i):
-        return ca.Sparsity.dense(1,1)
+    def get_sparsity_out(self, i):
+        return ca.Sparsity.dense(1, 1)
 
     def eval(self, arg):
         p, T, a, b, c = ca.vertsplit(arg[0])
-        res = (p-10**(a - b / (T + c)))
+        res = p - 10 ** (a - b / (T + c))
         return [res]
 
-    def has_jacobian(self): return False
-    def get_jacobian(self,name,inames,onames,opts):
+    def has_jacobian(self):
+        return False
+
+    def get_jacobian(self, name, inames, onames, opts):
 
         # You are required to keep a reference alive to the returned Callback object
         self.jac_callback = fun_jac
@@ -88,6 +99,7 @@ class Arhenius(ca.Callback):
 
 
 fun_arh = Arhenius("c1")
+
 
 def raults():
     # https://webbook.nist.gov/cgi/cbook.cgi?ID=C7732185&Mask=4&Type=ANTOINE&Plot=on
@@ -154,6 +166,7 @@ def raults():
 
     return variable_list, m
 
+
 vl, m = raults()
 grid = np.linspace(0, 8, 20)
 
@@ -168,7 +181,7 @@ print(res.dataframe)
 exp_data = copy.deepcopy(vl)
 rng = np.random.default_rng(0)
 
-names = ["test"]#, "e0_x_c2", "e0_P_LV_o_c1"]
+names = ["test"]  # , "e0_x_c2", "e0_P_LV_o_c1"]
 # names = ["test", "e0_y_c1"]
 # for var_name in names:
 #     exp_data[var_name].dataframe = res[var_name].dataframe
@@ -184,7 +197,9 @@ exp_data["e0_A_c1"].fixed = False
 exp_data["e0_A_c1"].guess = 3.5
 # exp_data["e0_A_c2"].guess = 4
 
-pe = mopeds.ParameterEstimation(m, [exp_data], simulator_settings={"expand": True, "enable_fd": False})
+pe = mopeds.ParameterEstimation(
+    m, [exp_data], simulator_settings={"expand": True, "enable_fd": False}
+)
 # pe.solver_settings["ipopt"]["hessian_approximation"] = "limited-memory"
 # v = pe.calculate_sensitivity_and_fim({"e0_A_c1": 3.5})
 # vv = pe.calculate_objective_and_residual({"e0_A_c1": 3.1})

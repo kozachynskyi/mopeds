@@ -76,6 +76,7 @@ ISSUE_2_trigger = False
 
 grid = np.linspace(0, 8, 2)
 
+
 def integrate_over_time_grid(time_grid, integrator, y_0, z_0, p_0):
     x0 = y_0
     z0 = z_0
@@ -109,6 +110,7 @@ def integrate_over_time_grid(time_grid, integrator, y_0, z_0, p_0):
     res = ca.vcat([res_states, res_algebraic])
     return res
 
+
 # VariableState
 e0_x_c1 = ca.MX.sym("e0_x_c1")
 var_state2 = ca.MX.sym("var_state2")
@@ -121,7 +123,14 @@ e0_x_c2 = ca.MX.sym("e0_x_c2")
 e0_y_c1 = ca.MX.sym("e0_y_c1")
 e0_y_c2 = ca.MX.sym("e0_y_c2")
 e0_P = ca.MX.sym("e0_P")
-VariableAlgebraic_0 = [1.4144774629101626, 0.3584844184269499, 0.5, 0.78888, 0.21112, 1.013]
+VariableAlgebraic_0 = [
+    1.4144774629101626,
+    0.3584844184269499,
+    0.5,
+    0.78888,
+    0.21112,
+    1.013,
+]
 VariableAlgebraic_mx = [e0_P_LV_o_c1, e0_P_LV_o_c2, e0_x_c2, e0_y_c1, e0_y_c2, e0_P]
 # VariableParameter
 e0_A_c1 = ca.MX.sym("e0_A_c1")
@@ -139,13 +148,13 @@ if ISSUE_1_trigger:
     EQ_diff2 = 1
 else:
     EQ_diff2 = e0_y_c1
-EQ_alg1 = ((e0_y_c1*e0_P)-((e0_x_c1*e0_P_LV_o_c1)))  # noqa: E501,E226
-EQ_alg2 = ((e0_y_c2*e0_P)-((e0_x_c2*e0_P_LV_o_c2)))  # noqa: E501,E226
-EQ_alg3 = (1.0-(((e0_x_c1+e0_x_c2))))  # noqa: E501,E226
-EQ_alg4 = (1.0-(((e0_y_c1+e0_y_c2))))  # noqa: E501,E226
+EQ_alg1 = (e0_y_c1 * e0_P) - (e0_x_c1 * e0_P_LV_o_c1)  # noqa: E501,E226
+EQ_alg2 = (e0_y_c2 * e0_P) - (e0_x_c2 * e0_P_LV_o_c2)  # noqa: E501,E226
+EQ_alg3 = 1.0 - (e0_x_c1 + e0_x_c2)  # noqa: E501,E226
+EQ_alg4 = 1.0 - (e0_y_c1 + e0_y_c2)  # noqa: E501,E226
 
-EQ_alg5 = (e0_P_LV_o_c1-10**(e0_A_c1 - e0_B_c1 / (e0_T + e0_C_c1)))  # noqa: E501,E226
-EQ_alg6 = (e0_P_LV_o_c2-10**(e0_A_c2 - e0_B_c2 / (e0_T + e0_C_c2)))  # noqa: E501,E226
+EQ_alg5 = e0_P_LV_o_c1 - 10 ** (e0_A_c1 - e0_B_c1 / (e0_T + e0_C_c1))  # noqa: E501,E226
+EQ_alg6 = e0_P_LV_o_c2 - 10 ** (e0_A_c2 - e0_B_c2 / (e0_T + e0_C_c2))  # noqa: E501,E226
 
 list_diff_equations = [EQ_diff1, EQ_diff2]  # noqa: E501
 list_algebraic_equations = [EQ_alg1, EQ_alg2, EQ_alg3, EQ_alg4, EQ_alg5, EQ_alg6]  # noqa: E501
@@ -159,13 +168,17 @@ dae_system = {
     "z": ca.vcat(VariableAlgebraic_mx),
 }
 
-integrator = ca.integrator( "integrator", "idas", dae_system, 0, [0, 1], {})
+integrator = ca.integrator("integrator", "idas", dae_system, 0, [0, 1], {})
 
-res = integrate_over_time_grid(grid, integrator, VariableState_0, VariableAlgebraic_0, VariableParameter_0)
+res = integrate_over_time_grid(
+    grid, integrator, VariableState_0, VariableAlgebraic_0, VariableParameter_0
+)
 
 unfixed_symbols = copy.deepcopy(VariableParameter_0)
 unfixed_symbols[0] = e0_A_c1
-res_sym = integrate_over_time_grid(grid, integrator, VariableState_0, VariableAlgebraic_0, unfixed_symbols)
+res_sym = integrate_over_time_grid(
+    grid, integrator, VariableState_0, VariableAlgebraic_0, unfixed_symbols
+)
 
 if ISSUE_2_trigger:  # estimated based on "e0_y_c1" algebraic variable
     index = 5
@@ -178,19 +191,28 @@ function = ca.Function("f", [e0_A_c1], [res_sym])
 obj_MX = ca.sumsqr(exp_data - function(e0_A_c1)[index, :])
 obj_function = ca.Function("obj", [e0_A_c1], [obj_MX])
 
-nlpsol_dict = { "x": e0_A_c1, "f": obj_MX }
+nlpsol_dict = {"x": e0_A_c1, "f": obj_MX}
 
-solver = ca.nlpsol("par_est", "ipopt", nlpsol_dict, {"monitor": "nlp_grad_f", "print_time": False, "ipopt": {"max_iter": 1, "print_level": 0}})
+solver = ca.nlpsol(
+    "par_est",
+    "ipopt",
+    nlpsol_dict,
+    {
+        "monitor": "nlp_grad_f",
+        "print_time": False,
+        "ipopt": {"max_iter": 1, "print_level": 0},
+    },
+)
 
-nlpsol_args = { "x0": 3.4, "lbx": 3, "ubx": 4}
+nlpsol_args = {"x0": 3.4, "lbx": 3, "ubx": 4}
 
 res_pe = solver.call(nlpsol_args)
 # print(f"Expected 3.5595, estimated: {res_pe['x']}")
 obj_jac = obj_function.jacobian()
 jac = obj_jac(3.4, 0)
-print("".join(["-"]*100))
+print("".join(["-"] * 100))
 print("Jacobian at initial guess of optimizer", jac)
-print("".join(["-"]*100))
+print("".join(["-"] * 100))
 
 try:
     # Test if model correctly impelemnted, do not submit to issue

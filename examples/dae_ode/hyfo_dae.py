@@ -161,23 +161,21 @@ def initialize_problem():
     )
     dydx12 = m.varlist_all["e0_greek_alpha"].casadi_var - (
         (
-            (
-                m.varlist_all["e0_c_i1"].casadi_var
-                * m.varlist_all["e0_V_Reactor"].casadi_var
-                * m.varlist_all["e0_M_i1"].casadi_var
-                + m.varlist_all["e0_c_i2"].casadi_var
-                * m.varlist_all["e0_V_Reactor"].casadi_var
-                * m.varlist_all["e0_M_i2"].casadi_var
-                + m.varlist_all["e0_c_i3"].casadi_var
-                * m.varlist_all["e0_V_Reactor"].casadi_var
-                * m.varlist_all["e0_M_i3"].casadi_var
-                + m.varlist_all["e0_c_i4"].casadi_var
-                * m.varlist_all["e0_V_Reactor"].casadi_var
-                * m.varlist_all["e0_M_i4"].casadi_var
-                + m.varlist_all["e0_c_i5"].casadi_var
-                * m.varlist_all["e0_V_Reactor"].casadi_var
-                * m.varlist_all["e0_M_i5"].casadi_var
-            )
+            m.varlist_all["e0_c_i1"].casadi_var
+            * m.varlist_all["e0_V_Reactor"].casadi_var
+            * m.varlist_all["e0_M_i1"].casadi_var
+            + m.varlist_all["e0_c_i2"].casadi_var
+            * m.varlist_all["e0_V_Reactor"].casadi_var
+            * m.varlist_all["e0_M_i2"].casadi_var
+            + m.varlist_all["e0_c_i3"].casadi_var
+            * m.varlist_all["e0_V_Reactor"].casadi_var
+            * m.varlist_all["e0_M_i3"].casadi_var
+            + m.varlist_all["e0_c_i4"].casadi_var
+            * m.varlist_all["e0_V_Reactor"].casadi_var
+            * m.varlist_all["e0_M_i4"].casadi_var
+            + m.varlist_all["e0_c_i5"].casadi_var
+            * m.varlist_all["e0_V_Reactor"].casadi_var
+            * m.varlist_all["e0_M_i5"].casadi_var
         )
         / (
             (
@@ -241,23 +239,21 @@ def initialize_problem():
             * m.varlist_all["e0_V_Reactor"].casadi_var
         )
         / (
-            (
-                m.varlist_all["e0_c_i1"].casadi_var
-                * m.varlist_all["e0_V_Reactor"].casadi_var
-                * m.varlist_all["e0_M_i1"].casadi_var
-                + m.varlist_all["e0_c_i2"].casadi_var
-                * m.varlist_all["e0_V_Reactor"].casadi_var
-                * m.varlist_all["e0_M_i2"].casadi_var
-                + m.varlist_all["e0_c_i3"].casadi_var
-                * m.varlist_all["e0_V_Reactor"].casadi_var
-                * m.varlist_all["e0_M_i3"].casadi_var
-                + m.varlist_all["e0_c_i4"].casadi_var
-                * m.varlist_all["e0_V_Reactor"].casadi_var
-                * m.varlist_all["e0_M_i4"].casadi_var
-                + m.varlist_all["e0_c_i5"].casadi_var
-                * m.varlist_all["e0_V_Reactor"].casadi_var
-                * m.varlist_all["e0_M_i5"].casadi_var
-            )
+            m.varlist_all["e0_c_i1"].casadi_var
+            * m.varlist_all["e0_V_Reactor"].casadi_var
+            * m.varlist_all["e0_M_i1"].casadi_var
+            + m.varlist_all["e0_c_i2"].casadi_var
+            * m.varlist_all["e0_V_Reactor"].casadi_var
+            * m.varlist_all["e0_M_i2"].casadi_var
+            + m.varlist_all["e0_c_i3"].casadi_var
+            * m.varlist_all["e0_V_Reactor"].casadi_var
+            * m.varlist_all["e0_M_i3"].casadi_var
+            + m.varlist_all["e0_c_i4"].casadi_var
+            * m.varlist_all["e0_V_Reactor"].casadi_var
+            * m.varlist_all["e0_M_i4"].casadi_var
+            + m.varlist_all["e0_c_i5"].casadi_var
+            * m.varlist_all["e0_V_Reactor"].casadi_var
+            * m.varlist_all["e0_M_i5"].casadi_var
         )
     )
     dydx15 = m.varlist_all["e0_x_i6"].casadi_var - (
@@ -272,9 +268,9 @@ def initialize_problem():
             * m.varlist_all["e0_P_i6_Sol4"].casadi_var
             + m.varlist_all["e0_X"].casadi_var
             * m.varlist_all["e0_P_i6_Sol5"].casadi_var
-            + ((m.varlist_all["e0_greek_gamma"].casadi_var)) ** (2.0)
+            + (m.varlist_all["e0_greek_gamma"].casadi_var) ** (2.0)
             * m.varlist_all["e0_P_i6_Sol6"].casadi_var
-            + ((m.varlist_all["e0_X"].casadi_var)) ** (2.0)
+            + (m.varlist_all["e0_X"].casadi_var) ** (2.0)
             * m.varlist_all["e0_P_i6_Sol7"].casadi_var
             + m.varlist_all["e0_p_Reactor"].casadi_var
             * (m.varlist_all["e0_T"].casadi_var - 273.15)
@@ -314,9 +310,9 @@ def initialize_problem():
         + m.varlist_all["e0_greek_gamma"].casadi_var
         * m.varlist_all["e0_P_i7_Sol4"].casadi_var
         + m.varlist_all["e0_X"].casadi_var * m.varlist_all["e0_P_i7_Sol5"].casadi_var
-        + ((m.varlist_all["e0_greek_gamma"].casadi_var)) ** (2.0)
+        + (m.varlist_all["e0_greek_gamma"].casadi_var) ** (2.0)
         * m.varlist_all["e0_P_i7_Sol6"].casadi_var
-        + ((m.varlist_all["e0_X"].casadi_var)) ** (2.0)
+        + (m.varlist_all["e0_X"].casadi_var) ** (2.0)
         * m.varlist_all["e0_P_i7_Sol7"].casadi_var
         + (m.varlist_all["e0_p_Reactor"].casadi_var)
         / (2.0)
@@ -370,9 +366,9 @@ def initialize_problem():
         (
             -126.28
             + 0.13 * m.varlist_all["e0_T"].casadi_var
-            + 6.8 * ((10.0)) ** (-6.0) * ((m.varlist_all["e0_T"].casadi_var)) ** (2.0)
+            + 6.8 * (10.0) ** (-6.0) * (m.varlist_all["e0_T"].casadi_var) ** (2.0)
         )
-        * ((10.0)) ** (3.0)
+        * (10.0) ** (3.0)
     )
     dydx21 = m.varlist_all["e0_K_eq_r3"].casadi_var - (
         ca.exp(
@@ -392,10 +388,8 @@ def initialize_problem():
         + m.varlist_all["e0_K_r1_e2"].casadi_var * m.varlist_all["e0_c_i2"].casadi_var
     ) - (
         (
-            (
-                (m.varlist_all["e0_n_Surfactant"].casadi_var)
-                / (m.varlist_all["e0_V_Reactor"].casadi_var)
-            )
+            (m.varlist_all["e0_n_Surfactant"].casadi_var)
+            / (m.varlist_all["e0_V_Reactor"].casadi_var)
         )
         ** (m.varlist_all["e0_P_Surfactant"].casadi_var)
         * (
@@ -431,10 +425,8 @@ def initialize_problem():
     )
     dydx24 = m.varlist_all["e0_r_r2"].casadi_var - (
         (
-            (
-                (m.varlist_all["e0_n_Surfactant"].casadi_var)
-                / (m.varlist_all["e0_V_Reactor"].casadi_var)
-            )
+            (m.varlist_all["e0_n_Surfactant"].casadi_var)
+            / (m.varlist_all["e0_V_Reactor"].casadi_var)
         )
         ** (m.varlist_all["e0_P_Surfactant"].casadi_var)
         * m.varlist_all["e0_greek_psi_cat"].casadi_var
@@ -457,10 +449,8 @@ def initialize_problem():
         + m.varlist_all["e0_K_r3_e3"].casadi_var * m.varlist_all["e0_c_i6"].casadi_var
     ) - (
         (
-            (
-                (m.varlist_all["e0_n_Surfactant"].casadi_var)
-                / (m.varlist_all["e0_V_Reactor"].casadi_var)
-            )
+            (m.varlist_all["e0_n_Surfactant"].casadi_var)
+            / (m.varlist_all["e0_V_Reactor"].casadi_var)
         )
         ** (m.varlist_all["e0_P_Surfactant"].casadi_var)
         * m.varlist_all["e0_greek_psi_cat"].casadi_var
@@ -481,10 +471,8 @@ def initialize_problem():
     )
     dydx26 = m.varlist_all["e0_r_r4"].casadi_var - (
         (
-            (
-                (m.varlist_all["e0_n_Surfactant"].casadi_var)
-                / (m.varlist_all["e0_V_Reactor"].casadi_var)
-            )
+            (m.varlist_all["e0_n_Surfactant"].casadi_var)
+            / (m.varlist_all["e0_V_Reactor"].casadi_var)
         )
         ** (m.varlist_all["e0_P_Surfactant"].casadi_var)
         * (
@@ -523,10 +511,8 @@ def initialize_problem():
         + m.varlist_all["e0_K_r5_e3"].casadi_var * m.varlist_all["e0_c_i6"].casadi_var
     ) - (
         (
-            (
-                (m.varlist_all["e0_n_Surfactant"].casadi_var)
-                / (m.varlist_all["e0_V_Reactor"].casadi_var)
-            )
+            (m.varlist_all["e0_n_Surfactant"].casadi_var)
+            / (m.varlist_all["e0_V_Reactor"].casadi_var)
         )
         ** (m.varlist_all["e0_P_Surfactant"].casadi_var)
         * (
@@ -560,10 +546,8 @@ def initialize_problem():
     )
     dydx28 = m.varlist_all["e0_r_r6"].casadi_var - (
         (
-            (
-                (m.varlist_all["e0_n_Surfactant"].casadi_var)
-                / (m.varlist_all["e0_V_Reactor"].casadi_var)
-            )
+            (m.varlist_all["e0_n_Surfactant"].casadi_var)
+            / (m.varlist_all["e0_V_Reactor"].casadi_var)
         )
         ** (m.varlist_all["e0_P_Surfactant"].casadi_var)
         * (
@@ -652,7 +636,6 @@ def initialize_problem():
 
 
 if __name__ == "__main__":
-
     variable_list, m = initialize_problem()
     # Create time-grid. Zero should be first
     time_grid = np.linspace(0, 360, 40)

@@ -17,7 +17,7 @@ def get_model():
     a = m.varlist_all["a"].casadi_var  # noqa: E501
     b = m.varlist_all["b"].casadi_var  # noqa: E501
 
-    EQ_alg1 = y - (x ** b + x * a)
+    EQ_alg1 = y - (x**b + x * a)
 
     list_algebraic_equations = [EQ_alg1]  # noqa: E501
 
@@ -25,8 +25,9 @@ def get_model():
 
     return variable_list, m
 
+
 if __name__ == "__main__":
-    fig, axes = plt.subplots(2,2)
+    fig, axes = plt.subplots(2, 2)
 
     for i in [True, False]:
         for j in [True, False]:
@@ -37,7 +38,11 @@ if __name__ == "__main__":
 
             vl, m = get_model()
             bounds = {"x": [1, 30, 10]}
-            exp_data, true_params, _ = mopeds.tools.generate_artificial_data_from_grid_nle(m, vl, bounds, perturbate=False)
+            exp_data, true_params, _ = (
+                mopeds.tools.generate_artificial_data_from_grid_nle(
+                    m, vl, bounds, perturbate=False
+                )
+            )
 
             x_values = []
             y_std_real = []
@@ -54,10 +59,10 @@ if __name__ == "__main__":
                     y_std_real.append(std_rel)
 
                 if ASSUMPTION_ABSOLUTE:
-                    vl_i["y"].variance = (STD)**2
+                    vl_i["y"].variance = (STD) ** 2
                     y_std_assumed.append(STD)
                 else:
-                    vl_i["y"].variance = (std_rel)**2
+                    vl_i["y"].variance = (std_rel) ** 2
                     y_std_assumed.append(std_rel)
 
                 vl_i["a"].fixed = False
@@ -69,15 +74,23 @@ if __name__ == "__main__":
             v = pe.calculate_objective_and_residual(res["x_dict"])
 
             ax = axes[int(i), int(j)]
-            ax.errorbar(v["y"].flatten(), pe.array_data.flatten(), yerr=y_std_real, ls="", marker="o")
-            ax.errorbar(v["y"].flatten(), pe.array_data.flatten(), xerr=y_std_assumed, ls="")
+            ax.errorbar(
+                v["y"].flatten(),
+                pe.array_data.flatten(),
+                yerr=y_std_real,
+                ls="",
+                marker="o",
+            )
+            ax.errorbar(
+                v["y"].flatten(), pe.array_data.flatten(), xerr=y_std_assumed, ls=""
+            )
 
             if ASSUMPTION_ABSOLUTE:
                 ax.plot(pe.array_data, pe.array_data - STD)
                 ax.plot(pe.array_data, pe.array_data + STD)
             else:
-                ax.plot(pe.array_data, pe.array_data * (1-RELATIVE_ERROR))
-                ax.plot(pe.array_data, pe.array_data * (1+RELATIVE_ERROR))
+                ax.plot(pe.array_data, pe.array_data * (1 - RELATIVE_ERROR))
+                ax.plot(pe.array_data, pe.array_data * (1 + RELATIVE_ERROR))
 
             if REAL_ERROR_ABSOLUTE:
                 title = "Data has ABSOLUTE error\n"
@@ -89,8 +102,10 @@ if __name__ == "__main__":
             else:
                 title += "You assumed RELATIVE error\n"
 
-            ax.set_title(title + f"Real params {true_params}\n Estimated {res['x_dict']}")
-            
+            ax.set_title(
+                title + f"Real params {true_params}\n Estimated {res['x_dict']}"
+            )
+
             ax.plot(pe.array_data, pe.array_data, ls="dashed")
     plt.show()
     breakpoint()

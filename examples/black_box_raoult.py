@@ -11,48 +11,57 @@ except ImportError as exc:
 
 import numpy as np
 
+
 def get_jacobian_from_sympy():
-    symbols = [ "p", "T", "a", "b", "c"]
+    symbols = ["p", "T", "a", "b", "c"]
     p, T, a, b, c = sympy.symbols(symbols)
     vars = [p, T, a, b, c]
-    eq = (p-10**(a - b / (T + c)))
+    eq = p - 10 ** (a - b / (T + c))
 
     for v in vars:
         print(sympy.simplify(sympy.diff(eq, v)))
 
+
 # print(get_jacobian_from_sympy())
 # breakpoint()
+
 
 class ArhenuisJac(ca.Callback):
     def __init__(self, opts={}):
         ca.Callback.__init__(self)
         self.construct("jac_f", opts)
 
-    def get_n_in(self): return 2
-    def get_n_out(self): return 1
+    def get_n_in(self):
+        return 2
 
-    def get_sparsity_in(self,i):
-        if i==0: # nominal input
-          return ca.Sparsity.dense(5,1)
-        elif i==1: # nominal output
-          return ca.Sparsity(1,1)
+    def get_n_out(self):
+        return 1
 
-    def get_sparsity_out(self,i):
-        return ca.Sparsity.dense(1,5)
+    def get_sparsity_in(self, i):
+        if i == 0:  # nominal input
+            return ca.Sparsity.dense(5, 1)
+        elif i == 1:  # nominal output
+            return ca.Sparsity(1, 1)
+
+    def get_sparsity_out(self, i):
+        return ca.Sparsity.dense(1, 5)
 
     def eval(self, arg):
         p, T, a, b, c = ca.vertsplit(arg[0])
-        res = ca.DM(1,5)
-        res[0,0] = 1
-        res[0,1] = -10**(a - b/(T + c))*b*np.log(10)/(T + c)**2
-        res[0,2] = -10**(a - b/(T + c))*np.log(10)
-        res[0,3] = 10**(a - b/(T + c))*np.log(10)/(T + c)
-        res[0,4] = -10**(a - b/(T + c))*b*np.log(10)/(T + c)**2
+        res = ca.DM(1, 5)
+        res[0, 0] = 1
+        res[0, 1] = -(10 ** (a - b / (T + c))) * b * np.log(10) / (T + c) ** 2
+        res[0, 2] = -(10 ** (a - b / (T + c))) * np.log(10)
+        res[0, 3] = 10 ** (a - b / (T + c)) * np.log(10) / (T + c)
+        res[0, 4] = -(10 ** (a - b / (T + c))) * b * np.log(10) / (T + c) ** 2
 
         return [res]
 
+
 # print(ca.log(10))
 fun_jac = ArhenuisJac()
+
+
 class Arhenius(ca.Callback):
     def __init__(self, name, opts={}):
         # opts = {"enable_fd":True}
@@ -65,19 +74,21 @@ class Arhenius(ca.Callback):
     def get_n_out(self):
         return 1
 
-    def get_sparsity_in(self,i):
-        return ca.Sparsity.dense(5,1)
+    def get_sparsity_in(self, i):
+        return ca.Sparsity.dense(5, 1)
 
-    def get_sparsity_out(self,i):
-        return ca.Sparsity.dense(1,1)
+    def get_sparsity_out(self, i):
+        return ca.Sparsity.dense(1, 1)
 
     def eval(self, arg):
         p, T, a, b, c = ca.vertsplit(arg[0])
-        res = (p-10**(a - b / (T + c)))
+        res = p - 10 ** (a - b / (T + c))
         return [res]
 
-    def has_jacobian(self): return True
-    def get_jacobian(self,name,inames,onames,opts):
+    def has_jacobian(self):
+        return True
+
+    def get_jacobian(self, name, inames, onames, opts):
 
         # You are required to keep a reference alive to the returned Callback object
         self.jac_callback = fun_jac
@@ -85,6 +96,7 @@ class Arhenius(ca.Callback):
 
 
 fun_arh = Arhenius("c1")
+
 
 def raults():
     # https://webbook.nist.gov/cgi/cbook.cgi?ID=C7732185&Mask=4&Type=ANTOINE&Plot=on
@@ -149,10 +161,13 @@ def raults():
 
     return variable_list, m
 
+
 vl, m = raults()
 # sim = mopeds.SimulatorNLE(m, vl)
 
-vl_list, true_params, _ = mopeds.tools.generate_varlist_with_data_NLE(m, vl, {"e0_x_c1": [0.1, 0.9, 10]}, perturbate=False, measurement_names=["e0_y_c1"])
+vl_list, true_params, _ = mopeds.tools.generate_varlist_with_data_NLE(
+    m, vl, {"e0_x_c1": [0.1, 0.9, 10]}, perturbate=False, measurement_names=["e0_y_c1"]
+)
 
 for vl_i in vl_list:
     vl_i["e0_A_c1"].fixed = False

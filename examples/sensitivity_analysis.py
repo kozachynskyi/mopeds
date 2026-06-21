@@ -7,7 +7,6 @@ import mopeds
 import mopeds.examples
 
 if __name__ == "__main__":
-
     variable_list, m = dae_ode.hyfo_dae.initialize_problem()
 
     variable_list.set_bounds(0.01)

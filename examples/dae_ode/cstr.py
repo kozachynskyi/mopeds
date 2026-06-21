@@ -7,7 +7,6 @@ import mopeds
 import mopeds.examples
 
 if __name__ == "__main__":
-
     variable_list, m = mopeds.examples.cstr_ode()
 
     # Create time-grid. Zero should be first

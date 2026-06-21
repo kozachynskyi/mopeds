@@ -18,9 +18,11 @@ SUPPORTED_COMPOUNDS = [
 ]
 
 
-
 def get_model_e1_1(
-        mode: str = "Px", compounds: str = "1_propanol,water", antoine: bool = False, dippr: bool = False,
+    mode: str = "Px",
+    compounds: str = "1_propanol,water",
+    antoine: bool = False,
+    dippr: bool = False,
 ) -> tuple[mopeds.VariableList, mopeds.Model]:  # noqa: C901
     """Model E1.1.
     - Mode "Px" - e0_P and e0_x_L_i1 are control variables. Used for parameter estimation.
@@ -516,6 +518,7 @@ def get_model_e1_1(
 
     return variable_list, m
 
+
 varlist, m = get_model_e1_1(compounds="1_propanol,propyl_acetate")
 sim = mopeds.SimulatorNLE(m, varlist)
 l_vl = []
@@ -536,7 +539,65 @@ for P in np.linspace(1e5, 2e5, 2):
 pe = mopeds.ParameterEstimationNLE(m, l_vl)
 pe.prepare_nle()
 v = pe.simulate_all_mx
-v1 = dict(zip(pe.varlist_decision.keys(), [-0.44155, 7.98915, 0.47, 1.1797, 1.65805, 0.274533, 67411.6, 32588.4, 0.674116, 0.325884, 0, 0.47, 0.47, 0, 0, 1.75621, 7.33399, 0, 1, 0.438028, 1.08688e-05, 1, 78766.8, 71592.6, 67411.6, 32588.4, 363.712, 0.47, 1.16673, 1.64365, 0.274533, 135893, 64106.5, 0.679467, 0.320533, 0, 0.47, 0.47, 0, 0, 1.64601, 7.36684, 0, 1, 0.461312, 1.07328e-05, 1, 160550, 142068, 135893, 64106.5, 382.911]))
+v1 = dict(
+    zip(
+        pe.varlist_decision.keys(),
+        [
+            -0.44155,
+            7.98915,
+            0.47,
+            1.1797,
+            1.65805,
+            0.274533,
+            67411.6,
+            32588.4,
+            0.674116,
+            0.325884,
+            0,
+            0.47,
+            0.47,
+            0,
+            0,
+            1.75621,
+            7.33399,
+            0,
+            1,
+            0.438028,
+            1.08688e-05,
+            1,
+            78766.8,
+            71592.6,
+            67411.6,
+            32588.4,
+            363.712,
+            0.47,
+            1.16673,
+            1.64365,
+            0.274533,
+            135893,
+            64106.5,
+            0.679467,
+            0.320533,
+            0,
+            0.47,
+            0.47,
+            0,
+            0,
+            1.64601,
+            7.36684,
+            0,
+            1,
+            0.461312,
+            1.07328e-05,
+            1,
+            160550,
+            142068,
+            135893,
+            64106.5,
+            382.911,
+        ],
+    )
+)
 # breakpoint()
 # pe.solver_settings["verbose_init"] = True
 # pe.solver_settings["verbose"] = True
@@ -544,6 +605,8 @@ v1 = dict(zip(pe.varlist_decision.keys(), [-0.44155, 7.98915, 0.47, 1.1797, 1.65
 pe.solver_settings["show_eval_warnings"] = False
 # pe.solver_settings["ipopt"]["linear_solver"] = "ma57"
 
-res = pe.optimize(False, )
+res = pe.optimize(
+    False,
+)
 print(res)
 breakpoint()

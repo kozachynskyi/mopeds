@@ -10,6 +10,7 @@ plt.ion()
 import pandas as pd
 import casadi as ca
 
+
 class SimulatorCustom(mopeds.Simulator):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -40,9 +41,7 @@ class SimulatorCustom(mopeds.Simulator):
             res_integration = self.integrator_tau_jac_zf(
                 x0=x_init,
                 z0=alg_init,
-                p=ca.vertcat(
-                    time_step - prev_time_step, independent_variables
-                ),
+                p=ca.vertcat(time_step - prev_time_step, independent_variables),
             )
 
             prev_time_step = time_step
@@ -59,12 +58,16 @@ class SimulatorCustom(mopeds.Simulator):
         res_jacobian = ca.hcat(res_jacobian)
         res_jacobian_zf = ca.hcat(res_jacobian_zf)
 
-        res = {"xf": res_states, "zf": res_algebraic, "jac_xf_p": res_jacobian, "jac_zf_p": res_jacobian_zf}
+        res = {
+            "xf": res_states,
+            "zf": res_algebraic,
+            "jac_xf_p": res_jacobian,
+            "jac_zf_p": res_jacobian_zf,
+        }
         return res
 
 
 if __name__ == "__main__":
-
     piecewiseswitch = False
     variable_list, m = mopeds.examples.cstr(piecewiseswitch)
 
@@ -74,15 +77,23 @@ if __name__ == "__main__":
 
     # Create simulation Object
     sim_fixed = SimulatorCustom(
-    # sim_fixed = mopeds.Simulator(
-        m, time_grid, variable_list, use_idas_constraints=False, simulate_jac=True
-        , integrator_name="collocation"
+        # sim_fixed = mopeds.Simulator(
+        m,
+        time_grid,
+        variable_list,
+        use_idas_constraints=False,
+        simulate_jac=True,
+        integrator_name="collocation",
     )
     res = sim_fixed.simulate(algebraic=True)[2]
 
     sim_fixed2 = SimulatorCustom(
-    # sim_fixed2 = mopeds.Simulator(
-        m, time_grid2, variable_list, use_idas_constraints=False, simulate_jac=True
+        # sim_fixed2 = mopeds.Simulator(
+        m,
+        time_grid2,
+        variable_list,
+        use_idas_constraints=False,
+        simulate_jac=True,
     )
     res2 = sim_fixed2.simulate(algebraic=True)[2]
 
@@ -94,8 +105,8 @@ if __name__ == "__main__":
         if i == 0:
             pass
         else:
-            print((res["e0_T"].value[i] - res2["e0_T"].value[i])/(t1-t2))
-            print(jac[0,19*(i-1)])
+            print((res["e0_T"].value[i] - res2["e0_T"].value[i]) / (t1 - t2))
+            print(jac[0, 19 * (i - 1)])
 
-            print((res["e0_c_tot"].value[i] - res2["e0_c_tot"].value[i])/(t1-t2))
-            print(jac_zf[0,19*(i-1)])
+            print((res["e0_c_tot"].value[i] - res2["e0_c_tot"].value[i]) / (t1 - t2))
+            print(jac_zf[0, 19 * (i - 1)])

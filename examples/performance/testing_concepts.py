@@ -35,9 +35,9 @@ def jacobian_manipulation():
 
 def covariance_matrix_summation():
     for i in range(10):
-        A_1 = np.random.rand(25,2)
+        A_1 = np.random.rand(25, 2)
         # A_2 = np.random.rand(5,2)
-        A_2 = np.zeros((5,2))
+        A_2 = np.zeros((5, 2))
         A = np.vstack([A_1, A_2])
 
         COV_1 = A_1.T @ A_1

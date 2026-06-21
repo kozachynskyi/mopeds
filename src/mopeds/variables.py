@@ -24,11 +24,13 @@ import mopeds
 # Options logic copied from numpy printoptions
 _options = {
     "variable_scaling": True,
-    }
+}
+
 
 def get_options():
     opts = _options.copy()
     return opts
+
 
 @contextlib.contextmanager
 def options(*, variable_scaling: bool):
@@ -39,21 +41,29 @@ def options(*, variable_scaling: bool):
     finally:
         set_options(**opts)
 
+
 def set_options(*, variable_scaling: bool):
     if not isinstance(variable_scaling, bool):
         raise TypeError
     _options.update({"variable_scaling": variable_scaling})
 
+
 def _consistent_scaling_decorator(func):
     """Assures that object method uses scaling that was used while creating the instance"""
+
     @wraps(func)
     def _decorator(self, *args, **kwargs):
-        if get_options()["variable_scaling"] != self._created_with_options["variable_scaling"]:
-            print("User provided scaling is ignored, because object was created with another scaling")
+        if (
+            get_options()["variable_scaling"]
+            != self._created_with_options["variable_scaling"]
+        ):
+            print(
+                "User provided scaling is ignored, because object was created with another scaling"
+            )
         with options(variable_scaling=self._created_with_options["variable_scaling"]):
             return func(self, *args, **kwargs)
-    return _decorator
 
+    return _decorator
 
 
 ORIGIN_TS: pd.Timestamp = pd.Timestamp(year=1970, month=1, day=1)
@@ -61,9 +71,11 @@ ORIGIN_TS: pd.Timestamp = pd.Timestamp(year=1970, month=1, day=1)
 Chosen DateTime is the same, that is used by pd.to_datetime() by default.
 """
 
+
 def _check_mx_conversion_compitablity(mx: ca.MX):
     if "time_sp" not in str(mx):
         raise NotImplementedError
+
 
 def convert_mx_to_number(mx: ca.MX):
     if mx.is_symbolic():
@@ -74,6 +86,7 @@ def convert_mx_to_number(mx: ca.MX):
             return 0
         else:
             raise NotImplementedError
+
 
 # Ignored type errors come from mypy issue https://github.com/python/mypy/issues/3004
 
@@ -124,14 +137,11 @@ class Variable(object):
 
         new_var.name = new_name
         new_var.casadi_var: ca.MX = ca.MX.sym(new_name)
-        new_var.dataframe.rename(columns = {self.name: new_name}, inplace=True)
+        new_var.dataframe.rename(columns={self.name: new_name}, inplace=True)
         return new_var
 
     def __repr__(self) -> str:
-        return (
-            f"{type(self).__name__}"
-            f"(name={self.name!r}, value={self.value!r})"
-        )
+        return f"{type(self).__name__}(name={self.name!r}, value={self.value!r})"
 
     def get_value_or_casadi(self) -> float | ca.MX:
         """Return either value at time=0 or casadi_variable.
@@ -351,11 +361,11 @@ class Variable(object):
 
     def scale_to_original(self, value: ca.MX | float | np.array):
         v, r = self._get_scaling_constants()
-        return (value * v + r)
+        return value * v + r
 
     def scale_from_original(self, value: ca.MX | float | np.array):
         v, r = self._get_scaling_constants()
-        return ((value - r) / v)
+        return (value - r) / v
 
 
 class VariableState(Variable):

@@ -57,7 +57,6 @@ if __name__ == "__main__":
     # vl["z"].variance = 0.3
     # vl["q"].variance = 0.2
 
-
     meas_vars = None
     previous_meas = [
         {"v": 1.5, "u": 3.5},

@@ -13,7 +13,7 @@ def initialize_problem():
 
     variable_list = mopeds.VariableList()
 
-    # fmt: off 
+    # fmt: off
     variable_list.add_variable(mopeds.VariableAlgebraic("e0_c_A_fe1_i0", 8.0))
     variable_list.add_variable(mopeds.VariableAlgebraic("e0_c_A_fe1_i3", 8.0))
     variable_list.add_variable(mopeds.VariableAlgebraic("e0_c_A_fe2_i0", 8.0))
@@ -358,8 +358,8 @@ def initialize_problem():
 
     return variable_list, m
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     variable_list, m = initialize_problem()
 
     # Set parameters and controls to fixed state so their values are used for simulation
@@ -373,10 +373,15 @@ if __name__ == "__main__":
     res_simple = sim_fixed.simulate_fast()
     # Run simulation and connect results with actual state variables, which can be plotted based on available data
     res = sim_fixed.simulate()[2]
-    Val_Res = res_simple['x']
+    Val_Res = res_simple["x"]
 
     Time = np.array([0, 600, 1200, 1800, 2400, 3000, 3600])
-    Val_dict = {"C_A":Val_Res[0:13:2], "C_B": Val_Res[61:68:1], "C_C": Val_Res[68:81:2], "T": Val_Res[93:100:1]}
+    Val_dict = {
+        "C_A": Val_Res[0:13:2],
+        "C_B": Val_Res[61:68:1],
+        "C_C": Val_Res[68:81:2],
+        "T": Val_Res[93:100:1],
+    }
 
     figure, axes_array = plt.subplots(len(Val_dict))
     for var, ax in zip(Val_dict, axes_array):

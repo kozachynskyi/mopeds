@@ -13,7 +13,9 @@ def tank() -> [mopeds.VariableList, mopeds.Model]:
     variable_list.add_variable(mopeds.VariableAlgebraic("Qloss", 1.0, 0, 2))
     variable_list.add_variable(mopeds.VariableAlgebraic("Qheater", 16, 0, 2))
     variable_list.add_variable(mopeds.VariableAlgebraic("D", 0, 0, 100))
-    variable_list.add_variable(mopeds.VariableControlPiecewiseConstant("Tsp", 70.0, 0, 100))
+    variable_list.add_variable(
+        mopeds.VariableControlPiecewiseConstant("Tsp", 70.0, 0, 100)
+    )
 
     m = mopeds.Model(variable_list)
 
@@ -29,7 +31,7 @@ def tank() -> [mopeds.VariableList, mopeds.Model]:
     error = T - Tsp  # positive when no heating needed
 
     eq0 = 1
-    dTdt = (- Qloss + Qheater) / 0.2
+    dTdt = (-Qloss + Qheater) / 0.2
     eq1 = dTdt
     eq10 = error
 
@@ -49,6 +51,7 @@ def tank() -> [mopeds.VariableList, mopeds.Model]:
     variable_list["Tsp"].ignore_plotting = False
 
     return variable_list, m
+
 
 vl, m = tank()
 

@@ -20,6 +20,7 @@ import copy
 # # print(scale(1e4,1e5,2e9))
 # breakpoint()
 
+
 class PE(mopeds.ParameterEstimationNLE):
     def _objective_ols(self):
         """Objective function is a trace(Z.T * Z), where Z is a residual matrix with shape:
@@ -35,14 +36,17 @@ class PE(mopeds.ParameterEstimationNLE):
 
         return objective, residuals
 
+
 # Gill2008 Practical opitmization isbn: 978-0-12-283952-8
-def example8dot7(dae=False) -> tuple[
-    mopeds.VariableList, mopeds.Model, list[mopeds.VariableList]
-]:
+def example8dot7(
+    dae=False,
+) -> tuple[mopeds.VariableList, mopeds.Model, list[mopeds.VariableList]]:
     variable_list = mopeds.variables.VariableList()  # Preallocate variable_list
 
     # variable_list.add_variable(mopeds.VariableAlgebraic("F", 0.008, 0.008, 0.027))
-    variable_list.add_variable(mopeds.VariableAlgebraic("F", 0.000008, 0.000008, 0.000027))
+    variable_list.add_variable(
+        mopeds.VariableAlgebraic("F", 0.000008, 0.000008, 0.000027)
+    )
     # variable_list.add_variable(mopeds.VariableAlgebraic("F", 1, 0.9, 1.1))
 
     # variable_list.add_variable(mopeds.VariableAlgebraic("F", 0.008, -ca.inf, ca.inf))
@@ -71,7 +75,6 @@ def example8dot7(dae=False) -> tuple[
 
     eq1 = (F / v) - r - ((x1**b) * (x2**c))
 
-
     m.add_equations_algebraic([eq1])  # adding the equations to model
 
     if dae:
@@ -79,11 +82,14 @@ def example8dot7(dae=False) -> tuple[
 
     return variable_list, m
 
+
 def nle_scaling():
     vl, m = example8dot7()
     sim = mopeds.SimulatorNLE(m, vl)
 
-    exp, truepar, _ = mopeds.tools.generate_artificial_data_from_grid_nle(m, vl, {"x1":[2,3,3]}, perturbate=False)
+    exp, truepar, _ = mopeds.tools.generate_artificial_data_from_grid_nle(
+        m, vl, {"x1": [2, 3, 3]}, perturbate=False
+    )
     for i in exp:
         print(i.dataframe)
 
@@ -94,10 +100,9 @@ def nle_scaling():
 
     pe = PE(m, exp)
     v = pe.list_simulators[0]
-    par = {"b":3.1, "c":3.1} 
-    vv = pe.calculate_objective_and_residual({"b":3.1, "c":3.1})
+    par = {"b": 3.1, "c": 3.1}
+    vv = pe.calculate_objective_and_residual({"b": 3.1, "c": 3.1})
     breakpoint()
-
 
     # pe.solver_settings["ipopt"]["max_iter"] = 4
     # pe.prepare_nle()
@@ -105,11 +110,14 @@ def nle_scaling():
     print(res)
     breakpoint()
 
+
 def nle_jac():
     vl, m = example8dot7()
     sim = mopeds.SimulatorNLE(m, vl)
 
-    exp, truepar, _ = mopeds.tools.generate_artificial_data_from_grid_nle(m, vl, {"x1":[2,3,3]}, perturbate=False)
+    exp, truepar, _ = mopeds.tools.generate_artificial_data_from_grid_nle(
+        m, vl, {"x1": [2, 3, 3]}, perturbate=False
+    )
     for i in exp:
         print(i.dataframe)
 
@@ -117,7 +125,7 @@ def nle_jac():
     exp[0]["c"].fixed = False
     exp[0]["b"].guess = 3.1
     exp[0]["c"].guess = 3.1
-    par = {"b":3.0, "c":3.0} 
+    par = {"b": 3.0, "c": 3.0}
 
     mopeds.variables.VARIABLE_SCALING = False
     pe = mopeds.ParameterEstimationNLE(m, exp)
@@ -127,7 +135,6 @@ def nle_jac():
     vv = pe.calculate_sensitivity_and_fim(par)
     print(vv["jac_full"] / v["jac_full"])
     breakpoint()
-
 
     # pe.solver_settings["ipopt"]["max_iter"] = 4
     # pe.prepare_nle()
@@ -140,7 +147,7 @@ if __name__ == "__main__":
     nle_jac()
 
     vl, m = example8dot7(True)
-    grid = np.linspace(0,100,5)
+    grid = np.linspace(0, 100, 5)
     sim = mopeds.Simulator(m, grid, vl)
     res1 = sim.simulate(algebraic=True)[2]
     sim.change_independent_variables({"x1": 3})
@@ -163,9 +170,8 @@ if __name__ == "__main__":
     # pe = PE(m, exp)
     pe = mopeds.ParameterEstimation(m, exp)
     v = pe.list_simulators[0]
-    vv = pe.calculate_objective_and_residual({"b":3.0, "c":3.0})
+    vv = pe.calculate_objective_and_residual({"b": 3.0, "c": 3.0})
     breakpoint()
-
 
     # pe.solver_settings["ipopt"]["max_iter"] = 4
     # pe.prepare_nle()

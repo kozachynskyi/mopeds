@@ -88,7 +88,7 @@ TIMEOUT_SECONDS = 15
 def format_example_path(example: Path) -> str:
     relative = example.relative_to(EXAMPLES_DIR)
     parts = " / ".join(f'"{part}"' for part in relative.parts)
-    return f'    EXAMPLES_DIR / {parts},'
+    return f"    EXAMPLES_DIR / {parts},"
 
 
 def test_examples_run():

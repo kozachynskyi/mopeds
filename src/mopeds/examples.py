@@ -6,6 +6,7 @@ import casadi as ca
 
 import mopeds
 
+
 def polynomial_1d() -> [mopeds.VariableList, mopeds.Model]:
     variable_list = mopeds.VariableList()
     variable_list.add_variable(mopeds.VariableAlgebraic("y", 1.0))
@@ -25,6 +26,7 @@ def polynomial_1d() -> [mopeds.VariableList, mopeds.Model]:
     m.add_equations_algebraic([eq1])
 
     return variable_list, m
+
 
 def polynomial_1d_multivariate() -> [mopeds.VariableList, mopeds.Model]:
     variable_list = mopeds.VariableList()
@@ -55,6 +57,7 @@ def polynomial_1d_multivariate() -> [mopeds.VariableList, mopeds.Model]:
     m.add_equations_algebraic([eq1, eq2])
 
     return variable_list, m
+
 
 def linear_example() -> [mopeds.VariableList, mopeds.Model]:
     variable_list = mopeds.VariableList()
@@ -87,6 +90,7 @@ def linear_example() -> [mopeds.VariableList, mopeds.Model]:
     m.add_equations_algebraic([eq1, eq2, eq3])
 
     return variable_list, m
+
 
 def empy_dae(
     piecewise_control: bool = False,
@@ -136,19 +140,21 @@ def pendulum_dae_1(
     if variable_list is None:
         variable_list = mopeds.VariableList()
 
-        variable_list.add_variable(mopeds.VariableState("x", 3.0, 3,10))
+        variable_list.add_variable(mopeds.VariableState("x", 3.0, 3, 10))
         variable_list.add_variable(mopeds.VariableState("u", -1.0 / 3, -0.5, 3))
 
         variable_list.add_variable(mopeds.VariableAlgebraic("y", 4.0, 4, 0))
         variable_list.add_variable(mopeds.VariableAlgebraic("v", 1.0 / 4, -10, 1))
-        variable_list.add_variable(mopeds.VariableAlgebraic("lambda", 1147.0 / 720, -4, 2))
+        variable_list.add_variable(
+            mopeds.VariableAlgebraic("lambda", 1147.0 / 720, -4, 2)
+        )
 
         if piecewise_control:
             variable_list.add_variable(
                 mopeds.VariableControlPiecewiseConstant("L", 5.0, 2, 9)
             )
         else:
-            variable_list.add_variable(mopeds.VariableControl("L", 5.0, 4,7))
+            variable_list.add_variable(mopeds.VariableControl("L", 5.0, 4, 7))
         variable_list.add_variable(mopeds.VariableParameter("g", 10.0, 9, 12))
 
     m = mopeds.Model(variable_list)
@@ -314,9 +320,7 @@ def vle_nle_problem() -> tuple[mopeds.VariableList, mopeds.Model]:
     return variable_list, model
 
 
-def bod_model() -> tuple[
-    mopeds.VariableList, mopeds.Model, list[mopeds.VariableList]
-]:
+def bod_model() -> tuple[mopeds.VariableList, mopeds.Model, list[mopeds.VariableList]]:
     # BOD data as used in Bates, Watts, Nonlinear regression analysis: Its applications
     variable_list = mopeds.variables.VariableList()  # Preallocate variable_list
 
@@ -453,9 +457,9 @@ def simple_mixer() -> tuple[mopeds.VariableList, mopeds.Model]:
     e0_F_s4 = m.varlist_all["e0_F_s4"].casadi_var  # noqa: E501
     e0_F_s5 = m.varlist_all["e0_F_s5"].casadi_var  # noqa: E501
 
-    EQ_alg1 = 0.0 - ((e0_F_s1 - e0_F_s2))  # noqa: E501,E226
-    EQ_alg2 = 0.0 - (((e0_F_s2 - e0_F_s3) - e0_F_s4))  # noqa: E501,E226
-    EQ_alg3 = 0.0 - (((e0_F_s2 - e0_F_s5)))  # noqa: E501,E226
+    EQ_alg1 = 0.0 - (e0_F_s1 - e0_F_s2)  # noqa: E501,E226
+    EQ_alg2 = 0.0 - ((e0_F_s2 - e0_F_s3) - e0_F_s4)  # noqa: E501,E226
+    EQ_alg3 = 0.0 - (e0_F_s2 - e0_F_s5)  # noqa: E501,E226
 
     list_algebraic_equations = [EQ_alg1, EQ_alg2, EQ_alg3]  # noqa: E501
 
@@ -601,9 +605,8 @@ def free_fall_example() -> tuple[
 
     return variable_list, m, exp_data
 
-def spmma() -> tuple[
-    mopeds.VariableList, mopeds.Model, list[mopeds.VariableList]
-]:
+
+def spmma() -> tuple[mopeds.VariableList, mopeds.Model, list[mopeds.VariableList]]:
     # s-PMMA data as used in Bates, Watts, Nonlinear regression analysis: Its applications
     variable_list = mopeds.variables.VariableList()  # Preallocate variable_list
 
@@ -632,13 +635,15 @@ def spmma() -> tuple[
 
     pi = 3.14
 
-    zz = (2*pi*f/f0)**alpha
+    zz = (2 * pi * f / f0) ** alpha
 
-    r = ca.sqrt((1+zz*ca.cos(pi*alpha/2))**2 + (zz*ca.sin(pi*alpha/2))**2)
-    fau = ca.arctan((zz*ca.sin(pi*alpha/2))/(1 + zz*ca.cos(pi*alpha/2)))
+    r = ca.sqrt(
+        (1 + zz * ca.cos(pi * alpha / 2)) ** 2 + (zz * ca.sin(pi * alpha / 2)) ** 2
+    )
+    fau = ca.arctan((zz * ca.sin(pi * alpha / 2)) / (1 + zz * ca.cos(pi * alpha / 2)))
 
-    eq1 = e1 - (epsinf + (eps0 - epsinf) * r**-beta * ca.cos(beta*fau))
-    eq2 = e2 - ((eps0 - epsinf) * r**-beta * ca.sin(beta*fau))
+    eq1 = e1 - (epsinf + (eps0 - epsinf) * r**-beta * ca.cos(beta * fau))
+    eq2 = e2 - ((eps0 - epsinf) * r**-beta * ca.sin(beta * fau))
 
     # Equations
     m.add_equations_algebraic([eq1, eq2])  # adding the equations to model
@@ -690,9 +695,15 @@ def spmma() -> tuple[
 
 
 # Baker yeast growth model Quaglio2018 10.1016/j.cherd.2018.04.041
-def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=False, u1_piecewise_linear=False, duplicate_states=False) -> tuple[
-    mopeds.VariableList, mopeds.Model, list[mopeds.VariableList]
-]:
+def yeast_growth(
+    model_type="cantois",
+    piecewise=False,
+    *,
+    ode=False,
+    normalize=False,
+    u1_piecewise_linear=False,
+    duplicate_states=False,
+) -> tuple[mopeds.VariableList, mopeds.Model, list[mopeds.VariableList]]:
     variable_list = mopeds.variables.VariableList()
 
     variable_list.add_variable(mopeds.VariableState("x1", 5, 0, 10))
@@ -709,8 +720,12 @@ def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=
         variable_list.add_variable(mopeds.VariableAlgebraic("r", 1.7))
 
     if piecewise:
-        variable_list.add_variable(mopeds.VariableControlPiecewiseConstant("u1", 0.125, 0.05, 0.2))
-        variable_list.add_variable(mopeds.VariableControlPiecewiseConstant("u2", 35, 5, 35))
+        variable_list.add_variable(
+            mopeds.VariableControlPiecewiseConstant("u1", 0.125, 0.05, 0.2)
+        )
+        variable_list.add_variable(
+            mopeds.VariableControlPiecewiseConstant("u2", 35, 5, 35)
+        )
     else:
         variable_list.add_variable(mopeds.VariableControl("u1", 0.125, 0.05, 0.2))
         variable_list.add_variable(mopeds.VariableControl("u2", 35, 5, 35))
@@ -770,9 +785,9 @@ def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=
         theta4_norm = theta4
 
     if model_type == "cantois":
-        r_eq = ((theta1_norm * x2) / (theta2_norm * x1 + x2))
+        r_eq = (theta1_norm * x2) / (theta2_norm * x1 + x2)
     elif model_type == "monod":
-        r_eq = (theta1_norm * x2 / (theta2_norm + x2))
+        r_eq = theta1_norm * x2 / (theta2_norm + x2)
     else:
         raise NotImplementedError
 
@@ -781,8 +796,8 @@ def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=
     else:
         r = r_eq
 
-    eq1 = (r - u1 - theta4_norm)  * x1
-    eq2 = - (r * x1 / theta3_norm) + u1 * (u2 - x2)
+    eq1 = (r - u1 - theta4_norm) * x1
+    eq2 = -(r * x1 / theta3_norm) + u1 * (u2 - x2)
 
     diff_eq = [eq1, eq2]
 
@@ -794,13 +809,10 @@ def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=
     if ode is False:
         list_alg_eqs = [eq_alg1]
         if duplicate_states:
-            list_alg_eqs.extend([x1-x1_alg, x2-x2_alg])
+            list_alg_eqs.extend([x1 - x1_alg, x2 - x2_alg])
         m.add_equations_algebraic(list_alg_eqs)
 
-    data = [
-        [5, 7.098, 10.135, 12.108, 12.491],
-        [0.01, 6.683, 5.860, 3.209, 2.993]
-    ]
+    data = [[5, 7.098, 10.135, 12.108, 12.491], [0.01, 6.683, 5.860, 3.209, 2.993]]
 
     exp_data = []
 
@@ -820,6 +832,7 @@ def yeast_growth(model_type="cantois", piecewise=False, *, ode=False, normalize=
     exp_data.append(var_list)
 
     return variable_list, m, exp_data
+
 
 # Pankajakshan2019
 def esterification_BA() -> tuple[
@@ -850,7 +863,7 @@ def esterification_BA() -> tuple[
 
     R = 8.314
     k = ca.exp(theta1 - 10e4 * theta2 / (R * T))
-    A_cs = 3.14 * (D * 1e-6) **2 / 4
+    A_cs = 3.14 * (D * 1e-6) ** 2 / 4
     v = F / A_cs
 
     eq1 = (-1 * k * Cba) / v
@@ -862,6 +875,7 @@ def esterification_BA() -> tuple[
     m.add_equations_differential([eq1, eq2, eq3, eq4])  # adding the equations to model
 
     return variable_list, m
+
 
 def cstr_nle():
     variable_list = mopeds.VariableList()
@@ -920,8 +934,10 @@ def cstr_nle():
 
     return variable_list, m
 
+
 def vle_wilson():
     variable_list = mopeds.VariableList()
+
     # fmt:off
     def fun_167310__fun_DIPPR101(std_X,std_A_pLV_d101,std_B_pLV_d101,std_C_pLV_d101,std_D_pLV_d101,std_E_pLV_d101):  # noqa: E501,E231,E306
         std_Z = ca.exp((((std_A_pLV_d101+(std_B_pLV_d101/std_X))+(std_C_pLV_d101*ca.log(std_X)))+(std_D_pLV_d101*((std_X))**(1.0*std_E_pLV_d101))))  # noqa: E501,E226

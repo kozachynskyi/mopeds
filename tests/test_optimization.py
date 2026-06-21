@@ -11,7 +11,7 @@ import pytest
 @pytest.mark.parametrize("dae", [True, False])
 @pytest.mark.parametrize("use_constant", [True, False])
 def test_scaling(piecewise, dae, use_constant):
-    res = [[],[],[],[],[]]
+    res = [[], [], [], [], []]
     for scaling in (False, True):
         # if piecewise:
         #     T_in = var_list["e0_T_in"]
@@ -37,13 +37,23 @@ def test_scaling(piecewise, dae, use_constant):
             }
 
             pe = mopeds.ParameterEstimation(model, [var_list], simulator_settings=opts)
-            jac_pe_full = pe.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_E_r1": 9.6e4})["jac_full"]
-            jac_pe_scaled = pe.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_E_r1": 9.6e4})["jac_scaled_full_theory"]
+            jac_pe_full = pe.calculate_sensitivity_and_fim(
+                {"e0_U": 1.4, "e0_E_r1": 9.6e4}
+            )["jac_full"]
+            jac_pe_scaled = pe.calculate_sensitivity_and_fim(
+                {"e0_U": 1.4, "e0_E_r1": 9.6e4}
+            )["jac_scaled_full_theory"]
 
-            oed = mopeds.OptimalExperimentalDesign(model, [var_list], time_grid, simulator_settings=opts)
-            oed_expanded = mopeds.OptimalExperimentalDesign(model, [var_list], time_grid_expanded, simulator_settings=opts)
+            oed = mopeds.OptimalExperimentalDesign(
+                model, [var_list], time_grid, simulator_settings=opts
+            )
+            oed_expanded = mopeds.OptimalExperimentalDesign(
+                model, [var_list], time_grid_expanded, simulator_settings=opts
+            )
             jac_oed = oed.calculate_objective_and_jacobian({"e0_T_in": 373})["jac"]
-            jac_oed_expanded = oed_expanded.calculate_objective_and_jacobian({"e0_T_in": 373})["jac"]
+            jac_oed_expanded = oed_expanded.calculate_objective_and_jacobian(
+                {"e0_T_in": 373}
+            )["jac"]
 
             res[0].append(var_list_exp.dataframe)
             res[1].append(jac_pe_full)
@@ -84,15 +94,19 @@ def test_parameter_jacobian(piecewise, dae, use_constant, scaling):
         var_list["e0_E_r1"].lower_bound = -9.6e4
         var_list["e0_E_r1"].upper_bound = 9.6e4
 
-        pe = mopeds.ParameterEstimation(
-            model, [var_list]
-        )
-        jac_pe = pe.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_E_r1": 9.6e4})["jac_scaled_full_theory"]
+        pe = mopeds.ParameterEstimation(model, [var_list])
+        jac_pe = pe.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_E_r1": 9.6e4})[
+            "jac_scaled_full_theory"
+        ]
 
         oed = mopeds.OptimalExperimentalDesign(model, [var_list], time_grid)
-        oed_expanded = mopeds.OptimalExperimentalDesign(model, [var_list], time_grid_expanded)
+        oed_expanded = mopeds.OptimalExperimentalDesign(
+            model, [var_list], time_grid_expanded
+        )
         jac_oed = oed.calculate_objective_and_jacobian({"e0_T_in": 373})["jac"]
-        jac_oed_expanded = oed_expanded.calculate_objective_and_jacobian({"e0_T_in": 373})["jac"]
+        jac_oed_expanded = oed_expanded.calculate_objective_and_jacobian(
+            {"e0_T_in": 373}
+        )["jac"]
 
         if piecewise:
             with pytest.raises(ValueError):

@@ -51,6 +51,14 @@ update_changelog_on_bump = true
 changelog_file = "CHANGELOG.md"
 major_version_zero = true
 
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",
+    "UP",
+]
+
 [tool.coverage.run]
 source = ["mopeds"]
 branch = true

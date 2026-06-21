@@ -25,10 +25,12 @@ from mopeds import (
     _consistent_scaling_decorator,
 )
 
+
 @dataclass
 class OEDsettings:
     """Class to setup complex OED optimization problems
     num_control_switches - how many control switches intervals are added for each time grid"""
+
     end_time_fixed: bool = True
     num_control_switches: int = 1
     num_sampling_times: int = 3
@@ -37,23 +39,29 @@ class OEDsettings:
     def measurement_weights(self) -> bool:
         return False
 
+
 @dataclass
 class FixedGridSampling(OEDsettings):
     """Grid is fixed, controls not changing with time, no weights"""
+
     @property
     def measurement_weights(self) -> bool:
         return False
 
+
 @dataclass
 class OptimalSampling(OEDsettings):
     """Grids are fixed, sampling weights are used"""
+
     @property
     def measurement_weights(self) -> bool:
         return True
 
+
 @dataclass
 class AdaptiveSampling(OEDsettings):
     """Measurement grid is a decision variable, time grid depends on num_sampling_times and max_time_experiment"""
+
     min_sampling_delay: float = 1
     max_time_experiment: float = 1
 
@@ -61,9 +69,11 @@ class AdaptiveSampling(OEDsettings):
     def measurement_weights(self) -> bool:
         return False
 
+
 @dataclass
 class AdaptiveOptimalSampling(AdaptiveSampling):
     """Measurement grid is a decision variable, time grid depends on num_sampling_times and max_time_experiment"""
+
     @property
     def measurement_weights(self) -> bool:
         return True
@@ -81,16 +91,19 @@ class OED_objective(ca.Callback):
         self.construct(name, opts)
         self._parameter_scaling = parameter_scaling
 
-    def get_n_in(self): return 1
-    def get_n_out(self): return 2
+    def get_n_in(self):
+        return 1
+
+    def get_n_out(self):
+        return 2
 
     def eval(self, args):
         raise NotImplementedError
 
-    def get_sparsity_in(self,i):
+    def get_sparsity_in(self, i):
         return ca.Sparsity.dense(*self.nin)
 
-    def get_sparsity_out(self,i):
+    def get_sparsity_out(self, i):
         if i == 0:
             return ca.Sparsity.dense(1)
         elif i == 1:
@@ -105,6 +118,7 @@ class CriteriaA(OED_objective):
 
         return obj, jac
 
+
 class CriteriaD(OED_objective):
     def eval(self, args):
         jac = args[0]
@@ -112,6 +126,7 @@ class CriteriaD(OED_objective):
         obj = np.linalg.det(np.linalg.inv(jac_scaled.T @ jac_scaled))
 
         return obj, jac
+
 
 class OED_base(Optimizer):
     def __init__(
@@ -138,18 +153,30 @@ class OED_base(Optimizer):
         for varlist_i in self.list_input_varlist:
             for var in varlist_i.values():
                 if isinstance(var, VariableParameter):
-                    var.lower_bound, var.upper_bound = sorted([var.value[0], -var.value[0]])
+                    var.lower_bound, var.upper_bound = sorted(
+                        [var.value[0], -var.value[0]]
+                    )
 
-    def select_objective_function(self, objective_function_name: str, direct_optimization: bool):
+    def select_objective_function(
+        self, objective_function_name: str, direct_optimization: bool
+    ):
         if objective_function_name == "A":
-            self._objective = partial(self._objective_A, direct_optimization=direct_optimization)
+            self._objective = partial(
+                self._objective_A, direct_optimization=direct_optimization
+            )
         elif objective_function_name == "A_fd":
-            self._objective = partial(self._objective_A_fd, direct_optimization=direct_optimization)
+            self._objective = partial(
+                self._objective_A_fd, direct_optimization=direct_optimization
+            )
         elif objective_function_name == "D":
-            self._objective = partial(self._objective_D_fd, direct_optimization=direct_optimization)
+            self._objective = partial(
+                self._objective_D_fd, direct_optimization=direct_optimization
+            )
         elif issubclass(objective_function_name, OED_objective):
             self._objective_custom_criteria = objective_function_name
-            self._objective = partial(self._objective_custom, direct_optimization=direct_optimization)
+            self._objective = partial(
+                self._objective_custom, direct_optimization=direct_optimization
+            )
         else:
             raise NotImplementedError(
                 f"Objective function '{objective_function_name}' is not supported"
@@ -159,7 +186,9 @@ class OED_base(Optimizer):
     def _objective_custom(self, direct_optimization: bool):
         """User supplied criteria"""
         jac = self._select_jacobian(direct_optimization)
-        self._objective_func = self._objective_custom_criteria("custom", jac, self._parameter_scaling)
+        self._objective_func = self._objective_custom_criteria(
+            "custom", jac, self._parameter_scaling
+        )
         func_eval = self._objective_func(jac)
 
         return func_eval[0], func_eval[1]
@@ -193,7 +222,12 @@ class OED_base(Optimizer):
 
         return func_eval[0] * self.objective_scaling, func_eval[1]
 
-    def optimize(self, scale:float = 1, objective_function: str | OED_objective = "A", direct_optimization: bool = False):
+    def optimize(
+        self,
+        scale: float = 1,
+        objective_function: str | OED_objective = "A",
+        direct_optimization: bool = False,
+    ):
         """Function to select optimization function"""
         self.select_objective_function(objective_function, direct_optimization)
 
@@ -206,7 +240,9 @@ class OED_base(Optimizer):
         else:
             parameter_values = self.parameter_values_unscaled
 
-        parameter_scaling = ca.repmat(parameter_values, 1, self.jacobian_scaled_mx.shape[0]).T
+        parameter_scaling = ca.repmat(
+            parameter_values, 1, self.jacobian_scaled_mx.shape[0]
+        ).T
         return parameter_scaling
 
     @_consistent_scaling_decorator
@@ -264,7 +300,9 @@ class OED_base(Optimizer):
         res = casadi_function(x=selected_controls, p=parameter_values)
         res_list = []
         for col_index, name in enumerate(self.names_of_measurements):
-            scaled_res = self.list_input_varlist[0][name].scale_to_original(res["y"][:,col_index])
+            scaled_res = self.list_input_varlist[0][name].scale_to_original(
+                res["y"][:, col_index]
+            )
             res_list.append(scaled_res)
 
         result_np = {
@@ -321,7 +359,7 @@ class OED_base(Optimizer):
                     include_meas = controls[weight] >= 0.99
                     if include_meas:
                         index_measurements.append(meas_index)
-                        index_time_grid.append(meas_index+1)
+                        index_time_grid.append(meas_index + 1)
 
                 sim_data = sim_data[index_measurements]
 
@@ -329,7 +367,9 @@ class OED_base(Optimizer):
                 sim_data = np.insert(sim_data, 0, controls[meas_name])
             else:
                 var = self.list_input_varlist[0][meas_name]
-                value_time0 = var.scale_to_original(self.list_simulators[0]._initial_state[index])
+                value_time0 = var.scale_to_original(
+                    self.list_simulators[0]._initial_state[index]
+                )
 
                 # Set value to arbitraty 1, it will be overwritten afterwards in varlist_decision part
                 if isinstance(value_time0, ca.MX):
@@ -351,7 +391,9 @@ class OED_base(Optimizer):
             else:
                 time_grid_measurements = time_grid
 
-            exp_varlist[meas_name].set_dataframe_from_value_and_time(sim_data, time_grid_measurements)
+            exp_varlist[meas_name].set_dataframe_from_value_and_time(
+                sim_data, time_grid_measurements
+            )
 
         time_series = pd.to_datetime(time_grid, unit="s", origin=ORIGIN_TS)
 
@@ -362,9 +404,14 @@ class OED_base(Optimizer):
                 piecewise_name = None
 
             if piecewise_name is not None:
-                variable_index = list(exp_varlist[piecewise_name].variable_list.keys()).index(var_name)
+                variable_index = list(
+                    exp_varlist[piecewise_name].variable_list.keys()
+                ).index(var_name)
                 df = pd.DataFrame(
-                    controls[var_name], index=[time_series[variable_index]], columns=[var_name], dtype="float64"
+                    controls[var_name],
+                    index=[time_series[variable_index]],
+                    columns=[var_name],
+                    dtype="float64",
                 )
 
                 exp_varlist[piecewise_name].variable_list[var_name].dataframe = df
@@ -375,10 +422,12 @@ class OED_base(Optimizer):
                 else:
                     exp_varlist[var_name].fixed = True
                     exp_varlist[var_name].value = controls[var_name]
-        
+
         if parameters is None:
             for index, par_var in enumerate(self.varlist_parameter.values()):
-                exp_varlist[par_var.name].value = par_var.scale_to_original(self.parameter_values[index])
+                exp_varlist[par_var.name].value = par_var.scale_to_original(
+                    self.parameter_values[index]
+                )
         else:
             for par_name, par_value in parameters.items():
                 par_var = self.varlist_parameter[par_name]
@@ -389,9 +438,10 @@ class OED_base(Optimizer):
     def _setup_piecewise_control(self, var):
         len_timegrid = len(self.time_grid_control_switch)
         if len_timegrid > 1:
-            var.expand_horizon(self.time_grid_control_switch[1:], (len_timegrid - 1) * var.value)
+            var.expand_horizon(
+                self.time_grid_control_switch[1:], (len_timegrid - 1) * var.value
+            )
         var.fixed = False
-
 
     @_consistent_scaling_decorator
     def _setup_varlist_decision(self):
@@ -406,7 +456,9 @@ class OED_base(Optimizer):
                 if var.fixed is False:
                     if isinstance(var, VariableControlPiecewiseConstant):
                         if not len(var.variable_list) == 1:
-                            raise NotImplementedError("Piecewise constant controls with time grid are not supported")
+                            raise NotImplementedError(
+                                "Piecewise constant controls with time grid are not supported"
+                            )
                         else:
                             self._setup_piecewise_control(var)
                         for var_control in var.variable_list.values():
@@ -422,7 +474,9 @@ class OED_base(Optimizer):
 
             elif isinstance(var, VariableState):
                 if var.name in self.list_measureable_variables:
-                    scaled_variance = var.variance / var._get_scaling_constants()[0]**2
+                    scaled_variance = (
+                        var.variance / var._get_scaling_constants()[0] ** 2
+                    )
 
                     inverted_variances.append(1 / var.variance)
                     inverted_scaled_variances.append(1 / scaled_variance)
@@ -471,9 +525,17 @@ class OED_base(Optimizer):
         )
 
         self.simulate_all_function = ca.Function(
-                "sim_all", [self.varlist_parameter.get_casadi_variables(), self.varlist_decision.get_casadi_variables()], [all_selected_measurements], {"cse": True}
+            "sim_all",
+            [
+                self.varlist_parameter.get_casadi_variables(),
+                self.varlist_decision.get_casadi_variables(),
+            ],
+            [all_selected_measurements],
+            {"cse": True},
         )
-        self.simulate_all_mx = self.simulate_all_function(parameter_variables, decision_variables)
+        self.simulate_all_mx = self.simulate_all_function(
+            parameter_variables, decision_variables
+        )
 
         num_meas = len(self.names_of_measurements)
         num_par = len(self.varlist_parameter)
@@ -483,9 +545,8 @@ class OED_base(Optimizer):
         else:
             apply_weights = True
             weights_array = self.varlist_weights.get_casadi_variables()
-            weights_array = ca.repmat(weights_array, 1,num_meas)[:]
-            weights_array = ca.repmat(weights_array, 1,num_par)
-
+            weights_array = ca.repmat(weights_array, 1, num_meas)[:]
+            weights_array = ca.repmat(weights_array, 1, num_par)
 
         jac_meas_mx_all = ca.jacobian(self.simulate_all_mx, parameter_variables)
         jac_meas_function = ca.Function(
@@ -494,8 +555,8 @@ class OED_base(Optimizer):
         jac_meas_mx = jac_meas_function(self.parameter_values, decision_variables)
 
         num_time_stamps = self.simulate_all_mx.shape[0]
-        meas_std = ca.repmat(self.array_inverted_scaled_std,1,num_time_stamps).T[:]
-        meas_std = ca.repmat(meas_std,1,num_par)
+        meas_std = ca.repmat(self.array_inverted_scaled_std, 1, num_time_stamps).T[:]
+        meas_std = ca.repmat(meas_std, 1, num_par)
 
         jac_meas_scaled_mx = jac_meas_mx * meas_std
 
@@ -508,7 +569,10 @@ class OED_base(Optimizer):
 
     @_consistent_scaling_decorator
     def _unscale_jacobian(self, jacobian):
-        scale_parameters = np.tile(np.array(self.varlist_parameter._get_scaling_constants()[0]), (jacobian.shape[0],1))
+        scale_parameters = np.tile(
+            np.array(self.varlist_parameter._get_scaling_constants()[0]),
+            (jacobian.shape[0], 1),
+        )
         scaled_jacobian = jacobian / scale_parameters
 
         return scaled_jacobian
@@ -535,7 +599,9 @@ class OptimalExperimentalDesign(OED_base):
         # User specified time_grid is used for initilizaiton of Simulators
 
         if time_grid_measurements is None and settings is None:
-            raise ValueError("At least time_grid_measurements or settings have to be provided")
+            raise ValueError(
+                "At least time_grid_measurements or settings have to be provided"
+            )
 
         if time_grid_measurements is not None:
             if not time_grid_measurements[0] == 0:
@@ -545,12 +611,18 @@ class OptimalExperimentalDesign(OED_base):
             self.time_grid_measurements = None
 
         if settings is None:
-            self._oed_settings = FixedGridSampling(end_time_fixed=True, num_control_switches=0, num_sampling_times=len(self.time_grid_measurements)+1)
+            self._oed_settings = FixedGridSampling(
+                end_time_fixed=True,
+                num_control_switches=0,
+                num_sampling_times=len(self.time_grid_measurements) + 1,
+            )
             self.time_grid_control_switch = []
         self._initialize_from_settings()
 
         if measurable_variables is None:
-            self.list_measureable_variables = list(self.model.varlist_state(self.list_input_varlist[0]).keys())
+            self.list_measureable_variables = list(
+                self.model.varlist_state(self.list_input_varlist[0]).keys()
+            )
         else:
             self.list_measureable_variables = []
             # Do this so variable names are sorted as expected
@@ -567,7 +639,7 @@ class OptimalExperimentalDesign(OED_base):
             # "monitor": ["nlp_grad_f", "nlp_f"],
             "ipopt": {
                 "max_iter": 300,
-                "hessian_approximation": "limited-memory"
+                "hessian_approximation": "limited-memory",
                 # "print_level": 6,
             },
         }
@@ -583,21 +655,36 @@ class OptimalExperimentalDesign(OED_base):
 
         if isinstance(self._oed_settings, (OptimalSampling, FixedGridSampling)):
             if self.time_grid_measurements is None:
-                raise ValueError("For Optimal Sampling strategy sampling time_grid should be provided")
+                raise ValueError(
+                    "For Optimal Sampling strategy sampling time_grid should be provided"
+                )
 
-        elif isinstance(self._oed_settings, (AdaptiveSampling, AdaptiveOptimalSampling)):
+        elif isinstance(
+            self._oed_settings, (AdaptiveSampling, AdaptiveOptimalSampling)
+        ):
             if self.time_grid_measurements is not None:
                 print("Time grid provided for OED optimizer is ignored")
 
-            initial_guess = np.linspace(self._oed_settings.min_sampling_delay, self._oed_settings.max_time_experiment, self._oed_settings.num_sampling_times)
+            initial_guess = np.linspace(
+                self._oed_settings.min_sampling_delay,
+                self._oed_settings.max_time_experiment,
+                self._oed_settings.num_sampling_times,
+            )
 
             for i, guess in enumerate(initial_guess):
-                new_var = VariableControl("time_sp" + str(i), guess, self._oed_settings.min_sampling_delay, self._oed_settings.max_time_experiment)
+                new_var = VariableControl(
+                    "time_sp" + str(i),
+                    guess,
+                    self._oed_settings.min_sampling_delay,
+                    self._oed_settings.max_time_experiment,
+                )
                 new_var.ignore_scaling = True
                 self.varlist_timegrid.add_variable(new_var)
 
             if self._oed_settings.end_time_fixed:
-                self.varlist_timegrid[new_var.name].lower_bound = self._oed_settings.max_time_experiment
+                self.varlist_timegrid[
+                    new_var.name
+                ].lower_bound = self._oed_settings.max_time_experiment
 
             time_grid_measurements = self.varlist_timegrid.get_casadi_variables()
             self.time_grid_measurements = ca.vcat([0, time_grid_measurements])
@@ -607,18 +694,24 @@ class OptimalExperimentalDesign(OED_base):
         if self._oed_settings.num_control_switches == 0:
             self.time_grid_control_switch = np.array([0])
         else:
-            if isinstance(self._oed_settings, (AdaptiveSampling, AdaptiveOptimalSampling)):
+            if isinstance(
+                self._oed_settings, (AdaptiveSampling, AdaptiveOptimalSampling)
+            ):
                 time_grid_sw = []
             else:
                 time_grid_sw = [0.0]
             time_grid_sp = self.time_grid_measurements
-            linspace = np.linspace(0,1, settings.num_control_switches, endpoint=False)
-            for i in range(self.time_grid_measurements.shape[0]-1):
-                control_switches = time_grid_sp[i] + linspace * (time_grid_sp[i+1] - time_grid_sp[i])
+            linspace = np.linspace(0, 1, settings.num_control_switches, endpoint=False)
+            for i in range(self.time_grid_measurements.shape[0] - 1):
+                control_switches = time_grid_sp[i] + linspace * (
+                    time_grid_sp[i + 1] - time_grid_sp[i]
+                )
                 for j in range(control_switches.shape[0]):
                     time_grid_sw.append(control_switches[j])
 
-            if not isinstance(self._oed_settings, (AdaptiveSampling, AdaptiveOptimalSampling)):
+            if not isinstance(
+                self._oed_settings, (AdaptiveSampling, AdaptiveOptimalSampling)
+            ):
                 time_grid_sw = np.unique(time_grid_sw)
             self.time_grid_control_switch = time_grid_sw
 
@@ -639,7 +732,9 @@ class OptimalExperimentalDesign(OED_base):
 
         if isinstance(time_grid_simulator, ca.MX):
             if time_grid_simulator.shape == self.time_grid_measurements.shape:
-                self.index_time_grid = [time for time in range(time_grid_simulator.shape[0] - 1)]
+                self.index_time_grid = [
+                    time for time in range(time_grid_simulator.shape[0] - 1)
+                ]
             else:
                 raise NotImplementedError
         else:
@@ -685,7 +780,7 @@ class OptimalExperimentalDesign(OED_base):
         self.upper_bound_g = []
 
         for i in range(len(self.varlist_timegrid) - 1):
-            g.append(casadi_vars[i+1] - casadi_vars[i])
+            g.append(casadi_vars[i + 1] - casadi_vars[i])
             self.lower_bound_g.append(self._oed_settings.min_sampling_delay)
             self.upper_bound_g.append(self._oed_settings.max_time_experiment)
 
@@ -697,12 +792,18 @@ class OptimalExperimentalDesign(OED_base):
         self.equality_constraints = ca.vcat(g)
 
     @_consistent_scaling_decorator
-    def _optimize(self, scale: float, direct_optimization: bool) -> dict[str, ca.DM | ca.MX]:
+    def _optimize(
+        self, scale: float, direct_optimization: bool
+    ) -> dict[str, ca.DM | ca.MX]:
         """Runs optimizer, uses scaling if needed. Returned values is scaled back.
         Scaling should be done before setting a solver and solver settings.
         direct_optimization argument is ignored"""
         if scale is not None:
-            warn("Scale argument is deprecated. Use self.objective_scaling", FutureWarning, 5)
+            warn(
+                "Scale argument is deprecated. Use self.objective_scaling",
+                FutureWarning,
+                5,
+            )
 
         self.solver: ca.Function = ca.nlpsol(
             "solver",
@@ -723,7 +824,9 @@ class OptimalExperimentalDesign(OED_base):
             ubg=self.upper_bound_g,
         )
 
-        res_solver["x"] = np.asarray(self.varlist_decision.scale_to_original(res_solver["x"]))
+        res_solver["x"] = np.asarray(
+            self.varlist_decision.scale_to_original(res_solver["x"])
+        )
 
         res_dict = {}
         for solution, var_name in zip(
@@ -758,13 +861,16 @@ class OptimalExperimentalDesign_NLE(OED_base):
         self.lower_bound_g = []
         self.upper_bound_g = []
 
-
         if measurable_variables is None:
-            self.list_measureable_variables = list(self.model.varlist_algebraic(self.list_input_varlist[0]).keys())
+            self.list_measureable_variables = list(
+                self.model.varlist_algebraic(self.list_input_varlist[0]).keys()
+            )
         else:
             self.list_measureable_variables = []
             # Do this so variable names are sorted as expected
-            for var_name in self.model.varlist_algebraic(self.list_input_varlist[0]).keys():
+            for var_name in self.model.varlist_algebraic(
+                self.list_input_varlist[0]
+            ).keys():
                 if var_name in measurable_variables:
                     self.list_measureable_variables.append(var_name)
 
@@ -778,7 +884,7 @@ class OptimalExperimentalDesign_NLE(OED_base):
             # "monitor": ["nlp_grad_f", "nlp_f"],
             "ipopt": {
                 "max_iter": 300,
-                "hessian_approximation": "limited-memory"
+                "hessian_approximation": "limited-memory",
                 # "print_level": 6,
             },
         }
@@ -828,7 +934,9 @@ class OptimalExperimentalDesign_NLE(OED_base):
 
             elif isinstance(var, VariableAlgebraic):
                 if var.name in self.list_measureable_variables:
-                    scaled_variance = var.variance / var._get_scaling_constants()[0]**2
+                    scaled_variance = (
+                        var.variance / var._get_scaling_constants()[0] ** 2
+                    )
                     inverted_variances.append(1 / var.variance)
                     inverted_scaled_variances.append(1 / scaled_variance)
                     self.names_of_measurements.append(var.name)
@@ -864,16 +972,22 @@ class OptimalExperimentalDesign_NLE(OED_base):
         )
 
         self.simulate_all_function = ca.Function(
-            "sim_all", [self.varlist_parameter.get_casadi_variables(), self.varlist_decision.get_casadi_variables()], [all_selected_measurements]
+            "sim_all",
+            [
+                self.varlist_parameter.get_casadi_variables(),
+                self.varlist_decision.get_casadi_variables(),
+            ],
+            [all_selected_measurements],
         )
-        self.simulate_all_mx = self.simulate_all_function(parameter_variables, decision_variables)
+        self.simulate_all_mx = self.simulate_all_function(
+            parameter_variables, decision_variables
+        )
 
         jacobian = []
         jacobian_scaled = []
 
         jacobian_constant = []
         jacobian_scaled_constant = []
-
 
         decision_variables_casadi = self.varlist_decision.get_casadi_variables()
 
@@ -887,17 +1001,15 @@ class OptimalExperimentalDesign_NLE(OED_base):
         for decision_variables in list_decision_variables:
             previous_measurement_flag = not isinstance(decision_variables, ca.MX)
 
-            jac_meas_mx = ca.jacobian(
-                self.simulate_all_mx, parameter_variables
-            )
+            jac_meas_mx = ca.jacobian(self.simulate_all_mx, parameter_variables)
             jac_meas_function = ca.Function(
-                "jac_meas", [parameter_variables, decision_variables_casadi], [jac_meas_mx]
+                "jac_meas",
+                [parameter_variables, decision_variables_casadi],
+                [jac_meas_mx],
             )
             jac_meas_mx = jac_meas_function(self.parameter_values, decision_variables)
 
-            jac_meas_scaled_mx = (
-                jac_meas_mx * self.array_inverted_scaled_std
-            )
+            jac_meas_scaled_mx = jac_meas_mx * self.array_inverted_scaled_std
 
             jacobian.append(jac_meas_mx)
             jacobian_scaled.append(jac_meas_scaled_mx)

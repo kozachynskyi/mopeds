@@ -77,9 +77,7 @@ def initialize_problem():
     variable_list.add_variable(mopeds.VariableAlgebraic("e0_c_i7_u9", 0.04427644))
     variable_list.add_variable(mopeds.VariableAlgebraic("e0_c_i9_u9", 19.64621))
     variable_list.add_variable(mopeds.VariableAlgebraic("e0_c_i10_u9", 0.001505191))
-    variable_list.add_variable(
-        mopeds.VariableAlgebraic("e0_greek_DeltaG_r1", 502.1222)
-    )
+    variable_list.add_variable(mopeds.VariableAlgebraic("e0_greek_DeltaG_r1", 502.1222))
     variable_list.add_variable(mopeds.VariableAlgebraic("e0_K_eq_r1", 1.1757618))
     variable_list.add_variable(mopeds.VariableAlgebraic("e0_r_r1", 1351500.2))
     variable_list.add_variable(mopeds.VariableAlgebraic("e0_r_r2", 0.0))
@@ -1224,7 +1222,6 @@ def initialize_problem():
 
 
 if __name__ == "__main__":
-
     variable_list, m = initialize_problem()
     # Create time-grid. Zero should be first
     time_grid = np.linspace(0, 2000, 10)
@@ -1248,9 +1245,7 @@ if __name__ == "__main__":
     variable_list["e0_T"].fixed = False
     # variable_list["e0_p"].fixed = False
 
-    oed = mopeds.OptimalExperimentalDesign(
-        m, [variable_list], time_grid, "collocation"
-    )
+    oed = mopeds.OptimalExperimentalDesign(m, [variable_list], time_grid, "collocation")
     oed.optimize(False)
 
     # np.savetxt("exp.txt", res.toarray().T, delimiter="	")
