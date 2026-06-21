@@ -28,14 +28,10 @@ from mopeds import (
     VariableState,
     tools,
     utilities,
-    _ACADOS_SUPPORT,
     get_options,
     _consistent_scaling_decorator,
     options,
 )
-
-if _ACADOS_SUPPORT:
-    from mopeds import casados_integrator
 
 
 def eigsorted(cov):

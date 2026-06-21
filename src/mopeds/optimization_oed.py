@@ -27,14 +27,10 @@ from mopeds import (
     VariableParameter,
     VariableState,
     VariableAlgebraic,
-    _ACADOS_SUPPORT,
     Optimizer,
     ORIGIN_TS,
     _consistent_scaling_decorator,
 )
-
-if _ACADOS_SUPPORT:
-    from mopeds import casados_integrator
 
 @dataclass
 class OEDsettings:
