@@ -7,6 +7,8 @@ import contextlib
 from typing import Any, Union
 import copy
 from functools import wraps
+from collections import defaultdict
+
 
 if sys.version_info[1] == 8:
     from typing import OrderedDict
@@ -127,7 +129,10 @@ class Variable(object):
         return new_var
 
     def __repr__(self) -> str:
-        return f"{self.name}\n{type(self)}\n{self.value}\n"
+        return (
+            f"{type(self).__name__}"
+            f"(name={self.name!r}, value={self.value!r})"
+        )
 
     def get_value_or_casadi(self) -> float | ca.MX:
         """Return either value at time=0 or casadi_variable.
@@ -623,27 +628,20 @@ class VariableList(OrderedDict[str, Union[Variable, VariableControlPiecewiseCons
         super().__init__()
 
     def __repr__(self) -> str:
-        if bool(self):
-            types = [type(item) for item in list(self.values())]
-            counter_types = {x: types.count(x) for x in types}
-            list_names: dict = {var_type: [] for var_type in counter_types.keys()}
-            message = f"Var list has {sum(counter_types.values())} variables:\n"
-            for var in self.values():
-                list_names[type(var)].extend([var.name])
-            for var_type in counter_types.keys():
-                if "VariableConstant" in str(var_type) or "VariableAlgebraic" in str(
-                    var_type
-                ):
-                    print_list_names = str()
-                else:
-                    print_list_names = f":\n{list_names[var_type]}"
-                message = (
-                    message
-                    + f"{var_type} of length {counter_types[var_type]}{print_list_names}\n"
-                )
-        else:
-            message = f"Empty {type(self)}"
-        return message
+        if not self:
+            return "VariableList(empty)"
+
+        variables_by_type: dict[str, list[str]] = defaultdict(list)
+
+        for var in self.values():
+            variables_by_type[type(var).__name__].append(var.name)
+
+        parts = [f"{type(self).__name__}(n={len(self)})"]
+
+        for var_type, names in variables_by_type.items():
+            parts.append(f"  {var_type}(n={len(names)}): {names}")
+
+        return "\n".join(parts)
 
     def get_common_origin(
         self, strict: bool = False, variable_type: type[Variable] = Variable
