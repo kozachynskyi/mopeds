@@ -78,3 +78,38 @@ Bug fixes should include a regression test whenever possible.
 ## Questions
 
 If you are unsure how to implement a feature or fix, feel free to open an issue before starting work.
+
+## Commit Message Style
+
+MOPEDS uses [Conventional Commits](https://www.conventionalcommits.org/) to generate the changelog automatically.
+
+Please write commit messages in the following format:
+
+```text
+type: short description
+```
+
+Common types are:
+
+```text
+feat: add a new feature
+fix: fix a bug
+docs: update documentation
+test: add or update tests
+refactor: change code without changing behavior
+ci: update CI configuration
+```
+
+Breaking changes should be marked explicitly:
+
+```text
+feat!: require CasADi 3.7
+```
+
+These commit messages are used to generate `CHANGELOG.md`, so please keep them clear and user-facing.
+
+To generate `CHANGELOG.md` run:
+
+```bash
+uv run cz changelog
+```
