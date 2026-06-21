@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 import logging
-from typing import Callable, cast
+from typing import cast
 from numpy.typing import ArrayLike
 from warnings import warn
 
@@ -13,7 +13,6 @@ from mopeds import (
     BadVariableError,
     Model,
     VariableAlgebraic,
-    VariableConstant,
     VariableControl,
     VariableControlPiecewiseConstant,
     VariableList,

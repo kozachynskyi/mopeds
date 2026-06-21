@@ -1,11 +1,6 @@
 from __future__ import annotations
 
 import copy
-import logging
-from abc import abstractmethod
-from collections.abc import Callable
-from itertools import combinations
-from typing import Sequence
 from dataclasses import dataclass
 from functools import partial
 from warnings import warn
@@ -14,8 +9,6 @@ from warnings import warn
 import casadi as ca
 import numpy as np
 import pandas as pd
-from scipy import linalg
-from tqdm import tqdm
 
 from mopeds import (
     Model,

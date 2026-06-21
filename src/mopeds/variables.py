@@ -111,7 +111,6 @@ class Variable(object):
     def plot(self, ax: None | Axes = None) -> Axes:
         axis = self.dataframe.plot(ax=ax)
         from matplotlib import pyplot as plt
-        from matplotlib.axes import Axes
 
         plt.show()
         return axis

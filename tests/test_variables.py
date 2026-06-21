@@ -1,6 +1,6 @@
 import mopeds
 import pandas as pd
-from mopeds.variables import SameVariableNameError, PlottingError
+from mopeds.variables import SameVariableNameError
 
 import casadi as ca
 import pytest

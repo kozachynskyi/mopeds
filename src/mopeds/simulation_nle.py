@@ -1,24 +1,17 @@
 from __future__ import annotations
 
 import copy
-import logging
-from typing import Callable, cast
-from numpy.typing import ArrayLike
 from warnings import warn
 
 import casadi as ca
-import numpy as np
 
 from mopeds import (
-    BadVariableError,
     Model,
     VariableAlgebraic,
     VariableConstant,
     VariableControl,
-    VariableControlPiecewiseConstant,
     VariableList,
     VariableParameter,
-    VariableState,
     get_options,
     _consistent_scaling_decorator,
 )

@@ -1,7 +1,6 @@
 import mopeds
 import numpy as np
 import mopeds.examples
-import casadi as ca
 import pytest
 
 

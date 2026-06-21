@@ -8,7 +8,7 @@ from itertools import combinations
 from typing import Sequence
 from warnings import warn
 import itertools
-from functools import wraps, partial, cached_property
+from functools import partial, cached_property
 
 import casadi as ca
 import numpy as np
