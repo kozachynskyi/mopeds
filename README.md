@@ -115,26 +115,21 @@ Many people have been involved in the development of this package, either by wri
 
 and many, many others ...
 
-## Development
+## Development and Contributions
 
-- Clone this repository:
-  `git clone https://git.tu-berlin.de/dbta/optimization/mopeds.git`
-- Install uv if needed:
-  `curl -LsSf https://astral.sh/uv/install.sh | sh`
-- Install the project and development dependencies:
-  `uv sync --all-groups`
-- Run tests:
-  `uv run pytest`
-- Build the package:
-  `uv build`
+The primary repository of MOPEDS is hosted on TU Berlin GitLab:
 
-## par_est
+https://git.tu-berlin.de/dbta/optimization/mopeds
 
-Built versions of `par_est` are available in internal pypi registry:
+A public GitHub mirror is available to improve visibility and simplify community contributions. Users are welcome to use either platform to:
 
-```
-pip install par_est --index-url https://git.tu-berlin.de/api/v4/projects/1237/packages/pypi/simple
-```
+- Report bugs
+- Request features
+- Ask questions
+- Submit merge requests / pull requests
+
+Changes submitted through GitHub are reviewed and synchronized with the primary GitLab repository.
+Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## Acknowledgement
 
