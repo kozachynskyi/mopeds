@@ -477,9 +477,9 @@ class Optimizer(object):
             if mode == "OED":
                 jac_function = simulator_i.function.jacobian()
                 independent_variables = ca.substitute(simulator_i._independent_variables, ca.vcat(parameter_symbols), ca.vcat(parameter_values))
-                args = {"x0": varlist_new_algebraic_i.get_casadi_variables(), "p": independent_variables}
+                args = {"x": varlist_new_algebraic_i.get_casadi_variables(), "p": independent_variables}
                 jac_all = jac_function.call(args)
-                jac_parameters = ca.solve(jac_all["jac_x_x0"], -jac_all["jac_x_p"])
+                jac_parameters = ca.solve(jac_all["jac_rhs_x"], -jac_all["jac_rhs_p"])
 
                 index_selected_parameters = []
                 for var_name in self.varlist_parameter.keys():

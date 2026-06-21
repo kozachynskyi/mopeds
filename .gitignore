@@ -6,6 +6,8 @@ mopeds_code
 poetry.lock
 site
 
+uv.lock
+
 # Temporary and binary files
 .ccls-cache
 *~

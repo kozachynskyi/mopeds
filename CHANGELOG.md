@@ -1,3 +1,117 @@
+## Unreleased
+
+### Feat
+
+- move from casadi 3.6 to 3.7. Breaking
+- moved to uv from poetry
+
+### Fix
+
+- typo in pyproject, forgot >3.7.0 casadi
+
+## 0.10.3 (2026-06-20)
+
+### Feat
+
+- limit python <3.14, and casadi <3.7
+- allow numpy>2, refactor gitlab-ci
+- revert support of 3.13 and 3.14, errors in CI
+- update support and ci test for python <3.15
+- switch to uv from poetry
+- add "newton" and "fast_newton" solvers to SimulatorNLE
+- adds newton solver as NLE solver option
+- error analyzer supports plotting with only one parameter
+
+### Fix
+
+- allow python <3.15
+- removes sim.calculate_algebraic_initials(apply_intials=True) in class optimzer
+- error analyzer plotting function typo
+
+## 0.10.2 (2025-04-14)
+
+### Feat
+
+- add tool to export mopeds model to casadi syntax
+- add parameter_identifiability analysis
+- ErrorAnalyzer add check of the parameter covariance linearization
+- eror analyzer predictions_in_bounds are not all(), but ratio
+- add calculate_jacobian_yao_fast, identifiability uses fast sens
+- tools add CovarianceEllipse class
+- ErrorAnalyzer add support for dynamic models
+- PE add _unscale_residuals, _unscale_df, df_all for dynamic case
+- error_analyzer for prediction accuracy dont' use min max anymore
+- error_analyzer model prediction takes into account outliers
+- error_analyzer uses fast sensitivity calculations
+- add predicion analysis for ErrorAnalysis
+- check if PE with algebraic variables works as expected, add tests
+- ErroAnalyzer and without_outliers for parameter variance plot
+- ErrorAnalysis plotting change
+- ErrorAnalysis added outlier detection and minmax normalization
+- tools.ErrorAnalzer add figure suptitles, fix issue with pickle
+- MC parameter covariance is plotted min-max scaled by default
+- add more plotting options to ErrorAnalyzer
+- create pe._unscale_residuals method
+- add ErrorAnalyzer and API of tools.generate_artificial_data
+- add PE.array_data_unscaled property
+- add reuse_solver optiption to optimizer._optimize()
+- PE make self.array_data as optimization parameter nlpsol_p
+- change arrangement of oed.jacobian. Add tests for OED nle
+- remove scale from OED, replace with oed.objective_scaling
+- put _setup_direct_optimization in Optimizer and support OED
+- add direct_optimization argmunet in OED
+- make OED scale parameters to -1 and 1, fix tests accordingly
+- OED NLE add calculation of fixed jacobian based on previous meas
+- modify API of tools. add generate_artificial_data_NLE
+- pe_nle returns "df_all" while calculating objective_and_residuals
+- add pe.check_decision_bounds()
+- add tools.analyze_scaling_nle()
+- VariableConstant multiiple arguments
+- rewort simulate(), add direct_optimization PE NLE
+- remove varlist from model
+- remove old scaling, add consistent scaling decorator
+- **NLE**: add algebraaic scaling, remove use_bounds
+
+### Fix
+
+- update issue example
+- issue example fix
+- pe.plot_simulation() internal API
+- update pe._unscale_residuals method
+- make gauss_newton work again
+- error in dof of PE
+- lopez regularization when all parameters are identifiable
+- ordering of PE.array_data when using pe with algebraic vars
+- algrabics of dynamic simulator for PE are restimated correctly
+- error_analyzer plotting of parameter variance with outliers
+- fix error_analyzer rasising error when all are outliers
+- fix erroranalysis plotting
+- ErrorAnalysis plotting for multiple variables
+- remove dunder methods form SimulatorNLE, make them private
+- simulatorNLE creates self.function independetly of simulator name
+- move method around
+- remove redundant method in OED parameeter_dict_to_list
+- optimizer.check_result_bounds() are now >=, <= not only >,<
+- allow for different dimensions in OED.generate_data
+- fix typo OED DAE
+- nle simulate_sym_unfixed
+- scaled estimated measurement error
+- ignore ranking while testing regularization
+- try no scaling for brun and quaizer
+- test on macos
+
+### Refactor
+
+- tools
+- ErrorAnalyzer plottin behavior
+- remove _mapping_simulator_decisions
+- move __setup_dircet_otpimization to Optimizer
+- redundant method OED
+- make oed._separate_controls public
+- remove the OED_NLE base class and redundant methods
+- remove poetry lock
+- wip
+
 ## 0.10.1 (2023-12-13)
 
 ### Feat
@@ -73,27 +187,6 @@
 - OED Nle takes into acount previous measurements
 - add OED for NLE WIP
 - oed simulator supports ca.MX time_grid
-
-### Fix
-
-- add FixedSampling setting for OED to __init__
-- oed.generate_data fixed Piecewise Controls
-- pe.parameter_analysis catches error if hessian not calculated
-
-### Refactor
-
-- OED move _optimize to BaseOED
-
-## 0.9.2.alpha1 (2023-08-31)
-
-### Fix
-
-- add FixedGridSamping as default mode for OED
-
-## 0.9.2.alpha (2023-08-31)
-
-### Feat
-
 - VariablePiecewiseConstant reworked lb, ub and guess
 - VariablePiecewiseConstant supports ca.MX as time_grid
 - oed supports Adaptive based sampling with piecewise controls
@@ -131,6 +224,10 @@
 
 ### Fix
 
+- add FixedSampling setting for OED to __init__
+- oed.generate_data fixed Piecewise Controls
+- pe.parameter_analysis catches error if hessian not calculated
+- add FixedGridSamping as default mode for OED
 - OED without provided settings works as expected
 - oed.generate_data ignores redundant time controls
 - OED generate_exp_data typo
@@ -146,6 +243,7 @@
 
 ### Refactor
 
+- OED move _optimize to BaseOED
 - remove unused import
 - modify error message
 - temp_backup

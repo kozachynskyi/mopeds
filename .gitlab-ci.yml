@@ -1,13 +1,16 @@
 stages:
   - test
-  - test-manual
+  - test-manual-macos
+  - test-manual-linux
+  - test-manual-windows
 
 variables:
   UV_LINK_MODE: copy
   UV_CACHE_DIR: "$CI_PROJECT_DIR/.uv-cache"
+  UV_PYTHON_INSTALL_DIR: "$CI_PROJECT_DIR/.uv-python"
 
 cache:
-  key: "uv-$CI_JOB_NAME"
+  key: "uv-${PYTHON_VERSION}"
   paths:
     - .uv-cache/
 
@@ -16,6 +19,7 @@ cache:
   - "3.11"
   - "3.12"
   - "3.13"
+  - "3.14"
 
 .unix-test:
   script:
@@ -34,7 +38,18 @@ cache:
     - uv run pytest
 
 .manual:
-  stage: test-manual
+  when: manual
+
+.manual-macos:
+  stage: test-manual-macos
+  when: manual
+
+.manual-linux:
+  stage: test-manual-linux
+  when: manual
+
+.manual-windows:
+  stage: test-manual-windows
   when: manual
 
 .test-macos:
@@ -70,7 +85,7 @@ cache:
 # Main automatic test
 #
 
-test-macos-3.12:
+test-macos-3.13:
   extends: .test-macos
   variables:
     PYTHON_VERSION: "3.13"
@@ -82,7 +97,7 @@ test-macos-3.12:
 test-macos:
   extends:
     - .test-macos
-    - .manual
+    - .manual-macos
   parallel:
     matrix:
       - PYTHON_VERSION: *python-versions
@@ -90,7 +105,7 @@ test-macos:
 test-debian:
   extends:
     - .test-debian
-    - .manual
+    - .manual-linux
   parallel:
     matrix:
       - PYTHON_VERSION: *python-versions
@@ -98,7 +113,7 @@ test-debian:
 test-windows:
   extends:
     - .test-windows
-    - .manual
+    - .manual-windows
   parallel:
     matrix:
       - PYTHON_VERSION: *python-versions

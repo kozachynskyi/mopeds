@@ -76,8 +76,8 @@ class SimulatorNLE:
                 self.model.varlist_independent(self._input_variable_list).get_casadi_variables(),
             ],
             [self._model_equations],
-            ["x0", "p"],
-            ["x"],
+            ["x", "p"],
+            ["rhs"],
         )
         if self._solver_name in ["newton", "nlpsol", "fast_newton"]:
             self.simulator: ca.Function = ca.rootfinder(

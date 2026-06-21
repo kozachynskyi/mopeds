@@ -7,15 +7,26 @@ theme:
   custom_dir: overrides
   features:
     - content.action.edit
+    - navigation.sections
+    - navigation.expand
 
 nav:
+
   - Home: index.md
-  - Simulation NLE: Simulation NLE.ipynb
-  - Parameter Estimation NLE: Parameter Estimation NLE.ipynb
-  - OED NLE: Optimal Experimental Design NLE.ipynb
-  - Simulation DAE: Simulation DAE.ipynb
-  - PE DAE: Parameter Estimation DAE.ipynb
-  - OED DAE: Optimal Experimental Design DAE.ipynb
+  - Tutorials:
+      - Simulation NLE: Simulation NLE.ipynb
+      - Parameter Estimation NLE: Parameter Estimation NLE.ipynb
+      - OED NLE: Optimal Experimental Design NLE.ipynb
+      - Simulation DAE: Simulation DAE.ipynb
+      - PE DAE: Parameter Estimation DAE.ipynb
+      - OED DAE: Optimal Experimental Design DAE.ipynb
+
+  - Project:
+
+      - Release Notes: release_notes.md
+      - Changelog: changelog.md
+      - Contributing: contributing.md
+      #- Publications: publications.md
 
 repo_url: https://git.tu-berlin.de/dbta/optimization/mopeds
 
@@ -31,3 +42,4 @@ markdown_extensions:
 plugins:
   - mkdocs-jupyter:
       ignore: [".ipynb_checkpoints/*.ipynb"]
+  - include-markdown

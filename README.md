@@ -37,64 +37,11 @@ https://doi.org/10.1016/j.compchemeng.2024.108746
 
 ## What's New?
 
-### Upcoming
+See:
 
-- Variables are automatically scaled, if lower and upper bound are provided, use_bounds for rootfinder NLE is deprecated
-- Dynamic and steady state simulators have a consistent API now, sim.simulate() and sim.simulate_fast(), generate_exp_data is deprecated, used sim.simulate()[2] instead, to get a varlist.
-- Model does not contain any variable lists, instead in just holds an order of variables and respecive casadi variables.
-- Parameter Estimation and OED of NLE models supports direct optimization, before only the sequential optimization was used: for every experiment there was a rootfinder that found solution and provided gradient for optimizer.
-- OED.optimize() ignore scale argument, use oed.objective_scaling instead
-- VariableConstant allows multiple inputs, which are ignored. Used to easier switch from Independent Variable to constant
-- Add tools.analyze_scaling() and pe.check_results_bounds to help with selection of scaling bounds
-- Added linear example in mopeds.example
-- Added "df_all" when calculating the objective and residual of the PE NLE
-- Rework API of tools. Generate_varlist.. for NLE is now called generate_artificial_data..
-- OED differently arranges jacobian, than before. Before it was sorted from top to bottom by measured variable, as in PE.jacobian. Now sorted simulation by simulation
-- In PE, self.array_data has become a nlpsol_p parameter, meaning that PE data can be changed without reinitilization of the nlp solver, thus saving time
-- Opimizer now support reusing the created .solver. It allows for fast repeated execution of the solver, e.g., for Monte Carlo simulations
+- [Release Notes](RELEASE_NOTES.md) for user-facing release summaries and migration notes.
+- [Changelog](CHANGELOG.md) for the complete automatically generated change history.
 
-### 0.10.3
-
-- Added support and CI infrastructure for Python 3.13 and NumPy 2.x.
-
-### 0.10.2
-
-- Fix the numpy dependency to <2 and casadi<3.7 to avoid errors
-
-### 0.10.1
-
-- Fixed installation error in Windows python 3.11
-
-### 0.10.0
-
-- Rename par_est to mopeds and open-source the package
-
-### 0.9.3.a1
-
-- OED of dynamic models supports multiple different modes and strategies
-- Added multiple regularization techniques
-
-### 0.9.2
-
-- fix WLS formulation  (remove division by 2)
-- feature -> remove rounding of time_grid in Simulator
-
-### 0.9.1
-
-- fix bugs in identifiability analysis
-
-### 0.9.0
-
-- BREAKING: DAE simulators API change: from self.simulate() to self.simulate_sym()
-- Added support for ACADOS ODE / DAE simulator
-- Rework how PE for DAE and NLE works -> more simmilar code, easier to maintain
-- Rework how Confidence Intervals of Parameters are calculated for multivariate measurements with different variance
-
-### 0.8.0
-
-NLE Simulator and Parameter Estimation were reworked, with focus on analysis of parameter variance-covariance matrix.
-Parameter Estimation has different internals on how objective function is calculated, making it a bit faster and much more unrestandable.
-Examples from Bates, Watts "Nonlinear Regression analysis and its applications" were imlemented and tested.
 
 ## Contributors
 
@@ -115,19 +62,21 @@ Many people have been involved in the development of this package, either by wri
 
 and many, many others ...
 
-## Development
+## Development and Contributions
 
-- Clone this repo on your computer `git clone https://git.tu-berlin.de/dbta/optimization/mopeds.git`
-- Run `poetry install` (ensure that correct python version is installed ex. pyenv)
-- Run tests via `pytest`, final tests should be run with `tox -r` command
+The primary repository of MOPEDS is hosted on TU Berlin GitLab:
 
-## par_est
+https://git.tu-berlin.de/dbta/optimization/mopeds
 
-Built versions of `par_est` are available in internal pypi registry:
+A public GitHub mirror is available to improve visibility and simplify community contributions. Users are welcome to use either platform to:
 
-```
-pip install par_est --index-url https://git.tu-berlin.de/api/v4/projects/1237/packages/pypi/simple
-```
+- Report bugs
+- Request features
+- Ask questions
+- Submit merge requests / pull requests
+
+Changes submitted through GitHub are reviewed and synchronized with the primary GitLab repository.
+Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## Acknowledgement
 

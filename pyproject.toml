@@ -1,27 +1,53 @@
-[tool.poetry]
-requires-poetry = '>=2.0,<3.0'
-
-[tool.poetry.group.test.dependencies]
-pytest = "*"
-
-[tool.poetry.group.docs.dependencies]
-notebook = "*"
-
-[build-system]
-requires = ["poetry-core>=2.0"]
-build-backend = "poetry.core.masonry.api"
-
-
 [project]
 name = "mopeds"
+version = "0.11.0"
 description = "Simulate and Optimize (Parameter Estimation, Optimal Experimental Design) NLE, ODE and DAE"
-license = "MIT"
-version = "0.10.3"
+authors = [{ name = "Volodymyr Kozachynskyi", email = "vovakozach@gmail.com" }]
+requires-python = ">=3.10,<3.15"
 readme = "README.md"
-authors = [{name = "Volodymyr Kozachynskyi", email = "vovakozach@gmail.com"}]
-requires-python = '>=3.8,<3.14'
-dependencies = ['casadi (<3.7.0)', 'numpy', 'scipy', 'matplotlib', 'pandas', 'tqdm']
+license = "MIT"
+license-files = ["LICENSE*"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+    "casadi (>=3.7.0)",
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "pandas",
+    "tqdm",
+]
 
 [project.urls]
 homepage = "https://mopeds.readthedocs.io/en/latest/"
 repository = "https://git.tu-berlin.de/dbta/optimization/mopeds"
+
+[dependency-groups]
+test = ["pytest"]
+docs = [
+    "mkdocs-material",
+    "mkdocs",
+    "mkdocs-jupyter",
+    "notebook",
+    "mkdocs-include-markdown-plugin",
+]
+dev = ["commitizen"]
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version_provider = "pep621"
+version_scheme = "pep440"
+tag_format = "$version"
+update_changelog_on_bump = true
+changelog_file = "CHANGELOG.md"
+major_version_zero = true
+
+[build-system]
+requires = ["uv_build>=0.11.23,<0.12.0"]
+build-backend = "uv_build"
