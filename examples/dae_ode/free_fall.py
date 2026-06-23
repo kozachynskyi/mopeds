@@ -28,23 +28,9 @@ if __name__ == "__main__":
         integrator_name="idas",
     )
 
-    integrator_settings = {}
-    integrator_settings["acados"] = {
-        "integrator_type": "IRK",
-        "collocation_type": "GAUSS_RADAU_IIA",
-        "num_stages": 3,
-        "num_steps": 10,
-        "newton_tol": 1e-8,
-        "newton_iter": 100,
-        "code_reuse": True,
-    }
-    r = []
-
     pe = mopeds.ParameterEstimation(
         m,
         exp_data,
-        simulator_name="acados",
-        simulator_settings=integrator_settings,
     )
     par = pe.optimize(True, objective_function="fair")["x_dict"]
 

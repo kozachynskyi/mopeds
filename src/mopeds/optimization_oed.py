@@ -835,7 +835,6 @@ class OptimalExperimentalDesign(OED_base):
             res_dict[var_name] = float(solution[0])
 
         res_solver["x_dict"] = res_dict
-        self.reset_acados()
 
         return res_solver
 

@@ -146,7 +146,6 @@ class PE_GN(mopeds.ParameterEstimation):
 
         res_solver["x_dict"] = res_dict
         res_solver["x_dict_all"] = res_dict
-        self.reset_acados()
 
         return res_solver
 

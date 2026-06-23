@@ -307,6 +307,7 @@ class ErrorAnalyzer:
             self.plot_estimation_accuracy()
 
     def parameter_identifiability(self, num_samples=100, plot=False):
+        # TODO: Consider removing
         original_data = copy.deepcopy(self.pe_artificial_data.array_data)
 
         pe = self.pe_main
@@ -357,6 +358,7 @@ class ErrorAnalyzer:
         print(df_params.std())
 
     def check_linearization_df_params(self):
+        # TODO: consider droppping
         cov_linearized = self.pe_main.calculate_sensitivity_and_fim_fast(
             self.true_parameters
         )[2]

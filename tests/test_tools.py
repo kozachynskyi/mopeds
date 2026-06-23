@@ -1,7 +1,27 @@
 import numpy as np
 import pytest
+import scipy
 
 import mopeds
+
+
+def test_cov_ellipse():
+    mean = [1, 0]
+    b = 1
+    cov = np.array([[2, b], [b, 1]])
+    rng = np.random.default_rng(1)
+    pts = rng.multivariate_normal(mean, cov, size=10000000)
+
+    alpha = 0.5
+    multiplier = scipy.stats.chi2.ppf(alpha, 2)
+    ell = mopeds.tools.CovarianceEllipse(cov * multiplier, mean, alpha)
+    x = pts[:, 0]
+    y = pts[:, 1]
+    select = ell.inside_covariance_ellipse(x, y)
+    count_inside = select.sum() / select.shape[0]
+    print(count_inside)
+    assert np.isclose(0.5002964, count_inside)
+
 
 
 def test_artificial_data_generator_nle():
@@ -81,6 +101,7 @@ def test_error_analyzer(scaling):
 
 if __name__ == "__main__":
     pass
+    # test_cov_ellipse()
     # test_artificial_data_generator_nle()
     # test_startpoint_generation()
     test_error_analyzer(True)

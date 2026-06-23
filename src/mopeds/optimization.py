@@ -253,18 +253,9 @@ class Optimizer(object):
 
         res_solver["x_dict"] = res_dict
         res_solver["x_dict_all"] = res_dict
-        self.reset_acados()
 
         return res_solver
 
-    def reset_acados(self):
-        if self.simulator_name == "acados":
-            new_settings = copy.deepcopy(self.simulator_settings)
-            new_settings["acados"]["code_reuse"] = True
-            for sim in self.list_simulators:
-                sim.integrator_tau = casados_integrator.create_casados_integrator(
-                    sim.model_acados, new_settings, sim.model.DAE
-                )
 
     @_consistent_scaling_decorator
     def map_objective(self, plot: bool = True) -> None:
@@ -1702,19 +1693,6 @@ class ParameterEstimation(PE_base):
 
         self._setup_algebraic_flag()
 
-        if self.simulator_name == "acados":
-            if self.simulator_settings is None:
-                self.simulator_settings = {}
-                self.simulator_settings["acados"] = {
-                    "integrator_type": "IRK",
-                    "collocation_type": "GAUSS_RADAU_IIA",
-                    "num_stages": 3,
-                    "num_steps": 100,
-                    "newton_tol": 1e-9,
-                    "newton_iter": 100,
-                    "code_reuse": False,
-                }
-
         self._objective: Callable[[], tuple[ca.MX | ca.DM, ca.MX | ca.DM]] = (
             self._objective_ols
         )
@@ -1813,14 +1791,7 @@ class ParameterEstimation(PE_base):
 
             list_timegrid_length.append(float(len(time_grid_unique)))
 
-            if self.simulator_name == "acados":
-                if simulator_index == 0:
-                    simulator_settings = self.simulator_settings
-                else:
-                    simulator_settings = copy.deepcopy(simulator_settings)
-                    simulator_settings["acados"]["code_reuse"] = True
-            else:
-                simulator_settings = self.simulator_settings
+            simulator_settings = self.simulator_settings
 
             simulator = Simulator(
                 self.model,
