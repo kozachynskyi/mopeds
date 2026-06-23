@@ -537,7 +537,6 @@ for P in np.linspace(1e5, 2e5, 2):
     l_vl.append(vl)
 
 pe = mopeds.ParameterEstimationNLE(m, l_vl)
-pe.prepare_nle()
 v = pe.simulate_all_mx
 v1 = dict(
     zip(
@@ -598,7 +597,6 @@ v1 = dict(
         ],
     )
 )
-# breakpoint()
 # pe.solver_settings["verbose_init"] = True
 # pe.solver_settings["verbose"] = True
 # pe.solver_settings["expand"] = True
@@ -609,4 +607,3 @@ res = pe.optimize(
     False,
 )
 print(res)
-breakpoint()

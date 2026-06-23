@@ -18,7 +18,6 @@ def main():
     # Puromycin 6 Bates Page 53
     res_sens = pe.calculate_sensitivity_and_fim(res_x)
     print("Rinv =\n", np.linalg.inv(np.linalg.qr(res_sens["jac_full"])[1]))
-    breakpoint()
 
 
 if __name__ == "__main__":

@@ -108,7 +108,6 @@ def nle_scaling():
     # pe.prepare_nle()
     res = pe.optimize(scale=False, objective_function="ols")
     print(res)
-    breakpoint()
 
 
 def nle_jac():
@@ -134,13 +133,11 @@ def nle_jac():
     pe = mopeds.ParameterEstimationNLE(m, exp)
     vv = pe.calculate_sensitivity_and_fim(par)
     print(vv["jac_full"] / v["jac_full"])
-    breakpoint()
 
     # pe.solver_settings["ipopt"]["max_iter"] = 4
     # pe.prepare_nle()
     res = pe.optimize(scale=False, objective_function="ols")
     print(res)
-    breakpoint()
 
 
 if __name__ == "__main__":
@@ -171,7 +168,6 @@ if __name__ == "__main__":
     pe = mopeds.ParameterEstimation(m, exp)
     v = pe.list_simulators[0]
     vv = pe.calculate_objective_and_residual({"b": 3.0, "c": 3.0})
-    breakpoint()
 
     # pe.solver_settings["ipopt"]["max_iter"] = 4
     # pe.prepare_nle()

@@ -108,4 +108,3 @@ if __name__ == "__main__":
 
             ax.plot(pe.array_data, pe.array_data, ls="dashed")
     plt.show()
-    breakpoint()

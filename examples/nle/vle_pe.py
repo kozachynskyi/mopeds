@@ -27,7 +27,7 @@ if __name__ == "__main__":
     # Define changing mole fraction x
     x_bounds = {"x": [0, 1, 9]}
 
-    variable_list_optimizer, true_parameters = generate_artificial_data_from_grid_nle(
+    variable_list_optimizer, true_parameters, _ = generate_artificial_data_from_grid_nle(
         model, var_list_fixed, x_bounds
     )
 

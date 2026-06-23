@@ -111,10 +111,9 @@ if __name__ == "__main__":
             if i == 0:
                 pe.parameter_analysis(parameters)
             res = pe.optimize()
-            theta1.append(float(res["x"][0]))
-            theta2.append(float(res["x"][1]))
+            theta1.append(float(res["x"][0][0]))
+            theta2.append(float(res["x"][1][0]))
 
         plt.scatter(theta1, theta2)
 
     plt.show()
-    breakpoint()

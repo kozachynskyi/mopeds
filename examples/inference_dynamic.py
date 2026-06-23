@@ -85,14 +85,3 @@ if __name__ == "__main__":
     # ax = df.min().plot(ax=ax)
     # ax = df.max().plot(ax=ax)
     # plt.show()
-    breakpoint()
-
-    breakpoint()
-    list_of_params = list(["theta1", "theta2"])
-
-    dict_of_params = {}
-    for param in list_of_params:
-        dict_of_params[param] = float(data[0][param].value[0])
-
-    x_bounds = [0.0, 1.2]
-    y_bounds = [0.0, 250]

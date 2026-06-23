@@ -32,6 +32,7 @@ if __name__ == "__main__":
         m,
         exp_data,
     )
+    pe.solver_settings["ipopt"]["max_iter"] = 10
     par = pe.optimize(True, objective_function="fair")["x_dict"]
 
     res = pe.calculate_objective_and_residual(par)

@@ -30,13 +30,11 @@ def playground():
     print("MAPPING\n", sim.mapping_independent_variables)
 
     print("Manual eval\n", eval := sim.function_v.call(d))
-    breakpoint()
     jacjac = jac.call(d)
     # print("Manual jac\n",jacjac)
     # print( -jacjac["jac_y_p"][:, 2:])#/ jacjac["jac_y_x0"])
     print(ca.inv(jacjac["jac_x_x0"]) @ -jacjac["jac_x_p"])
     print(ca.solve(jacjac["jac_x_x0"], -jacjac["jac_x_p"]))
-    breakpoint()
 
     # print( jacjac["jac_y_x0"] / jacjac["jac_y_p"])
 
@@ -86,4 +84,3 @@ if __name__ == "__main__":
     print(oed.calculate_objective_and_jacobian(res1["x_dict"])["f"])
     print(oed.calculate_objective_and_jacobian(res2["x_dict"])["f"])
 
-    breakpoint()

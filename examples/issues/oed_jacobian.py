@@ -14,7 +14,7 @@ is actually derived correctly for OED function.
    you see that some functions, like asens1_asens5_integrator_tau, do not use correct vector for input ["p"] - sone of the values are zero. It can be connected to mapping of integrator in Simulator clas, which can be tested while using simple loop instead of mapaccum for "integrator".
 """
 
-var_list, model = mopeds.examples.cstr_ode()
+var_list, model = mopeds.examples.cstr(dae=False)
 time_grid = np.linspace(10, 10000, 4)
 time_grid = np.insert(time_grid, 0, 0)
 for var in var_list.values():

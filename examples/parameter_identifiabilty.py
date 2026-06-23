@@ -4,8 +4,8 @@ import pandas as pd
 import copy
 import matplotlib.pyplot as plt
 
-MODEL_NAME = 5
-NUM = 100
+MODEL_NAME = 1
+NUM = 1
 
 
 def model_selector():
@@ -95,8 +95,8 @@ def parameter_identifiability():
         # pe.solver_settings["ipopt"]["tol"] = 1e-1
         # pe.solver_settings["ipopt"]["max_iter"] = 3000
         # pe.solver_settings["ipopt"]["hessian_approximation"] = "limited-memory"
-    # analyzer.parameter_covariance_mc(100)
-    analyzer.parameter_identifiability()
+    # analyzer.parameter_covariance_mc(num_samples=10)
+    analyzer.parameter_identifiability(num_samples=NUM)
     # analyzer.plot_parameter_covariance_ellipse(normalize_parameters=False)
     # plt.show()
 

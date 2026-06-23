@@ -71,7 +71,6 @@ if __name__ == "__main__":
         m,
         [data1],
         time_grid1,
-        time_grid1,
         measurable_variables=mes_names,
         simulator_name="idas",
     )
@@ -80,5 +79,4 @@ if __name__ == "__main__":
 
     print(oed.optimize(objective_function="A_fd"))
     print(oed.optimize())
-    breakpoint()
     # oed.optimize()

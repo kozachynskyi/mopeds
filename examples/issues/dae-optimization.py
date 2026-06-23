@@ -1,3 +1,4 @@
+""" Submitted https://github.com/casadi/casadi/issues/4063"""
 try:
     import mopeds
     import numpy as np
@@ -72,7 +73,7 @@ import numpy as np
 import copy
 
 ISSUE_1_trigger = False
-ISSUE_2_trigger = False
+ISSUE_2_trigger = True
 
 grid = np.linspace(0, 8, 2)
 

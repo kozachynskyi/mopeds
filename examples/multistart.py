@@ -6,7 +6,7 @@ import mopeds
 import mopeds.examples
 
 if __name__ == "__main__":
-    variable_list, m = mopeds.examples.cstr_ode()
+    variable_list, m = mopeds.examples.cstr(dae=False)
 
     # Create time-grid. Zero should be first
     time_grid = np.linspace(10, 1000, 4)
@@ -39,6 +39,5 @@ if __name__ == "__main__":
 
     res1 = pe.optimize_multistart(3, True, 10)
 
-    oed = mopeds.OptimalExperimentalDesign(m, [variable_list_optimizer], time_grid)
-    print(oed.identifiability_analysis())
+    oed = mopeds.OptimalExperimentalDesign(m, [variable_list_optimizer], time_grid, simulator_name="cvodes")
     res2 = oed.optimize_multistart(3, False, 2)

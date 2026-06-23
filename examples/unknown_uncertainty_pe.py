@@ -22,7 +22,7 @@ class PE(mopeds.ParameterEstimation):
 
 if __name__ == "__main__":
     piecewiseswitch = False
-    variable_list, m = mopeds.examples.cstr_dae(piecewiseswitch)
+    variable_list, m = mopeds.examples.cstr(piecewiseswitch)
     for var in variable_list.values():
         var.fixed = True
 

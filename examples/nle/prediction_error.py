@@ -4,8 +4,8 @@ import pandas as pd
 import copy
 import matplotlib.pyplot as plt
 
-MODEL_NAME = 2
-NUM = 100
+MODEL_NAME = 1
+NUM = 10
 
 
 def model_selector():
@@ -205,7 +205,6 @@ def parameter_covariance_mopeds():
     print(mean)
 
     v = analyzer
-    breakpoint()
 
     if MODEL_NAME != 5:
         pass

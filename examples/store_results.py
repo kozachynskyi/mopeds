@@ -16,7 +16,7 @@ if __name__ == "__main__":
     are gone.
     """
 
-    variable_list, m = mopeds.examples.cstr_dae()
+    variable_list, m = mopeds.examples.cstr(dae=True)
     time_grid = np.linspace(10, 10000, 40)
     time_grid = np.insert(time_grid, 0, 0)
 

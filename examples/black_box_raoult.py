@@ -4,24 +4,19 @@ import casadi as ca
 try:
     import sympy
 except ImportError as exc:
-    raise ImportError(
-        "SymPy is required to run examples/black_box_dynamic.py. "
-        "Install it with `pip install sympy`."
-    ) from exc
+    pass
 
 import numpy as np
 
 
-def get_jacobian_from_sympy():
-    symbols = ["p", "T", "a", "b", "c"]
-    p, T, a, b, c = sympy.symbols(symbols)
-    vars = [p, T, a, b, c]
-    eq = p - 10 ** (a - b / (T + c))
+# def get_jacobian_from_sympy():
+#     symbols = ["p", "T", "a", "b", "c"]
+#     p, T, a, b, c = sympy.symbols(symbols)
+#     vars = [p, T, a, b, c]
+#     eq = p - 10 ** (a - b / (T + c))
 
-    for v in vars:
-        print(sympy.simplify(sympy.diff(eq, v)))
-
-
+#     for v in vars:
+#         print(sympy.simplify(sympy.diff(eq, v)))
 # print(get_jacobian_from_sympy())
 # breakpoint()
 
