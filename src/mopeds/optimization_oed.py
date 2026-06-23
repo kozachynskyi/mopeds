@@ -854,7 +854,10 @@ class OptimalExperimentalDesign_NLE(OED_base):
     ) -> None:
         super().__init__(model, variable_list, simulator_name, simulator_settings)
 
-        self._previous_measurements = previous_measurements
+        if previous_measurements is None:
+            self._previous_measurements = []
+        else:
+            self._previous_measurements = previous_measurements
 
         self.equality_constraints = []
         self.lower_bound_g = []

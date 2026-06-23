@@ -154,7 +154,7 @@ class Optimizer(object):
         for i, (var, res_i) in enumerate(
             zip(varlist_decision.values(), result["x_unscaled"])
         ):
-            value = var.scale_to_original(float(res_i))
+            value = var.scale_to_original(float(res_i[0]))
             lb = var.scale_to_original(lower_bound[i])
             ub = var.scale_to_original(upper_bound[i])
             results_with_bound[var.name] = [lb, value, ub]

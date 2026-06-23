@@ -306,7 +306,7 @@ class ErrorAnalyzer:
             self.plot_parameter_variance()
             self.plot_estimation_accuracy()
 
-    def parameter_identifiability(self, num_samples=100, plot=False):
+    def parameter_identifiability(self, num_samples=1, plot=False):
         # TODO: Consider removing
         original_data = copy.deepcopy(self.pe_artificial_data.array_data)
 
@@ -319,7 +319,7 @@ class ErrorAnalyzer:
 
         sampler = qmc.Sobol(d=len(pe.varlist_decision))
 
-        sample = sampler.random_base2(m=4)
+        sample = sampler.random_base2(m=num_samples)
         list_guess = qmc.scale(sample, pe.lower_bound, pe.upper_bound)
 
         for guess in list_guess:
@@ -972,7 +972,7 @@ def generate_artificial_data_from_grid_nle(
     measurement_names: list[str] = None,
     *,
     keep_in_bounds: bool = True,
-) -> tuple[list[mopeds.VariableList], dict[str, float]]:
+) -> tuple[list[mopeds.VariableList], dict[str, float], list[str]]:
     """Wrapper around generate_artificial_data_nle, where controls are generated based on uniform grid.
     control_bounds is dictionary, with variable names as keys(),
     and values() as a list with 3 elements: [lower_bound, upper_bound, num_points]
@@ -1001,7 +1001,7 @@ def generate_artificial_data_nle(
     measurement_names: list[str] = None,
     *,
     keep_in_bounds: bool = True,
-) -> tuple[list[mopeds.VariableList], dict[str, float]]:
+) -> tuple[list[mopeds.VariableList], dict[str, float], list[str]]:
     """Generate artificial data that can immediately be used by Parameter Estimator.
     Returns list of varlists and a dictionary with parameter values that were used
     to generate data.
