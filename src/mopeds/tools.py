@@ -31,8 +31,8 @@ class CovarianceEllipse:
         # multiplier = 2 * scipy.stats.f(self.ci_level, 2, )
         cov = self.cov * multiplier
 
-        lambda_12 = np.linalg.eigvals(cov)
-        lambda_12_sqrt = np.sqrt(np.linalg.eigvals(cov))
+        lambda_12 = np.linalg.eigvalsh(cov)
+        lambda_12_sqrt = np.sqrt(np.linalg.eigvalsh(cov))
 
         cov_a = cov[0, 0]
         cov_b = cov[0, 1]

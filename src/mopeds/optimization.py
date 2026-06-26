@@ -35,7 +35,7 @@ from mopeds import (
 
 
 def eigsorted(cov):
-    vals, vecs = np.linalg.eig(cov)
+    vals, vecs = np.linalg.eigh(cov)
     order = np.flip(vals.argsort())
     return vals[order], vecs[:, order]
 
