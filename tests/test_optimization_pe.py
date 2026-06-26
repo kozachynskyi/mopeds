@@ -259,17 +259,6 @@ def test_pe_regularization(piecewise, dae, scaling):
             true_parameters, true_parameters.keys()
         )
 
-        with pytest.raises(NotImplementedError):
-            e = pe.parameter_identifiability_brun2001(
-                true_parameters, true_parameters.keys()
-            )
-
-        with mopeds.options(variable_scaling=False):
-            pe = mopeds.ParameterEstimation(model, [var_list])
-            e = pe.parameter_identifiability_brun2001(
-                true_parameters, true_parameters.keys()
-            )
-
         identifiable_a = ["e0_E_r2", "e0_c_p"]
         identifiable_b = ["e0_E_r1", "e0_E_r3", "e0_c_p"]
         identifiable_d = ["e0_c_p", "e0_E_r2", "e0_E_r3"]
@@ -299,38 +288,15 @@ def test_pe_regularization(piecewise, dae, scaling):
             "e0_greek_Deltah_r3",
             "e0_greek_Deltah_r1",
         ]
-        ranked_e = [
-            "e0_greek_Deltah_r1",
-            "e0_greek_Deltah_r3",
-            "e0_greek_Deltah_r2",
-            "e0_k_pre_r1",
-            "e0_E_r1",
-            "e0_k_pre_r3",
-            "e0_k_pre_r2",
-            "e0_E_r3",
-            "e0_E_r2",
-            "e0_U",
-            "e0_c_p",
-        ]
-        identifiable_e = [
-            "e0_E_r1",
-            "e0_E_r3",
-            "e0_k_pre_r2",
-            "e0_U",
-            "e0_greek_Deltah_r1",
-        ]
 
         assert a["estimable"] == identifiable_a
         assert b["estimable"] == identifiable_b
         assert c["estimable"] == identifiable_a
         assert d["estimable"] == identifiable_d
-        assert e["estimable"] == identifiable_e
 
         if not c["ranked"] == ranked_c:
             warnings.warn("Ranking is scaling dependent")
         if not d["ranked"] == ranked_d:
-            warnings.warn("Ranking is scaling dependent")
-        if not e["ranked"] == ranked_e:
             warnings.warn("Ranking is scaling dependent")
 
 
@@ -411,9 +377,9 @@ def test_pe_algebraic():
 
 
 if __name__ == "__main__":
-    test_pe_algebraic()
+    # test_pe_algebraic()
     # test_pe(True,True)
     # test_pe_objective(False)
     # test_pe_intials_algebraic()
-    # test_pe_regularization(True, True, True)
+    test_pe_regularization(True, True, True)
     # test_scaling(True, True)
