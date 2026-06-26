@@ -2,6 +2,8 @@
 
 <img align="right" src="https://git.tu-berlin.de/dbta/optimization/mopeds/-/raw/main/docs/logo.png" width="300px">
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20939503.svg)](https://doi.org/10.5281/zenodo.20939503)
+
 mopeds - **Mo**del based **P**arameter **E**stimation and **D**esign of Experiment**s** is a library wrapped around casadi to solve Simulation / Optimization problems based on steady state and dynamic models.
 
 The system of equations can be a set of nonlinear equations (NLE), ordinary differential equations (ODE) or differential and algebraic equations (DAE) of index 1.
@@ -21,19 +23,11 @@ Documentation is available [here](https://mopeds.readthedocs.io/en/latest/).
 pip install mopeds
 ```
 
-## Migration from par_est
-
-If you used `par_est` before, in order to move to `mopeds` you need to replace the name, API did not change. In comparison to `par_est`, `mopeds` uses `casadi == 3.6.4`, so different results might be expected.
-Considering creating a test to compare the numerical results while migrating.
-
 ## Citation
 
-If you use MOPEDS in academic work, please cite:
+If you use MOPEDS in your research, please cite the Zenodo archive or one of the accompanying publications.
 
-Kozachynskyi, V., Illner, M., Esche, E., Repke, J.-U.
-"The optimal experiment? Influence of solution strategies on model-based optimal experimental design"
-Computers & Chemical Engineering, 2024.
-https://doi.org/10.1016/j.compchemeng.2024.108746
+> Kozachynskyi, V. (2026). *mopeds – Model based Parameter Estimation and Design of Experiments* (Version 0.11.0). Zenodo. DOI: [10.5281/zenodo.20939504](https://doi.org/10.5281/zenodo.20939504)
 
 ## What's New?
 

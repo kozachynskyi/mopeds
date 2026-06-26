@@ -21,6 +21,12 @@ We are looking for case studies and testers, so if you have any problems using t
 pip install mopeds
 ```
 
+## Citation
+
+If you use MOPEDS in your research, please cite the Zenodo archive or one of the accompanying publications.
+
+> Kozachynskyi, V. (2026). *mopeds – Model based Parameter Estimation and Design of Experiments* (Version 0.11.0). Zenodo. DOI: [10.5281/zenodo.20939503](https://doi.org/10.5281/zenodo.20939503)
+
 ## Contributors
 
 Many people have been involved in the development of this package, either by writing actual code, helping with the methods behind it, or simply using it and providing feedback and feature requests. Here are just a few names:
