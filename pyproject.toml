@@ -39,6 +39,7 @@ docs = [
     "mkdocs-jupyter",
     "notebook",
     "mkdocs-include-markdown-plugin",
+    "mkdocstrings[python]",
 ]
 dev = ["commitizen"]
 
