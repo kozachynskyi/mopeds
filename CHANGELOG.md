@@ -1,3 +1,19 @@
+## 0.11.1 (2026-06-27)
+
+### Feat
+
+- update eigvals and eig to eigvals and eigh
+- change the repr of the variable list
+
+### Fix
+
+- remove brun regularization. Broken with numpy 2.5.0
+- fixed API, and small error
+
+### Refactor
+
+- removed mpc and acados support
+
 ## 0.11.0 (2026-06-21)
 
 ### Feat
