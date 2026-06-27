@@ -26,7 +26,7 @@ nav:
       - Release Notes: release_notes.md
       - Changelog: changelog.md
       - Contributing: contributing.md
-      #- Publications: publications.md
+      - Publications: publications.md
 
   - API reference:
       - Model: api/model.md
@@ -46,6 +46,8 @@ markdown_extensions:
   - pymdownx.snippets:
       auto_append:
         - includes/abbreviations.md
+  - pymdownx.arithmatex:
+      generic: true
 
 plugins:
   - mkdocs-jupyter:
@@ -64,3 +66,5 @@ plugins:
 
 extra_css:
   - stylesheets/extra.css
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
