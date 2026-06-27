@@ -10,7 +10,6 @@ plt.ion()
 import pandas as pd
 
 if __name__ == "__main__":
-
     piecewiseswitch = False
     variable_list, m = mopeds.examples.cstr(piecewiseswitch)
 
@@ -30,8 +29,6 @@ if __name__ == "__main__":
     # var_list_fixed["e0_U"].fixed = False
     var_list_fixed["e0_T"].fixed = False
     # Create simulation Object
-    sim_fixed = mopeds.Simulator(
-        m, time_grid, var_list_fixed, simulate_jac=False
-    )
+    sim_fixed = mopeds.Simulator(m, time_grid, var_list_fixed, simulate_jac=False)
     # Run simulation and get simple results as array of numbers, but information about state variables and timestamp is lost
     print(sim_fixed.simulate(unfixed_variables={"e0_T": 273})[0])

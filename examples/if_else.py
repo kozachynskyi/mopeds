@@ -17,11 +17,12 @@ def example() -> [mopeds.VariableList, mopeds.Model]:
     b = m.variables_all["b"]
 
     condition = a + b * u
-    eq1 = y - ca.if_else(condition<0, 0, condition)
+    eq1 = y - ca.if_else(condition < 0, 0, condition)
 
     m.add_equations_algebraic([eq1])
 
     return variable_list, m
+
 
 vl, m = example()
 sim = mopeds.SimulatorNLE(m, vl)
@@ -29,4 +30,3 @@ print(sim.simulate())
 
 sim.change_independent_variables({"u": -10})
 print(sim.simulate())
-

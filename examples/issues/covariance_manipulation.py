@@ -3,6 +3,7 @@ import numpy as np
 
 import mopeds
 import mopeds.examples
+import pandas as pd
 
 """ Jacobian returned by simulation has a size (NumState X NumOfParam * NumOfTimepoints). Once can get a covariance matrix of the parameters in different ways, and this example shows that something that works on paper (simple linear algebra) doesn't work with casadi.
 
@@ -11,7 +12,7 @@ Now it's close to zero, but not zero. This tells something about precision of ma
 """
 
 num_time = 10
-varlist, model = mopeds.examples.cstr_ode()
+varlist, model = mopeds.examples.cstr(dae=False)
 
 time_grid = np.linspace(0, 1000, num_time + 1)
 for var in varlist.values():
@@ -72,4 +73,8 @@ covariance_reshape = (
 
 covariance_difference_fail = covariance_full_sum - covariance_reshape
 
-print(covariance_difference_fail)
+# print(covariance_difference_fail)
+df = pd.DataFrame(covariance_difference_fail)
+print(f"Min value {df.min(axis=None)}")
+print(f"Max value {df.max(axis=None)}")
+

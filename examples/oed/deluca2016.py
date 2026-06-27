@@ -5,8 +5,11 @@ import numpy as np
 
 import mopeds
 
+
 def get_varlist_paper(data_set=1, normalized=True):
-    varlist, model, _ = mopeds.examples.yeast_growth("monod", True, ode=True, normalize=normalized)
+    varlist, model, _ = mopeds.examples.yeast_growth(
+        "monod", True, ode=True, normalize=normalized
+    )
 
     if normalized:
         p_true = {
@@ -33,7 +36,6 @@ def get_varlist_paper(data_set=1, normalized=True):
     varlist["u1"].fixed = True
     varlist["u2"].fixed = True
     varlist["x2"].value = 0
-
 
     oed_settings = mopeds.OEDsettings(20, 0.1, 4, 4)
 
@@ -134,6 +136,7 @@ def get_varlist_paper(data_set=1, normalized=True):
     parameter_accuracy(model, exp_varlist)
     return varlist, time_grid, oed
 
+
 def plot_controls(varlist):
     fig, ax = plt.subplots(1, 1)
     df = varlist["u1"].dataframe
@@ -146,6 +149,7 @@ def plot_controls(varlist):
     ax2.step(varlist["u2"].time_relative, df["u2"], where="post", c="r")
 
     plt.show()
+
 
 def plot_from_parameters(oed, controls):
     a = oed.simulate(controls)
@@ -160,8 +164,11 @@ def plot_from_parameters(oed, controls):
     ax.set_xlim([0, 48])
     ax2.plot(oed.time_grid_measurements, data[:, 1], c="r")
 
+
 def get_varlist_solution(normalized=True):
-    varlist, model, _ = mopeds.examples.yeast_growth("monod", True, ode=True, normalize=normalized)
+    varlist, model, _ = mopeds.examples.yeast_growth(
+        "monod", True, ode=True, normalize=normalized
+    )
 
     if normalized:
         p_true = {
@@ -220,6 +227,7 @@ def get_varlist_solution(normalized=True):
     parameter_accuracy(model, exp_varlist)
 
     return oed, exp_varlist
+
 
 def parameter_accuracy(model, exp_varlist):
     perturbate = True

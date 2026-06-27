@@ -1,6 +1,16 @@
 # Release Notes
 
-## 0.11.0 (Upcoming)
+## 0.11.1 (2026-06-27)
+
+This release focuses on improving the quality and maintainability of `mopeds`.
+
+## Highlights
+
+- Added support for NumPy 2.5.
+- Removed unused and broken legacy code.
+- Added software citation support, including a Zenodo DOI and publication list.
+
+## 0.11.0 (2026-06-21)
 
 This release modernizes MOPEDS by updating its core dependencies and development tooling.
 

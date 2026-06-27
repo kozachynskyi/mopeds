@@ -7,6 +7,8 @@ import contextlib
 from typing import Any, Union
 import copy
 from functools import wraps
+from collections import defaultdict
+
 
 if sys.version_info[1] == 8:
     from typing import OrderedDict
@@ -22,11 +24,13 @@ import mopeds
 # Options logic copied from numpy printoptions
 _options = {
     "variable_scaling": True,
-    }
+}
+
 
 def get_options():
     opts = _options.copy()
     return opts
+
 
 @contextlib.contextmanager
 def options(*, variable_scaling: bool):
@@ -37,21 +41,29 @@ def options(*, variable_scaling: bool):
     finally:
         set_options(**opts)
 
+
 def set_options(*, variable_scaling: bool):
     if not isinstance(variable_scaling, bool):
         raise TypeError
     _options.update({"variable_scaling": variable_scaling})
 
+
 def _consistent_scaling_decorator(func):
     """Assures that object method uses scaling that was used while creating the instance"""
+
     @wraps(func)
     def _decorator(self, *args, **kwargs):
-        if get_options()["variable_scaling"] != self._created_with_options["variable_scaling"]:
-            print("User provided scaling is ignored, because object was created with another scaling")
+        if (
+            get_options()["variable_scaling"]
+            != self._created_with_options["variable_scaling"]
+        ):
+            print(
+                "User provided scaling is ignored, because object was created with another scaling"
+            )
         with options(variable_scaling=self._created_with_options["variable_scaling"]):
             return func(self, *args, **kwargs)
-    return _decorator
 
+    return _decorator
 
 
 ORIGIN_TS: pd.Timestamp = pd.Timestamp(year=1970, month=1, day=1)
@@ -59,9 +71,11 @@ ORIGIN_TS: pd.Timestamp = pd.Timestamp(year=1970, month=1, day=1)
 Chosen DateTime is the same, that is used by pd.to_datetime() by default.
 """
 
+
 def _check_mx_conversion_compitablity(mx: ca.MX):
     if "time_sp" not in str(mx):
         raise NotImplementedError
+
 
 def convert_mx_to_number(mx: ca.MX):
     if mx.is_symbolic():
@@ -72,6 +86,7 @@ def convert_mx_to_number(mx: ca.MX):
             return 0
         else:
             raise NotImplementedError
+
 
 # Ignored type errors come from mypy issue https://github.com/python/mypy/issues/3004
 
@@ -109,7 +124,6 @@ class Variable(object):
     def plot(self, ax: None | Axes = None) -> Axes:
         axis = self.dataframe.plot(ax=ax)
         from matplotlib import pyplot as plt
-        from matplotlib.axes import Axes
 
         plt.show()
         return axis
@@ -123,11 +137,11 @@ class Variable(object):
 
         new_var.name = new_name
         new_var.casadi_var: ca.MX = ca.MX.sym(new_name)
-        new_var.dataframe.rename(columns = {self.name: new_name}, inplace=True)
+        new_var.dataframe.rename(columns={self.name: new_name}, inplace=True)
         return new_var
 
     def __repr__(self) -> str:
-        return f"{self.name}\n{type(self)}\n{self.value}\n"
+        return f"{type(self).__name__}(name={self.name!r}, value={self.value!r})"
 
     def get_value_or_casadi(self) -> float | ca.MX:
         """Return either value at time=0 or casadi_variable.
@@ -347,11 +361,11 @@ class Variable(object):
 
     def scale_to_original(self, value: ca.MX | float | np.array):
         v, r = self._get_scaling_constants()
-        return (value * v + r)
+        return value * v + r
 
     def scale_from_original(self, value: ca.MX | float | np.array):
         v, r = self._get_scaling_constants()
-        return ((value - r) / v)
+        return (value - r) / v
 
 
 class VariableState(Variable):
@@ -623,27 +637,20 @@ class VariableList(OrderedDict[str, Union[Variable, VariableControlPiecewiseCons
         super().__init__()
 
     def __repr__(self) -> str:
-        if bool(self):
-            types = [type(item) for item in list(self.values())]
-            counter_types = {x: types.count(x) for x in types}
-            list_names: dict = {var_type: [] for var_type in counter_types.keys()}
-            message = f"Var list has {sum(counter_types.values())} variables:\n"
-            for var in self.values():
-                list_names[type(var)].extend([var.name])
-            for var_type in counter_types.keys():
-                if "VariableConstant" in str(var_type) or "VariableAlgebraic" in str(
-                    var_type
-                ):
-                    print_list_names = str()
-                else:
-                    print_list_names = f":\n{list_names[var_type]}"
-                message = (
-                    message
-                    + f"{var_type} of length {counter_types[var_type]}{print_list_names}\n"
-                )
-        else:
-            message = f"Empty {type(self)}"
-        return message
+        if not self:
+            return "VariableList(empty)"
+
+        variables_by_type: dict[str, list[str]] = defaultdict(list)
+
+        for var in self.values():
+            variables_by_type[type(var).__name__].append(var.name)
+
+        parts = [f"{type(self).__name__}(n={len(self)})"]
+
+        for var_type, names in variables_by_type.items():
+            parts.append(f"  {var_type}(n={len(names)}): {names}")
+
+        return "\n".join(parts)
 
     def get_common_origin(
         self, strict: bool = False, variable_type: type[Variable] = Variable

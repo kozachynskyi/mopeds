@@ -32,6 +32,14 @@ Run the test suite:
 uv run pytest
 ```
 
+Run tests with coverage or generate report:
+
+```bash
+uv run pytest --cov=mopeds --cov-report=term-missing
+uv run pytest --cov=mopeds --cov-report=html
+```
+
+
 ## Contribution Workflow
 
 ### GitLab

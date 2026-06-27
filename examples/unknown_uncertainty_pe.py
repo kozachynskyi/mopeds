@@ -7,21 +7,22 @@ import casadi as ca
 
 plt.ion()
 
+
 class PE(mopeds.ParameterEstimation):
     def _objective_ols(self):
         """Objective function is Bayesian with Unknown general covariance Bard Page65"""
         residuals = (self.simulate_all_mx - self.array_data) * self.array_data_mask
         num_exp = len(self.list_simulators)
         z_matrix = residuals.T @ residuals
-        objective = (num_exp / 2) * ca.log(z_matrix[0,0] * z_matrix[1,1] - z_matrix[1,0] * z_matrix[0,1])
+        objective = (num_exp / 2) * ca.log(
+            z_matrix[0, 0] * z_matrix[1, 1] - z_matrix[1, 0] * z_matrix[0, 1]
+        )
         return objective, residuals
 
 
-
 if __name__ == "__main__":
-
     piecewiseswitch = False
-    variable_list, m = mopeds.examples.cstr_dae(piecewiseswitch)
+    variable_list, m = mopeds.examples.cstr(piecewiseswitch)
     for var in variable_list.values():
         var.fixed = True
 

@@ -2,14 +2,15 @@ import copy
 import casadi as ca
 import numpy as np
 import matplotlib.pyplot as plt
-plt.rcParams['font.size'] = 24
+
+plt.rcParams["font.size"] = 24
 
 import mopeds
+
 mopeds.set_options(variable_scaling=False)
 
 
 def initialize_problem():  # noqa: C901
-
     variable_list = mopeds.VariableList()
     # fmt:off
 
@@ -75,7 +76,6 @@ def initialize_problem():  # noqa: C901
 
 
 if __name__ == "__main__":
-
     variable_list, m = initialize_problem()
     true_params = {}
     true_params["e0_greek_lambda_c1"] = variable_list["e0_greek_lambda_c1"].value[0]
@@ -90,13 +90,13 @@ if __name__ == "__main__":
         """Plots the VLE diagram for fixed pressure"""
         y = []
         T = []
-        x =  np.linspace(0.0, 1, 100)
+        x = np.linspace(0.0, 1, 100)
         for xx in x:
             sim.change_independent_variables({"e0_x_c1": xx})
             res = sim.simulate()[2]
             y.append(res["e0_y_c1"].value[0])
             T.append(res["e0_T"].value[0])
-        fig, ax = plt.subplots(1,1)
+        fig, ax = plt.subplots(1, 1)
         plt.plot(x, T)
         plt.plot(y, T)
         plt.ylabel("e0_T")
@@ -108,12 +108,13 @@ if __name__ == "__main__":
         plt.show()
 
     MEAS_STD = 0.005
+
     def generate_artificial_data(sim):
         """Generate artificial data by simulating model and perturbating results"""
         list_exp_data = []
         y = []
         T = []
-        x =  np.round(np.linspace(0.01, 0.99, 5), 4)
+        x = np.round(np.linspace(0.01, 0.99, 5), 4)
         rng = np.random.default_rng(0)
         y_exp = []
         for xx in x:
@@ -135,7 +136,6 @@ if __name__ == "__main__":
         print(f"T_data = {repr(list(T))}")
 
         return y_exp, x, T, list_exp_data
-
 
     # Generate artificial data
     generate_artificial_data(sim)
@@ -159,7 +159,12 @@ if __name__ == "__main__":
         new_x_data = copy.deepcopy(x_data)
         for i in range(2):
             rng = np.random.default_rng(0)
-            oed = mopeds.OptimalExperimentalDesign_NLE(m, [variable_list_oed], measurable_variables=["e0_y_c1"], previous_measurements=previous_measurements)
+            oed = mopeds.OptimalExperimentalDesign_NLE(
+                m,
+                [variable_list_oed],
+                measurable_variables=["e0_y_c1"],
+                previous_measurements=previous_measurements,
+            )
             res = oed.optimize()
             new_exp = res["x_dict"]
             new_exp["e0_x_c1"] = round(new_exp["e0_x_c1"], 4)
@@ -172,7 +177,6 @@ if __name__ == "__main__":
             x_data.append(new_exp["e0_x_c1"])
             T_data.append(T)
             previous_measurements.append(new_exp)
-
 
     # y_data = [0.0065, 0.0803, 0.2002, 0.335, 0.48, 0.6333, 0.7675, 0.8649, 0.9272, 0.9825]
     # x_data = [0.01, 0.1189, 0.2278, 0.3367, 0.4456, 0.5544, 0.6633, 0.7722, 0.8811, 0.99]
@@ -197,11 +201,16 @@ if __name__ == "__main__":
     x_dict = res["x_dict"]
 
     for param_name in ["e0_greek_lambda_c1", "e0_greek_lambda_c2"]:
-        print(f"{param_name} estimated: ", round(x_dict[param_name], 4), "; true value: ", true_params[param_name])
-        print("".join(["-"]*50))
+        print(
+            f"{param_name} estimated: ",
+            round(x_dict[param_name], 4),
+            "; true value: ",
+            true_params[param_name],
+        )
+        print("".join(["-"] * 50))
 
     def create_pe_prediction(m):
-        x =  np.linspace(0.0, 1.0, 40)
+        x = np.linspace(0.0, 1.0, 40)
         list_exp_varlist = []
         for xx in x:
             vl_i = copy.deepcopy(variable_list)
@@ -222,30 +231,35 @@ if __name__ == "__main__":
         pe_prediction, x_prediction = create_pe_prediction(m)
         jac_prediction = pe_prediction.calculate_sensitivity_and_fim_fast(x_dict)[0]
         y_prediction = pe_prediction.calculate_objective_and_residual(x_dict)["df_all"]
-        prediction_std = np.sqrt(np.diag(jac_prediction @ cov_linearized @ jac_prediction.T)).reshape(pe_prediction.array_data.shape, order="F")
+        prediction_std = np.sqrt(
+            np.diag(jac_prediction @ cov_linearized @ jac_prediction.T)
+        ).reshape(pe_prediction.array_data.shape, order="F")
 
         x = y_prediction["e0_y_c1"]
         y = y_prediction["e0_T"]
         plt.plot(x, y)
         plt.plot(x_prediction, y)
         plt.scatter(y_data, T_data, c="r", s=100)
-        plt.errorbar(x, y, xerr=prediction_std[:,0],yerr=prediction_std[:,1])
-        plt.errorbar(x_prediction, y, yerr=prediction_std[:,1])
+        plt.errorbar(x, y, xerr=prediction_std[:, 0], yerr=prediction_std[:, 1])
+        plt.errorbar(x_prediction, y, yerr=prediction_std[:, 1])
         plt.ylabel("e0_T")
         plt.xlabel("e0_x_c1 / e0_y_c1")
         plt.show()
 
-
-
-
     if False:
         variable_list["e0_y_c1"].variance = MEAS_STD**2
         prediction_grid = {"e0_x_c1": [0, 1, 20]}
-        meas_grid = {"e0_x_c1": [0.01, 0.99, 15],}
-        analyzer = mopeds.tools.ErrorAnalyzer(variable_list, m, prediction_grid, meas_grid, ["e0_greek_lambda_c1", "e0_greek_lambda_c2"], ["e0_y_c1"])
+        meas_grid = {
+            "e0_x_c1": [0.01, 0.99, 15],
+        }
+        analyzer = mopeds.tools.ErrorAnalyzer(
+            variable_list,
+            m,
+            prediction_grid,
+            meas_grid,
+            ["e0_greek_lambda_c1", "e0_greek_lambda_c2"],
+            ["e0_y_c1"],
+        )
         analyzer.parameter_covariance_mc(plot=False, num_samples=100)
         analyzer.plot_parameter_covariance_ellipse(normalize_parameters=False)
         plt.show()
-
-
-

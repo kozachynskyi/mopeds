@@ -1,4 +1,5 @@
-""" Here comes methods that are used by main library"""
+"""Here comes methods that are used by main library"""
+
 import copyreg
 import pickle
 import tempfile
@@ -122,11 +123,7 @@ def make_startpoints(bound0, N, sampling="lhs"):
             "Multistart sampling is not possible. Zero 0 as variable bound detected"
         )
 
-    D = len(
-        bound0[
-            :,
-        ]
-    )
+    D = len(bound0[:,])
 
     if sampling == "lhs":
         sampler = qmc.LatinHypercube(d=D)
@@ -136,13 +133,7 @@ def make_startpoints(bound0, N, sampling="lhs"):
 
     B = np.zeros(S.shape)
 
-    for i in range(
-        len(
-            bound0[
-                :,
-            ]
-        )
-    ):
+    for i in range(len(bound0[:,])):
         if (bound0[i, :] > 0).all():
             log_scale = True
             invert = False

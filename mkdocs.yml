@@ -26,7 +26,15 @@ nav:
       - Release Notes: release_notes.md
       - Changelog: changelog.md
       - Contributing: contributing.md
-      #- Publications: publications.md
+      - Publications: publications.md
+
+  - API reference:
+      - Model: api/model.md
+      - Variables: api/variables.md
+      - Simulation NLE: api/simulation_nle.md
+      - Simulation Dynamic: api/simulation_dynamic.md
+      - Optimization: api/optimization.md
+      - Optimization OED: api/optimization_oed.md
 
 repo_url: https://git.tu-berlin.de/dbta/optimization/mopeds
 
@@ -38,8 +46,25 @@ markdown_extensions:
   - pymdownx.snippets:
       auto_append:
         - includes/abbreviations.md
+  - pymdownx.arithmatex:
+      generic: true
 
 plugins:
   - mkdocs-jupyter:
       ignore: [".ipynb_checkpoints/*.ipynb"]
   - include-markdown
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            show_source: true
+            show_signature_annotations: true
+            separate_signature: true
+
+extra_css:
+  - stylesheets/extra.css
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js

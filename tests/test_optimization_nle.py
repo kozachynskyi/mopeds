@@ -18,8 +18,8 @@ def test_parameter_jacobian():
     for m_cat in [22, 18, 20]:
         var_list_i = copy.deepcopy(var_list)
         var_list_i["e0_k"].variance = 0.1**2
-        var_list_i["e0_T"].variance = 0.03 **2
-        var_list_i["e0_c_c1"].variance = 0.001 **2
+        var_list_i["e0_T"].variance = 0.03**2
+        var_list_i["e0_c_c1"].variance = 0.001**2
         var_list_i["e0_m_Cat"].value = m_cat
         var_list_exp = mopeds.SimulatorNLE(model, var_list).simulate()[2]
         var_list_i["e0_cp"].fixed = False
@@ -36,7 +36,9 @@ def test_parameter_jacobian():
     jac_pe = res_sens["jac_scaled_full_theory"]
     jac_pe_unscaled = res_sens["jac_full"]
     cov_par = res_sens["cov_par"]
-    jac_pe_unscaled_fast, jac_pe_fast, cov_par_fast = pe.calculate_sensitivity_and_fim_fast({"e0_cp": 1.75, "e0_E": 135518.2})
+    jac_pe_unscaled_fast, jac_pe_fast, cov_par_fast = (
+        pe.calculate_sensitivity_and_fim_fast({"e0_cp": 1.75, "e0_E": 135518.2})
+    )
     assert np.isclose(jac_pe, jac_pe_fast).all()
     assert np.isclose(jac_pe_unscaled, jac_pe_unscaled_fast).all()
     assert np.isclose(cov_par, cov_par_fast).all()
@@ -44,13 +46,24 @@ def test_parameter_jacobian():
     list_var_list[0]["e0_m_Cat"].fixed = False
     list_var_list[0]["e0_Q_Feed"].fixed = False
 
-    oed = mopeds.OptimalExperimentalDesign_NLE(model, [list_var_list[0]], previous_measurements=[{"e0_m_Cat": 22, "e0_Q_Feed":30}, {"e0_m_Cat": 18, "e0_Q_Feed":30}], measurable_variables=measurement_names)
+    oed = mopeds.OptimalExperimentalDesign_NLE(
+        model,
+        [list_var_list[0]],
+        previous_measurements=[
+            {"e0_m_Cat": 22, "e0_Q_Feed": 30},
+            {"e0_m_Cat": 18, "e0_Q_Feed": 30},
+        ],
+        measurable_variables=measurement_names,
+    )
 
-    jac_oed = oed.calculate_objective_and_jacobian({"e0_m_Cat": 20, "e0_Q_Feed":30})["jac"]
-    
-    rearange_index = [0, 3, 6,1,4,7,2,5,8]
+    jac_oed = oed.calculate_objective_and_jacobian({"e0_m_Cat": 20, "e0_Q_Feed": 30})[
+        "jac"
+    ]
+
+    rearange_index = [0, 3, 6, 1, 4, 7, 2, 5, 8]
 
     assert np.all(np.isclose(jac_pe, jac_oed[rearange_index, :]))
+
 
 def test_pe():
     """Test that ParameterEstimationNLE on NLE always yields same result.
@@ -91,7 +104,9 @@ def test_pe():
 
         for objective in ["ols", "wls", "fair", "tikh"]:
             for direct in [True, False]:
-                res = pe.optimize(objective_function=objective, direct_optimization=direct)
+                res = pe.optimize(
+                    objective_function=objective, direct_optimization=direct
+                )
                 answer_f = 0
                 answer_param = [5.19625]
 
@@ -99,7 +114,12 @@ def test_pe():
                     f"Model.NLE: {model}, Result: {res['f']}, Expecting: {answer_f}"
                 )
                 assert np.isclose(res["f"], ca.DM(answer_f), rtol=0, atol=1.0e-9)
-                assert np.isclose(pe.optimize(direct_optimization=direct, reuse_solver=True)["f"], ca.DM(answer_f), rtol=0, atol=1.0e-9)
+                assert np.isclose(
+                    pe.optimize(direct_optimization=direct, reuse_solver=True)["f"],
+                    ca.DM(answer_f),
+                    rtol=0,
+                    atol=1.0e-9,
+                )
 
                 logging.warning(
                     f"Model.NLE: {model}, Result: {res['x']}, Expecting: {answer_param}"
@@ -108,7 +128,12 @@ def test_pe():
                     np.isclose(res["x"], ca.DM(answer_param), rtol=0, atol=1.0e-9)
                 )
                 assert np.all(
-                    np.isclose(pe.optimize(direct_optimization=direct, reuse_solver=True)["x"], ca.DM(answer_param), rtol=0, atol=1.0e-9)
+                    np.isclose(
+                        pe.optimize(direct_optimization=direct, reuse_solver=True)["x"],
+                        ca.DM(answer_param),
+                        rtol=0,
+                        atol=1.0e-9,
+                    )
                 )
 
         for sim in pe.list_simulators:
@@ -456,23 +481,27 @@ def test_oed_nle(meas_var, criteria):
                 oed.objective_scaling = 1e10
 
             for direct_optimization_flag in [True, False]:
-                results.append(oed.optimize(direct_optimization=direct_optimization_flag, objective_function=criteria))
-
+                results.append(
+                    oed.optimize(
+                        direct_optimization=direct_optimization_flag,
+                        objective_function=criteria,
+                    )
+                )
 
     if meas_var is None:
         if "A" in criteria:
             expected_f = 0.001616787258285354
-            expected_x = [2,4]
+            expected_x = [2, 4]
         elif "D" in criteria:
             expected_f = 0.02699111734101253
-            expected_x = [1,4]
+            expected_x = [1, 4]
     else:
         if "A" in criteria:
             expected_f = 0.0471016387679191
-            expected_x = [1,4]
+            expected_x = [1, 4]
         elif "D" in criteria:
             expected_f = 1.8867952943284358
-            expected_x = [1,4]
+            expected_x = [1, 4]
 
     for res_i in results:
         res_f_i = res_i["f"]
@@ -480,12 +509,19 @@ def test_oed_nle(meas_var, criteria):
         # print("calc", oed.calculate_objective_and_jacobian(res_i["x_dict"])["f"])
         print("resf", float(res_f_i))
         print("resx", res_x_i)
-        assert(np.isclose(expected_f, res_f_i))
-        assert(np.isclose(expected_x, res_x_i.T, atol=1e-4).all())
+        assert np.isclose(expected_f, res_f_i)
+        assert np.isclose(expected_x, res_x_i.T, atol=1e-4).all()
 
 
 def test_scaling_calculate_objective():
-    param_dict = {"a1": 5.24125, "a2": 5.09625, "b1": 1592.864, "b2": 1730.630, "c1": -46.9659, "c2": -39.7239,}
+    param_dict = {
+        "a1": 5.24125,
+        "a2": 5.09625,
+        "b1": 1592.864,
+        "b2": 1730.630,
+        "c1": -46.9659,
+        "c2": -39.7239,
+    }
 
     results = []
 
@@ -520,7 +556,9 @@ def test_scaling_calculate_objective():
     benchmark_res = results[0]
     scaled_res = results[1]
     assert np.isclose(benchmark_res["y"], benchmark_res["y_unscaled"]).all()
-    assert np.isclose(benchmark_res["residuals"], benchmark_res["residuals_unscaled"]).all()
+    assert np.isclose(
+        benchmark_res["residuals"], benchmark_res["residuals_unscaled"]
+    ).all()
 
     v1, v2 = benchmark_res["y"], scaled_res["y_unscaled"]
     assert np.isclose(v1, v2).all()
@@ -528,6 +566,7 @@ def test_scaling_calculate_objective():
     assert np.isclose(v1, v2).all()
     v1, v2 = benchmark_res["df_all"], scaled_res["df_all_unscaled"]
     assert np.isclose(v1, v2).all()
+
 
 if __name__ == "__main__":
     # test_scaling_calculate_objective()

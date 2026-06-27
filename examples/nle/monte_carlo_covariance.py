@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from tqdm import tqdm
 
+
 def parameter_analysis_monte_carlo(pe, parameters):
     original_solver_settings = copy.deepcopy(pe.solver_settings)
     original_data = copy.deepcopy(pe.array_data)
@@ -18,13 +19,13 @@ def parameter_analysis_monte_carlo(pe, parameters):
 
     all_res = []
     rng = np.random.default_rng()
-    num_replications = 40
+    num_replications = 5
     for i in tqdm(range(num_replications)):
         artificial_data = pe.calculate_objective_and_residual(parameters)["y"]
         pe.array_data = rng.normal(artificial_data, 1 / pe.array_inverted_std)
 
         res = pe.optimize()
-        all_res.append(res["x"].toarray())
+        all_res.append(res["x"])
 
     df = pd.DataFrame(np.squeeze(all_res), columns=pe.varlist_decision.keys())
 
@@ -37,7 +38,6 @@ def parameter_analysis_monte_carlo(pe, parameters):
     pe.array_data = original_data
     pe.guess = original_guess
     pe.solver_settings = original_solver_settings
-    breakpoint()
 
 
 if __name__ == "__main__":
@@ -53,7 +53,6 @@ if __name__ == "__main__":
     print("S^2: ", pe.calculate_objective_and_residual(res, "ols")["f"] / 4)
     a = pe.calculate_sensitivity_and_fim(res)["cov_par"]
     parameter_analysis_monte_carlo(pe, res)
-    breakpoint()
 
     # Plot of convidence 95%-region page 55
     res = pe.parameter_analysis(res, plot=True)

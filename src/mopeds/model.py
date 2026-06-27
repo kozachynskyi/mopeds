@@ -6,8 +6,9 @@ from functools import cached_property
 
 from mopeds import VariableList, VariableConstant
 
+
 @dataclass
-class DummyClass():
+class DummyClass:
     casadi_var: ca.MX
 
 
@@ -61,7 +62,9 @@ class Model(object):
 
     def varlist(self, variable_list: VariableList) -> VariableList:
         """Returns model-ordered varible list with variables included in model"""
-        return variable_list._get_sorted_varlist(list(self.variables_all.keys()), raise_error=False)
+        return variable_list._get_sorted_varlist(
+            list(self.variables_all.keys()), raise_error=False
+        )
 
     def varlist_state(self, variable_list: VariableList) -> VariableList:
         return self.varlist(variable_list).get_state()

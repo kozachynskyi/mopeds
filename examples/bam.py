@@ -8,6 +8,7 @@ import mopeds
 def initialize_problem():  # noqa: C901
 
     variable_list = mopeds.VariableList()
+
     # fmt:off
     def fun_205666__aux_enthalpy_component_vapor(std_T,std_greek_Deltah_V,std_P_V_i1,std_P_V_i2,std_P_V_i3,std_P_V_i4,std_P_V_i5,std_P_V_i6):  # noqa: E501,E231,E306
         std_h = (((((((std_P_V_i1*((std_T/1000.0)))+((std_P_V_i2/2.0)*(((std_T/1000.0)))**(1.0*2.0)))+((std_P_V_i3/3.0)*(((std_T/1000.0)))**(1.0*3.0)))+((std_P_V_i4/4.0)*(((std_T/1000.0)))**(1.0*4.0)))-(std_P_V_i5*(((std_T/1000.0)))**(1.0*(-1.0))))+std_P_V_i6)+std_greek_Deltah_V)  # noqa: E501,E226
@@ -309,7 +310,7 @@ if __name__ == "__main__":
     var_list["e0_H_L_set"].expand_horizon([5000], [1.5])
     # var_list["e0_H_L_set"].expand_horizon([5000], [1.5])
     var_list["e0_p_set"].expand_horizon([10000], [0.82])
-    var_list["e0_T_set"].expand_horizon([15000], [85+273.15])
+    var_list["e0_T_set"].expand_horizon([15000], [85 + 273.15])
     var_list["e0_F"].expand_horizon([20000], [85])
     var_list["e0_x_F_c1"].expand_horizon([25000], [0.16])
 

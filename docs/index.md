@@ -2,7 +2,7 @@
 
 <img align="right" src="logo.png" width="200px">
 
-mopeds - **Mo**del based **P**arameter **E**stimation and **D**esign of Experiment**s** is a library wrapped around [CasADi](https://web.casadi.org/) to solve Simulation / Optimization problems based on steady state and dynamic models. Features:
+`mopeds` - **Mo**del based **P**arameter **E**stimation and **D**esign of Experiment**s** is a library wrapped around [CasADi](https://web.casadi.org/) to solve Simulation / Optimization problems based on steady state and dynamic models. Features:
 
 - Top level abstraction around [CasADi](https://web.casadi.org/) in the form of **Variable**, **Simulator** and **Optimizer** classes
 - Finding solution of steady-state and dynamic models
@@ -20,6 +20,14 @@ We are looking for case studies and testers, so if you have any problems using t
 ```
 pip install mopeds
 ```
+
+## Citation
+
+If you use `mopeds` in your research, please cite the Zenodo archive or one of the accompanying publications.
+
+> Kozachynskyi, V. (2026). *mopeds – Model based Parameter Estimation and Design of Experiments* (Version 0.11.0). Zenodo. DOI: [10.5281/zenodo.20939503](https://doi.org/10.5281/zenodo.20939503)
+
+See the [Publications](publications.md) page for related publications.
 
 ## Contributors
 

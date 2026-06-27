@@ -1,5 +1,6 @@
 """This are examples from Bates book, showing how to plot
 model uncertainty that is caused by parameter uncertainty"""
+
 import matplotlib.pyplot as plt
 
 import mopeds
@@ -83,8 +84,8 @@ def bod():
     plot_inference(artificial_inference_results)
     set_plot_legend(x_bounds, y_bounds, "Time", "Oxygen Demand")
 
-    print(np.round(exp_inference_results["f"]["s"],2))
-    print(np.round(artificial_inference_results["f"]["s"],2))
+    print(np.round(exp_inference_results["f"]["s"], 2))
+    print(np.round(artificial_inference_results["f"]["s"], 2))
 
 
 def puromycin():
@@ -136,8 +137,8 @@ def puromycin():
     plot_inference(artificial_inference_results)
     set_plot_legend(x_bounds, y_bounds, "Concentration", "Velocity")
 
-    print(np.round(exp_inference_results["f"]["s"],2))
-    print(np.round(artificial_inference_results["f"]["s"],2))
+    print(np.round(exp_inference_results["f"]["s"], 2))
+    print(np.round(artificial_inference_results["f"]["s"], 2))
 
 
 if __name__ == "__main__":

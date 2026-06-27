@@ -7,7 +7,6 @@ import mopeds.examples
 plt.ion()
 
 if __name__ == "__main__":
-
     piecewiseswitch = False
     variable_list, m = mopeds.examples.cstr()
     for var in variable_list.values():
@@ -48,7 +47,9 @@ if __name__ == "__main__":
 
     pe_state = mopeds.ParameterEstimation(m, [data1, data2])
     # pe_state = mopeds.ParameterEstimation(m, [data1])
-    v = pe_state.calculate_sensitivity_and_fim({"e0_U": 1.4, "e0_c_p": 3.5, "e0_E_r1": 9.6e4})
+    v = pe_state.calculate_sensitivity_and_fim(
+        {"e0_U": 1.4, "e0_c_p": 3.5, "e0_E_r1": 9.6e4}
+    )
     print(a)
     # print(pe_state.optimize(True))
 
@@ -66,12 +67,16 @@ if __name__ == "__main__":
     # mes_names = ["e0_T"]
     # mes_names = None
 
-
-    oed = mopeds.OptimalExperimentalDesign(m, [data1], time_grid1, time_grid1, measurable_variables=mes_names, simulator_name="idas")
+    oed = mopeds.OptimalExperimentalDesign(
+        m,
+        [data1],
+        time_grid1,
+        measurable_variables=mes_names,
+        simulator_name="idas",
+    )
     oed.guess[0] = 373
     # print(oed.calculate_objective_and_jacobian({"e0_T_in": 373})["jac"])
 
     print(oed.optimize(objective_function="A_fd"))
     print(oed.optimize())
-    breakpoint()
     # oed.optimize()
